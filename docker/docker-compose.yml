@@ -1,0 +1,12 @@
+# MYIA's primary form is the desktop app; this compose file is the server
+# form for 24/7 self-hosting. Same core, same plugin YAMLs.
+services:
+  myia:
+    build:
+      context: ..
+      # Image build lands with the v0.2 release.
+      dockerfile: docker/Dockerfile
+    command: myia run
+    volumes:
+      - ./data:/data
+    restart: unless-stopped

@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Environment / secrets
+.env
+.env.*
+
+# Local data
+*.sqlite
+*.sqlite3
+*.db
+
+# Node (desktop app scaffolding)
+node_modules/
+
+# OS / tooling
+.DS_Store
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

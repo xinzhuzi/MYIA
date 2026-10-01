@@ -1,0 +1,61 @@
+# plugins/wool.yaml — freebie/deal intelligence; list-page sources with selector pagination.
+id: wool
+name: 羊毛情报
+schedule: "0 8,20 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  - name: linuxsb
+    engine: static_html           # server-rendered forum list (L2)
+    url: "https://linux.sb/latest?page={page}"
+    method: GET
+    headers:
+      User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+      Cookie: "keychain:linuxsb_cookie"   # login state via keychain reference
+    pagination:
+      mode: selector              # follow the next-page link instead of a URL template
+      selector: "a.pagination-next@href"
+      max_pages: 5
+    extract:                      # CSS extraction over the topic list
+      type: list
+      item: "div.topic-list tr"
+      fields:
+        title: "a.title"
+        url: "a.title@href"
+        time: "td.time"
+    rate_limit:
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true
+    proxy: direct
+    retry: 3
+
+watchlist:
+  keywords: [免费, 白嫖, 0元, 优惠]
+  mute: [广告, 中奖]
+
+classify:                         # default seven-category keyword classifier
+  builtin: true
+
+dedup:
+  key: "{url}"
+
+enrich:
+  enabled: false                  # keyword pre-filter only; flip to true for LLM precision scoring
+
+push:
+  - channel: feishu_card
+    target: env:FEISHU_CHAT_ID
+    route:
+      - when: "score >= 8"
+        mode: immediate
+      - when: "score >= 5"
+        mode: digest
+      - when: "score < 5"
+        mode: archive
+    template: |
+      **羊毛速报 · {{date}}**
+      {{#each items}}
+      - [{{title}}]({{url}})
+      {{/each}}

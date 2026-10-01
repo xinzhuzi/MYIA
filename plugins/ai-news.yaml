@@ -1,0 +1,71 @@
+# plugins/ai-news.yaml — AI news digest; two runs per day (08:00 / 20:00).
+id: ai-news
+name: AI资讯
+schedule: "0 8,20 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  - name: aihot
+    engine: crawl4ai              # JS-rendered aggregator list (L3); pip install myia[crawl4ai]
+    url: "https://aihot.example.com/?page={page}"   # replace with your hotlist instance
+    pagination:
+      mode: template
+      max_pages: 2
+    rate_limit:
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true
+    proxy: direct
+    retry: 3
+
+  - name: v2ex
+    engine: direct_api            # public JSON API (L1), fastest and free
+    url: "https://www.v2ex.com/api/topics/hot.json"
+    method: GET
+    extract:
+      type: json_path
+      fields:
+        title: "$[*].title"
+        url: "$[*].url"
+        time: "$[*].created"
+    rate_limit:
+      qps: 0.5
+      backoff: exponential
+      respect_robots: true
+    proxy: direct
+    retry: 3
+
+watchlist:
+  keywords: [LLM, Agent, 开源模型, AI芯片]
+  mute: [广告]
+
+classify:
+  builtin: true                   # ai-news is one of the seven built-in categories
+
+dedup:
+  key: "{url}"
+
+enrich:
+  enabled: true                   # digest-heavy category: LLM scoring decides what surfaces
+  model: glm-4-flash
+  scores: [value, relevance, credibility]
+  batch: 20
+  cache: true
+  budget_per_run: 50000
+
+push:
+  - channel: feishu_card
+    target: env:FEISHU_CHAT_ID
+    route:                        # digest-heavy: only breakout news pushes immediately
+      - when: "score >= 9"
+        mode: immediate
+      - when: "score >= 4"
+        mode: digest
+      - when: "score < 4"
+        mode: archive
+    template: |
+      **AI 资讯日报 · {{date}}**
+      {{#each items}}
+      - [{{title}}]({{url}}) (value {{scores.value}} / relevance {{scores.relevance}})
+      {{/each}}

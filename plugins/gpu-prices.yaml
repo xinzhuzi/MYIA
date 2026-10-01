@@ -1,0 +1,53 @@
+# plugins/gpu-prices.yaml — GPU market watch over ZOL's server-rendered pages.
+#
+# Planned (v0.4 change/trend baseline): store price history per card and
+# score movements against MSRP — "vs yesterday / last week" trend alerts
+# instead of raw listings (v1.7 变更/趋势基线).
+id: gpu-prices
+name: 显卡行情
+schedule: "0 10 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  - name: zol
+    engine: static_html           # server-rendered product list (L2)
+    url: "https://detail.zol.com.cn/vga/{page}.html"
+    method: GET
+    headers:
+      User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    pagination:
+      mode: template
+      max_pages: 5
+    extract:
+      type: list
+      item: "div.list-item"
+      fields:
+        title: "h3 a"
+        url: "h3 a@href"
+        price: "span.price-type"
+    rate_limit:
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true
+    proxy: direct
+    retry: 3
+
+dedup:
+  key: "{url}"
+
+push:
+  - channel: feishu_card
+    target: env:FEISHU_CHAT_ID
+    route:
+      - when: "score >= 8"
+        mode: immediate
+      - when: "score >= 5"
+        mode: digest
+      - when: "score < 5"
+        mode: archive
+    template: |
+      **显卡行情 · {{date}}**
+      {{#each items}}
+      - {{title}} {{price}}
+      {{/each}}

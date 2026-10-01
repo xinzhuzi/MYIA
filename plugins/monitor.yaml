@@ -1,0 +1,60 @@
+# plugins/monitor.yaml — web-change monitoring via a changedetection.io trigger.
+#
+# This is also the v1.7 plugin dual-mode example: a scenario plugin may run
+# local (docker compose sidecar) or remote (point at an already-deployed
+# service — zero docker, the desktop path). A plugin that cannot be installed
+# never blocks the core pipeline: the built-in change fingerprint plus the
+# L1-L4 degrade chain cover the basics without it.
+id: monitor
+name: 变更监控
+schedule: "*/15 * * * *"
+timezone: Asia/Shanghai
+
+plugin:                           # scenario plugin declaration (dual mode, v1.7)
+  id: myia-monitor
+  requires: docker
+  modes:
+    local:
+      install: docker compose up -d
+    remote:
+      endpoint: https://my-monitor.example.com   # your changedetection.io instance
+      token: keychain:myia_monitor_token
+
+sources:
+  - name: changedetection-watches
+    engine: direct_api            # REST API of the changedetection.io service
+    url: "https://my-monitor.example.com/api/v1/watch"   # resolved from plugin.modes.remote
+    method: GET
+    headers:
+      X-Api-Key: "keychain:myia_monitor_token"
+    extract:
+      type: json_path
+      fields:
+        title: "$[*].label"
+        url: "$[*].url"
+        time: "$[*].last_changed"
+    rate_limit:
+      qps: 0.5
+      backoff: exponential
+      respect_robots: true
+    proxy: direct
+    retry: 3
+
+dedup:
+  key: "{url}"
+
+push:
+  - channel: feishu_card
+    target: env:FEISHU_CHAT_ID
+    route:
+      - when: "score >= 8"
+        mode: immediate           # a detected change is urgent by default
+      - when: "score >= 5"
+        mode: digest
+      - when: "score < 5"
+        mode: archive
+    template: |
+      **页面变更 · {{date}}**
+      {{#each items}}
+      - [{{title}}]({{url}})
+      {{/each}}
