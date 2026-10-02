@@ -20,3 +20,6 @@ crawl4ai(84k+ Apache)成为 L3 默认引擎:JS 渲染页 → 干净 LLM 文本 /
 ## Notes
 
 - 填充 `src/myia/engines/crawl4ai.py` 壳
+
+> **2026-10-03 grill Q4 注记**:本任务 v0.2 范围(接入位/薄层)已毕;L3 真引擎实装
+> 是 v1.2 议题 → `10-03-v12-backlog`。本档不重开。

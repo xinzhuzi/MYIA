@@ -18,3 +18,14 @@
 - 口径修正(design.md D7):「plugins.list ≥4」不可达也不应达成 —— 官方插件是品类 YAML,plugins.list 是市场面;验收改为 health.plugins ≥4
 - 遗留(非本任务):tests/test_baseline.py 一例预存失败(`ModuleNotFoundError: No module named 'tests'`,干净 main 复现);四件套 push 全引用 env:FEISHU_CHAT_ID,无凭据首跑=引导态(设计);截图像素级核对留主人
 - Ruling: seed 判「目录无 *.yaml/*.yml」而非整目录空 —— 市场插件子目录不算品类,避免装了市场插件就拒绝种子官方件
+
+## 2026-10-03 grill Round 1(主人×AI,决议全采纳,档=10-03-grill-v112)
+
+- Q1 下一刀=发布工程先行(tag v1.1.1);Windows+crawl4ai L3+proxy_pool 排 v1.2(池档 10-03-v12-backlog)
+- Q2 版本号对齐叙事:四处 0.1.0→1.1.1,tag v1.1.1,README 徽章 alpha→1.1;否决 0.2.0(与 v1.0 已交付叙事矛盾)
+- Q3 开箱即有数据:随包第五件 myia-demo.yaml(真实免费源+stdout,零凭据),兼作 README 截图素材
+- Q4 挂账处置:v10-release review→in_progress 重开(未勾验收移交 10-03-v111-release);crawl4ai/proxy-transport 注记 v0.2 已毕不重开
+- Q5 test_baseline 预存失败:授权当场修(单独 commit)
+- Q6 决议+执行项全部当轮落 trellis(3 子任务挂 grill-v112)
+- Round 2 待主人批:R2-1 updater 三密钥生成+Secrets / R2-2 Apple 公证($99/年)买不买 / R2-3 PyPI 先 test.pypi 演练 / R2-4 四帖节奏与定稿人
+- 事实修正:CI 非零起步(desktop-release.yml windows job 已在、pypi-publish.yml 手动 dispatch 已在);「发布零起步」旧口径作废

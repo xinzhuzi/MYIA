@@ -1,0 +1,30 @@
+{
+  "id": "grill-v112",
+  "name": "grill-v112",
+  "title": "grill 决议 2026-10-03:发布工程先行(Round 1 全采纳)",
+  "description": "Round 1 六项决议与 Round 2 开放问题的权威记录;衍生执行项已建子任务",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-03",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "10-03-v111-release",
+    "10-03-test-baseline-import",
+    "10-03-v12-backlog"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

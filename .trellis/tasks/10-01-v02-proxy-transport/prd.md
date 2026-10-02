@@ -20,3 +20,6 @@ IP 池三层排期的第二层(grill Q4 定案):v0.1 只解析校验 `proxy:` �
 
 - httpx 的 socks 支持需 `httpx[socks]` extra——若引入,在 PRD 记录核心依赖论证(httpx 依赖树只多 httpcore/socksio,可接受)
 - 配置位置(pools 声明放品类 YAML 还是全局配置)design.md 定,倾向全局配置+品类引用
+
+> **2026-10-03 grill Q4 注记**:本任务 v0.2 范围(transport 单上游)已毕;池化
+> (轮换/健康检查/住宅 IP 服务商)是 v1.2 议题 → `10-03-v12-backlog`。本档不重开。

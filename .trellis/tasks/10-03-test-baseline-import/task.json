@@ -1,0 +1,28 @@
+{
+  "id": "test-baseline-import",
+  "name": "test-baseline-import",
+  "title": "修复 test_baseline 预存失败(ModuleNotFoundError: tests)",
+  "description": "干净 main 复现的 tests 互相引用导入失败;CI 红线(pytest 全绿才可并),单独小 commit",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-03",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "10-03-grill-v112",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P1"
+  }
+}

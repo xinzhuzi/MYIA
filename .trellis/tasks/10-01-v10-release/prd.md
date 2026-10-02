@@ -20,3 +20,7 @@
 ## Notes
 
 - 名字=**MYIA**、LICENSE=**MIT**(2026-10-01 grill Q9 确认,与 pyproject 一致);ScoopHub/InfoForge 备选作废
+
+> **2026-10-03 grill Q4 重开注记**:本档未勾验收项(密钥扫描零命中 / CONTRIBUTING
+> 与首 issue 流程 / 发帖+首周反馈)移交 `10-03-v111-release` 执行;发布完成后回本档终勾。
+> 决议来源:`10-03-grill-v112`。
