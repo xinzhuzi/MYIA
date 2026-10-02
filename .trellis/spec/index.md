@@ -11,5 +11,6 @@
 | [domain/yaml-schema.md](./domain/yaml-schema.md) | 品类 YAML schema 硬规则 |
 | [domain/security-baseline.md](./domain/security-baseline.md) | 凭据与安全底线(铁律) |
 | [guides/](./guides/index.md) | 通用思维指南(复用/跨层) |
+| [guides/ai-dispatch-template.md](./guides/ai-dispatch-template.md) | AI 任务分发模板(v1.1 协议与顺序) |
 
 权威产品规划:`LOCAL-NOTES.md 索引的规划文档(本地)`(仅本地,勿提交)。
