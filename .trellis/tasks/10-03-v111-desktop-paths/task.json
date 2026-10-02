@@ -1,0 +1,28 @@
+{
+  "id": "v111-desktop-paths",
+  "name": "v111-desktop-paths",
+  "title": "v1.1.1 桌面数据通路:应用数据根统一 + 插件随包 + 首跑种子(P0)",
+  "description": "已装 App 仪表盘/情报流/源管理三屏不可用(实测);根因=三套路径策略并存+cwd 依赖+无随包插件无首跑种子;主人 2026-10-03 报障并指示先探查后建档",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-03",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P0"
+  }
+}
