@@ -63,6 +63,7 @@ desktop/src-tauri/target/
 desktop/src-tauri/gen/
 desktop/.venv-build/
 desktop/build-pyi/
+desktop/ui/
 desktop/src-tauri/binaries/
 
 # ---- 编辑器 / OS ----

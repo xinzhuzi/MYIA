@@ -3,7 +3,7 @@
   "name": "v11-low-release",
   "title": "v1.1 release:发布物料收尾(1 条 low)",
   "description": "清偿 low backlog release 模块 1 条:CONTRIBUTING.md「Run the suite exactly like CI does」措辞与 ci.yml(已改 uv)一致性确认",
-  "status": "planning",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,

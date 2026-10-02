@@ -1,18 +1,17 @@
 # myia-douyin — 官方场景件:抖音/TikTok 数据 API(封装 Evil0ctal/Douyin_TikTok_Download_API)。
 #
 # 上游 Apache-2.0;本插件只以声明依赖与文档引用接入,不复制上游源码。
-# v5 主线(上游默认分支)为多容器栈,部署以上游自带 docker/compose.yml 为准;
-# 本包 compose 是 V4 系 Docker Hub 镜像的单容器快速通道(见 README)。
+# v1.1 分级 server-only(桌面默认集移出):上游是重 Web 服务(浏览器渲染
+# + 多容器栈),不可进程化,桌面路径不携带;可用形态 = 已部署实例按 remote
+# 模式接入(零 docker),服务端部署 compose 在仓库 docker/plugins/myia-douyin/。
 id: myia-douyin
 name: 抖音/TikTok 数据 API(Douyin_TikTok_Download_API)
-version: 1.0.0
+version: 1.1.0
 compatible: ">=0.1,<2.0"
-requires: docker
+tier: server-only
+requires: []
 provides: [douyin_tiktok_api]
 modes:
-  local:
-    compose: docker-compose.yml
-    install: docker compose up -d
   remote:
     endpoint: https://douyin-api.example.com
     token: keychain:myia/douyin/token   # myia secret set myia/douyin/token(上游 X-API-Key)

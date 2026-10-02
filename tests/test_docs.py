@@ -58,6 +58,17 @@ _MD_LINK_RE = re.compile(r"\]\(([^)\s]+)\)")
 #: 凭据位合法值:可选认证 scheme 前缀 + env:/keychain: 引用(与 test_skill_doc 同款)。
 _SECRET_REF_VALUE_RE = re.compile(r"^(?:\S+ )?(?:env:|keychain:)")
 
+#: 各通道凭据约定的缺省 env 引用(与 skill/SKILL.md §2.13 及
+#: src/myia/push/*.py 的 DEFAULT_*_ENV_REF 同源)。schema.md 的「各通道凭据
+#: 约定见 write-a-plugin」指向双语文指南,该节内容由此清单锁住不悬空。
+_CHANNEL_CREDENTIAL_ENV_REFS = (
+    "env:FEISHU_CHAT_ID",
+    "env:FEISHU_BOT_TOKEN",
+    "env:TELEGRAM_CHAT_ID",
+    "env:TELEGRAM_BOT_TOKEN",
+    "env:MYIA_WEBHOOK_URL",
+)
+
 
 def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
@@ -234,6 +245,27 @@ def test_bilingual_pair_yaml_examples_share_structure(page: str):
         assert zh_shape == en_shape, (
             f"zh/en 示例 #{index} 结构不一致({page}):"
             f"两棵树必须是同一份配置的两种语言(键/嵌套/列表长度不同)"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 3b. Per-channel credential conventions (v1.1 low backlog #2 anti-drift)
+# ---------------------------------------------------------------------------
+
+
+def test_bilingual_write_a_plugin_documents_channel_credentials():
+    """Both zh/en plugin guides name every channel's credential env ref.
+
+    docs/{zh,en}/schema.md 教「各通道凭据约定见 write-a-plugin」——目标页没有
+    该内容时引用即悬空(agent 被指到一页没有答案的文字)。此清单与
+    skill/SKILL.md §2.13 同源,双语两页必须同时携带,缺一即红。
+    """
+    for tree_dir in (ZH_DIR, EN_DIR):
+        text = _read(tree_dir / "write-a-plugin.md")
+        missing = [ref for ref in _CHANNEL_CREDENTIAL_ENV_REFS if ref not in text]
+        assert not missing, (
+            f"docs/{tree_dir.name}/write-a-plugin.md 缺少各通道凭据约定: {missing}"
+            "(schema.md 的「凭据约定见 write-a-plugin」指向本页,不许悬空)"
         )
 
 

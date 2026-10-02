@@ -3,7 +3,7 @@
   "name": "v11-low-baseline-aggregate",
   "title": "v1.1 baseline+aggregate:基线与事件聚合修正(4 条 low)",
   "description": "清偿 low backlog baseline+aggregate 模块 4 条:vs_msrp 钉死 price 字段契约未披露、telegram 截断超 1024、enrich Raises 懒加载时序文档错误、AggregateOutcome.to_dict 死代码",
-  "status": "planning",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,

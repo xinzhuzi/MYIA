@@ -224,14 +224,11 @@ id: site-watch
 name: 页面变更监控
 schedule: "*/15 * * * *"
 timezone: Asia/Shanghai
-plugin:
+plugin:                           # 场景插件声明(v1.1 起官方包为 remote 可选接入)
   id: myia-monitor
-  requires: docker
+  requires: []
   modes:
-    local:                        # 本机 docker compose 交付
-      compose: docker-compose.yml
-      install: docker compose up -d
-    remote:                       # 或指向已部署实例(桌面用户零 Docker)
+    remote:                       # 指向已部署实例(桌面零 Docker);local compose 仍是合法 schema,官方部署文件在 docker/plugins/
       endpoint: https://my-monitor.example.com
       token: keychain:myia/monitor/token    # myia secret set myia/monitor/token
 sources:
@@ -264,6 +261,9 @@ push:
 
 模板侧:`vs_yesterday(item, 'price')` / `vs_last_week(item, 'price')` /
 `vs_msrp(item)` 三个沙箱函数 + `keyword_trends` 上下文(关键词提及量周环比)。
+注意契约差异:`vs_yesterday` / `vs_last_week` 的字段是入参(任意数值字段),
+而 `vs_msrp(item)` **没有字段参数、钉死只读条目的 `price` 字段**——价格字段
+不叫 `price`(或非数值)时 `vs_msrp` 恒为空串。
 数值历史按 `2 × storage.retention` 保留,保证周环比窗口完整。
 
 ```yaml

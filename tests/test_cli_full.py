@@ -120,6 +120,30 @@ push:
   - channel: stdout
 """
 
+#: telegram 推送通道品类(bot token 固定解析自 env:TELEGRAM_BOT_TOKEN,
+#: target 指向 chat id 引用;doctor 的 getUpdates 同 token 竞争提示用)。
+TELEGRAM_YAML = """
+id: tg-{tag}
+name: TG 品类
+schedule: "0 9 * * *"
+timezone: Asia/Shanghai
+sources:
+  - name: api
+    engine: direct_api
+    url: "https://api.demo.local/list"
+    rate_limit:
+      qps: 1000.0
+    retry: 0
+    extract:
+      type: json_path
+      fields:
+        title: "$.data[*].title"
+        url: "$.data[*].url"
+push:
+  - channel: telegram
+    target: "env:MYIA_TG_CHAT_ID"
+"""
+
 
 # ---------------------------------------------------------------------------
 # Fixtures & helpers (每个测试独立目录/数据库/钥匙串,零共享状态)
@@ -579,6 +603,46 @@ class TestDoctor:
         loaded = {plugin["file"]: plugin["loaded"] for plugin in payload["plugins"]}
         assert loaded == {str(directory / "bad.yaml"): False, str(directory / "demo.yaml"): True}
         assert payload["healthy"] is False
+
+    def test_multiple_telegram_categories_flagged_as_poll_conflict(self, tmp_path, capsys):
+        """≥2 个品类配 telegram 通道(素材 12):warning 级 getUpdates 同 token 竞争提示。"""
+        directory = tmp_path / "plugins"
+        directory.mkdir()
+        (directory / "tg-a.yaml").write_text(
+            TELEGRAM_YAML.format(tag="a"), encoding="utf-8"
+        )
+        (directory / "tg-b.yaml").write_text(
+            TELEGRAM_YAML.format(tag="b"), encoding="utf-8"
+        )
+        db = tmp_path / "myia.db"
+        SQLiteStore(str(db)).close()
+
+        code = main(["doctor", "--plugins-dir", str(directory), "--db", str(db), "--json"])
+        assert code == EXIT_OK
+        payload = json.loads(capsys.readouterr().out)
+        finding = next(f for f in payload["findings"] if f["code"] == "telegram_token_poll_conflict")
+        assert finding["severity"] == "warning"  # 提示不判错:是否常驻由部署形态决定
+        assert finding["scope"] == "feedback"
+        assert "tg-a" in finding["message"] and "tg-b" in finding["message"]
+        assert "409" in finding["message"]
+        assert payload["healthy"] is True  # warning 不翻转 healthy
+
+    def test_single_telegram_category_no_conflict_finding(self, tmp_path, capsys):
+        """仅一个品类配 telegram 通道:无竞争提示(单轮询方是合法形态)。"""
+        directory = tmp_path / "plugins"
+        directory.mkdir()
+        (directory / "tg-a.yaml").write_text(
+            TELEGRAM_YAML.format(tag="a"), encoding="utf-8"
+        )
+        (directory / "demo.yaml").write_text(VALID_YAML, encoding="utf-8")
+        db = tmp_path / "myia.db"
+        SQLiteStore(str(db)).close()
+
+        main(["doctor", "--plugins-dir", str(directory), "--db", str(db), "--json"])
+        payload = json.loads(capsys.readouterr().out)
+        assert not any(
+            f["code"] == "telegram_token_poll_conflict" for f in payload["findings"]
+        )  # 仅一个轮询方是合法形态(target 的 env 未设置另有 env_ref_missing,不在此断言)
 
 
 # ---------------------------------------------------------------------------

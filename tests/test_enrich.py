@@ -20,9 +20,11 @@ fake completion client; the dependency-missing path is exercised via a
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import logging
 import sqlite3
+import sys
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
@@ -207,6 +209,30 @@ class TestEndpointSettings:
             run(client.complete(model="m", system="s", user="u"))
         assert excinfo.value.code == "dependency_missing"
         assert "myia[llm]" in str(excinfo.value)
+
+    def test_enricher_constructs_without_openai(self, endpoint_env):
+        # 懒加载契约(v1.1 low #16):缺依赖不是构造期失败——无注入 client
+        # 也能构造成功;未安装 openai 的环境下构造后它也不进 sys.modules。
+        openai_installed = importlib.util.find_spec("openai") is not None
+        enricher = LLMEnricher(make_config(), make_settings())
+        assert enricher.base_url == BASE_URL
+        if not openai_installed:
+            assert "openai" not in sys.modules
+
+    def test_enricher_missing_openai_degrades_first_enrich_call(
+        self, store, endpoint_env, monkeypatch
+    ):
+        # 时序契约:缺 openai 在**首次调用**才触发,且按单批失败隔离
+        # (结构化 failures + 降级),不是构造期异常、不中断本轮。
+        monkeypatch.setitem(sys.modules, "openai", None)
+        enricher = LLMEnricher(make_config(), make_settings())  # 构造成功
+        outcome = run(
+            enricher.enrich([FakeItem("https://a", "标题")], watchlist={}, store=store)
+        )
+        assert outcome.degraded is True
+        assert outcome.degrade_reason == "llm_batch_failed"
+        assert outcome.failures[0]["error_type"] == "enrich_batch_failed"
+        assert "openai 未安装" in outcome.failures[0]["message"]
 
     def test_enricher_resolves_refs_and_hides_key_from_repr(self, endpoint_env):
         enricher = LLMEnricher(make_config(), make_settings(), client=FakeCompletionClient())

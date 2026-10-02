@@ -40,6 +40,11 @@ class CompletionResult:
 class OpenAICompatClient:
     """Minimal async wrapper: one ``chat.completions.create`` per call.
 
+    Construction never touches the optional dependency: ``openai`` is
+    imported lazily at the first completion (:meth:`_ensure_async_client`),
+    so building this client (or an enricher/aggregator holding one) succeeds
+    without the extra installed.
+
     Args:
         base_url: resolved endpoint base URL (http(s), already credential-
             resolved by the enricher — this class never sees references).
@@ -48,8 +53,9 @@ class OpenAICompatClient:
         max_output_tokens: completion cap sent to the endpoint.
 
     Raises:
-        EnrichConfigError: ``dependency_missing`` — the ``openai`` package is
-            not installed (structured, carries :data:`INSTALL_COMMAND`).
+        EnrichConfigError: on the first :meth:`complete` call —
+            ``dependency_missing`` when the ``openai`` package is not
+            installed (structured, carries :data:`INSTALL_COMMAND`).
     """
 
     def __init__(

@@ -451,6 +451,11 @@ def _msrp_function(msrp: Mapping[str, float] | None) -> Any:
     合同:入参 ``(item,)``;在 ``baseline.msrp`` 对照表里按标题大小写不敏感
     子串匹配商品名(多键命中取最长键,最具体的对照优先),返回
     「低于 MSRP 8.0%」风格文案;无表/无价格/无匹配返回空串。
+
+    隐性契约(v1.1 披露):价格**只读条目视图的 ``price`` 字段**——与
+    ``vs_yesterday`` / ``vs_last_week`` 接受任意 ``field`` 参数不同,
+    ``vs_msrp`` 没有字段参数,钉死 ``price``;源 extract 产出的价格字段若
+    不叫 ``price``(或非数值),该品类恒返回空串。
     """
     table = {name.lower(): value for name, value in (msrp or {}).items()}
 
@@ -518,7 +523,8 @@ class TemplateRenderer:
             keyword_trends: 关键词提及量周环比 records
                 (:func:`build_keyword_trends`); ``None`` → empty list.
             msrp: MSRP 对照表(schema ``baseline.msrp``);``None``/empty →
-                ``vs_msrp`` renders empty strings.
+                ``vs_msrp`` renders empty strings. ``vs_msrp`` 只认条目视图的
+                ``price`` 字段(无字段参数,契约见 :func:`_msrp_function`).
 
         Returns:
             The rendered text (trimmed of surrounding whitespace).

@@ -192,6 +192,16 @@ push:
   (`env_ref_missing` / `keychain_ref_missing`) so an agent can repair the
   environment by itself.
 
+Per-channel credential conventions (the `push[]` `target` and its companion
+token; details in [skill/SKILL.md](../../skill/SKILL.md) §2.13):
+
+- `feishu_card`: `target` = chat/group ID (e.g. `env:FEISHU_CHAT_ID`); the
+  bot token is read from `env:FEISHU_BOT_TOKEN`.
+- `telegram`: `target` = chat id (`env:TELEGRAM_CHAT_ID`); the token is read
+  from `env:TELEGRAM_BOT_TOKEN`.
+- `webhook`: `target` = endpoint URL reference (e.g. `env:MYIA_WEBHOOK_URL`).
+- `stdout`: zero credentials, first choice for local verification.
+
 ## Verify and run
 
 ```bash
@@ -236,6 +246,7 @@ Common findings and repairs:
 | `keychain_name_noncanonical` | rename the reference to `myia/<scope>/<name>` and update the YAML |
 | `store_error` | corrupt SQLite or a too-new schema version: switch `--db` or rebuild (history is lost) |
 | plugin finding (v0.3) | a market plugin that cannot install or is unreachable degrades to a finding and **never blocks the core pipeline**; fix the `plugin:` section or reinstall per the message |
+| `telegram_token_poll_conflict` | two or more categories share one bot token (`env:TELEGRAM_BOT_TOKEN`) and each `--loop` process polls `getUpdates` → Telegram answers 409 Conflict; keep the `telegram` channel on at most one resident category and move the others to other push channels (single runs never poll, so they are unaffected) |
 
 ## Pre-flight checklist
 
@@ -252,12 +263,25 @@ Common findings and repairs:
 
 ## Going further: plugin market and feedback loop
 
-- **Scenario plugins** (v0.3): `myia plugin list / install / remove`; a
-  category YAML declares its dependency in the top-level `plugin:` section
-  (`local` docker compose / `remote` endpoint + keychain token, dual mode);
-  a plugin that cannot install never blocks the core pipeline (security
-  baseline). The community directory lives in
-  `plugins/community/README.md`.
+- **Scenario plugins** (v0.3, slimmed in v1.1): `myia plugin list / install /
+  remove`; a category YAML declares its dependency in the top-level `plugin:`
+  section (`remote` endpoint + keychain token; the `local` docker compose mode
+  remains valid schema but official plugins no longer ship local compose files —
+  server-side deployments live under `docker/plugins/`); a plugin that cannot
+  install never blocks the core pipeline (security baseline). The community
+  directory lives in `plugins/community/README.md`.
+- **Source-type / in-process plugins** (v1.1, desktop-first): official
+  packages declare a `tier` (`desktop` default set / `remote` opt-in /
+  `server-only`), shown by `myia plugin list`. The `myia-osint` sample pins
+  upstream source as a git submodule under the plugin's `vendor/` directory
+  (manifest gains optional `vendor:` / `adapter:` sections; unknown fields
+  still fail fast), and an adapter shells out to the upstream CLI inside an
+  isolated uv environment (deps fetched on demand, never into the root
+  project) — `myia osint https://example.com --json` runs one structured
+  recon with zero Docker. `myia-proxy` is the in-process counterpart: `myia
+  proxy --json` fetches public free proxies and liveness-checks them in
+  process (zero Redis, zero Docker). A missing upstream only degrades with
+  structured errors and never blocks the core pipeline.
 - **Feedback loop** (v0.3): negative feedback is stored —
   `myia feedback list / stats / mark` — and maintenance retunes watchlist
   weights and thresholds automatically (prompt notes are recorded in the

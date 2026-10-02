@@ -46,6 +46,17 @@ stdout 只有一份纯 JSON(AI 消费路径)。
 - ``feedback``  反馈闭环 list/stats/mark(v0.3,薄包装 myia.feedback;
                 mark 是桌面形态的手动标记接收路,TG/飞书回调经 pipeline/
                 回调端点入库,负反馈随维护阶段自动调参)。
+- ``skill``     Agent Skill 安装通路 install/path(纯文件操作,退出码
+                0/1;目标已存在默认结构化拒绝,--force 才覆盖;--link 符号
+                链接;--path 自定义目录;真实安装目录按平台惯例探测)。
+- ``osint``     一次性 OSINT 侦察(v1.1 源码型插件样板 myia-osint:动态
+                加载插件目录 adapter.py,子进程调用上游 Photon——uv 临时
+                环境隔离依赖;输出结构化 JSON;vendor 缺失/适配器不可用 →
+                结构化错误,绝不拦核心流水线,铁律)。
+- ``proxy``     轻量代理抓取+测活(v1.1 desktop 分级 myia-proxy:动态加载
+                插件目录 adapter.py,进程内完成公开免费代理列表抓取与逐个
+                测活,零 Redis 零 docker;全源失败/零可用 → 结构化错误,
+                绝不拦核心流水线,铁律)。
 - ``add-source`` / ``dashboard`` 为后续版本留位(结构化 not_implemented)。
 
 源健康度判据(PRD 10-01-v02-cli-full,list/doctor 共用):
@@ -71,7 +82,9 @@ import getpass
 import json
 import logging
 import os
+import shutil
 import sys
+import types
 from collections.abc import Iterator, Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
@@ -144,6 +157,24 @@ _EXIT_BY_STATUS = {
 
 DEFAULT_PLUGINS_DIR = "plugins"
 DEFAULT_DB_PATH = "myia.db"
+#: osint 样板插件与默认目标(PRD 10-02-v11-plugins-source-arch:合法演示域)。
+OSINT_PLUGIN_ID = "myia-osint"
+DEFAULT_OSINT_TARGET = "https://example.com"
+#: osint 子进程 wall-clock 预算缺省(整个侦察过程,非单请求超时)。
+DEFAULT_OSINT_TIMEOUT_SECONDS = 600.0
+#: 采集类失败码 → 退出码 2(其余 osint 失败码归配置/环境错误,退 1)。
+#: 退出码契约归 CLI 所有(spec python/error-handling),不依赖插件侧导出。
+OSINT_FETCH_FAILURE_CODES = frozenset(
+    {"photon_failed", "photon_timeout", "photon_export_missing", "photon_export_invalid"}
+)
+#: 代理池插件(myia-proxy,进程内轻量 fetcher/测活;v1.1 desktop 分级)。
+PROXY_PLUGIN_ID = "myia-proxy"
+#: 代理测活期望拿到的可用代理缺省数。
+DEFAULT_PROXY_COUNT = 5
+#: 单代理测活超时缺省秒数。
+DEFAULT_PROXY_CHECK_TIMEOUT_SECONDS = 10.0
+#: 采集类失败码 → 退出码 2(全部源抓取失败 / 零可用代理);其余退 1。
+PROXY_FETCH_FAILURE_CODES = frozenset({"fetch_failed", "no_alive_proxy"})
 #: 单源试抓的每源超时(与 pipeline fetch 阶段默认一致)。
 DEFAULT_TEST_TIMEOUT_SECONDS = 120.0
 #: doctor/list 回看的最大 run 数(足够「连续 3 次失败 + 近 5 次基线」判据)。
@@ -171,6 +202,20 @@ STUB_COMMANDS: dict[str, str] = {
     "add-source": "向既有插件 YAML 追加源",
     "dashboard": "品类与源健康度终端面板",
 }
+
+#: Agent Skill 安装目标(PRD 10-02-v11:至少 claude/cursor/zcode 三类;
+#: agents 兜底 Codex 等通用 ~/.agents/skills 惯例)。值是技能根目录
+#: (home 下),实际安装位置 = <技能根>/myia/SKILL.md。
+SKILL_AGENT_DIRS: dict[str, str] = {
+    "claude": "~/.claude/skills",
+    "cursor": "~/.cursor/skills",
+    "zcode": "~/.zcode/skills",
+    "agents": "~/.agents/skills",
+}
+#: 技能目录名(平台惯例:技能 = 技能根下与技能同名的目录 + SKILL.md)。
+SKILL_DIR_NAME = "myia"
+#: SKILL.md 源位置的显式覆盖(装进 wheel 后仓库布局探测失效时的逃生口)。
+SKILL_SOURCE_ENV = "MYIA_SKILL_SOURCE"
 
 
 class _UsageError(Exception):
@@ -209,6 +254,9 @@ def build_parser() -> argparse.ArgumentParser:
     _add_secret_parser(sub)
     _add_plugin_parser(sub)
     _add_feedback_parser(sub)
+    _add_skill_parser(sub)
+    _add_osint_parser(sub)
+    _add_proxy_parser(sub)
     for name, blurb in STUB_COMMANDS.items():
         sub.add_parser(name, help=f"{blurb}(后续版本实现)")
     return parser
@@ -408,6 +456,92 @@ def _add_feedback_parser(sub: argparse._SubParsersAction) -> None:
     stats.add_argument("--top", type=int, default=5, help="Top 类目/词条数(默认 5)")
     stats.add_argument("--db", default=DEFAULT_DB_PATH, help=f"SQLite 存储路径(默认 ./{DEFAULT_DB_PATH})")
     stats.add_argument("--json", dest="as_json", action="store_true", help="机器可读输出")
+
+
+def _add_skill_parser(sub: argparse._SubParsersAction) -> None:
+    """``myia skill``:Agent Skill 安装通路 install / path(PRD 10-02-v11)。"""
+    skill = sub.add_parser(
+        "skill",
+        help="Agent Skill 安装通路:install / path(把 skill/SKILL.md 装进 agent 的技能目录)",
+        description=(
+            "打通 Agent Skill 最后一公里:把仓库 skill/SKILL.md 复制(或 --link "
+            "符号链接)进 agent 的技能目录。纯文件操作,装卸结果不影响核心流水线;"
+            "已存在默认结构化拒绝,--force 才覆盖。"
+        ),
+    )
+    skill_sub = skill.add_subparsers(dest="skill_command", required=True, title="技能操作")
+    install = skill_sub.add_parser(
+        "install",
+        help="安装 SKILL.md 到指定 agent 的技能目录(默认探测,--path 自定义)",
+        description=(
+            "复制(或 --link 符号链接)SKILL.md 到 <技能根>/myia/SKILL.md。"
+            "缺省 --agent 时逐个探测已存在的技能根并全部安装;目标文件已存在时"
+            "默认结构化拒绝(退出码 1),--force 才覆盖。"
+        ),
+    )
+    install.add_argument(
+        "--agent",
+        choices=sorted(SKILL_AGENT_DIRS),
+        default=None,
+        help=f"目标 agent(缺省探测全部:{', '.join(sorted(SKILL_AGENT_DIRS))})",
+    )
+    install.add_argument(
+        "--path",
+        dest="target_dir",
+        default=None,
+        help="自定义安装目录(直接作为技能目录,优先于 --agent 探测;目录名即技能名)",
+    )
+    install.add_argument(
+        "--link",
+        action="store_true",
+        help="符号链接代替复制(源仓库更新后装好的技能即跟随更新)",
+    )
+    install.add_argument(
+        "--force",
+        action="store_true",
+        help="目标 SKILL.md 已存在时覆盖(缺省结构化拒绝,退出码 1)",
+    )
+    install.add_argument("--json", dest="as_json", action="store_true", help="机器可读输出(单份 JSON,stdout)")
+    path_cmd = skill_sub.add_parser(
+        "path",
+        help="打印 SKILL.md 源位置与各 agent 的推荐安装路径及安装状态",
+        description="信息性命令:完成即退出 0;源缺失也如实落在 found=false,不猜路径。",
+    )
+    path_cmd.add_argument("--json", dest="as_json", action="store_true", help="机器可读输出(单份 JSON,stdout)")
+
+
+def _add_osint_parser(sub: argparse._SubParsersAction) -> None:
+    """``myia osint``:一次性 OSINT 侦察(v1.1 源码型插件样板 myia-osint)."""
+    osint = sub.add_parser(
+        "osint",
+        help="一次性 OSINT 侦察(myia-osint 插件,子进程调用上游 Photon;失败绝不拦核心)",
+        description=(
+            "源码型插件样板:定位 <plugins-dir>/myia-osint(适配器 adapter.py + "
+            "vendor/Photon submodule),以 uv 临时环境(--no-project --with 按需装依赖,"
+            "不进根依赖)隔离子进程运行上游 CLI,读取其 JSON 导出并输出结构化结果。"
+            "默认目标 example.com(合法演示域)。vendor 缺失/适配器不可用/目标非法 "
+            "→ 结构化错误退 1;采集失败(非零退出/超时/导出坏)退 2;任何失败都"
+            "不影响核心品类流水线(铁律)。"
+        ),
+    )
+    osint.add_argument(
+        "target",
+        nargs="?",
+        default=DEFAULT_OSINT_TARGET,
+        help=f"侦察目标 http(s) URL(默认 {DEFAULT_OSINT_TARGET},合法演示域)",
+    )
+    osint.add_argument(
+        "--timeout",
+        type=float,
+        default=DEFAULT_OSINT_TIMEOUT_SECONDS,
+        help=f"子进程 wall-clock 预算秒数(默认 {DEFAULT_OSINT_TIMEOUT_SECONDS:.0f})",
+    )
+    osint.add_argument(
+        "--plugins-dir",
+        default=DEFAULT_PLUGINS_DIR,
+        help=f"插件目录(默认 ./{DEFAULT_PLUGINS_DIR},样板位于 myia-osint/ 子目录)",
+    )
+    osint.add_argument("--json", dest="as_json", action="store_true", help="机器可读输出(单份 JSON,stdout)")
 
 
 def _configure_logging(as_json: bool) -> None:
@@ -948,26 +1082,32 @@ async def _probe_proxy_pools(
     timeout: float,
     backend: KeychainBackend | None,
 ) -> list[dict[str, Any]]:
-    """Probe every declared pool; credentials are expanded then never shown."""
-    results: list[dict[str, Any]] = []
-    for name in pools.names():
+    """Probe every declared pool; credentials are expanded then never shown.
+
+    逐池**并行**探测(asyncio.gather,保序):每池各吃自己的 probe-timeout,
+    总耗时≈最慢单池而非逐池累加 —— doctor 必须在桌面 sidecar 的固定壳超时
+    (120s)内回话,v1.1 评审实测串行下 13 个不可达池即顶穿(130.6s)。
+    单池凭据解析失败不拖垮其余池(部分失败语义不变)。
+    """
+
+    async def _probe_one(name: str) -> dict[str, Any]:
         try:
             resolved = pools.resolve(name, backend=backend)
         except Exception as exc:  # noqa: BLE001 - 单池失败不拖垮其余池的诊断(部分失败语义)
             logger.warning("代理池凭据解析失败 pool=%s: %s", name, exc)
             raw = mask_proxy_url(pools.raw_url(name))
-            results.append(
-                {"pool": name, "ok": False, "message": f"代理池凭据引用无法解析: {exc}",
-                 "proxy_url": raw, "error_type": classify_exception(exc)}
-            )
-            continue
+            return {
+                "pool": name, "ok": False, "message": f"代理池凭据引用无法解析: {exc}",
+                "proxy_url": raw, "error_type": classify_exception(exc),
+            }
         client = _build_async_client(proxy=resolved, timeout=timeout)
         try:
             check = await check_proxy_connectivity(resolved, client=client, timeout=timeout)
         finally:
             await client.aclose()
-        results.append({"pool": name, **check.to_dict()})
-    return results
+        return {"pool": name, **check.to_dict()}
+
+    return list(await asyncio.gather(*(_probe_one(name) for name in pools.names())))
 
 
 # ---------------------------------------------------------------------------
@@ -1435,6 +1575,40 @@ def _proxy_findings(pools_result: list[dict[str, Any]], findings: list[dict[str,
         )
 
 
+def _telegram_poll_conflict_findings(
+    loaded: Sequence[tuple[str, CategoryConfig]], findings: list[dict[str, Any]]
+) -> None:
+    """常驻模式 TG getUpdates 同 token 竞争提示(素材 12,warning 语义).
+
+    telegram 通道的 bot token 固定解析自 ``env:TELEGRAM_BOT_TOKEN``(schema
+    不设 per-channel token 位),所以只要 ≥2 个已加载品类都配了 telegram 通道,
+    它们的常驻进程(``--loop``)就会各起一个 ``getUpdates`` 轮询 → Telegram
+    以 409 Conflict 互踢(一个 token 同时只允许一个 long-poll 消费方)。
+    单次 run 不轮询、不受影响,故只警示不判错;无法在此判定谁真的在常驻,
+    提示由主人按部署形态裁决。
+    """
+    telegram_plugins = [
+        plugin_id
+        for plugin_id, config in loaded
+        if any(push.channel == "telegram" for push in config.push)
+    ]
+    if len(telegram_plugins) < 2:
+        return
+    _finding(
+        findings,
+        severity="warning",
+        scope="feedback",
+        code="telegram_token_poll_conflict",
+        message=(
+            f"{len(telegram_plugins)} 个品类共享同一 bot token(env:TELEGRAM_BOT_TOKEN)"
+            f"且都配置了 telegram 通道:{'、'.join(telegram_plugins)};每个常驻进程"
+            "(myia run --loop)都会轮询 getUpdates,同 token 多轮询方会被 Telegram "
+            "以 409 Conflict 互踢。只保留一个常驻品类配置 telegram 通道(其余品类"
+            "改用其他推送渠道),或仅对其中一个品类使用 --loop。"
+        ),
+    )
+
+
 def _print_human_doctor(payload: dict[str, Any]) -> None:
     """人类可读的诊断报告(与 --json 同一信息)。"""
     print(f"MYIA doctor(db={payload['db']})healthy={'是' if payload['healthy'] else '否'}")
@@ -1488,6 +1662,7 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     backend, backend_error = _acquire_keychain_backend()
     credential_entries = _merge_credential_entries(loaded, backend)
     _credential_findings(credential_entries, backend_error=backend_error, findings=findings)
+    _telegram_poll_conflict_findings(loaded, findings)
     proxy_section = _doctor_proxy(args, backend, findings)
     payload = _doctor_payload(args, plugins=plugins, backend=backend, backend_error=backend_error,
                               credential_entries=credential_entries, proxy_section=proxy_section,
@@ -1696,6 +1871,10 @@ def _plugin_list(args: argparse.Namespace, store: InstalledPluginStore, *, as_js
                     client_factory=_build_async_client,
                 )
             )
+    tiers: dict[str, int] = {}
+    for entry in entries:
+        if entry.manifest is not None:
+            tiers[entry.manifest.tier] = tiers.get(entry.manifest.tier, 0) + 1
     payload = {
         "command": "plugin",
         "action": "list",
@@ -1711,6 +1890,8 @@ def _plugin_list(args: argparse.Namespace, store: InstalledPluginStore, *, as_js
                 and entry.compatible_current
                 and not any(finding.severity == "error" for finding in entry.findings)
             ),
+            # v1.1 分级计数(desktop/remote/server-only,见 plugins.manifest)。
+            "tiers": dict(sorted(tiers.items())),
             "errors": sum(
                 1 for entry in entries for finding in entry.findings if finding.severity == "error"
             ),
@@ -1733,13 +1914,17 @@ def _print_human_plugin_list(payload: dict[str, Any]) -> None:
         f"MYIA plugin list:{payload['dir']}(myia {payload['myia_version']})"
         f"共 {len(payload['plugins'])} 个,可用 {summary['usable']} 个"
     )
+    tiers = summary.get("tiers") or {}
+    if tiers:
+        tier_text = ", ".join(f"{tier}={count}" for tier, count in tiers.items())
+        print(f"  分级:{tier_text}")
     for plugin in payload["plugins"]:
         if not plugin["loaded"]:
             print(f"  {plugin['path']} — manifest 缺失或损坏")
         else:
             compatibility = "兼容" if plugin["compatible_current"] else f"不兼容(要求 myia {plugin['compatible']})"
             print(
-                f"  {plugin['id']}@{plugin['version']}({plugin['name']}){compatibility}"
+                f"  {plugin['id']}@{plugin['version']}[{plugin['tier']}]({plugin['name']}){compatibility}"
                 f" requires={plugin['requires']} provides={plugin['provides']}"
             )
         for finding in plugin["findings"]:
@@ -1976,6 +2161,219 @@ def _cmd_feedback(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
+# myia skill:Agent Skill 安装通路(PRD 10-02-v11;纯文件操作,退出码 0/1)
+# ---------------------------------------------------------------------------
+
+
+def skill_source() -> Path | None:
+    """Locate the canonical ``skill/SKILL.md``(装进 agent 目录的就是这份).
+
+    探测顺序:环境变量 ``MYIA_SKILL_SOURCE``(显式逃生口——设了但文件不存在
+    直接返回 None,绝不静默回退装上另一份文件)→ 仓库源码布局(src/myia/
+    cli.py 上三级 = 仓库根)→ 当前工作目录下的 skill/。找不到返回 None
+    (调用方结构化上报,绝不猜路径装错文件)。
+    """
+    env_source = os.environ.get(SKILL_SOURCE_ENV)
+    if env_source:  # 显式指定只认它自己:存在即用,不存在即失败
+        candidate = Path(env_source)
+        return candidate if candidate.is_file() else None
+    # src/myia/cli.py → parents: [0]=src/myia [1]=src [2]=仓库根
+    for candidate in (
+        Path(__file__).resolve().parents[2] / "skill" / "SKILL.md",
+        Path.cwd() / "skill" / "SKILL.md",
+    ):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _skill_target_dir(agent: str) -> Path:
+    """One agent's install directory(技能根展开 home 后拼技能目录名)."""
+    return Path(SKILL_AGENT_DIRS[agent]).expanduser() / SKILL_DIR_NAME
+
+
+def _skill_install_target(args: argparse.Namespace) -> tuple[Path, str | None]:
+    """Resolve the install directory:--path 显式优先,否则 --agent(或探测)."""
+    if args.target_dir:
+        return Path(args.target_dir).expanduser(), args.agent
+    agent = args.agent
+    if agent is None:  # 缺省:挑第一个「技能根已存在」的 agent(本机在用的)
+        agent = next(
+            (name for name in sorted(SKILL_AGENT_DIRS)
+             if Path(SKILL_AGENT_DIRS[name]).expanduser().is_dir()),
+            "claude",
+        )
+    return _skill_target_dir(agent), agent
+
+
+def _skill_agent_entries() -> list[dict[str, Any]]:
+    """Per-agent path report rows(path/install 共用;只读不写)."""
+    source = skill_source()
+    source_bytes = source.read_bytes() if source is not None else None
+    rows: list[dict[str, Any]] = []
+    for agent in sorted(SKILL_AGENT_DIRS):
+        target_dir = _skill_target_dir(agent)
+        skill_file = target_dir / "SKILL.md"
+        installed = skill_file.is_file()
+        if not installed:
+            matches = False
+        elif skill_file.is_symlink():
+            matches = skill_file.resolve() == (source.resolve() if source else None)
+        else:
+            # 副本模式:比对内容,源更新后旧副本如实报不一致(agent 据此 --force 重装)
+            try:
+                matches = skill_file.read_bytes() == source_bytes
+            except OSError:
+                matches = False
+        rows.append(
+            {
+                "agent": agent,
+                "install_dir": str(target_dir),
+                "skill_file": str(skill_file),
+                "installed": installed,
+                "is_link": installed and skill_file.is_symlink(),
+                "matches_source": matches,
+            }
+        )
+    return rows
+
+
+def _skill_path_payload() -> dict[str, Any]:
+    """``myia skill path`` report(信息性:完成即 0,源缺失如实 found=false)."""
+    source = skill_source()
+    return {
+        "command": "skill",
+        "action": "path",
+        "source": {"path": str(source) if source else None, "found": source is not None},
+        "agents": _skill_agent_entries(),
+        "hint": (
+            "myia skill install [--agent claude|cursor|zcode|agents] [--path DIR] [--link] [--force]"
+        ),
+    }
+
+
+class SkillInstallError(Exception):
+    """skill 安装的结构化失败(code + 中文消息,退出码 1)."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+def _skill_install_one(source: Path, target_dir: Path, *, link: bool, force: bool) -> dict[str, Any]:
+    """Install SKILL.md into one directory(copy or symlink);refuse unless --force.
+
+    拒绝判据是**目标 SKILL.md 已存在**(与 path 报告的 installed 同一判据);
+    目录已存在但缺 SKILL.md 视为未完成安装,允许补装。返回结果字典,失败抛
+    :class:`SkillInstallError`(code 结构化上抛)。
+    """
+    target_file = target_dir / "SKILL.md"
+    if target_file.is_dir():
+        raise SkillInstallError("target_is_directory", f"目标是目录不是文件: {target_file}")
+    if target_file.exists() and not force:
+        raise SkillInstallError(
+            "target_exists",
+            f"目标已存在: {target_file}(--force 覆盖,或 --path 换目录)",
+        )
+    try:
+        if link:
+            target_dir.mkdir(parents=True, exist_ok=True)
+            if target_file.exists() or target_file.is_symlink():
+                target_file.unlink()
+            os.symlink(str(source.resolve()), target_file)
+        else:
+            target_dir.mkdir(parents=True, exist_ok=True)
+            if target_file.exists() or target_file.is_symlink():
+                # 先摘除旧目标(含悬空链接)再写:copy2 沿符号链接写入会把
+                # 链接指向的文件(可能在安装目录之外)整体写穿。与 --link
+                # 分支同一判据,授权范围是 <技能根>/myia/SKILL.md 这一路径。
+                target_file.unlink()
+            shutil.copy2(source, target_file)
+    except OSError as exc:
+        raise SkillInstallError(
+            "symlink_failed" if link else "copy_failed", f"写入 {target_file} 失败: {exc}"
+        ) from exc
+    return {
+        "target": str(target_file),
+        "mode": "link" if link else "copy",
+        "overwritten": None,  # 由调用方按安装前的存在性回填
+    }
+
+
+def _skill_install_payload(args: argparse.Namespace, *, as_json: bool) -> tuple[dict[str, Any], int]:
+    """Run one install and build its report(退出码与报告一起返回)."""
+    source = skill_source()
+    if source is None:
+        env_source = os.environ.get(SKILL_SOURCE_ENV)
+        if env_source:
+            hint = f"{SKILL_SOURCE_ENV}={env_source} 指向的文件不存在"
+        else:
+            hint = (f"源码仓库内运行,或设 {SKILL_SOURCE_ENV} 指向 SKILL.md;"
+                    f"探测过 {Path(__file__).resolve().parents[2] / 'skill' / 'SKILL.md'}")
+        _emit_generic_error(
+            "skill_source",
+            f"找不到 skill/SKILL.md 源({hint})",
+            as_json=as_json,
+            code="skill_source_not_found",
+        )
+        return {}, EXIT_CONFIG_ERROR
+    target_dir, agent = _skill_install_target(args)
+    existed_before = (target_dir / "SKILL.md").exists()
+    try:
+        result = _skill_install_one(source, target_dir, link=args.link, force=args.force)
+    except SkillInstallError as exc:
+        _emit_generic_error("skill_install", str(exc), as_json=as_json, code=exc.code)
+        return {}, EXIT_CONFIG_ERROR
+    payload = {
+        "command": "skill",
+        "action": "install",
+        "agent": agent,
+        "source": str(source),
+        "target_dir": str(target_dir),
+        "target": result["target"],
+        "mode": result["mode"],
+        "forced": bool(args.force),
+        "overwritten": existed_before,
+    }
+    return payload, EXIT_OK
+
+
+def _print_human_skill_path(payload: dict[str, Any]) -> None:
+    """人类可读的 path 报告(与 --json 同一信息)."""
+    source = payload["source"]
+    state = str(source["path"]) if source["found"] else "未找到(源码仓库内运行或设 MYIA_SKILL_SOURCE)"
+    print(f"MYIA skill path:源 {state}")
+    for agent in payload["agents"]:
+        mark = "已装" if agent["installed"] else "未装"
+        if agent["installed"]:
+            mark += "(链接)" if agent["is_link"] else "(副本)"
+        print(f"  {agent['agent']}: {agent['skill_file']} [{mark}]")
+
+
+def _cmd_skill(args: argparse.Namespace) -> int:
+    """``myia skill install|path``:纯文件操作,退出码只有 0/1。"""
+    as_json = args.as_json
+    _configure_logging(as_json=as_json)
+    if args.skill_command == "path":
+        payload = _skill_path_payload()
+        if as_json:
+            _print_json(payload)
+        else:
+            _print_human_skill_path(payload)
+        return EXIT_OK
+    payload, exit_code = _skill_install_payload(args, as_json=as_json)
+    if exit_code != EXIT_OK:
+        return exit_code
+    if as_json:
+        _print_json(payload)
+    else:
+        note = f"({'--force 覆盖' if payload['overwritten'] else '新装'},{payload['mode']})"
+        print(f"已安装 myia 技能 {note} → {payload['target']}")
+        print(f"源:{payload['source']}")
+    return EXIT_OK
+
+
+# ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
 
@@ -1994,6 +2392,169 @@ def _not_implemented(command: str) -> int:
         )
     )
     return EXIT_CONFIG_ERROR
+
+
+# ---------------------------------------------------------------------------
+# myia osint(v1.1 源码型插件样板:适配器在插件目录,动态加载,零静态耦合)
+# ---------------------------------------------------------------------------
+
+
+def _import_plugin_adapter(plugins_dir: str | Path, plugin_id: str) -> Any:
+    """动态加载 ``<plugins_dir>/<plugin_id>/adapter.py``(插件目录非包,单文件加载).
+
+    刻意不做静态 import:核心 wheel 不含 plugins/,静态耦合会让核心反过来
+    依赖插件侧文件 —— 恰是铁律要防的反向。加载用 compile + exec(模块命名
+    空间),**不走 importlib 的 SourceFileLoader**:后者会在插件目录写
+    ``__pycache__`` 字节码垃圾,污染插件包形状(仓库即公开)。
+    加载失败抛 OSError/SyntaxError,由调用命令结构化降级(退 1)。
+    """
+    adapter_file = Path(plugins_dir) / plugin_id / "adapter.py"
+    if not adapter_file.is_file():
+        raise FileNotFoundError(f"适配器不存在:{adapter_file}(样板应随仓库 plugins/ 分发)")
+    module = types.ModuleType(f"myia_{plugin_id.replace('-', '_')}_adapter")
+    module.__file__ = str(adapter_file)
+    source = adapter_file.read_text(encoding="utf-8")
+    executable = compile(source, str(adapter_file), "exec")
+    exec(executable, module.__dict__)  # noqa: S102 - 适配器是仓库内受控代码,非任意用户输入
+    return module
+
+
+def _import_osint_adapter(plugins_dir: str | Path) -> Any:
+    """``myia osint`` 的适配器加载(:func:`_import_plugin_adapter` 的样板别名)."""
+    return _import_plugin_adapter(plugins_dir, OSINT_PLUGIN_ID)
+
+
+def _print_osint_human(payload: dict[str, Any]) -> None:
+    """人类可读摘要(与 --json 同一信息,另一种皮)."""
+    vendor = payload.get("vendor") or {}
+    print(f"MYIA osint:{payload.get('target')}({payload.get('plugin')}) 状态:{payload.get('status')}")
+    if vendor.get("commit"):
+        print(f"  vendor pin:{vendor['commit']}")
+    results = payload.get("results") or {}
+    for name in sorted(results):
+        values = results[name]
+        count = len(values) if isinstance(values, list) else (1 if values else 0)
+        if count:
+            print(f"  {name}:{count} 条")
+    datasets = ",".join(payload.get("datasets") or []) or "无"
+    print(f"  耗时:{payload.get('duration_seconds')}s;数据集:{datasets}")
+
+
+def _cmd_osint(args: argparse.Namespace) -> int:
+    """``myia osint``:跑一次上游 Photon 侦察,结构化输出.
+
+    退出码:0 成功;1 适配器缺失/vendor 未初始化/目标非法(配置或环境错误);
+    2 采集失败(Photon 非零退出/超时/导出缺失或损坏)。失败码到退出码的
+    映射用 :data:`OSINT_FETCH_FAILURE_CODES`(CLI 所有,不依赖插件侧导出)。
+    任何失败都只影响本命令,核心品类流水线照常(铁律)。
+    """
+    try:
+        adapter = _import_osint_adapter(args.plugins_dir)
+    except (OSError, ImportError, SyntaxError) as exc:
+        _emit_generic_error(
+            "osint_adapter_missing",
+            str(exc),
+            as_json=args.as_json,
+            plugins_dir=str(args.plugins_dir),
+        )
+        return EXIT_CONFIG_ERROR
+    try:
+        payload = adapter.run(args.target, timeout=args.timeout)
+    except Exception as exc:  # noqa: BLE001 — 适配器一切失败都结构化降级,绝不拦核心
+        details = exc.to_dict() if hasattr(exc, "to_dict") else {"code": "osint_failed", "message": str(exc)}
+        code = str(details.get("code", "osint_failed"))
+        exit_code = EXIT_FETCH_ALL_FAILED if code in OSINT_FETCH_FAILURE_CODES else EXIT_CONFIG_ERROR
+        extra = {key: value for key, value in details.items() if key not in ("code", "message")}
+        _emit_generic_error(code, str(details.get("message", exc)), as_json=args.as_json, **extra)
+        return exit_code
+    if args.as_json:
+        _print_json(payload)
+    else:
+        _print_osint_human(payload)
+    return EXIT_OK
+
+
+def _print_proxy_human(payload: dict[str, Any]) -> None:
+    """人类可读摘要(与 --json 同一信息,另一种皮)."""
+    print(
+        f"MYIA proxy:{payload.get('status')}(候选 {payload.get('fetched')},"
+        f"测活 {payload.get('checked')},可用 {len(payload.get('alive') or [])})"
+    )
+    for source in payload.get("sources") or []:
+        state = f"{source.get('proxies')} 条" if not source.get("error") else f"失败({source.get('error')})"
+        print(f"  源:{source.get('url')} → {state}")
+    for item in payload.get("alive") or []:
+        print(f"  可用:{item.get('proxy')}(延迟 {item.get('latency_ms')}ms)")
+    print(f"  耗时:{payload.get('duration_seconds')}s")
+
+
+def _cmd_proxy(args: argparse.Namespace) -> int:
+    """``myia proxy``:进程内轻量代理抓取+测活(myia-proxy 插件,零 Redis 零 docker).
+
+    退出码:0 成功(拿到 ≥1 个可用代理);1 适配器缺失/用法错误(count/timeout
+    非法);2 采集失败(全部源抓取失败 ``fetch_failed`` / 测活零可用
+    ``no_alive_proxy``)。失败码到退出码的映射用 :data:`PROXY_FETCH_FAILURE_CODES`
+    (CLI 所有,不依赖插件侧导出)。任何失败都只影响本命令,核心品类流水线
+    照常(铁律)。
+    """
+    try:
+        adapter = _import_plugin_adapter(args.plugins_dir, PROXY_PLUGIN_ID)
+    except (OSError, ImportError, SyntaxError) as exc:
+        _emit_generic_error(
+            "proxy_adapter_missing",
+            str(exc),
+            as_json=args.as_json,
+            plugins_dir=str(args.plugins_dir),
+        )
+        return EXIT_CONFIG_ERROR
+    try:
+        payload = adapter.run(count=args.count, check_timeout=args.timeout)
+    except Exception as exc:  # noqa: BLE001 — 适配器一切失败都结构化降级,绝不拦核心
+        details = exc.to_dict() if hasattr(exc, "to_dict") else {"code": "proxy_failed", "message": str(exc)}
+        code = str(details.get("code", "proxy_failed"))
+        exit_code = EXIT_FETCH_ALL_FAILED if code in PROXY_FETCH_FAILURE_CODES else EXIT_CONFIG_ERROR
+        extra = {key: value for key, value in details.items() if key not in ("code", "message")}
+        _emit_generic_error(code, str(details.get("message", exc)), as_json=args.as_json, **extra)
+        return exit_code
+    if args.as_json:
+        _print_json(payload)
+    else:
+        _print_proxy_human(payload)
+    return EXIT_OK
+
+
+def _add_proxy_parser(sub: argparse._SubParsersAction) -> None:
+    """``myia proxy``:进程内轻量代理抓取+测活(v1.1 desktop 分级 myia-proxy)."""
+    proxy = sub.add_parser(
+        "proxy",
+        help="轻量代理抓取+测活(myia-proxy 插件,进程内、零 Redis 零 docker;失败绝不拦核心)",
+        description=(
+            "桌面路径(默认):定位 <plugins-dir>/myia-proxy(适配器 adapter.py),"
+            "进程内抓取公开免费代理列表并逐个测活(经代理请求校验目标),输出结构化"
+            "结果。零 Redis 零 docker;完整 proxy_pool 服务形态(定时抓取+池化+API)"
+            "见 docker/plugins/ 下的可选服务端部署。全部源抓取失败或测活零可用 → "
+            "结构化错误退 2;适配器缺失/用法错误退 1;任何失败都不影响核心品类"
+            "流水线(铁律)。"
+        ),
+    )
+    proxy.add_argument(
+        "--count",
+        type=int,
+        default=DEFAULT_PROXY_COUNT,
+        help=f"期望拿到的可用代理数(默认 {DEFAULT_PROXY_COUNT};测活凑够即止)",
+    )
+    proxy.add_argument(
+        "--timeout",
+        type=float,
+        default=DEFAULT_PROXY_CHECK_TIMEOUT_SECONDS,
+        help=f"单代理测活超时秒数(默认 {DEFAULT_PROXY_CHECK_TIMEOUT_SECONDS:g})",
+    )
+    proxy.add_argument(
+        "--plugins-dir",
+        default=DEFAULT_PLUGINS_DIR,
+        help=f"插件目录(默认 ./{DEFAULT_PLUGINS_DIR},样板位于 myia-proxy/ 子目录)",
+    )
+    proxy.add_argument("--json", dest="as_json", action="store_true", help="机器可读输出(单份 JSON,stdout)")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -2029,6 +2590,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         "secret": _cmd_secret,
         "plugin": _cmd_plugin,
         "feedback": _cmd_feedback,
+        "skill": _cmd_skill,
+        "osint": _cmd_osint,
+        "proxy": _cmd_proxy,
     }
     handler = handlers.get(args.command)
     if handler is not None:

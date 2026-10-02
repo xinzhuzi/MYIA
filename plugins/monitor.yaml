@@ -1,10 +1,10 @@
-# plugins/monitor.yaml — web-change monitoring via a changedetection.io trigger.
+# plugins/monitor.yaml — web-change monitoring via an optional changedetection.io instance.
 #
-# This is also the v1.7 plugin dual-mode example: a scenario plugin may run
-# local (docker compose sidecar) or remote (point at an already-deployed
-# service — zero docker, the desktop path). A plugin that cannot be installed
-# never blocks the core pipeline: the built-in change fingerprint plus the
-# L1-L4 degrade chain cover the basics without it.
+# v1.1 plugin slim-down: the built-in change fingerprint + the L1-L4 degrade
+# chain cover the desktop scenario with zero plugins; the `plugin:` node below
+# is an OPT-IN remote integration (point at an already-deployed
+# changedetection.io instance — zero docker). A plugin that cannot be
+# installed never blocks the core pipeline (iron law).
 #
 # The `plugin:` declaration is modeled by myia.schema since v0.3
 # (CategoryPluginConfig, validated by load_category and attached to
@@ -14,12 +14,10 @@ name: 变更监控
 schedule: "*/15 * * * *"
 timezone: Asia/Shanghai
 
-plugin:                             # scenario plugin declaration (dual mode, v1.7)
+plugin:                             # scenario plugin declaration (remote opt-in, v1.1)
   id: myia-monitor
-  requires: docker
+  requires: []
   modes:
-    local:
-      install: docker compose up -d
     remote:
       endpoint: https://my-monitor.example.com   # your changedetection.io instance
       token: keychain:myia/monitor/token            # myia secret set myia/monitor/token
@@ -27,7 +25,7 @@ plugin:                             # scenario plugin declaration (dual mode, v1
 sources:
   - name: changedetection-watches
     engine: direct_api            # REST API of the changedetection.io service
-    url: "https://my-monitor.example.com/api/v1/watch"   # resolved from plugin.modes.remote
+    url: "https://my-monitor.example.com/api/v1/watch"   # MANUALLY kept in sync with plugin.modes.remote.endpoint above (no auto-resolve mechanism: two places to edit)
     method: GET
     headers:
       # 钥匙链凭据引用,规范名空间 myia/<scope>/<name>(写入:

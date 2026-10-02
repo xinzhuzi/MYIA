@@ -1,0 +1,3 @@
+[submodule "plugins/myia-osint/vendor/Photon"]
+	path = plugins/myia-osint/vendor/Photon
+	url = https://github.com/s0md3v/Photon

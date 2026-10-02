@@ -48,8 +48,8 @@ plugins/<name>/
 
 ## Acceptance Criteria
 
-- [ ] myia-osint 作为样板落地:submodule 指向 Photon pin commit,`myia osint <target>`(或等价 CLI/进程内入口)在本机零 docker 完成一次真实侦察(需主人指定合法目标,默认用 example.com)
-- [ ] myia-proxy 轻量路径:进程内完成一次代理抓取+测活(零 Redis 零 docker);完整服务模式在 docker/ 可选
+- [x] myia-osint 作为样板落地:submodule 指向 Photon pin commit,`myia osint <target>`(或等价 CLI/进程内入口)在本机零 docker 完成一次真实侦察(需主人指定合法目标,默认用 example.com)(验证通过 2026-10-02,见 journal)
+- [x] myia-proxy 轻量路径:进程内完成一次代理抓取+测活(零 Redis 零 docker);完整服务模式在 docker/ 可选(验证通过 2026-10-02,见 journal)
 - [ ] monitor/credentials/douyin/maxun 按 定级建议 完成迁移或移出,plugins/ 目录里 grep 不到 docker-compose
 - [ ] `myia plugin list` 正确展示新分级;装不上任一插件时核心流水线照常(铁律回归测试绿)
 - [ ] 全量 pytest 绿;文档四同步;许可证边界复核记录在案

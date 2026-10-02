@@ -2036,6 +2036,13 @@ class Pipeline:
         ``getUpdates`` for feedback callbacks (桌面形态接收, grill Q7) and
         ingests them into the same store; polling failures log-and-continue.
 
+        **一个 bot token 只允许一个轮询方**(素材 12):所有 telegram 通道的
+        bot token 都解析自 ``env:TELEGRAM_BOT_TOKEN``,因此每个配置了 telegram
+        通道的常驻进程都会轮询同一条 getUpdates 流——Telegram 对并发轮询方
+        回 **409 Conflict** 互踢。同一 token 下至多一个品类以 ``--loop`` 常驻
+        (其余品类换推送渠道,或不常驻);``myia doctor`` 以
+        ``telegram_token_poll_conflict`` finding 提示多品类共配的情形。
+
         Args:
             trigger: prebuilt trigger override (tests use fine-grained cron);
                 defaults to ``build_cron_trigger(schedule, timezone)``.
@@ -2110,7 +2117,9 @@ class Pipeline:
         """TG 反馈轮询器(桌面形态接收, grill Q7):仅配置了 telegram 通道时启用。
 
         bot 凭据不可解析(未设 env 等)= 未启用(结构化 INFO,不告警——桌面
-        用户没配 TG 是正常态);轮询失败在循环内 log-and-continue。
+        用户没配 TG 是正常态);轮询失败在循环内 log-and-continue。同 token
+        并发轮询约束(409)见 :meth:`run_forever` docstring——本方法不判定
+        其他进程是否也在轮询,跨进程互斥交由部署形态保证。
         """
         if not any(push.channel == "telegram" for push in self.config.push):
             return None

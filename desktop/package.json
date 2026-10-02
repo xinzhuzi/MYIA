@@ -3,7 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "sidecar": "bash build-sidecar.sh",
+    "build": "npm --prefix ui-src run build"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"

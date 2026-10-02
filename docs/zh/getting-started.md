@@ -92,6 +92,11 @@ uv run myia run plugins/demo-min.yaml                    # 正式跑一次
 - `myia run --json` 看 `stages[]`(fetch/classify/dedup/analyze/push 各步
   items_in→items_out 与 skip 原因)和 `pushes[]`(分级分桶与发送结果)。
 - 长期使用加 `--loop`:按 YAML 的 `schedule` + `timezone` 常驻调度。
+  **注意**(一个 bot token 只允许一个轮询方):每个配置了 `telegram` 通道的
+  常驻进程都会轮询同一条 `getUpdates` 流(bot token 固定取
+  `env:TELEGRAM_BOT_TOKEN`),Telegram 对并发轮询方回 409 Conflict——同一
+  token 下至多一个品类以 `--loop` 常驻,其余品类改用其他推送渠道;
+  `myia doctor` 会以 `telegram_token_poll_conflict` 提示多品类共配的情形。
 
 跑仓库里的官方品类(羊毛/美股/AI 资讯/显卡行情等)同理,例如
 `uv run myia run plugins/wool.yaml`;官方插件用到的凭据位都写着

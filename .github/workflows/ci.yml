@@ -18,3 +18,24 @@ jobs:
         run: uv sync
       - name: Run tests
         run: uv run --no-sync python -m pytest -q --tb=short
+
+  ui-test:
+    name: UI component tests (desktop/ui-src)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop/ui-src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: desktop/ui-src/package-lock.json
+      # lockfile 权威安装:声明与锁脱节(如漏装依赖)在此直接红,本机侥幸不在场
+      - name: Install UI dependencies
+        run: npm ci --no-fund --no-audit
+      - name: Run UI component tests (5 screens)
+        run: npm test
+      - name: Type-check and build (tsc -b && vite build)
+        run: npm run build

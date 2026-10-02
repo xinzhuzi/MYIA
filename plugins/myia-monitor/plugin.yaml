@@ -1,17 +1,19 @@
 # myia-monitor — 官方场景件:变更监控(封装 dgtlmoon/changedetection.io)。
 #
 # 上游 Apache-2.0;本插件只以声明依赖与文档引用接入,不复制上游源码。
-# 品类侧示例:plugins/monitor.yaml(顶层 plugin: 节双模式声明)。
+# v1.1 瘦身与分级 remote(桌面可选):MYIA 内置变更指纹 + L1-L4 降级链已
+# 覆盖桌面主场景(零插件照常跑),本插件的 changedetection.io 集成降为
+# 可选 —— 仅经 remote 模式接入已部署实例(零 docker);本仓库不再携带
+# 本地部署 compose,服务端部署走仓库 docker/plugins/myia-monitor/。
+# 品类侧示例:plugins/monitor.yaml(顶层 plugin: 节)。
 id: myia-monitor
 name: 变更监控(changedetection.io)
-version: 1.0.0
+version: 1.1.0
 compatible: ">=0.1,<2.0"
-requires: docker
+tier: remote
+requires: []
 provides: [changedetection]
 modes:
-  local:
-    compose: docker-compose.yml
-    install: docker compose up -d
   remote:
     endpoint: https://my-monitor.example.com   # 你的 changedetection.io 实例占位地址
     token: keychain:myia/monitor/token         # myia secret set myia/monitor/token(上游 X-Api-Key)

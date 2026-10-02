@@ -1,11 +1,12 @@
 # docs/demo/demo-news.yaml — README「3 分钟上手」演示品类。
 #
-# 一个最小的 12 节品类:抓取本机 http.server 上的演示页(docs/demo/assets/
-# demo-site/,内容为演示用虚构数据),走内置七大类分类,经 stdout 通道输出
-# 推送卡片 —— 全程零凭据、零外网(127.0.0.1 是安全基线的显式例外)。
+# 一个最小的 12 节品类:抓取本机 http.server 上的演示页(desktop/fixture/,
+# 桌面端共用的本地夹具事实源,内容为演示用虚构数据),走内置七大类分类,
+# 经 stdout 通道输出推送卡片 —— 全程零凭据、零外网(127.0.0.1 是安全基线
+# 的显式例外)。
 #
 # 复现(docs/demo/README.md 有逐帧分镜):
-#   python3 -m http.server 8765 --bind 127.0.0.1 --directory docs/demo/assets/demo-site
+#   python3 -m http.server 8765 --bind 127.0.0.1 --directory desktop/fixture
 #   uv run --no-sync myia run docs/demo/demo-news.yaml --db /tmp/myia-demo/demo.db
 #
 # 换成飞书收卡:把 push[] 换成文件尾部的 feishu_card 注释块即可 —— 卡片

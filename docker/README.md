@@ -2,6 +2,11 @@
 
 三形态之一:想在服务器/NAS 上 24h 跑的用户 `docker compose up`,同一份插件 YAML、同一个核心(容器内就是 APScheduler 定时,不引 n8n/Kestra 等编排平台)。
 
+> v1.1 插件层架构转向:桌面路径(默认)**零 docker** —— 插件以源码/
+> 进程内(submodule + 适配器)或 remote 已部署服务接入,见
+> `plugins/myia-*/README.md`。docker 目录只承载两类可选部署:MYIA 核心的
+> 服务端形态(本文件)与场景件的服务端形态(`plugins/` 下的子目录)。
+
 ## 快速开始
 
 ```bash
@@ -43,6 +48,23 @@ MYIA_PLUGIN=ai-news.yaml
 | `data/` | `/data` | SQLite 等持久状态;需 chown 1000:1000(或改 `MYIA_UID/MYIA_GID`) |
 
 `docker/.env` 不挂载、不进镜像;它只在 `up` 时被 compose 读成环境变量。
+
+## 场景件的服务端形态(plugins/ 子目录)
+
+官方场景件的本地部署文件统一收在 `docker/plugins/<id>/compose.yml`(插件
+目录 `plugins/myia-*/` 内零 docker 内容;桌面用户不需要这些):
+
+| 插件 | 分级(tier) | compose | 说明 |
+|---|---|---|---|
+| myia-proxy | desktop | `docker/plugins/myia-proxy/compose.yml` | 完整 proxy_pool 服务形态(定时抓取+Redis 池+API);桌面已有进程内轻量路径 `myia proxy` |
+| myia-osint | desktop | `docker/plugins/myia-osint/compose.yml` | Photon 的容器化跑法(CLI 工具,非服务) |
+| myia-monitor | remote | `docker/plugins/myia-monitor/compose.yml` | changedetection.io 实例;桌面内置变更指纹已覆盖主场景,实例为可选 |
+| myia-douyin | server-only | `docker/plugins/myia-douyin/compose.yml` | 抖音/TikTok 数据 API 单容器快速通道 |
+| myia-maxun | server-only | `docker/plugins/myia-maxun/compose.yml` | Maxun 多容器栈;先在该目录建 `.env`(口令自生成,零明文入库) |
+
+```bash
+docker compose -f docker/plugins/myia-monitor/compose.yml up -d
+```
 
 ## 凭据与安全底线
 

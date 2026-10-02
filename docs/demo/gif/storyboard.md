@@ -12,7 +12,7 @@
 
 | # | 命令(实际执行) | 退出码 | transcript |
 |---|------------------|--------|------------|
-| 1 | `python3 -m http.server 8765 --bind 127.0.0.1 --directory docs/demo/assets/demo-site` | 0 | `02-http-server.txt` |
+| 1 | `python3 -m http.server 8765 --bind 127.0.0.1 --directory desktop/fixture` | 0 | `02-http-server.txt` |
 | 2 | `uv run --no-sync myia run docs/demo/demo-news.yaml --db /tmp/myia-demo/demo.db`(空库首轮) | 0 | `03-run1.txt` |
 | 3 | `grep '^{"channel"' run1.out \| jq -r .text`(提取本轮推送卡片文本) | 0 | `04-card.txt` |
 | 4 | 同 2(同库第二轮,内容未变) | 0 | `05-run2.txt` |
@@ -58,7 +58,7 @@ push:
 
 ### S3 · 起演示源(9.0s–12.0s)
 
-- 命令行:`$ python3 -m http.server 8765 --bind 127.0.0.1 --directory docs/demo/assets/demo-site`
+- 命令行:`$ python3 -m http.server 8765 --bind 127.0.0.1 --directory desktop/fixture`
 - 预期画面(真实输出,见 `02-http-server.txt`):
 
 ```text
@@ -150,7 +150,7 @@ MYIA test:docs/demo/demo-news.yaml(试抓不入库不推送)
 
 1. 新建干净终端 profile:深色底(#0d1117)、Menlo 15pt、窗口 ≥1100×640,
    关掉透明与多余标签页;只保留本分镜要用的窗口。
-2. 起演示源:`python3 -m http.server 8765 --bind 127.0.0.1 --directory docs/demo/assets/demo-site`
+2. 起演示源:`python3 -m http.server 8765 --bind 127.0.0.1 --directory desktop/fixture`
 3. 录制(二选一):
    - QuickTime Player → 文件 → 新建屏幕录制(选「录选区」框住终端窗口);或
    - `mkdir -p /tmp/myia-cap && screencapture -v /tmp/myia-cap/demo.mov`,

@@ -309,7 +309,14 @@ class FeishuCallbackHandler:
                 provided = data["token"]
         if not isinstance(provided, str) or not provided:
             return False
-        return hmac.compare_digest(provided, self._token)
+        # hmac.compare_digest 只收 bytes 或双方均为 ASCII 的 str:异常客户端
+        # 携带非 ASCII token 时,str 直接比较会抛 TypeError(素材 11:未处理
+        # 异常 → 500)。先统一 encode 成 bytes 再常数时间比较——任何编码侧
+        # 失败都归入「未授权」,走既有结构化 401 路径,绝不裸抛。
+        try:
+            return hmac.compare_digest(provided.encode("utf-8"), self._token.encode("utf-8"))
+        except (AttributeError, UnicodeEncodeError):
+            return False
 
 
 def _header_value(headers: Mapping[str, str], name: str) -> str | None:

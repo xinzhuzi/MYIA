@@ -11,6 +11,7 @@ failure path (retry budget exhausted, structured network error).
 from __future__ import annotations
 
 import json
+import logging
 import os
 
 import httpx
@@ -233,7 +234,11 @@ def test_backend_down_retries_then_structured_network_error():
     assert classify_exception(httpx.ConnectError("x")) == "network"
 
 
-def test_backend_500_exhausts_retries_and_raises():
+def test_backend_500_exhausts_retries_and_raises(monkeypatch):
+    """503 走满 retry 预算后结构化 FetchError(http_503),消息只记端点展示
+    形态 —— httpx 异常 str 内嵌解析 URL,透传会把后端端点带进 failures[]
+    (v1.1 错误路径日志安全回归;错误类与原 HTTPStatusError 语义一致)."""
+    monkeypatch.setenv("MYIA_FC_ENDPOINT", "http://secret.firecrawl.internal:9402")
     calls = {"count": 0}
 
     def responder(request: httpx.Request) -> httpx.Response:
@@ -241,14 +246,86 @@ def test_backend_500_exhausts_retries_and_raises():
         return httpx.Response(503, text="overloaded")
 
     client = make_client(firecrawl_handler(responder))
-    source = scrape_source(retry=1)
+    source = scrape_source(
+        retry=1, engine_options={"firecrawl": {"endpoint": "env:MYIA_FC_ENDPOINT"}}
+    )
     context, clock = make_context(client)
     engine = FirecrawlEngine(source, context)
 
-    with pytest.raises(httpx.HTTPStatusError):
+    with pytest.raises(FetchError) as excinfo:
         run(engine.fetch())
+    assert excinfo.value.error_type == "http_503"
     assert calls["count"] == 2
     assert clock.sleeps == [1.0]
+    message = str(excinfo.value)
+    assert "secret.firecrawl.internal" not in message  # 解析端点零外流
+    assert "env:MYIA_FC_ENDPOINT" in message  # 只记引用名
+
+
+def test_ready_log_shows_reference_not_resolved_endpoint(monkeypatch, caplog):
+    """就绪 INFO 记端点展示形态(options 引用名),解析值零出现(v1.1 条目 10
+    同族回归 —— 此前该行直接记解析后的明文 endpoint)。"""
+    monkeypatch.setenv("MYIA_FC_ENDPOINT", "http://secret.firecrawl.internal:9402")
+    client = make_client(
+        firecrawl_handler(lambda r: httpx.Response(200, json=SCRAPE_OK_MARKDOWN))
+    )
+    source = scrape_source(
+        engine_options={"firecrawl": {"endpoint": "env:MYIA_FC_ENDPOINT"}}
+    )
+    context, _ = make_context(client)
+    engine = FirecrawlEngine(source, context)
+
+    with caplog.at_level(logging.INFO, logger="myia.engines.firecrawl"):
+        run(engine.fetch())
+    messages = [record.getMessage() for record in caplog.records]
+    assert all("secret.firecrawl.internal" not in message for message in messages)
+    ready = [message for message in messages if "后端就绪" in message]
+    assert ready, "就绪 INFO 日志应存在"
+    assert "env:MYIA_FC_ENDPOINT" in ready[0]
+
+
+def test_ready_log_default_shows_builtin_constant(caplog):
+    """无任何配置:就绪 INFO 记内置缺省端点(公开常量,非凭据解析值)."""
+    client = make_client(
+        firecrawl_handler(lambda r: httpx.Response(200, json=SCRAPE_OK_MARKDOWN))
+    )
+    context, _ = make_context(client)
+    engine = FirecrawlEngine(scrape_source(), context)
+
+    with caplog.at_level(logging.INFO, logger="myia.engines.firecrawl"):
+        run(engine.fetch())
+    ready = [
+        record.getMessage() for record in caplog.records if "后端就绪" in record.getMessage()
+    ]
+    assert ready and "http://127.0.0.1:3002" in ready[0]
+
+
+def test_retry_warning_masks_resolved_endpoint(monkeypatch, caplog):
+    """429 重试 WARNING 在 fetch_base logger 上:URL 记掩码形态,解析端点零出现."""
+    monkeypatch.setenv("MYIA_FC_ENDPOINT", "http://secret.firecrawl.internal:9402")
+    calls = {"count": 0}
+
+    def responder(request: httpx.Request) -> httpx.Response:
+        calls["count"] += 1
+        return httpx.Response(429, json={"error": "slow down"})
+
+    client = make_client(firecrawl_handler(responder))
+    source = scrape_source(
+        retry=1, engine_options={"firecrawl": {"endpoint": "env:MYIA_FC_ENDPOINT"}}
+    )
+    context, _ = make_context(client)
+    engine = FirecrawlEngine(source, context)
+
+    with caplog.at_level(logging.WARNING, logger="myia.engines.fetch_base"), pytest.raises(
+        FetchError
+    ) as excinfo:
+        run(engine.fetch())
+    assert excinfo.value.error_type == "http_429"  # 预算耗尽后仍结构化
+    assert calls["count"] == 2
+    warnings = [record.getMessage() for record in caplog.records]
+    assert warnings, "重试 WARNING 应存在"
+    assert all("secret.firecrawl.internal" not in message for message in warnings)
+    assert any("http://<endpoint>/v1/scrape" in message for message in warnings)
 
 
 def test_timeout_option_reaches_body_and_httpx():

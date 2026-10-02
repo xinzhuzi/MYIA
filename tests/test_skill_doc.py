@@ -101,6 +101,16 @@ _SECTION_HEADER_RE = re.compile(r"^###\s+.*\((?P<model>[A-Z][A-Za-z]+)\)\s*$")
 _HEADER_RE = re.compile(r"^#{1,6}\s")
 _CODE_SPAN_RE = re.compile(r"`([^`]+)`")
 
+#: 各通道凭据约定的缺省 env 引用(与 src/myia/push/*.py 的 DEFAULT_*_ENV_REF
+#: 及 SKILL.md §2.13 同源;docs/write-a-plugin.md 的「各通道凭据约定」指向它)。
+_CHANNEL_CREDENTIAL_ENV_REFS = (
+    "env:FEISHU_CHAT_ID",
+    "env:FEISHU_BOT_TOKEN",
+    "env:TELEGRAM_CHAT_ID",
+    "env:TELEGRAM_BOT_TOKEN",
+    "env:MYIA_WEBHOOK_URL",
+)
+
 
 # ---------------------------------------------------------------------------
 # Parsing helpers (markdown is a fixture format here — kept strict on purpose)
@@ -427,3 +437,48 @@ def test_skill_technique_commands_exist_in_cli():
                 assert token in options_by_command[command], (
                     f"SKILL.md 引用了不存在的选项: {line!r}"
                 )
+
+
+# ---------------------------------------------------------------------------
+# 7. Runtime-shaped prose: run --json stage list & per-channel credentials
+#    (v1.1 low backlog #1/#2 防漂移回归)
+# ---------------------------------------------------------------------------
+
+
+def test_skill_run_json_stage_list_matches_executed_stages():
+    """§4.3's ``stages[]`` prose names exactly ``pipeline.EXECUTED_STAGES``, in order.
+
+    Pinned against the live constant, not a copy: ``enrich`` never appears as
+    a stage in ``result.stages`` (LLM 精评发生在 analyze 内), and the v0.4
+    ``aggregate`` stage only exists when the category declares ``aggregate:``
+    — the prose must say so instead of listing it as a standing stage.
+    """
+    from myia.pipeline import EXECUTED_STAGES
+
+    text = _read(SKILL_MD)
+    assert "/".join(EXECUTED_STAGES) in text, (
+        "SKILL.md 的 run --json stages[] 清单应恰为 "
+        f"{'/'.join(EXECUTED_STAGES)}(与 myia.pipeline.EXECUTED_STAGES 一致)"
+    )
+    assert "analyze/enrich/push" not in text, (
+        "SKILL.md 又把 enrich 列进 run --json 的 stages[](执行链没有独立 enrich 阶段)"
+    )
+    lines = text.splitlines()
+    stage_index = next(i for i, line in enumerate(lines) if "stages[]" in line)
+    stage_context = "\n".join(lines[stage_index : stage_index + 4])
+    assert "aggregate" in stage_context, (
+        "SKILL.md 的 stages[] 说明应注明 aggregate 仅在品类声明 aggregate: 时条件性插入"
+    )
+
+
+def test_skill_documents_per_channel_credentials():
+    """§2.13 names every channel's companion credential env ref.
+
+    Single source for the conventions the docs site cites (docs/{zh,en,}/
+    write-a-plugin.md 的「各通道凭据约定」都指向本节,本节漂移则三处同漂).
+    The shared root guide (docs/write-a-plugin.md) must carry them too.
+    """
+    for path, label in ((SKILL_MD, "SKILL.md"), (WRITE_A_PLUGIN_MD, "write-a-plugin.md")):
+        text = _read(path)
+        missing = [ref for ref in _CHANNEL_CREDENTIAL_ENV_REFS if ref not in text]
+        assert not missing, f"{label} 缺少各通道凭据约定: {missing}"

@@ -1,17 +1,18 @@
 # myia-maxun — 官方场景件:无代码爬虫平台(封装 getmaxun/maxun)。
 #
-# 许可注意:上游 Maxun 为 AGPL-3.0 —— 本插件只以 manifest 声明依赖、文档
-# 引用与 compose 引用官方镜像的方式接入,**不复制其任何源码进本仓库**。
+# 许可注意:上游 Maxun 为 AGPL-3.0 —— 本插件只以 manifest 声明依赖与文档
+# 引用的方式接入,**不复制其任何源码进本仓库**。
+# v1.1 分级 server-only(桌面默认集移出):上游是 Electron 应用 + 多容器
+# 栈,不可进程化,桌面路径不携带;可用形态 = 已部署实例按 remote 模式接入,
+# 服务端部署 compose 在仓库 docker/plugins/myia-maxun/。
 id: myia-maxun
 name: 无代码爬虫平台(Maxun)
-version: 1.0.0
+version: 1.1.0
 compatible: ">=0.1,<2.0"
-requires: docker
+tier: server-only
+requires: []
 provides: [maxun]
 modes:
-  local:
-    compose: docker-compose.yml
-    install: docker compose up -d
   remote:
     # 上游鉴权为控制台会话(浏览器登录),无稳定 API token 契约,故无 token 声明。
     endpoint: https://maxun.example.com

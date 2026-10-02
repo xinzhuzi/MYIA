@@ -3,7 +3,7 @@
   "name": "v11-skill-install",
   "title": "myia skill install:打通 Agent Skill 最后一公里",
   "description": "SKILL.md 已写好并有一致性测试,但无安装通路——加 myia skill install 命令把它装进 Claude Code/Cursor 等技能目录",
-  "status": "planning",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,

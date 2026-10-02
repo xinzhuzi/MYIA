@@ -6,15 +6,19 @@ Contract (PRD 10-01-v04-engine-llm-browser; 降级链定案「烧 token,只做�
   create ``POST {endpoint}/v1/run/tasks`` (``x-api-key`` auth) -> poll
   ``GET {endpoint}/v1/runs/{run_id}`` every ``poll_interval`` seconds until a
   terminal status; the extracted payload rides the completed run's ``output``
-  field. Same zero-heavy-dependency approach as firecrawl: the ``skyvern``
-  PyPI package IS the server, never a client library, so no extra is added.
+  field. The adapter imports no SDK — plain httpx, and the firecrawl adapter
+  is built the same way. pyproject 的 ``skyvern`` / ``firecrawl`` extras 因此
+  不是引擎的运行时依赖,而是**服务端安装便利**(``skyvern`` / ``firecrawl-py``
+  PyPI 包即服务端本体,``uv sync --extra skyvern`` 一键拉起自部署后端);
+  引擎代码对这两个包零引用。
   自部署与云同面:cloud = ``MYIA_SKYVERN_URL`` + ``MYIA_SKYVERN_API_KEY``;
   self-host = 默认端点 ``http://127.0.0.1:8000``,api_key 可选(自部署可关鉴权)。
 - **endpoint + api_key 一律凭据引用**(安全基线: 配置零明文凭据):
   ``engine_options.llm_browser.endpoint`` / ``api_key`` must be ``env:`` /
   ``keychain:`` references — plaintext is refused at fetch time
   (``credentials_plaintext``); unset options fall back to the env vars above.
-  Resolved values never reach logs.
+  Resolved values never reach logs:endpoint 的日志记凭据引用名
+  (``env:``/``keychain:``)或内置缺省,api_key 只报已配置与否。
 - **自然语言任务描述(源级配置)**:``engine_options.llm_browser.goal`` carries
   the task verbatim into skyvern's ``prompt``. Without it the goal is
   generated deterministically: extract 字段名 -> 「逐条提取字段 …」;无
@@ -91,7 +95,14 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-from myia.engines.fetch_base import BaseEngine, FetchError, extract_json
+import httpx
+
+from myia.engines.fetch_base import (
+    BaseEngine,
+    FetchError,
+    extract_json,
+    mask_endpoint_url,
+)
 from myia.enrich.scoring import BudgetTracker
 from myia.schema import CredentialResolveError, resolve_credential
 
@@ -297,6 +308,9 @@ class _Options:
     """Validated ``engine_options.llm_browser`` snapshot(全量先于首次调用)."""
 
     endpoint: str
+    #: endpoint 的日志安全展示形态(凭据引用名 / env 回退名 / 内置缺省):
+    #: 解析值不落日志(模块契约;fetch_base 的 mask 先例同旨)。
+    endpoint_display: str
     api_key: str | None
     goal: str | None
     proxy_location: str | None
@@ -328,7 +342,13 @@ class LLMBrowserEngine(BaseEngine):
                 ) from exc
             raise
 
-    def _endpoint(self) -> str:
+    def _endpoint(self) -> tuple[str, str]:
+        """Resolve endpoint -> ``(concrete value, log-safe display form)``.
+
+        展示形态记来源 —— options 引用原样(``env:``/``keychain:`` 名)、env
+        回退记 ``env:MYIA_SKYVERN_URL``、无配置记内置缺省 —— 解析值不落
+        日志(模块契约;fetch_base 的 mask 先例同旨)。
+        """
         configured = self.engine_options().get("endpoint")
         if configured is not None:
             if not isinstance(configured, str):
@@ -337,11 +357,12 @@ class LLMBrowserEngine(BaseEngine):
                     f"当前为 {type(configured).__name__}",
                     error_type="invalid_endpoint",
                 )
-            return self._resolve_ref(configured, "engine_options.llm_browser.endpoint")
+            resolved = self._resolve_ref(configured, "engine_options.llm_browser.endpoint")
+            return resolved, configured
         from_env = os.environ.get(ENV_SKYVERN_URL, "").strip()
         if from_env:
-            return from_env
-        return DEFAULT_SKYVERN_ENDPOINT
+            return from_env, f"env:{ENV_SKYVERN_URL}"
+        return DEFAULT_SKYVERN_ENDPOINT, f"默认({DEFAULT_SKYVERN_ENDPOINT})"
 
     def _api_key(self) -> str | None:
         configured = self.engine_options().get("api_key")
@@ -424,8 +445,10 @@ class LLMBrowserEngine(BaseEngine):
 
     def _options(self) -> _Options:
         """engine_options.llm_browser 全量校验快照(先于任何调用,fail-fast 于配置)."""
+        endpoint, endpoint_display = self._endpoint()
         return _Options(
-            endpoint=self._endpoint(),
+            endpoint=endpoint,
+            endpoint_display=endpoint_display,
             api_key=self._api_key(),
             goal=self._goal(),
             proxy_location=self._proxy_location(),
@@ -478,7 +501,8 @@ class LLMBrowserEngine(BaseEngine):
         logger.info(
             "skyvern 后端就绪 endpoint=%s timeout=%ss poll_interval=%ss "
             "max_calls(run)=%s budget_per_run=%s api_key=%s",
-            options.endpoint,
+            # 展示形态 = 凭据引用名 / 内置缺省;解析值不落日志(fetch_base mask 先例)。
+            options.endpoint_display,
             options.timeout,
             options.poll_interval,
             guard.max_calls,
@@ -514,15 +538,35 @@ class LLMBrowserEngine(BaseEngine):
             headers["x-api-key"] = options.api_key
         return headers
 
+    def _http_status_failure(
+        self, exc: httpx.HTTPStatusError, endpoint_display: str
+    ) -> FetchError:
+        """HTTP >= 400 -> 结构化 FetchError:错误类 ``http_<status>`` 不变,但
+        消息只记端点展示形态 —— httpx 异常的 str 内嵌完整解析 URL,直接透传
+        会把后端端点写进 failures[] 与日志(模块契约:解析值不落日志)。"""
+        status = exc.response.status_code
+        return FetchError(
+            f"skyvern 后端 HTTP {status} endpoint={endpoint_display}: {exc.response.reason_phrase}",
+            error_type=f"http_{status}",
+        )
+
     async def _create_run(self, options: _Options, target_url: str) -> str:
         """``POST /v1/run/tasks`` -> run_id(prompt = 任务描述)."""
         url = options.endpoint.rstrip("/") + "/v1/run/tasks"
         body: dict[str, Any] = {"url": target_url, "prompt": self._effective_goal(options)}
         if options.proxy_location is not None:
             body["proxy_location"] = options.proxy_location
-        response = await self._send_with_retry(
-            "POST", url, json_body=body, headers=self._auth_headers(options)
-        )
+        try:
+            response = await self._send_with_retry(
+                "POST",
+                url,
+                json_body=body,
+                headers=self._auth_headers(options),
+                # 重试 WARNING 记掩码形态:解析端点不落日志。
+                log_url=mask_endpoint_url(url),
+            )
+        except httpx.HTTPStatusError as exc:
+            raise self._http_status_failure(exc, options.endpoint_display) from exc
         try:
             payload = response.json()
         except ValueError as exc:
@@ -547,7 +591,12 @@ class LLMBrowserEngine(BaseEngine):
         headers = {"x-api-key": options.api_key} if options.api_key else None
         deadline = self.context.clock() + options.timeout
         while True:
-            response = await self._send_with_retry("GET", url, headers=headers)
+            try:
+                response = await self._send_with_retry(
+                    "GET", url, headers=headers, log_url=mask_endpoint_url(url)
+                )
+            except httpx.HTTPStatusError as exc:
+                raise self._http_status_failure(exc, options.endpoint_display) from exc
             try:
                 payload = response.json()
             except ValueError as exc:

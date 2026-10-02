@@ -7,6 +7,13 @@ side polls the Bot API instead: every ``callback_query`` update whose
 ``timeout``) keeps this cheap; the pipeline's resident mode runs the loop in
 the background whenever a ``telegram`` push channel is configured.
 
+**一个 bot token 只允许一个轮询方**(素材 12):bot token 固定解析自
+``env:TELEGRAM_BOT_TOKEN``,Telegram 对同一 token 的并发 ``getUpdates``
+long-poll 回 **409 Conflict**。因此同一 token 下至多一个常驻进程开启反馈
+轮询——多品类场景只给其中一个品类配 telegram 通道,或让其不常驻;跨进程
+互斥不在库内实现(部署形态保证),``myia doctor`` 以
+``telegram_token_poll_conflict`` finding 提示多品类共配的情形。
+
 Callback-data contract (buttons belong to the desktop 正式版; the receiver
 already speaks it): ``fb:<good|bad>:<dedup_key>`` — the dedup key may be a
 URL and therefore contain colons, so the prefix splits at most twice. Note

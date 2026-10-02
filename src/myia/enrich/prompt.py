@@ -1,7 +1,8 @@
 """External prompt template (data file), loaded once at enricher construction.
 
-The templates live in ``data/`` (same data/code separation as
-``classify/data/keywords.json``) so the owner or an AI can tune the prompts —
+The templates live in ``data/`` (same data/code separation as the classifier
+package's ``myia-classifier/myia_classifier/data/keywords.json``) so the
+owner or an AI can tune the prompts —
 the v0.3 feedback loop's tuning knob — without touching code:
 
 - ``prompt.json`` — the scoring prompt (LLMEnricher; ``load_prompt``);

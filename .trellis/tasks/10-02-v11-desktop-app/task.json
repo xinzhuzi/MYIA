@@ -3,7 +3,7 @@
   "name": "v11-desktop-app",
   "title": "v1.1 桌面正式版:五大界面 + 打包流水线",
   "description": "grill Q11 定案的头号 v1.1 交付:在 desktop/ 地基上实现产品级桌面客户端(仪表盘/情报流/源管理/日志/设置 + updater + dmg/exe 流水线)",
-  "status": "planning",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,

@@ -2,15 +2,16 @@
 # 拓扑与官方镜像一致(postgres + minio + backend + frontend + browser),
 # 差异仅两点——基础设施服务不发布宿主端口(走 compose 内网),backend/
 # frontend 只绑回环。完整环境变量清单见上游 .env.example 与 docs.maxun.dev。
-# 本文件零明文凭据:口令一律 ${VAR:?必填} 从 .env/环境注入,先建 .env 再 up。
+# 本文件零明文凭据:口令一律 ${VAR:?必填} 从 .env/环境注入,先在本目录
+# (docker/plugins/myia-maxun/)建 .env 再 up;用法见 plugins/myia-maxun/README.md。
 services:
   postgres:
     image: postgres:13
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${DB_USER:?请在插件目录 .env 设置 DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?请在插件目录 .env 设置 DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME:?请在插件目录 .env 设置 DB_NAME}
+      POSTGRES_USER: ${DB_USER:?请在同目录 .env 设置 DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?请在同目录 .env 设置 DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:?请在同目录 .env 设置 DB_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -23,8 +24,8 @@ services:
     image: minio/minio
     restart: unless-stopped
     environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?请在插件目录 .env 设置 MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?请在插件目录 .env 设置 MINIO_SECRET_KEY}
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?请在同目录 .env 设置 MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?请在同目录 .env 设置 MINIO_SECRET_KEY}
     command: server /data --console-address :9001
     volumes:
       - minio_data:/data

@@ -54,8 +54,8 @@ print(result.tags)  # ["大波动"]
 ```python
 from myia_classifier import load_table, classify_title
 
-table = load_table("path/to/keywords.json")  # 结构非法时结构化报错(字段路径+原因)
-print(classify_title("便宜出极速云主机三台", table).category)
+table = load_table()  # 缺省即打包词表;自定义时传自己的 JSON 路径(结构非法时结构化报错)
+print(classify_title("便宜出极速服务器三台", table).category)  # "server"(打包词表实测命中)
 ```
 
 词表 JSON 支持在 `keywords`(普通关键词)与 `patterns`(正则)两列增改,`case_insensitive` 按节可调;顶层未知字段与断裂引用(如 `fallback_target` 指向不存在的类目)加载即报错,不做静默忽略。

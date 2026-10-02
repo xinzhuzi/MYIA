@@ -1,16 +1,21 @@
-"""官方六件场景件(plugin packages)的封装契约测试(PRD 10-01-v03-plugin-market).
+"""官方六件场景件(plugin packages)的封装契约测试(PRD 10-01-v03-plugin-market
+及其 v1.1 架构转向,PRD 10-02-v11-plugins-source-arch).
 
 六个 ``plugins/<id>/`` 目录是市场插件包:每包含 ``plugin.yaml``(manifest,
-规范见 :mod:`myia.plugins.manifest`)+ README(local/remote 双路径)+
-docker-compose.yml(local 模式;myia-credentials 为纯 remote 例外)。三条
-被钉住的契约:
+规范见 :mod:`myia.plugins.manifest`)+ README + 桌面路径声明。三条被钉住的
+契约:
 
 1. 六件 manifest 全部过真实校验入口 :func:`load_manifest_file`:id==目录名、
-   版本矩阵兼容当前 myia、remote 端点只用 example.com 占位域(公开仓库红线);
+   版本矩阵兼容当前 myia、**tier 分级**(desktop/remote/server-only)与
+   定级一致、remote 端点只用 example.com 占位域(公开仓库红线);
 2. **remote 模式 mock 往返**:MockTransport 拦截端点探测,零真实网络;
 3. **铁律呼应**:损坏/未装的插件包只降级为 warning finding,核心品类加载
    与 Pipeline 构造完全无感(与 tests/test_plugins_system.py 同一铁律,
    这里在真实插件包的尺度上再钉一遍)。
+
+v1.1 架构转向(桌面优先,零 docker):官方包 manifest 不再声明 local
+compose 模式,``plugins/`` 目录零 compose 文件;场景件的本地部署文件统一
+收在 ``docker/plugins/<id>/compose.yml``(服务端可选路径,凭据红线照钉)。
 
 测试纪律:零真实网络、零真实钥匙串(InMemoryKeychainBackend)、每测独立
 tmp_path。
@@ -39,6 +44,8 @@ from myia.secrets import set_backend as set_keychain_backend
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PLUGINS_DIR = REPO_ROOT / "plugins"
+#: 场景件的服务端可选部署(v1.1 起迁出插件目录):docker/plugins/<id>/compose.yml。
+DOCKER_PLUGINS_DIR = REPO_ROOT / "docker" / "plugins"
 
 #: 六件官方场景件(目录名 == manifest id)。
 OFFICIAL_PACKAGES = (
@@ -49,6 +56,16 @@ OFFICIAL_PACKAGES = (
     "myia-maxun",
     "myia-credentials",
 )
+
+#: v1.1 定级建议(PRD 10-02-v11-plugins-source-arch 复核表)钉死的期望分级。
+EXPECTED_TIERS = {
+    "myia-proxy": "desktop",
+    "myia-osint": "desktop",
+    "myia-monitor": "remote",
+    "myia-credentials": "remote",
+    "myia-douyin": "server-only",
+    "myia-maxun": "server-only",
+}
 
 
 def package_dir(package: str) -> Path:
@@ -92,23 +109,62 @@ class TestPackageManifests:
         assert manifest.install.source.startswith("https://")
 
     def test_remote_only_package_ships_no_compose(self):
-        """myia-credentials 是纯 remote 例外:无 compose,manifest 也无 local 模式。"""
+        """v1.1 起所有官方包都不再携带本地部署文件(不只 credentials)。"""
         manifest = load_package("myia-credentials")
         assert manifest.modes.local is None
         assert manifest.modes.remote is not None
         assert not (package_dir("myia-credentials") / "docker-compose.yml").exists()
 
     @pytest.mark.parametrize("package", OFFICIAL_PACKAGES)
-    def test_readme_documents_both_paths(self, package: str):
+    def test_v11_tier_matches_prd_table(self, package: str):
+        """v1.1 分级与 PRD 定级表一字不差(myia plugin list 据此展示)。"""
+        manifest = load_package(package)
+        assert manifest.tier == EXPECTED_TIERS[package]
+        assert manifest.tier in ("desktop", "remote", "server-only")
+
+    @pytest.mark.parametrize("package", OFFICIAL_PACKAGES)
+    def test_no_manifest_declares_local_compose_anymore(self, package: str):
+        """桌面优先(v1.1):manifest 不再声明 local compose 模式。"""
+        manifest = load_package(package)
+        assert manifest.modes.local is None, (
+            f"{package}: v1.1 起插件目录不携带本地部署 compose,manifest 不得声明 modes.local"
+        )
+
+    def test_plugins_dir_holds_no_compose_files(self):
+        """铁验收:plugins/ 目录 grep 不到 docker-compose,也没有任何 compose 文件."""
+        compose_files = [
+            path
+            for path in PLUGINS_DIR.rglob("*")
+            if path.is_file()
+            and path.suffix in (".yml", ".yaml")
+            and "docker-compose" in path.name
+            and "vendor" not in path.relative_to(PLUGINS_DIR).parts
+        ]
+        assert compose_files == [], f"plugins/ 里发现 compose 文件: {compose_files}"
+        for path in PLUGINS_DIR.rglob("*.md"):
+            if "vendor" in path.relative_to(PLUGINS_DIR).parts:
+                continue
+            assert "docker-compose" not in path.read_text(encoding="utf-8"), (
+                f"{path}: 文档提及 docker-compose(部署文件应指向 docker/plugins/)"
+            )
+
+    def test_docker_plugins_dir_holds_exactly_the_five_composes(self):
+        """迁出的部署文件落在 docker/plugins/<id>/compose.yml,五件不多不少。"""
+        expected = {"myia-proxy", "myia-osint", "myia-monitor", "myia-douyin", "myia-maxun"}
+        found = {path.parent.name for path in DOCKER_PLUGINS_DIR.glob("*/compose.yml")}
+        assert found == expected
+
+    @pytest.mark.parametrize("package", OFFICIAL_PACKAGES)
+    def test_readme_documents_desktop_first(self, package: str):
+        """README 桌面路径优先(源码/进程内或 remote);server-only 说明移出原因."""
         readme = (package_dir(package) / "README.md").read_text(encoding="utf-8")
         manifest = load_package(package)
-        if manifest.modes.local is not None:
-            assert "docker compose" in readme, (
-                f"{package}: README 缺 local(docker compose)路径"
-            )
-        if manifest.modes.remote is not None:
-            assert "endpoint" in readme, (
-                f"{package}: README 缺 remote(填 endpoint+token)路径"
+        assert "endpoint" in readme, f"{package}: README 缺 remote(填 endpoint+token)路径"
+        if manifest.tier == "desktop":
+            assert "桌面路径" in readme, f"{package}: desktop 分级 README 缺桌面路径说明"
+        if manifest.tier == "server-only":
+            assert "server-only" in readme and "移出" in readme, (
+                f"{package}: server-only 分级 README 须说明桌面默认集移出原因"
             )
 
     @pytest.mark.parametrize("package", OFFICIAL_PACKAGES)
@@ -133,36 +189,34 @@ class TestPackageManifests:
             "token scope 应与插件名对应"
         )
 
-    @pytest.mark.parametrize(
-        "package",
-        [
-            name
-            for name in OFFICIAL_PACKAGES
-            if (PLUGINS_DIR / name / "docker-compose.yml").is_file()
-        ],
+
+def _docker_compose_fixtures() -> list[Path]:
+    if not DOCKER_PLUGINS_DIR.is_dir():
+        return []
+    return sorted(DOCKER_PLUGINS_DIR.glob("*/compose.yml"))
+
+
+@pytest.mark.parametrize("compose_path", _docker_compose_fixtures())
+def test_plugin_compose_parses_and_holds_no_plaintext_secrets(compose_path: Path):
+    """服务端 compose(已迁 docker/plugins/)可解析、凭据形键必须 ${VAR} 注入."""
+    compose = yaml.safe_load(compose_path.read_text(encoding="utf-8"))
+    assert isinstance(compose, dict) and compose.get("services"), (
+        "compose 必须声明 services"
     )
-    def test_compose_parses_and_holds_no_plaintext_secrets(self, package: str):
-        """compose 可解析、至少一个服务;凭据形键的值必须走 ${VAR} 注入。"""
-        compose = yaml.safe_load(
-            (package_dir(package) / "docker-compose.yml").read_text(encoding="utf-8")
-        )
-        assert isinstance(compose, dict) and compose.get("services"), (
-            "compose 必须声明 services"
-        )
-        suspicious = re.compile(
-            r"password|secret|token|api[-_]?key|authorization|cookie", re.IGNORECASE
-        )
-        for service in compose["services"].values():
-            assert isinstance(service, dict)
-            for key, value in service.items():
-                if (
-                    suspicious.search(str(key))
-                    and isinstance(value, str)
-                    and value.strip()
-                ):
-                    assert "${" in value, (
-                        f"{package}: compose 里 {key} 疑似明文凭据(应为 ${{VAR}} 注入)"
-                    )
+    suspicious = re.compile(
+        r"password|secret|token|api[-_]?key|authorization|cookie", re.IGNORECASE
+    )
+    for service in compose["services"].values():
+        assert isinstance(service, dict)
+        for key, value in service.items():
+            if (
+                suspicious.search(str(key))
+                and isinstance(value, str)
+                and value.strip()
+            ):
+                assert "${" in value, (
+                    f"{compose_path}: {key} 疑似明文凭据(应为 ${{VAR}} 注入)"
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -366,6 +420,11 @@ def test_package_files_hold_no_private_addresses_or_traces(package: str):
     for path in sorted(target.rglob("*")):
         if not path.is_file():
             continue
+        if "vendor" in path.relative_to(target).parts:
+            # vendor/ 是上游工作树(submodule pin 635c25a,已全树扫描无内网
+            # 地址/裸凭据并记录在案);其内容属上游仓库,不由本仓库红线扫描
+            # 负责 —— 本仓库零复制的证据由 gitlink 形状测试负责。
+            continue
         text = path.read_text(encoding="utf-8")
         assert not _PRIVATE_HOST_RE.search(text), f"{path}: 出现内网地址(公开仓库红线)"
         for trace in _FORBIDDEN_TRACES:
@@ -380,11 +439,42 @@ def test_package_files_hold_no_private_addresses_or_traces(package: str):
             ), f"{path}: Bearer 后疑似裸凭据字面量 {word!r}"
 
 
+#: v1.1 源码型/进程内插件(PRD 10-02-v11-plugins-source-arch):插件目录除
+#: manifest/文档外,还允许 MYIA 侧适配器 adapter.py;myia-osint 另有上游
+#: submodule 指针目录 vendor/(gitlink,上游代码零入库、零复制);
+#: myia-proxy 的适配器是自实现精简版(参照 proxy_pool 思路),零 vendored。
+SOURCE_TYPE_PACKAGES = {
+    "myia-osint": {"adapter.py", "vendor"},
+    "myia-proxy": {"adapter.py"},
+}
+
+
 def test_official_packages_never_reference_their_upstream_by_copying_files():
-    """GPL/AGPL 红线的包形状证据:六件包里没有任何上游源码文件(只有声明/文档/compose)."""
+    """GPL/AGPL 红线的包形状证据:六件包里没有任何上游源码文件被复制入库.
+
+    v1.1 起源码型插件(myia-osint)以 gitlink(submodule)指向上游 ——
+    vendor/ 是 submodule 指针而非上游文件;适配器 adapter.py 是 MYIA 侧
+    代码。gitlink 形状(160000 == manifest pin)钉在
+    tests/test_osint_plugin.py::TestSubmoduleShape。
+    """
     allowed_suffixes = {".yaml", ".yml", ".md"}
     for package in OFFICIAL_PACKAGES:
+        source_type_extra = SOURCE_TYPE_PACKAGES.get(package, set())
         for path in package_dir(package).iterdir():
+            if path.name in source_type_extra:
+                continue
             assert path.suffix in allowed_suffixes, (
                 f"{package}/{path.name}: 插件包只许 manifest/文档/compose,上游代码零入库"
             )
+
+
+def test_source_type_vendor_directory_holds_only_the_submodule():
+    """源码型样板的 vendor/ 里除 submodule 外零散落文件(无上游复制)."""
+    vendor = package_dir("myia-osint") / "vendor"
+    assert vendor.is_dir(), "源码型样板应声明 vendor/"
+    stray = [
+        path.name
+        for path in vendor.iterdir()
+        if path.name != "Photon" and not path.name.startswith(".")
+    ]
+    assert stray == [], f"vendor/ 只许放 submodule 目录,发现散落文件:{stray}"

@@ -15,7 +15,10 @@ tmp_path 存储,零真实网络(TG/飞书真实回调需主人手动验证,见�
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import json
+import logging
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -24,6 +27,7 @@ import httpx
 import pytest
 from conftest import run
 
+import myia.pipeline as pipeline_module
 from myia.cli import main as cli_main
 from myia.feedback import (
     FeedbackTuner,
@@ -37,7 +41,13 @@ from myia.feedback import (
     resolve_item_ref,
 )
 from myia.pipeline import Pipeline
-from myia.push import TelegramFeedbackError, TelegramFeedbackPoller, parse_callback_data
+from myia.push import (
+    PollResult,
+    TelegramCallback,
+    TelegramFeedbackError,
+    TelegramFeedbackPoller,
+    parse_callback_data,
+)
 from myia.push.feishu_callback import (
     FeishuCallbackConfig,
     FeishuCallbackConfigError,
@@ -841,6 +851,47 @@ class TestFeishuCallbackHandler:
 
         assert response.status == 401
 
+    def test_non_ascii_header_token_is_structured_401_not_500(self):
+        """非 ASCII token(素材 11):encode 后比较,回结构化 401 而非裸 TypeError。"""
+        handler = self.make_enabled_handler()
+        body = json.dumps(
+            {"action": {"value": feishu_button_value("good", "https://x/1")}}
+        ).encode()
+
+        response = handler.handle(headers={"X-Myia-Token": "令牌-密钥✓"}, body=body)
+
+        assert response.status == 401
+        assert response.payload["error"] == "unauthorized"
+
+    def test_non_ascii_payload_token_is_structured_401(self):
+        """负载内验证 token 同样允许非 ASCII:mismatch → 401,不抛 TypeError。"""
+        handler = self.make_enabled_handler()
+        body = json.dumps(
+            {
+                "header": {"token": "秘密トークン"},
+                "action": {"value": feishu_button_value("good", "https://x/1")},
+            }
+        ).encode()
+
+        response = handler.handle(headers={}, body=body)
+
+        assert response.status == 401
+        assert response.payload["error"] == "unauthorized"
+
+    def test_non_ascii_configured_token_roundtrip(self):
+        """配置侧本身是非 ASCII token:相等 → 200,不等 → 401(双向 encode)。"""
+        config = FeishuCallbackConfig(enabled=True, token_ref="env:T")
+        handler = FeishuCallbackHandler(config, token="密钥-カギ")
+        body = json.dumps(
+            {"action": {"value": feishu_button_value("good", "https://x/1")}}
+        ).encode()
+
+        ok = handler.handle(headers={"X-Myia-Token": "密钥-カギ"}, body=body)
+        bad = handler.handle(headers={"X-Myia-Token": "别的密钥"}, body=body)
+
+        assert ok.status == 200 and ok.payload["code"] == "ok"
+        assert bad.status == 401
+
     def test_valid_header_token_parses_button_callback(self):
         handler = self.make_enabled_handler()
         body = json.dumps(
@@ -1105,6 +1156,153 @@ class TestPipelineFeedbackLoop:
             run(client.aclose())
 
         assert result.feedback_tuning is None  # dry-run 零持久化副作用
+
+
+# ---------------------------------------------------------------------------
+# 常驻反馈轮询循环(素材 13):offset 书签 / store 复用 / 单轮异常隔离
+# ---------------------------------------------------------------------------
+
+
+class ScriptedPoller:
+    """``_feedback_poll_loop`` 的剧本化替身:逐轮返回预置结果或抛异常。
+
+    记录每轮收到的 ``offset`` 实参(书签推进的直接证据);轮次用尽后重复
+    最后一轮(与真实 API 的稳态等价:书签之后的轮次不再有新更新)。
+    """
+
+    def __init__(self, rounds: list[Any]) -> None:
+        self._rounds = list(rounds)
+        self.offsets: list[int | None] = []
+
+    async def poll(self, *, offset: int | None = None) -> Any:
+        self.offsets.append(offset)
+        outcome = self._rounds[min(len(self.offsets) - 1, len(self._rounds) - 1)]
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+
+class TestFeedbackPollLoop:
+    """``_feedback_poll_loop`` 是唯一常驻接线(素材 13):零测试 → 逐契约补齐。"""
+
+    def make_tg_pipeline(self, store: SQLiteStore) -> Pipeline:
+        """配 telegram 通道的 Pipeline(轮询循环只触 store,不跑采集)。"""
+        pipeline = Pipeline(
+            make_category(
+                push=[{"channel": "telegram", "target": "env:MYIA_TG_CHAT_ID"}]
+            ),
+            store=store,
+            enricher=make_enricher(),
+        )
+        # __init__ 把轮询间隔钳到 ≥1s(生产防打爆);单测把属性直接调小,
+        # 让三轮循环在毫秒级完成——被测的是循环契约,不是钳制逻辑。
+        pipeline._feedback_poll_interval = 0.01
+        return pipeline
+
+    async def _drive(self, pipeline: Pipeline, poller: ScriptedPoller, *, rounds: int):
+        """把循环跑起来,推进到第 ``rounds`` 轮后取消;返回任务(可断言取消态)。"""
+        loop = asyncio.create_task(pipeline._feedback_poll_loop(poller))
+        try:
+            for _ in range(2000):
+                if len(poller.offsets) >= rounds:
+                    break
+                await asyncio.sleep(0.005)
+            else:
+                raise AssertionError(f"循环 {rounds} 轮未推进(offsets={poller.offsets})")
+        finally:
+            loop.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await loop
+        return loop
+
+    def test_offset_bookmark_advances_and_callbacks_ingest(self, store):
+        """offset 书签逐轮推进:首轮 None,其后各带上一轮 next_offset;回调入库。"""
+        pipeline = self.make_tg_pipeline(store)
+        poller = ScriptedPoller(
+            [
+                PollResult(
+                    callbacks=[TelegramCallback(update_id=11, verdict="bad", dedup_key="k-11")],
+                    update_count=1,
+                    next_offset=12,
+                ),
+                PollResult(
+                    callbacks=[TelegramCallback(update_id=12, verdict="good", dedup_key="k-12")],
+                    update_count=1,
+                    next_offset=13,
+                ),
+                PollResult(update_count=0, next_offset=None),  # 无更新:书签原地保持
+            ]
+        )
+
+        task = asyncio.run(self._drive(pipeline, poller, rounds=3))
+
+        assert poller.offsets == [None, 12, 13]  # 书签跨轮保持(首轮无书签)
+        assert task.cancelled()  # CancelledError 穿透循环(正常停机路径不受破坏)
+        rows = store.list_feedback()
+        assert [(row.verdict, row.dedup_key) for row in rows] == [
+            ("good", "k-12"),  # list_feedback 新→旧
+            ("bad", "k-11"),
+        ]
+        assert {row.channel for row in rows} == {"telegram"}
+        assert {row.channel for row in rows} == {"telegram"}
+        # update_id 即幂等身份(TelegramCallback.external_id → 唯一索引),
+        # 重放语义在 TestFeedbackIdempotency 覆盖;list_feedback 读路径不
+        # 回读 external_id 列(store 层既有缺口,不在本任务边界内修)。
+        assert all(row.external_id is None for row in rows)
+
+    def test_loop_reuses_the_pipeline_store_across_rounds(self, store, monkeypatch):
+        """store 复用:每轮入库拿到的是同一个注入 store(不逐轮开新库)。"""
+        pipeline = self.make_tg_pipeline(store)
+        real_ingest = pipeline_module.ingest_callbacks
+        seen_stores: list[Any] = []
+
+        def spy(current_store, callbacks, **kwargs):
+            seen_stores.append(current_store)
+            return real_ingest(current_store, callbacks, **kwargs)
+
+        monkeypatch.setattr(pipeline_module, "ingest_callbacks", spy)
+        poller = ScriptedPoller(
+            [
+                PollResult(
+                    callbacks=[TelegramCallback(update_id=21, verdict="bad", dedup_key="k-21")],
+                    next_offset=22,
+                ),
+                PollResult(
+                    callbacks=[TelegramCallback(update_id=22, verdict="bad", dedup_key="k-22")],
+                    next_offset=23,
+                ),
+            ]
+        )
+
+        asyncio.run(self._drive(pipeline, poller, rounds=2))
+
+        assert len(seen_stores) == 2
+        assert seen_stores[0] is store and seen_stores[1] is store  # 两轮同一 store 对象
+        assert len(store.list_feedback()) == 2  # 数据都落在注入库里
+
+    def test_single_round_failure_does_not_kill_loop(self, store, caplog):
+        """异常隔离:单轮 poll 抛错 → 告警并继续,下一轮照常书签轮询与入库。"""
+        pipeline = self.make_tg_pipeline(store)
+        poller = ScriptedPoller(
+            [
+                TelegramFeedbackError("telegram_api_error", "409 Conflict: terminated by other getUpdates request"),
+                PollResult(
+                    callbacks=[TelegramCallback(update_id=31, verdict="good", dedup_key="k-31")],
+                    update_count=1,
+                    next_offset=32,
+                ),
+            ]
+        )
+
+        with caplog.at_level(logging.WARNING, logger="myia.pipeline"):
+            asyncio.run(self._drive(pipeline, poller, rounds=2))
+
+        assert poller.offsets == [None, None]  # 失败轮不推进书签,下轮仍从头轮询
+        assert any("TG 反馈轮询失败" in record.message for record in caplog.records)
+        assert [(row.verdict, row.dedup_key) for row in store.list_feedback()] == [
+            ("good", "k-31")
+        ]  # 恢复轮照常入库(循环未终止)
+
 
 
 # ---------------------------------------------------------------------------

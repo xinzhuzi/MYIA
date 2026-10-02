@@ -1,0 +1,41 @@
+{
+  "name": "myia-desktop-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "MYIA 桌面客户端前端(Vite + React 19 + TS + Tailwind 4 + shadcn/ui 惯例);构建产物输出到 ../ui(Tauri frontendDist)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@radix-ui/react-select": "^2.1.4",
+    "@radix-ui/react-separator": "^1.1.1",
+    "@radix-ui/react-slot": "^1.1.1",
+    "@tanstack/react-table": "^8.21.3",
+    "@tauri-apps/api": "^2.5.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.468.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.0",
+    "tailwind-merge": "^3.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "jsdom": "^29.1.1",
+    "tailwindcss": "^4.1.0",
+    "typescript": "~5.9.0",
+    "vite": "^7.1.0",
+    "vitest": "^4.1.11"
+  }
+}

@@ -44,7 +44,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Mapping
-from urllib.parse import quote, urljoin, urlsplit
+from urllib.parse import quote, urljoin, urlsplit, urlunsplit
 from urllib.robotparser import RobotFileParser
 
 import httpx
@@ -67,6 +67,12 @@ from myia.secrets import KeychainBackend
 from myia.store import Store
 
 logger = logging.getLogger(__name__)
+
+# 后端端点解析值不落日志(llm_browser/firecrawl 模块契约同旨):httpx 自身的
+# INFO 请求行("HTTP Request: POST https://host/...")内嵌完整 URL —— 含凭据
+# 引用解析出的后端端点 —— 本模块的脱敏盖不住第三方 logger,只能把它的 INFO
+# 压掉;请求生命周期日志由 myia 自己的 logger 负责(logging.md 级别语义)。
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 __all__ = [
     "BACKOFF_CAP_SECONDS",
@@ -105,6 +111,7 @@ __all__ = [
     "load_proxy_pools",
     "load_proxy_pools_file",
     "mask_proxy_url",
+    "mask_endpoint_url",
     "normalize_text",
     "resolve_headers",
     "resolve_proxy",
@@ -421,6 +428,20 @@ def mask_proxy_url(proxy_url: str) -> str:
     so it stays safe to call from error paths of unparseable input.
     """
     return _MASK_USERINFO_RE.sub(r"\g<scheme>***@", proxy_url)
+
+
+def mask_endpoint_url(url: str) -> str:
+    """``https://host:port/v1/x`` -> ``https://<endpoint>/v1/x``(后端端点不落日志).
+
+    引擎后端 endpoint(llm_browser/firecrawl)是凭据引用:``scheme://host:port``
+    段一律换成 ``<endpoint>``,只保留 path 供排障;query/fragment 整段丢弃
+    (错误路径日志宁缺勿滥)。解析值不落日志 —— 展示形态(引用名/内置缺省)
+    由引擎的就绪行负责。
+    """
+    parts = urlsplit(url)
+    if not parts.netloc:
+        return "<endpoint>"
+    return urlunsplit((parts.scheme, "<endpoint>", parts.path, "", ""))
 
 
 def expand_proxy_url(raw: str, *, backend: KeychainBackend | None = None) -> str:
@@ -1644,13 +1665,20 @@ class BaseEngine:
         json_body: Any = None,
         headers: Mapping[str, str] | None = None,
         timeout: float | None = None,
+        log_url: str | None = None,
     ) -> httpx.Response:
         """Send one request, backing off 429/5xx/transport errors per ``retry``.
 
         ``timeout`` overrides the context default for this request — engines
         whose backend has its own (longer) budget (firecrawl) must not have
         the HTTP client cut the request before that budget can expire.
+
+        ``log_url`` 重定向重试 WARNING 里的 URL 展示形态:后端 endpoint 是
+        凭据引用的引擎(llm_browser/firecrawl)传 :func:`mask_endpoint_url`
+        的结果 —— 解析值不落日志;缺省(None)原样记 url(目标站 URL 本就
+        公开,排障需要完整形态)。
         """
+        shown_url = url if log_url is None else log_url
         effective_timeout = self.context.timeout if timeout is None else timeout
         for attempt in range(self.source.retry + 1):
             try:
@@ -1662,7 +1690,7 @@ class BaseEngine:
                     delay = self.backoff_delay(attempt)
                     logger.warning(
                         "网络错误,%.1fs 后重试 url=%s attempt=%s/%s",
-                        delay, url, attempt + 1, self.source.retry,
+                        delay, shown_url, attempt + 1, self.source.retry,
                     )
                     await self.context.sleep(delay)
                     continue
@@ -1671,7 +1699,7 @@ class BaseEngine:
                 delay = self.backoff_delay(attempt)
                 logger.warning(
                     "HTTP %s,%.1fs 后重试 url=%s attempt=%s/%s",
-                    response.status_code, delay, url, attempt + 1, self.source.retry,
+                    response.status_code, delay, shown_url, attempt + 1, self.source.retry,
                 )
                 await self.context.sleep(delay)
                 continue

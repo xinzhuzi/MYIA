@@ -3,7 +3,7 @@
   "name": "v11-repo-hygiene",
   "title": "仓库卫生:图标去重 + 本地夹具合并",
   "description": "目录审计发现:desktop/app-icon.png 与 branding/ 源图重复;desktop/fixture 与 docs/demo/assets/demo-site 两套同目的本地假源",
-  "status": "planning",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,

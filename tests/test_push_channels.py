@@ -549,3 +549,46 @@ def test_item_line_truncated_entity_is_trimmed():
     assert len(line) <= _module.MAX_ITEM_LINE_LENGTH
     body = line[len('▸ <a href="https://example.com/x">'):-len("</a>")]
     assert body.endswith(("&amp;", "…"))  # 残缺 "&am" 不允许出现
+
+
+# ---------------------------------------------------------------------------
+# v1.1 low 清理:「另见 N 源」截断路径预算计入完整后缀(不超自声明上限)
+# ---------------------------------------------------------------------------
+
+
+def test_item_also_line_truncation_reserves_full_suffix_width():
+    """满长正文 + 后缀 ≤1024:截断预算计入「…等 N 源」完整宽度。
+
+    构造单个恰好填满旧预算(MAX-1,旧实现只预留一个省略号)的源链接:
+    旧实现行长会冲到 1023 + len("…等 10 源") = 1030(两位数 N 超上限 6
+    字符);修后预算 = MAX - len(suffix),该链接放不下 → 整行降级为纯计数
+    说明,行长不超上限。
+    """
+    prefix = "　└ 另见 10 源: "  # len = 12
+    url = "https://a.example/x"  # 无需转义字符,html.escape 后长度不变
+    # ref = '<a href="…">' + title + '</a>':9 + len(url) + 2 + len(title) + 4
+    ref_len = _module.MAX_ITEM_LINE_LENGTH - 1 - len(prefix)  # 旧预算恰好容下
+    title_len = ref_len - (15 + len(url))
+    entries = [{"title": "长" * title_len, "url": url, "source": "s"} for _ in range(10)]
+    view = {"title": "主条目", "also_seen": entries}
+
+    line = _module._item_also_line(view)
+
+    assert len(line) <= _module.MAX_ITEM_LINE_LENGTH
+    assert line.endswith("…等 10 源")  # 计数后缀完整保留
+
+
+def test_item_also_line_truncation_keeps_refs_within_cap():
+    """截断但仍有源放得下:保留前缀 + 已放下的链接 + 计数后缀,行 ≤ 上限。"""
+    entries = [
+        {"title": "标" * 250, "url": f"https://s{i}.example/x", "source": "s"}
+        for i in range(10)
+    ]
+    view = {"title": "主条目", "also_seen": entries}
+
+    line = _module._item_also_line(view)
+
+    assert len(line) <= _module.MAX_ITEM_LINE_LENGTH
+    assert line.endswith("…等 10 源")
+    # 3 条链接可放进预算(12 + 285*3 + 分隔 2 = 869),第 4 条越界被舍弃
+    assert line.count("<a href=") == 3

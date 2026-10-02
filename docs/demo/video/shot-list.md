@@ -31,7 +31,7 @@
 
 - [ ] 终端 profile:深色底 #0d1117、Menlo **20pt**、窗口 2560×1600、无透明、单标签。
 - [ ] 系统勿扰模式开启;隐藏桌面图标;退出/遮挡与演示无关的窗口。
-- [ ] 演示源:`python3 -m http.server 8765 --bind 127.0.0.1 --directory docs/demo/assets/demo-site`
+- [ ] 演示源:`python3 -m http.server 8765 --bind 127.0.0.1 --directory desktop/fixture`
 - [ ] 干净库:`rm -rf /tmp/myia-demo`(S4 前重置一次,保证「首轮推送」画面)。
 - [ ] coding agent:新会话;需求文本预打好(S2 原文见 script.md §S2)。
 - [ ] 录制:QuickTime → 新建屏幕录制 → 选区框住目标窗口;或 OBS 2560×1600@30。
@@ -57,7 +57,7 @@ docs/demo 下,要让 demo-hub 的健康度行出镜,录制时临时把
 
 - [ ] 全片无任何凭据(token/cookie/密码),无 env 变量展开值。
 - [ ] 无私人窗口、个人书签、通知横幅;飞书镜头群名/头像打码(测试群拍摄)。
-- [ ] 演示页内容为仓库自带虚构数据(`docs/demo/assets/demo-site/`),无需打码;
+- [ ] 演示页内容为仓库自带虚构数据(`desktop/fixture/index.html`,docs/demo 共用),无需打码;
       但**不要**把镜头对准真实生产库或真实收卡群的全名。
 - [ ] 内网地址仅允许 127.0.0.1 出镜(安全基线显式例外)。
 

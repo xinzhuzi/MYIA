@@ -244,14 +244,11 @@ id: site-watch
 name: Page change watch
 schedule: "*/15 * * * *"
 timezone: Asia/Shanghai
-plugin:
+plugin:                           # scenario plugin declaration (official packages: remote opt-in since v1.1)
   id: myia-monitor
-  requires: docker
+  requires: []
   modes:
-    local:                        # local docker compose delivery
-      compose: docker-compose.yml
-      install: docker compose up -d
-    remote:                       # or point at an already-deployed instance (desktop users: zero Docker)
+    remote:                       # point at an already-deployed instance (desktop: zero Docker); local compose is still valid schema — official deployment files live under docker/plugins/
       endpoint: https://my-monitor.example.com
       token: keychain:myia/monitor/token    # myia secret set myia/monitor/token
 sources:
@@ -285,7 +282,12 @@ as the keyword mention-tracking scope.
 
 Template side: the three sandbox functions `vs_yesterday(item, 'price')` /
 `vs_last_week(item, 'price')` / `vs_msrp(item)` plus the `keyword_trends`
-context (weekly keyword mention change). Numeric history is kept for
+context (weekly keyword mention change). Contract difference: the field of
+`vs_yesterday` / `vs_last_week` is an argument (any numeric field), while
+`vs_msrp(item)` takes **no field argument and only ever reads the item's
+`price` field** — a price field named anything else (or non-numeric) makes
+`vs_msrp` render an empty string.
+Numeric history is kept for
 `2 × storage.retention` so the week-over-week window stays complete.
 
 ```yaml

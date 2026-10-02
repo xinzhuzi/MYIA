@@ -2,7 +2,7 @@
 #
 # 上游 v5 主线(默认分支)是 postgres+redis+api+worker 多容器栈:须 git clone
 # 上游仓库后用其自带 docker/compose.yml + 仓库根 .env(DTK_SECRET_KEY 等,
-# 无默认口令,零明文入库),见本目录 README「local 模式」。
+# 无默认口令,零明文入库),见 plugins/myia-douyin/README.md「服务端部署」。
 # 本文件零明文凭据。
 services:
   douyin-tiktok-api:

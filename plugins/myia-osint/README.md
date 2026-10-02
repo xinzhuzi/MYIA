@@ -1,54 +1,57 @@
 # myia-osint — OSINT 侦察爬虫(Photon)
 
-官方场景件:对 watchlist 目标做一次性 OSINT 侦察爬取(站点 URL、邮箱、
-社交账号、文件、密钥泄漏指纹等)。封装上游
+官方场景件,v1.1 分级 **desktop(桌面默认集)**,**v1.1 源码型插件首个
+样板**:对目标做一次性 OSINT 侦察爬取(站点 URL、邮箱、社交账号、文件、
+密钥泄漏指纹等)。封装上游
 [s0md3v/Photon](https://github.com/s0md3v/Photon)(约 13.2k stars,
 **GPL-3.0 License**)。
 
-> 许可边界:GPL 只作 **plugin 声明依赖 + 文档引用 + compose 拉上游源码**
-> 三种方式接入;本仓库不复制、不修改、不分发 Photon 的任何源码。
+> 许可边界:GPL 上游只以 **git submodule 引用**接入(`vendor/Photon`,
+> pin commit 见 plugin.yaml `vendor.pin`),本仓库不复制、不修改、不分发
+> Photon 的任何源码;`adapter.py` 是 MYIA 侧适配器,非上游代码。
 
-## 能力
-
-- `provides: [photon]`:侦察类品类(watchlist 驱动)可引用本插件产出的
-  侦察结果文件作为补充信息源。
-- Photon 是 **CLI 工具**(无服务形态),因此 local 模式 = 容器内跑一次爬取;
-  remote 模式面向自建的 HTTP 包装层。
-- 装不上不拦核心流水线(铁律)。
-
-## local 模式(docker compose)
+## 桌面路径(默认,零 Docker)
 
 ```bash
-myia plugin install plugins/myia-osint
-docker compose build photon                       # manifest 的 install 命令(首次拉上游源码)
-docker compose run --rm photon -u https://example.com -o /Photon/loot
+# 首次:初始化上游源码(submodule pin,可审计可升级)
+git submodule update --init plugins/myia-osint/vendor/Photon
+
+# 一次性侦察:结构化 JSON 输出;默认目标 example.com(合法演示域)
+myia osint https://example.com --json
 ```
 
-- `-u` 传目标,`-o` 指定输出目录(已挂载到宿主 `./loot/`);导出 JSON、
-  ninja 模式等完整参数见上游 wiki(Usage)。
-- 若 `-o` 行为与上游版本有出入,按上游 README 的挂载方式
-  (`-v "$PWD:/Photon/<目标域名>"`)自行调整。
+- 运行方式:`adapter.py` 以隔离子进程调用上游 CLI ——
+  `uv run --no-project --with requests --with urllib3 --with tld python photon.py …`,
+  依赖按需装进 uv 临时环境,**绝不进根依赖**;宿主需有
+  [uv](https://docs.astral.sh/uv/)。
+- 输出:单份结构化 JSON(`plugin/target/status/vendor(command/commit)/
+  command/exit_code/duration_seconds/results/datasets`),`results` 即上游
+  `-e json` 导出的十一类数据集(files/intel/robots/endpoints/keys/…)。
+- 失败全部结构化(`vendor_missing` / `uv_missing` / `invalid_target` /
+  `photon_failed` / `photon_timeout` / `photon_export_missing` /
+  `photon_export_invalid`):环境与用法错误退 1,采集失败退 2。
+- **装不上不拦核心流水线(铁律)**:vendor 缺失/uv 缺失只影响本命令,
+  品类 run/doctor 照常(测试钉在 `tests/test_osint_plugin.py`)。
+- 靶点纪律:只对**合法授权的公开目标**使用;默认目标 example.com 即演示用途。
 
-## remote 模式(零 Docker)
+## 服务端形态(可选,不在桌面路径)
 
-自建一层 HTTP 包装(把 Photon 跑成 API)后,品类 YAML 填:
+Photon 是 CLI 工具(无服务形态);compose 在仓库 `docker/plugins/myia-osint/`,
+直接从上游 git 仓库构建,本仓库不 vendored:
 
-```yaml
-plugin:
-  id: myia-osint
-  modes:
-    remote:
-      endpoint: https://photon-wrapper.example.com   # 换成你的包装层地址
+```bash
+docker compose -f docker/plugins/myia-osint/compose.yml build photon
+docker compose -f docker/plugins/myia-osint/compose.yml run --rm photon -u https://example.com -o /Photon/loot
 ```
 
-上游无鉴权;若你的包装层加了 token,token 走钥匙链引用
-(`myia secret set myia/osint/<name>` 后在品类侧按
-`keychain:myia/osint/<name>` 填写)。自检/doctor 只产结构化 warning,
-不拦核心。
+自建一层 HTTP 包装(把 Photon 跑成 API)后,品类 YAML 填
+`plugin.modes.remote.endpoint: https://photon-wrapper.example.com`
+(换成你的包装层地址)。上游无鉴权;若你的包装层加了 token,走钥匙链引用
+(`myia secret set myia/osint/<name>` 后按 `keychain:myia/osint/<name>` 填)。
 
 ## 凭据红线
 
-- compose 零明文凭据;仓库即公开,侦察目标只用公开域名做示例。
+compose 零明文凭据;仓库即公开,侦察目标只用公开域名做示例。
 
 ## 安装 / 移除
 

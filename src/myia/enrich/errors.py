@@ -2,9 +2,13 @@
 
 Subclasses :class:`ValueError` so the CLI's config-error path (exit code 1)
 catches it: an unusable enrich configuration (missing/plaintext endpoint
-reference, unresolved env var, uninstalled optional dependency, malformed
-prompt data file) is a *startup* failure in the same family as a refused
-YAML — fail fast, never half-run with a broken second funnel.
+reference, unresolved env var, malformed prompt data file) is a *startup*
+failure in the same family as a refused YAML — fail fast, never half-run
+with a broken second funnel. One deliberate exception to the startup
+timing: a missing optional dependency (``dependency_missing``, the
+``openai`` package) surfaces at the **first LLM call**, not at construction
+— the client imports it lazily, and enrich/aggregate isolate that failure
+per batch like any other (降级不中断).
 
 Runtime problems (LLM 超时/响应不可解析/单批失败) deliberately do NOT use this
 class: they are isolated per batch inside :meth:`LLMEnricher.enrich` and
@@ -31,7 +35,8 @@ class EnrichConfigError(ValueError):
             keychain is not yet supported),
             ``invalid_base_url`` (resolved endpoint is not an http(s) URL),
             ``dependency_missing`` (the optional ``openai`` package, extras
-            ``myia[llm]``, is not installed),
+            ``myia[llm]``, is not installed — raised at the first LLM call,
+            the import is lazy, never at startup),
             ``prompt_invalid`` (the external prompt data file is malformed).
         details: structured context (field path / reference name), consumed
             by ``myia doctor`` (JSON) and repairing agents. Never carries

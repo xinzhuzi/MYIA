@@ -338,6 +338,34 @@ class TestManifestSchema:
             load_manifest(data)
         assert excinfo.value.errors[0].error_type == "invalid_endpoint"
 
+    def test_manifest_tier_defaults_to_desktop(self):
+        """v1.1 分级:旧包不声明 tier → 缺省 desktop(向后兼容)."""
+        manifest = load_manifest(yaml.safe_load(VALID_MANIFEST_YAML))
+        assert manifest.tier == "desktop"
+
+    @pytest.mark.parametrize("tier", ["desktop", "remote", "server-only"])
+    def test_manifest_accepts_closed_tier_vocabulary(self, tier: str):
+        data = yaml.safe_load(VALID_MANIFEST_YAML)
+        data["tier"] = tier
+        assert load_manifest(data).tier == tier
+
+    @pytest.mark.parametrize("tier", ["Desktop", "server_only", "banana", ""])
+    def test_manifest_rejects_unknown_tier_token(self, tier: str):
+        data = yaml.safe_load(VALID_MANIFEST_YAML)
+        data["tier"] = tier
+        with pytest.raises(LoadError) as excinfo:
+            load_manifest(data)
+        detail = excinfo.value.errors[0]
+        assert detail.error_type == "invalid_tier"
+        assert "server-only" in detail.message
+
+    def test_installed_entry_payload_exposes_tier(self, tmp_path: Path, plugin_root: Path):
+        """`plugin list --json` 的条目带 tier(v1.1 分级展示契约)."""
+        store = InstalledPluginStore(plugin_root)
+        store.install(write_plugin_dir(tmp_path))
+        (entry,) = store.entries()
+        assert entry.to_dict()["tier"] == "desktop"
+
     def test_manifest_file_load_roundtrip(self, tmp_path: Path):
         source = write_plugin_dir(tmp_path)
         manifest = load_manifest_file(source / "plugin.yaml")
@@ -653,14 +681,17 @@ class TestIronLaw:
 
 
 class TestCategoryPluginSection:
-    def test_monitor_yaml_dual_mode_section_loads(self):
-        """回归钉:monitor.yaml 的 v1.7 双模式节必须过真实加载入口(曾整文件拒载)."""
+    def test_monitor_yaml_remote_optin_section_loads(self):
+        """回归钉:monitor.yaml 的 plugin: 节必须过真实加载入口(曾整文件拒载).
+
+        v1.1 迁移后 monitor.yaml 是 remote 可选接入形态(无 local compose,
+        requires 清空 —— 内置变更指纹覆盖桌面主场景,铁律不依赖插件)。
+        """
         config = load_category_file(REPO_ROOT / "plugins" / "monitor.yaml")
         assert config.plugin is not None
         assert config.plugin.id == "myia-monitor"
-        assert config.plugin.requires == ["docker"]
-        assert config.plugin.modes.local is not None
-        assert config.plugin.modes.local.install == "docker compose up -d"
+        assert config.plugin.requires == []
+        assert config.plugin.modes.local is None
         assert config.plugin.modes.remote is not None
         assert config.plugin.modes.remote.token == "keychain:myia/monitor/token"
 

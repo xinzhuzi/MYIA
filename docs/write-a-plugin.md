@@ -87,6 +87,16 @@ See [plugins/stocks.yaml](../plugins/stocks.yaml) for the complete
   `keychain_ref_missing` findings) so an agent can repair the environment
   by itself.
 
+Per-channel credential conventions (the `push[]` `target` and its companion
+token; details in `skill/SKILL.md` §2.13):
+
+- `feishu_card`: `target` = chat/group ID (e.g. `env:FEISHU_CHAT_ID`); the
+  bot token is read from `env:FEISHU_BOT_TOKEN`.
+- `telegram`: `target` = chat id (`env:TELEGRAM_CHAT_ID`); the token is read
+  from `env:TELEGRAM_BOT_TOKEN`.
+- `webhook`: `target` = endpoint URL reference (e.g. `env:MYIA_WEBHOOK_URL`).
+- `stdout`: zero credentials, first choice for local verification.
+
 ## Example agent session (demo script)
 
 What "AI writes the YAML" looks like end to end (commands abbreviated):

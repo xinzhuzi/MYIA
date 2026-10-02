@@ -21,6 +21,10 @@ Covers:
   结构化报错;
 - **自然语言任务描述**:goal 源级配置逐字透传;缺省按 extract 字段确定性生成;
   再缺省通用目标;
+- **日志安全(v1.1 条目 9/10 回归)**:endpoint 解析值不落 INFO 日志
+  (options 引用 / env 回退记引用名,无配置记内置缺省常量);模块 docstring
+  与 pyproject extras 一致(skyvern/firecrawl extra 实存,不得宣称
+  「no extra is added」);
 - **auto 链七层终测(yaml-schema 规则 5)**:L1→L2→crawl4ai→firecrawl→
   scrapling→stealth_browser→llm_browser;注入假引擎全败后 llm_browser 兜底
   成功且 hint 回写;llm_browser 失败即链尾终止(无下一层,结构化上报)。
@@ -33,6 +37,7 @@ from __future__ import annotations
 
 import json
 import logging
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -46,6 +51,7 @@ from conftest import (
     run,
 )
 
+from myia.engines import llm_browser as llm_browser_module
 from myia.engines import registry
 from myia.engines.fetch_base import (
     BaseEngine,
@@ -61,6 +67,7 @@ from myia.engines.llm_browser import (
     DEFAULT_POLL_INTERVAL_SECONDS,
     DEFAULT_RUN_TIMEOUT_SECONDS,
     DEFAULT_SKYVERN_ENDPOINT,
+    ENV_SKYVERN_URL,
     LLMBrowserEngine,
     build_goal_from_fields,
     normalize_skyvern_output,
@@ -280,6 +287,70 @@ def test_schema_rejects_plaintext_api_key_at_load_time():
     """第一道防线:schema 对疑似凭据键 api_key 的明文/非引用值加载即拒."""
     with pytest.raises(ValueError):
         make_source(engine="llm_browser", url=TARGET_URL, api_key="sk-plaintext")
+
+
+# ---------------------------------------------------------------------------
+# 日志安全:endpoint 解析值不落日志(v1.1 条目 10;fetch_base mask 先例)
+# ---------------------------------------------------------------------------
+
+
+def test_resolved_endpoint_from_options_ref_never_reaches_logs(monkeypatch, caplog):
+    """endpoint=options 凭据引用:INFO 日志记引用名,解析出的端点零出现."""
+    monkeypatch.setenv("MYIA_SKYVERN_URL", "https://secret.skyvern.internal:9999")
+    fake = FakeSkyvern()
+    engine, _, _ = make_llm_parts(
+        fake=fake, engine_options={"llm_browser": {"endpoint": "env:MYIA_SKYVERN_URL"}}
+    )
+    with caplog.at_level(logging.INFO, logger="myia.engines.llm_browser"):
+        run(engine.fetch())
+    assert fake.create_calls  # 修复只改日志形态,fetch 行为照常
+    messages = [record.getMessage() for record in caplog.records]
+    assert all("secret.skyvern.internal" not in message for message in messages)
+    ready = [message for message in messages if "后端就绪" in message]
+    assert ready, "就绪 INFO 日志应存在"
+    assert "env:MYIA_SKYVERN_URL" in ready[0]
+
+
+def test_resolved_endpoint_from_env_fallback_never_reaches_logs(monkeypatch, caplog):
+    """endpoint=env 回退:日志记 env 引用名,不记解析值."""
+    monkeypatch.setenv("MYIA_SKYVERN_URL", "https://fallback.skyvern.internal:7777")
+    fake = FakeSkyvern()
+    engine, _, _ = make_llm_parts(fake=fake)
+    with caplog.at_level(logging.INFO, logger="myia.engines.llm_browser"):
+        run(engine.fetch())
+    messages = [record.getMessage() for record in caplog.records]
+    assert all("fallback.skyvern.internal" not in message for message in messages)
+    ready = [message for message in messages if "后端就绪" in message]
+    assert ready and f"env:{ENV_SKYVERN_URL}" in ready[0]
+
+
+def test_endpoint_log_default_shows_builtin_constant(caplog):
+    """无任何配置:日志记内置缺省端点(公开常量,非凭据解析值)."""
+    fake = FakeSkyvern()
+    engine, _, _ = make_llm_parts(fake=fake)
+    with caplog.at_level(logging.INFO, logger="myia.engines.llm_browser"):
+        run(engine.fetch())
+    ready = [
+        record.getMessage()
+        for record in caplog.records
+        if "后端就绪" in record.getMessage()
+    ]
+    assert ready and DEFAULT_SKYVERN_ENDPOINT in ready[0]
+
+
+def test_docstring_extra_claims_match_pyproject():
+    """docstring 与 pyproject extras 一致(v1.1 条目 9 回归):skyvern/firecrawl
+    extra 实存(服务端安装便利),docstring 不得再宣称「no extra is added」."""
+    import tomllib
+
+    repo_root = Path(__file__).resolve().parents[1]
+    with open(repo_root / "pyproject.toml", "rb") as handle:
+        extras = tomllib.load(handle)["project"]["optional-dependencies"]
+    assert "skyvern" in extras and "firecrawl" in extras
+    doc = llm_browser_module.__doc__ or ""
+    assert "no extra is added" not in doc
+    assert "Same zero-heavy-dependency approach as firecrawl" not in doc
+    assert "服务端安装便利" in doc  # extras 的真实定位已如实描述
 
 
 def test_invalid_options_are_structured_errors():
@@ -505,20 +576,90 @@ def test_create_response_missing_run_id_is_structured():
     assert fake.poll_calls == []  # 无 run_id 不轮询
 
 
-def test_http_500_after_retry_budget_is_structured():
-    """后端 5xx 走满 retry 预算后原样抛 HTTPStatusError —— registry 以
-    classify_exception 归为 http_500(firecrawl 后端失败同语义)."""
+def test_http_500_after_retry_budget_is_structured_and_masked(monkeypatch):
+    """后端 5xx 走满 retry 预算后结构化 FetchError(http_500),消息只记端点
+    展示形态 —— httpx 异常 str 内嵌解析 URL,透传会把后端端点带进
+    failures[](v1.1 错误路径日志安全回归;错误类与原 HTTPStatusError 语义一致)."""
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == CREATE_PATH:
             return httpx.Response(500, text="skyvern down")
         raise AssertionError("create 失败后不应轮询")  # pragma: no cover
 
+    monkeypatch.setenv("MYIA_SKYVERN_URL", "https://secret.skyvern.internal:9999")
     client = make_client(make_handler(handler))
     context, _ = make_context(client)
-    engine = LLMBrowserEngine(make_source(engine="llm_browser", url=TARGET_URL, retry=1), context)
-    with pytest.raises(httpx.HTTPStatusError) as excinfo:
+    engine = LLMBrowserEngine(
+        make_source(
+            engine="llm_browser",
+            url=TARGET_URL,
+            retry=1,
+            engine_options={"llm_browser": {"endpoint": "env:MYIA_SKYVERN_URL"}},
+        ),
+        context,
+    )
+    with pytest.raises(FetchError) as excinfo:
         run(engine.fetch())
-    assert classify_exception(excinfo.value) == "http_500"
+    assert excinfo.value.error_type == "http_500"
+    assert classify_exception(excinfo.value) == "http_500"  # registry 分类不变
+    assert "secret.skyvern.internal" not in str(excinfo.value)  # 解析端点零外流
+    assert "env:MYIA_SKYVERN_URL" in str(excinfo.value)  # 只记引用名
+
+
+def test_retry_warning_masks_resolved_endpoint(monkeypatch, caplog):
+    """429 重试 WARNING 在 fetch_base logger 上:URL 记掩码形态,解析端点
+    零出现(v1.1 条目 10 只修了就绪行,重试/错误路径是同族缺口)。"""
+    monkeypatch.setenv("MYIA_SKYVERN_URL", "https://secret.skyvern.internal:9999")
+    fake = FakeSkyvern(create_status=429)
+    engine, _, fake = make_llm_parts(
+        fake=fake,
+        retry=1,
+        engine_options={"llm_browser": {"endpoint": "env:MYIA_SKYVERN_URL"}},
+    )
+    with caplog.at_level(logging.WARNING, logger="myia.engines.fetch_base"), pytest.raises(
+        FetchError
+    ) as excinfo:
+        run(engine.fetch())
+    assert excinfo.value.error_type == "http_429"  # 预算耗尽后仍结构化
+    assert fake.create_calls and "secret.skyvern.internal" in fake.create_calls[0]["url"]
+    # 请求确实发往解析端点,但日志只出掩码
+    warnings = [record.getMessage() for record in caplog.records]
+    assert warnings, "重试 WARNING 应存在"
+    assert all("secret.skyvern.internal" not in message for message in warnings)
+    assert any("https://<endpoint>/v1/run/tasks" in message for message in warnings)
+
+
+def test_registry_failure_message_and_all_logs_mask_resolved_endpoint(monkeypatch, caplog):
+    """failures[] 外流链路(registry -> run --json)全量脱敏:HTTP >= 400 的
+    EngineFailure.message 只含引用名;根 logger INFO 级全捕(含 httpx 自身
+    请求行、fetch_base 重试行、registry WARNING)解析端点零出现。"""
+    monkeypatch.setenv("MYIA_SKYVERN_URL", "https://secret.skyvern.internal:9999")
+    fake = FakeSkyvern(create_status=404)
+    client = make_client(make_handler(fake.handler))
+    context, _ = make_context(client, store=None)
+    source = make_source(
+        engine="llm_browser",
+        url=TARGET_URL,
+        retry=0,
+        engine_options={"llm_browser": {"endpoint": "env:MYIA_SKYVERN_URL"}},
+    )
+    with caplog.at_level(logging.INFO):
+        outcome = run(fetch_source(source, context))
+    assert outcome.items == []
+    assert len(outcome.failures) == 1
+    failure = outcome.failures[0]
+    assert failure.error_type == "http_404"
+    assert "secret.skyvern.internal" not in failure.message
+    assert "env:MYIA_SKYVERN_URL" in failure.message
+    assert all(
+        "secret.skyvern.internal" not in record.getMessage() for record in caplog.records
+    )
+
+
+def test_httpx_client_logger_suppressed_to_warning():
+    """httpx 自身 logger 压到 WARNING:其 INFO 请求行("HTTP Request: POST
+    <完整 URL>")内嵌解析端点,fetch_base 的脱敏盖不住第三方 logger ——
+    import fetch_base 即全局生效。"""
+    assert logging.getLogger("httpx").level == logging.WARNING
 
 
 # ---------------------------------------------------------------------------

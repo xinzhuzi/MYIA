@@ -3,7 +3,7 @@
   "name": "v11-low-plugins",
   "title": "v1.1 plugins:插件包修正(2 条 low)",
   "description": "清偿 low backlog plugins 模块 2 条:monitor.yaml 虚构机制注释、四个插件 README local 模式命令缺 cd plugins/<id>",
-  "status": "planning",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -21,6 +21,6 @@
   "children": [],
   "parent": "10-02-v11-low-backlog",
   "relatedFiles": [],
-  "notes": "",
+  "notes": "由 plugins-source-arch 代偿完成",
   "meta": {}
 }

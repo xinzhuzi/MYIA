@@ -1,8 +1,10 @@
 # docs/demo —「一个 YAML → 情报推送」演示物料
 
 README 第一屏的说服力素材(规划第九节):**3 分钟上手动图 + AI-NATIVE 视频**。
-本目录自带演示源与演示品类,全程零凭据、零外网(演示源仅监听 `127.0.0.1`,
-安全基线的显式例外);演示页内容为**仓库自带的虚构数据**,不要部署到公网。
+演示品类在本目录,演示源(假源页)与桌面端**共用同一套本地夹具**
+(`desktop/fixture/`,2026-10-02 夹具合一后的事实源),全程零凭据、零外网
+(演示源仅监听 `127.0.0.1`,安全基线的显式例外);演示页内容为
+**仓库自带的虚构数据**,不要部署到公网。
 
 ## 文件地图
 
@@ -11,8 +13,7 @@ docs/demo/
 ├── README.md                  ← 本页:复现步骤与物料索引
 ├── demo-news.yaml             演示品类(12 节 schema;push=stdout,零凭据)
 ├── assets/
-│   ├── myia-demo.gif          动图产物:42.5s / 1100×640 / 532KB(<5MB 达标)
-│   └── demo-site/index.html   演示源(虚构数据页;http.server 本机回放)
+│   └── myia-demo.gif          动图产物:42.5s / 1100×640 / 529KB(<5MB 达标)
 ├── gif/
 │   ├── storyboard.md          逐帧分镜:命令序列+预期画面+重录指引
 │   ├── transcript/*.txt       真实终端输出(2026-10-02 本机真实执行留档)
@@ -25,19 +26,27 @@ docs/demo/
     ├── myia-demo.mp4          成片(装配版):72s / 1920×1080 / H.264+AAC / ≈1.0MB
     ├── build_video.sh         成片装配脚本(ffmpeg 单遍滤镜图,可复跑)
     └── shot-list.md           素材清单 + 打码红线 + 发布清单(成片外链占位)
+
+desktop/fixture/               演示源事实源(与桌面端共用;本目录引用之)
+├── index.html                 演示源页(虚构数据;http.server 本机回放,URL `/`)
+├── page.html                  桌面 sidecar 往返夹具页(桌面专用,URL /page.html)
+├── plugin.yaml                桌面往返夹具品类(tauri resources 内置)
+└── serve.py                   本机静态服务(等价于下方 http.server 一行命令)
 ```
 
 ## 3 分钟上手:真实复现
 
 ```console
-# 1) 起演示源(仓库自带虚构数据页,仅本机)
-$ python3 -m http.server 8765 --bind 127.0.0.1 --directory docs/demo/assets/demo-site
+# 1) 起演示源(仓库自带虚构数据页,仅本机;页面在 desktop/fixture/)
+$ python3 -m http.server 8765 --bind 127.0.0.1 --directory desktop/fixture
 
 # 2) 首轮:一条命令,抓取→分类→去重→推送
 $ myia run docs/demo/demo-news.yaml --db /tmp/myia-demo/demo.db
 状态:success        # 7 条抓到,1 条与 AI 无关被分类跳过(原因可见),推送 1 张卡
 
 # 3) 看推送卡片(stdout 通道;text 字段即渲染后的卡片,与飞书卡同模板)
+#    同库马上重跑会 not_modified(见第 4 步)拿不到卡;先重置演示库再看一次
+$ rm -rf /tmp/myia-demo
 $ myia run docs/demo/demo-news.yaml --db /tmp/myia-demo/demo.db > run.out
 $ grep '^{"channel"' run.out | jq -r .text
 

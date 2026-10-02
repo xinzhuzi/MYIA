@@ -4,6 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.myia.app",
   "build": {
+    "beforeBuildCommand": "npm run sidecar && npm run build",
+    "devUrl": "http://localhost:5173",
     "frontendDist": "../ui"
   },
   "app": {
@@ -16,7 +18,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost ws://localhost:5173"
     }
   },
   "bundle": {
@@ -29,5 +31,16 @@
     },
     "category": "DeveloperTool",
     "shortDescription": "MYIA — AI-native intelligence hub"
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/xinzhuzi/MYIA/releases/latest/download/latest.json"
+      ],
+      "pubkey": "__MYIA_UPDATER_PUBKEY_PLACEHOLDER__",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

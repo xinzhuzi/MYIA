@@ -17,6 +17,7 @@ All I/O runs on httpx.MockTransport; all waiting is recorded by FakeClock
 
 from __future__ import annotations
 
+import time
 from typing import Any, Callable
 
 import httpx
@@ -484,6 +485,66 @@ def test_check_proxy_connectivity_builds_and_closes_own_client(monkeypatch):
     assert result.ok is True
     assert recorded == [{"proxy": "socks5://10.0.0.1:1080", "timeout": 10.0}]  # 自建客户端带代理
     assert len(clients) == 1 and clients[0].is_closed  # 返回前关闭自建客户端
+
+
+def test_doctor_pool_probes_run_concurrently_in_declared_order(monkeypatch):
+    """doctor 逐池**并行**探测:总耗时≈最慢单池(非逐池累加),结果保序,
+    单池凭据解析失败隔离(mask 打码不变)。
+
+    v1.1 评审根因修复:串行实现下 doctor 耗时 = Σ(每池 probe-timeout),
+    实测 13 个不可达池 130.6s,顶穿桌面 sidecar 的固定壳超时(120s)——
+    设置页「验证」两分钟无响应、迟到应答被壳无痕丢弃皆源于此。
+    """
+    import asyncio
+
+    from myia import cli
+
+    class _Pools:
+        """duck-typed ProxyPools:三池 + 一个凭据解析失败池(隔离用例)。"""
+
+        @staticmethod
+        def names():
+            return ["p1", "p2", "p3", "broken"]
+
+        @staticmethod
+        def resolve(name, backend=None):
+            if name == "broken":
+                raise ValueError("env:MISSING_X 无法解析")
+            return f"http://{name}.example:8080"
+
+        @staticmethod
+        def raw_url(name):
+            return f"http://env:SECRET@{name}.example:8080"
+
+    delays = {"p1": 0.15, "p2": 0.15, "p3": 0.05}
+
+    class _Check:
+        def __init__(self, name: str) -> None:
+            self._name = name
+
+        def to_dict(self) -> dict[str, Any]:
+            return {"ok": True, "pool": self._name}
+
+    async def fake_check(proxy_url, *, client=None, timeout=10.0, **kwargs):
+        name = proxy_url.split("//", 1)[1].split(".", 1)[0]
+        await asyncio.sleep(delays.get(name, 0.0))
+        return _Check(name)
+
+    monkeypatch.setattr(cli, "check_proxy_connectivity", fake_check)
+
+    started = time.monotonic()
+    results = run(cli._probe_proxy_pools(_Pools(), timeout=1.0, backend=None))
+    elapsed = time.monotonic() - started
+
+    assert [row["pool"] for row in results] == ["p1", "p2", "p3", "broken"]  # gather 保序
+    ok_rows = results[:3]
+    assert all(row["ok"] is True for row in ok_rows)
+    broken = results[-1]
+    assert broken["ok"] is False
+    assert "无法解析" in broken["message"]
+    assert broken["proxy_url"] == "http://***@broken.example:8080"  # 打码语义不变
+    # 并行证据:串行下限 Σdelay=0.35s,并行≈max=0.15s;阈值取两者中点留裕量
+    assert elapsed < 0.30, f"池探测应并行,实际 {elapsed:.2f}s(串行≈0.35s)"
 
 
 def test_mask_proxy_url_hides_credentials_but_keeps_host():

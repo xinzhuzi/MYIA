@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+/*
+ * MYIA 桌面设计 token —— Linear 暗色质感 + 品牌意象(eyes+radar)。
+ * 色系锚点取自 desktop/branding/myia-icon.svg:深空蓝底(#070B18→#0E1730)、
+ * 青 #22D3EE → 紫 #8B5CF6 渐变、瞳孔高亮 #67E8F9;中性面按 Linear 的
+ * 低对比分层(背景/面板/悬浮三层 + 极细描边)。
+ * 本应用为暗色单主题(桌面客户端,规划定稿),故 token 直接落 :root。
+ */
+
+:root {
+  /* 面:背景 < 卡片 < 悬浮(popover/accent)三级分层 */
+  --background: #0a0d16;
+  --foreground: #e7ebf3;
+  --card: #0e1220;
+  --card-foreground: #e7ebf3;
+  --popover: #141a2b;
+  --popover-foreground: #e7ebf3;
+  --sidebar: #080b13;
+  --sidebar-foreground: #e7ebf3;
+
+  /* 主色:品牌青;按钮/焦点/激活态 */
+  --primary: #22d3ee;
+  --primary-foreground: #05222b;
+  --secondary: #161d2e;
+  --secondary-foreground: #c7cedd;
+  --muted: #131927;
+  --muted-foreground: #8b94a7;
+  --accent: #1a2236;
+  --accent-foreground: #e7ebf3;
+
+  /* 语义:destructive + 源健康度四态(仪表盘/源管理/日志共用) */
+  --destructive: #e5484d;
+  --destructive-foreground: #fdebec;
+  --ok: #3dd68c;
+  --warning: #f5b544;
+  --dead: #e5484d;
+  --unknown: #8b94a7;
+
+  --border: #1d2536;
+  --input: #1d2536;
+  --ring: #22d3ee;
+
+  /* 品牌:青→紫渐变(logo 字标/空态光晕/高亮点缀用) */
+  --brand-from: #22d3ee;
+  --brand-to: #8b5cf6;
+
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-ok: var(--ok);
+  --color-warning: var(--warning);
+  --color-dead: var(--dead);
+  --color-unknown: var(--unknown);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand-from: var(--brand-from);
+  --color-brand-to: var(--brand-to);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* 中文界面字体栈:系统 UI + 苹方/雅黑;日志面用等宽 */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", "Cascadia Mono",
+    Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "tnum";
+  }
+
+  ::selection {
+    @apply bg-primary/30;
+  }
+
+  /* Linear 质感:细滚动条,弱存在感 */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #232d45 transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #232d45;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2e3a59;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}

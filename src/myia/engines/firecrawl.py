@@ -16,7 +16,8 @@ Contract (PRD 10-01-v01-engine-firecrawl):
 
 Raises:
     FetchError: plaintext endpoint/api_key, bad options, non-JSON payload,
-        ``success: false`` scrape result, missing ``data`` section.
+        ``success: false`` scrape result, missing ``data`` section, HTTP >= 400
+        (``http_<status>``;消息只记端点展示形态,解析值不落日志).
     CredentialResolveError: keychain reference (NotSupported until v0.2) or
         missing env var.
 """
@@ -27,11 +28,14 @@ import logging
 import os
 from typing import Any
 
+import httpx
+
 from myia.engines.fetch_base import (
     BaseEngine,
     ExtractionError,
     FetchError,
     extract_html,
+    mask_endpoint_url,
 )
 from myia.schema import CredentialResolveError, resolve_credential
 
@@ -64,7 +68,13 @@ class FirecrawlEngine(BaseEngine):
 
     # ------------------------------------------------------- configuration
 
-    def _resolve_endpoint(self) -> str:
+    def _endpoint(self) -> tuple[str, str]:
+        """Resolve endpoint -> ``(concrete value, log-safe display form)``.
+
+        展示形态记来源 —— options 引用原样(``env:``/``keychain:`` 名)、env
+        回退记 ``env:MYIA_FIRECRAWL_URL``、无配置记内置缺省 —— 解析值不落
+        日志(安全基线「引用名可以,展开后的值禁止」;llm_browser 同款)。
+        """
         configured = self.engine_options().get("endpoint")
         if configured is not None:
             if not isinstance(configured, str):
@@ -72,11 +82,11 @@ class FirecrawlEngine(BaseEngine):
                     f"engine_options.firecrawl.endpoint 应为字符串,当前为 {type(configured).__name__}",
                     error_type="invalid_endpoint",
                 )
-            return self._resolve_ref(configured, "engine_options.firecrawl.endpoint")
+            return self._resolve_ref(configured, "engine_options.firecrawl.endpoint"), configured
         from_env = os.environ.get(ENV_FIRECRAWL_URL, "").strip()
         if from_env:
-            return from_env
-        return DEFAULT_FIRECRAWL_ENDPOINT
+            return from_env, f"env:{ENV_FIRECRAWL_URL}"
+        return DEFAULT_FIRECRAWL_ENDPOINT, f"默认({DEFAULT_FIRECRAWL_ENDPOINT})"
 
     def _resolve_api_key(self) -> str | None:
         configured = self.engine_options().get("api_key")
@@ -129,26 +139,40 @@ class FirecrawlEngine(BaseEngine):
     # -------------------------------------------------------------- fetch
 
     async def _fetch_impl(self) -> list[dict]:
-        endpoint = self._resolve_endpoint()
+        endpoint, endpoint_display = self._endpoint()
         api_key = self._resolve_api_key()
         formats = self._formats()
         timeout = self._timeout()
         logger.info(
             "firecrawl 后端就绪 endpoint=%s formats=%s timeout=%ss api_key=%s",
-            endpoint, formats, timeout, "已配置" if api_key else "未配置",
+            # 展示形态 = 凭据引用名 / 内置缺省;解析值不落日志(fetch_base mask 先例)。
+            endpoint_display, formats, timeout, "已配置" if api_key else "未配置",
         )
         items: list[dict] = []
         for target_url in self._template_urls():
             # 礼貌约束作用于目标站点(由 firecrawl 代抓),而非我们自己的后端。
             await self._ensure_robots_allowed(target_url)
             await self._acquire_rate_limit(target_url)
-            data = await self._scrape(endpoint, api_key, target_url, formats, timeout)
+            data = await self._scrape(
+                endpoint, endpoint_display, api_key, target_url, formats, timeout
+            )
             items.extend(self._extract_target(data, target_url))
         return items
+
+    def _http_status_failure(self, exc: httpx.HTTPStatusError, endpoint_display: str) -> FetchError:
+        """HTTP >= 400 -> 结构化 FetchError:错误类 http_<status> 不变,但消息
+        只记端点展示形态 —— httpx 异常的 str 内嵌完整解析 URL,直接透传会把
+        后端端点带进 failures[] 与日志(解析值不落日志契约)。"""
+        status = exc.response.status_code
+        return FetchError(
+            f"firecrawl 后端 HTTP {status} endpoint={endpoint_display}: {exc.response.reason_phrase}",
+            error_type=f"http_{status}",
+        )
 
     async def _scrape(
         self,
         endpoint: str,
+        endpoint_display: str,
         api_key: str | None,
         target_url: str,
         formats: list[str],
@@ -161,9 +185,18 @@ class FirecrawlEngine(BaseEngine):
         body = {"url": target_url, "formats": formats, "timeout": int(timeout * 1000)}
         # HTTP 客户端超时取 max(管线默认, 后端预算):客户端不得早于后端预算掐断,
         # 否则配置的 engine_options.firecrawl.timeout 超过默认 30s 的部分静默失效。
-        response = await self._send_with_retry(
-            "POST", url, json_body=body, headers=headers, timeout=max(timeout, self.context.timeout)
-        )
+        try:
+            response = await self._send_with_retry(
+                "POST",
+                url,
+                json_body=body,
+                headers=headers,
+                timeout=max(timeout, self.context.timeout),
+                # 重试 WARNING 记掩码形态:解析端点不落日志。
+                log_url=mask_endpoint_url(url),
+            )
+        except httpx.HTTPStatusError as exc:
+            raise self._http_status_failure(exc, endpoint_display) from exc
         try:
             payload = response.json()
         except ValueError as exc:

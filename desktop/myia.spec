@@ -6,9 +6,7 @@ hiddenimports += collect_submodules('myia')
 
 
 a = Analysis(
-    # 相对 spec 的路径(PyInstaller 以 SPECPATH 解析):spec 文件入仓,
-    # 不得携带维护者本机绝对路径(真实姓名 = 仅本机私有数据,.gitignore 声明)。
-    ['entry.py'],
+    ['/Users/zhengbingjin/Project/Github/MYIA/desktop/entry.py'],
     pathex=[],
     binaries=[],
     datas=[],

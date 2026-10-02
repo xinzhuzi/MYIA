@@ -104,7 +104,12 @@ class DedupeParseError(ValueError):
 
 @dataclass
 class AggregateOutcome:
-    """One ``aggregate`` call's observable result (stage report / doctor 消费).
+    """One ``aggregate`` call's observable result (stage report 逐字段消费).
+
+    消费方是 pipeline ``_stage_aggregate`` 的显式字段接线(skips/warnings/
+    合并决策),没有整体序列化形态——``to_dict`` 曾虚构「run stats / myia
+    doctor」消费方且全仓零调用,v1.1 已删除(PRD 10-02-v11-low-baseline-
+    aggregate #17)。
 
     Attributes:
         requested: items handed to the aggregator.
@@ -136,23 +141,6 @@ class AggregateOutcome:
     degraded: bool = False
     degrade_reason: str | None = None
     failures: list[dict[str, str]] = field(default_factory=list)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Machine-readable form for run stats / ``myia doctor`` (JSON)."""
-        return {
-            "requested": self.requested,
-            "coarse_groups": self.coarse_groups,
-            "candidates": self.candidates,
-            "llm_calls": self.llm_calls,
-            "cached_groups": self.cached_groups,
-            "merged_groups": self.merged_groups,
-            "absorbed_items": self.absorbed_items,
-            "components": [list(component) for component in self.components],
-            "tokens_used": self.tokens_used,
-            "degraded": self.degraded,
-            "degrade_reason": self.degrade_reason,
-            "failures": list(self.failures),
-        }
 
 
 # ---------------------------------------------------------------------------
@@ -401,7 +389,11 @@ class EventAggregator:
     Built once per pipeline (fail fast): endpoint references are validated
     and resolved here, the dedupe prompt data file is loaded here, so a
     broken aggregate configuration is a startup failure, never a mid-run
-    surprise — same contract as :class:`~myia.enrich.LLMEnricher`.
+    surprise — same contract as :class:`~myia.enrich.LLMEnricher`. One
+    deliberate exception to the startup timing: the optional ``openai``
+    package is **not** checked at construction — it is imported lazily at
+    the first completion (core stays importable without the extra), so a
+    missing extra surfaces on first call, not here.
 
     Args:
         config: the schema ``aggregate:`` section (enabled/window_hours/
@@ -415,9 +407,12 @@ class EventAggregator:
         clock: monotonic clock for duration logging (injectable, tests).
 
     Raises:
-        EnrichConfigError: missing/plaintext endpoint references, unresolvable
-            env vars, non-http(s) resolved base URL, missing ``openai``
-            package (when no client is injected), or a malformed prompt file.
+        EnrichConfigError: at construction — missing/plaintext endpoint
+            references, unresolvable env vars, non-http(s) resolved base
+            URL, or a malformed prompt file. A missing ``openai`` package
+            (when no client is injected) is *not* a construction error: it
+            surfaces at the first LLM call and, like any batch failure, is
+            isolated into ``AggregateOutcome.failures`` (降级不中断).
     """
 
     def __init__(

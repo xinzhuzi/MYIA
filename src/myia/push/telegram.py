@@ -144,7 +144,8 @@ def _item_also_line(view: Mapping[str, Any]) -> str:
     独立成行且同样受 :data:`MAX_ITEM_LINE_LENGTH` 约束:split_message 只在
     行边界切割,行内永不出现未闭合标签(与 :func:`_item_line` 同一安全论证);
     无合并信息返回空串,不占行。源列表过长时截断文本(链接逐个保留会超限,
-    降级为计数说明——安全方向是少给链接,不是产出坏 HTML)。
+    降级为计数说明——安全方向是少给链接,不是产出坏 HTML)。截断预算计入
+    「…等 N 源」后缀的完整宽度,截断路径行长同样不超上限。
     """
     also = also_seen_list(view)
     if not also:
@@ -161,16 +162,19 @@ def _item_also_line(view: Mapping[str, Any]) -> str:
     line = prefix + "、".join(refs)
     if len(line) <= MAX_ITEM_LINE_LENGTH:
         return line
-    # 截断:保留前缀与已放下的源,尾部以「…等 N 源」说明收尾(纯文本,无标签)
+    # 截断:保留前缀与已放下的源,尾部以「…等 N 源」说明收尾(纯文本,无标签)。
+    # 预算必须计入**完整后缀**宽度——早期实现只预留一个省略号,截断路径行长
+    # 可超自声明的 1024 上限(两位数 N 时最多 6 字符)。
+    suffix = f"…等 {len(also)} 源"
     shown: list[str] = []
     used = len(prefix)
     for ref in refs:
         addition = len(ref) + (1 if shown else 0)
-        if used + addition > MAX_ITEM_LINE_LENGTH - len("…"):
+        if used + addition > MAX_ITEM_LINE_LENGTH - len(suffix):
             break
         shown.append(ref)
         used += addition
-    return prefix + "、".join(shown) + f"…等 {len(also)} 源"
+    return prefix + "、".join(shown) + suffix
 
 
 def build_message(items: Sequence[Any], context: SendContext) -> str:

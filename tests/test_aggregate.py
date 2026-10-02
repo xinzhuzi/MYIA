@@ -20,8 +20,10 @@ injected fake completion client.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import logging
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -580,6 +582,56 @@ class TestEventAggregator:
         assert template.version >= 1
         rendered = template.render_groups(window_hours=24, groups_json="[]")
         assert "24" in rendered
+
+
+# ---------------------------------------------------------------------------
+# v1.1 low 清理:缺依赖懒加载时序披露(#16)+ to_dict 死代码墓碑(#17)
+# ---------------------------------------------------------------------------
+
+
+class TestLazyOpenaiContract:
+    """缺依赖真实时序:构造从不触碰 openai,首次调用才触发(单批隔离降级)。"""
+
+    def test_aggregator_constructs_without_openai(self, endpoint_env):
+        # 无注入 client、未安装 openai:构造必须成功(docstring 曾谎称构造期失败)。
+        openai_installed = importlib.util.find_spec("openai") is not None
+        aggregator = EventAggregator(
+            make_aggregate_config(), make_enrich_config(), make_settings()
+        )
+        assert aggregator.base_url == BASE_URL
+        if not openai_installed:
+            assert "openai" not in sys.modules
+
+    def test_missing_openai_degrades_first_aggregate_call(
+        self, store, endpoint_env, monkeypatch
+    ):
+        # 首调用触发,且按单批失败隔离(结构化 failures + 降级),不中断本轮。
+        monkeypatch.setitem(sys.modules, "openai", None)
+        aggregator = EventAggregator(
+            make_aggregate_config(), make_enrich_config(), make_settings()
+        )
+        items = [
+            FakeItem("https://a", SAME_EVENT_TITLE),
+            FakeItem("https://b", SAME_EVENT_TITLE),
+        ]
+
+        outcome = run(aggregator.aggregate(items, store=store))
+
+        assert outcome.degraded is True
+        assert outcome.degrade_reason == "llm_batch_failed"
+        assert outcome.failures
+        assert all(f["error_type"] == "aggregate_batch_failed" for f in outcome.failures)
+        assert all("openai 未安装" in f["message"] for f in outcome.failures)
+
+
+def test_aggregate_outcome_has_no_serialization_dead_code():
+    """墓碑(PRD v1.1 low #17):AggregateOutcome.to_dict 已删除。
+
+    其 docstring 曾虚构「run stats / myia doctor」消费方,全仓零调用——
+    stage report 走 ``_stage_aggregate`` 的逐字段接线;防止无消费方的
+    序列化形态复活。
+    """
+    assert not hasattr(AggregateOutcome, "to_dict")
 
 
 # ---------------------------------------------------------------------------

@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>湖光科技情报站 · MYIA 演示源</title>
   <!--
-    MYIA 演示源(docs/demo)。
+    MYIA 演示源(docs/demo 与桌面端共用的本地夹具,事实源在本目录 desktop/fixture/)。
     本页为演示用虚构内容:公司、产品、数据均为编造,不含任何真实凭据或私人信息。
-    仅用于本机回放:python3 -m http.server 8765 --bind 127.0.0.1 --directory docs/demo/assets/demo-site
+    仅用于本机回放:python3 -m http.server 8765 --bind 127.0.0.1 --directory desktop/fixture
     MYIA 采集选择器见 docs/demo/demo-news.yaml(extract.item = article.post)。
   -->
   <style>
@@ -25,7 +25,7 @@
   </style>
 </head>
 <body>
-  <div class="banner">🧪 MYIA 演示源:本页由 docs/demo 随仓库分发,内容为<b>演示用虚构数据</b>;请仅以
+  <div class="banner">🧪 MYIA 演示源:本页由 desktop/fixture 随仓库分发(docs/demo 共用),内容为<b>演示用虚构数据</b>;请仅以
     <code>http.server --bind 127.0.0.1</code> 本机回放,不要部署到公网。</div>
 
   <h1>湖光科技 · 情报站</h1>

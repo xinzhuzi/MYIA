@@ -1,22 +1,12 @@
 # myia-credentials — 凭证猎手数据源(aipocket)
 
-官方场景件:凭证泄漏情报源,数据由自托管的 **aipocket** REST API 提供。
-aipocket 为私有服务:**本插件不包含也不分发其实现,无 local compose**;
-接入只走 endpoint + token 占位。本包只含声明与文档。
+官方场景件,v1.1 分级 **remote(桌面可选)**:凭证泄漏情报源,数据由
+自托管的 **aipocket** REST API 提供。aipocket 为私有服务:**本插件不包含
+也不分发其实现,无本地部署形态**;接入只走 endpoint + token 占位。本包
+只含声明与文档。纯 REST API,天然零 Docker、与桌面兼容;需自备已部署
+实例,不进桌面默认集。
 
-## 能力
-
-- `provides: [aipocket]`:凭证猎手品类(`plugins/credentials.yaml`)经
-  L1 `direct_api` 调 `GET /api/v1/leaks?page={page}` 拉取泄漏记录。
-- remote 不可达/token 缺失 → 结构化 warning,品类照常跑(铁律)。
-
-## local 模式(不适用)
-
-aipocket 为私有部署服务,不随插件分发 compose。若未来提供公开的本地
-部署形态,再按市场规范补 `docker-compose.yml` 并在 manifest 声明
-`modes.local`。
-
-## remote 模式(endpoint + token)
+## 桌面路径(remote 接入,零 Docker)
 
 1. 把 token 写入钥匙链(规范名空间 `myia/<scope>/<name>`):
 
@@ -36,8 +26,17 @@ aipocket 为私有部署服务,不随插件分发 compose。若未来提供公�
          token: keychain:myia/credentials/token
    ```
 
-3. `myia doctor --json` 会把该 token 引用并入凭据体检;run 自检对
-   endpoint 只在显式探测(`--probe`)时发请求,默认零网络。
+3. `provides: [aipocket]`:凭证猎手品类(`plugins/credentials.yaml`)经
+   L1 `direct_api` 调 `GET /api/v1/leaks?page={page}` 拉取泄漏记录。
+
+4. `myia doctor --json` 会把该 token 引用并入凭据体检;run 自检对
+   endpoint 只在显式探测(`--probe`)时发请求,默认零网络;remote 不可达/
+   token 缺失 → 结构化 warning,品类照常跑(铁律)。
+
+## 服务端形态(不适用)
+
+aipocket 为私有部署服务,本仓库不分发其部署文件。若未来提供公开的本地
+部署形态,再按市场规范补部署文件并在 manifest 声明。
 
 ## 凭据红线
 

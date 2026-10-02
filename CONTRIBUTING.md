@@ -95,7 +95,7 @@ Layout map / 目录速览:
 Run the suite exactly like CI does:
 
 ```bash
-uv run --no-sync python -m pytest -q
+uv run --no-sync python -m pytest -q --tb=short
 ```
 
 ## Docs sync discipline / 文档同步纪律

@@ -149,6 +149,10 @@ class LLMEnricher:
     Built once per pipeline (fail fast): endpoint references are validated
     and resolved here, the prompt data file is loaded here, so a broken
     enrich configuration is a startup failure, never a mid-run surprise.
+    One deliberate exception to the startup timing: the optional ``openai``
+    package is **not** checked at construction — it is imported lazily at
+    the first completion (core stays importable without the extra), so a
+    missing extra surfaces on first call, not here.
 
     Args:
         config: the schema ``enrich:`` section (enabled/model/scores/batch/
@@ -159,9 +163,12 @@ class LLMEnricher:
         clock: monotonic clock for duration logging (injectable, tests).
 
     Raises:
-        EnrichConfigError: missing/plaintext endpoint references, unresolvable
-            env vars, non-http(s) resolved base URL, missing ``openai``
-            package (when no client is injected), or a malformed prompt file.
+        EnrichConfigError: at construction — missing/plaintext endpoint
+            references, unresolvable env vars, non-http(s) resolved base
+            URL, or a malformed prompt file. A missing ``openai`` package
+            (when no client is injected) is *not* a construction error: it
+            surfaces at the first LLM call and, like any batch failure, is
+            isolated into ``EnrichOutcome.failures`` (降级不中断).
     """
 
     def __init__(

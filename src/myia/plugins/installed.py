@@ -168,6 +168,8 @@ class InstalledEntry:
             "version": manifest.version if manifest else None,
             "compatible": manifest.compatible if manifest else None,
             "compatible_current": self.compatible_current,
+            # v1.1 分级(desktop/remote/server-only;manifest 缺失时无从判断)。
+            "tier": manifest.tier if manifest else None,
             "requires": list(manifest.requires) if manifest else [],
             "provides": list(manifest.provides) if manifest else [],
             "modes": manifest.modes.model_dump() if manifest else None,

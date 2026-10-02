@@ -172,6 +172,16 @@ push:
 - `myia doctor --json` 核验每个引用的存在性(`env_ref_missing` /
   `keychain_ref_missing`),agent 可据此自修环境。
 
+各通道凭据约定(`push[]` 的 `target` 与配套 token;细节同
+[skill/SKILL.md](../../skill/SKILL.md) §2.13):
+
+- `feishu_card`:`target` = 收件/群 ID(如 `env:FEISHU_CHAT_ID`),机器人
+  token 从 `env:FEISHU_BOT_TOKEN` 读。
+- `telegram`:`target` = chat id(`env:TELEGRAM_CHAT_ID`),token 从
+  `env:TELEGRAM_BOT_TOKEN` 读。
+- `webhook`:`target` = 端点 URL 引用(如 `env:MYIA_WEBHOOK_URL`)。
+- `stdout`:零凭据,本地验证首选。
+
 ## 验证与运行
 
 ```bash
@@ -211,6 +221,7 @@ myia doctor --json                    # 缺省体检 plugins/ 全部插件;也�
 | `keychain_name_noncanonical` | 引用名改为 `myia/<scope>/<name>` 后改 YAML |
 | `store_error` | SQLite 库损坏或 schema 版本过新:换 `--db` 路径或删除重建(会丢历史) |
 | 插件类 finding(v0.3) | 市场插件装不上/remote 不可达只降级为 finding,**不拦核心流水线**;按 message 修 `plugin:` 节或重装 |
+| `telegram_token_poll_conflict` | 两个及以上品类共用同一 bot token(`env:TELEGRAM_BOT_TOKEN`)且各自 `--loop` 都会轮询 `getUpdates` → Telegram 回 409 Conflict;同一 token 下至多一个常驻品类保留 telegram 通道,其余品类改用其他推送渠道(单次 run 不轮询,不受影响) |
 
 ## 交付前自查
 
@@ -224,10 +235,20 @@ myia doctor --json                    # 缺省体检 plugins/ 全部插件;也�
 
 ## 进阶:插件市场与反馈闭环
 
-- **场景插件**(v0.3):`myia plugin list / install / remove`;品类 YAML 用
-  顶层 `plugin:` 节声明依赖(`local` docker compose / `remote` 端点+钥匙链
-  token 双模式);插件装不上不拦核心流水线(安全基线铁律)。社区插件目录见
-  `plugins/community/README.md`。
+- **场景插件**(v0.3,v1.1 瘦身):`myia plugin list / install / remove`;
+  品类 YAML 用顶层 `plugin:` 节声明依赖(`remote` 端点+钥匙链 token;
+  `local` docker compose 仍是合法 schema,但官方插件不再携带本地部署
+  文件 —— 服务端部署统一在 `docker/plugins/`);插件装不上不拦核心流水线
+  (安全基线铁律)。社区插件目录见 `plugins/community/README.md`。
+- **源码/进程内插件**(v1.1,桌面优先):官方包声明 `tier` 分级
+  (`desktop` 桌面默认集 / `remote` 桌面可选 / `server-only` 服务端可选),
+  `myia plugin list` 按级展示。样板 `myia-osint` 上游源码以 git submodule
+  钉在插件目录 `vendor/`(pin commit;manifest 增可选 `vendor:` /
+  `adapter:` 两节,未知字段照旧 fail-fast),适配器以子进程调用上游 CLI
+  (uv 临时环境按需装依赖,不进根依赖)——`myia osint https://example.com
+  --json` 零 Docker 完成一次结构化侦察;`myia-proxy` 为进程内对应路径:
+  `myia proxy --json` 进程内抓取公开免费代理并逐个测活(零 Redis 零
+  Docker)。上游缺失/装不上只结构化降级,不拦核心流水线。
 - **反馈闭环**(v0.3):负反馈入库;`myia feedback list / stats / mark`,
   维护阶段按负反馈自动调优 watchlist 词表权重与阈值(prompt 要点随调整历史
   记录并在 stats 呈现;Telegram/飞书回调接收已就绪,卡片内按钮随桌面正式版

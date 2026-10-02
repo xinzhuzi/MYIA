@@ -10,7 +10,7 @@ MYIA 是一个配置驱动的情报流水线:`fetch → classify → dedup → a
 本文件是自包含速查:不依赖仓库其他文档也能写出合法 YAML(详细版见仓库
 `docs/write-a-plugin.md`,与本文互相引用、由一致性测试 `tests/test_skill_doc.py` 锁住不漂移)。
 
-安装:把本目录(`skill/`)复制进平台的 skill 目录即可;内容是通用标准,不专门适配任何单一 agent 框架。
+安装:`myia skill install` 一条命令把本文件装进 agent 的技能目录(各平台目标与开关见文末 §7);内容是通用标准,不专门适配任何单一 agent 框架。
 
 ## 总工作流(先记这个)
 
@@ -367,9 +367,11 @@ myia run plugins/<id>.yaml --loop           # 常驻:按 schedule+timezone 自�
 (`unchanged_skip` = 内容未变属正常,线上调度会跳过;`changed_or_first_fetch` = 会正常提取;
 `unknown` = 引擎链耗尽)、`failures[]`(engine / error_type / message)。
 
-`myia run --json` 看:`stages[]`(fetch/classify/dedup/analyze/enrich/push 各步
-items_in→items_out 与 skips 原因)、`sources[]`(源级条目数与 skip 原因)、
-`push[]`(逐通道:immediate/digest/archive 分桶计数、路由 decisions 与发送 reports)。status:`success`/`partial`/`failed`
+`myia run --json` 看:`stages[]`(常驻五阶段 fetch/classify/dedup/analyze/push,
+各步 items_in→items_out 与 skips 原因;品类声明 `aggregate:` 时才在 push 前
+条件性插入 aggregate 阶段,未声明的品类不见它)、`sources[]`(源级条目数与
+skip 原因)、`push[]`(逐通道:immediate/digest/archive 分桶计数、路由
+decisions 与发送 reports)。status:`success`/`partial`/`failed`
 对应退出码 0/3/2。
 
 ## 5. 自诊断流程(doctor JSON → 修复动作)
@@ -430,3 +432,27 @@ findings → 修复动作对照:
 11. 品类对不上七大类时 `classify.builtin: false`(否则未命中条目全被丢弃)。
 12. `myia test` 通过(退出码 0 或 3,且源 `ok: true`、字段预览非空、无 `dedup_key_error`);
     `myia doctor` 的 `findings` 清零。
+
+## 7. 本文件的安装与更新(自述)
+
+这份速查由 `myia skill` 子命令安装,不靠手工复制。默认探测四类技能根:
+`~/.claude/skills`(Claude Code)、`~/.cursor/skills`(Cursor)、
+`~/.zcode/skills`(Zcode)、`~/.agents/skills`(Codex 等通用惯例),安装位置
+一律是 `<技能根>/myia/SKILL.md`:
+
+```bash
+myia skill path --json                    # 源位置 + 各 agent 推荐路径与安装状态(装没装/副本还是链接/是否落后于源)
+myia skill install --agent claude         # 复制安装(缺省 --agent 时探测已存在的技能根)
+myia skill install --agent cursor --link  # 符号链接代替复制(源更新即跟随,无需重装)
+myia skill install --path ~/my-skills/myia  # 自定义安装目录(目录名 = 技能名)
+myia skill install --agent claude --force # 目标已存在时覆盖;缺省结构化拒绝(退出码 1,code=target_exists)
+```
+
+契约与修复动作:
+
+- 纯文件操作,退出码只有 `0`(成功)/ `1`(源缺失、目标已存在未 `--force`、用法错误);
+  `--json` 输出恰好一份 JSON。
+- `myia skill path` 里某 agent 的 `matches_source: false` = 已装副本落后于源
+  (SKILL.md 更新过),对该 agent 重跑 `myia skill install`,带上 `--agent <名>`
+  与 `--force`(见上方代码块)。
+- 装进 wheel 后(非源码仓库)找不到源时,设 `MYIA_SKILL_SOURCE` 指向 SKILL.md。

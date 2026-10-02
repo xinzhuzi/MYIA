@@ -209,7 +209,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     )
     body = [
         prompt(
-            "python3 -m http.server 8765 --bind 127.0.0.1 --directory docs/demo/assets/demo-site"
+            "python3 -m http.server 8765 --bind 127.0.0.1 --directory desktop/fixture"
         ),
         seg(banner, "prompt"),
         note_line("# 起演示源 = 仓库自带的虚构数据页,仅监听本机回环地址"),

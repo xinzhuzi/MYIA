@@ -104,7 +104,13 @@ uv run myia run plugins/demo-min.yaml                    # the first real run
   items_in→items_out with skip reasons) and `pushes[]` (route buckets and
   send results).
 - For long-term use add `--loop`: resident scheduling by the YAML's
-  `schedule` + `timezone`.
+  `schedule` + `timezone`. **Note** (one bot token = one poller): every
+  resident process configured with a `telegram` channel polls the same
+  `getUpdates` stream (the bot token always comes from
+  `env:TELEGRAM_BOT_TOKEN`), and Telegram answers concurrent pollers with
+  409 Conflict — keep at most one `--loop` category per token and move the
+  other categories to other push channels; `myia doctor` flags shared
+  setups as `telegram_token_poll_conflict`.
 
 The official categories in the repo (freebies / stocks / AI news / GPU
 prices, …) work the same way, e.g. `uv run myia run plugins/wool.yaml`;
