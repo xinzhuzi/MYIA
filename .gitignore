@@ -31,7 +31,7 @@ out/
 output/
 exports/
 backups/
-logs/
+/logs/
 *.log
 # 场景插件运行时产物(osint 类插件的侦察情报:邮箱/密钥泄漏指纹等)
 # 与抓取数据同级零容忍:插件安装根可在仓库树内(repo 内 compose 副本原地跑、
