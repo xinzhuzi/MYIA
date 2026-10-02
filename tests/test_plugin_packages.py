@@ -420,7 +420,11 @@ def test_package_files_hold_no_private_addresses_or_traces(package: str):
     for path in sorted(target.rglob("*")):
         if not path.is_file():
             continue
-        if "vendor" in path.relative_to(target).parts:
+        rel = path.relative_to(target).parts
+        if "__pycache__" in rel:
+            # 开发者 import adapter 会产生字节码缓存,与包内容红线无关
+            continue
+        if "vendor" in rel:
             # vendor/ 是上游工作树(submodule pin 635c25a,已全树扫描无内网
             # 地址/裸凭据并记录在案);其内容属上游仓库,不由本仓库红线扫描
             # 负责 —— 本仓库零复制的证据由 gitlink 形状测试负责。
@@ -461,7 +465,7 @@ def test_official_packages_never_reference_their_upstream_by_copying_files():
     for package in OFFICIAL_PACKAGES:
         source_type_extra = SOURCE_TYPE_PACKAGES.get(package, set())
         for path in package_dir(package).iterdir():
-            if path.name in source_type_extra:
+            if path.name in source_type_extra or path.name == "__pycache__":
                 continue
             assert path.suffix in allowed_suffixes, (
                 f"{package}/{path.name}: 插件包只许 manifest/文档/compose,上游代码零入库"
