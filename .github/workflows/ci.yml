@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # osint 插件的 vendor/Photon 是 submodule(许可隔离,GPL 只引用不复制)
+          submodules: recursive
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.11"

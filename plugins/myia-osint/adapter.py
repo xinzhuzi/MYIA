@@ -120,6 +120,11 @@ def vendor_commit(
     vendor = vendor_root(plugin_dir)
     if not vendor.is_dir():
         return None
+    # vendor 自身必须是仓库根(submodule checkout);空目录时 `git -C` 会向上
+    # 爬到外层 MYIA 仓库、把宿主 HEAD 误当 Photon pin(CI 无 submodule 时实测),
+    # 故先验 .git 存在(子仓的工作树形态:目录或 .git 文件皆可)。
+    if not (vendor / ".git").exists():
+        return None
     try:
         completed = do_run(
             ["git", "-C", str(vendor), "rev-parse", "HEAD"],
