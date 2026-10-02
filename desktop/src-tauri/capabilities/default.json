@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "spike 最小权限:核心事件 + sidecar 执行(args 全放开,仅 spike)",
+  "description": "desktop 最小权限:核心事件 + sidecar 执行(args 全放开,仅本地夹具)",
   "windows": ["main"],
   "permissions": [
     "core:default",

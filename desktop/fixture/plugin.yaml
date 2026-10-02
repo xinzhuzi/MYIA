@@ -1,8 +1,8 @@
-# desktop-spike/fixture/spike.yaml — sidecar 往返夹具。
+# desktop/fixture/plugin.yaml — sidecar 往返夹具。
 # 零凭据(stdout 通道不需要 target)、零外网(仅 127.0.0.1,安全底线允许)。
 # 用途:PyInstaller sidecar 二进制 `myia run <本文件> --json` 的固定输入。
-id: spike-fixture
-name: 桌面spike夹具
+id: desktop-fixture
+name: 桌面夹具
 schedule: "0 9 * * *"
 sources:
   - name: local-page

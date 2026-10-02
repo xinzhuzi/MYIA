@@ -1,7 +1,7 @@
 [package]
-name = "myia-desktop-spike"
+name = "myia-desktop"
 version = "0.1.0"
-description = "MYIA desktop spike — Tauri 2 shell + PyInstaller sidecar (决策原型,非产品)"
+description = "MYIA desktop — Tauri 2 shell + PyInstaller sidecar"
 edition = "2021"
 rust-version = "1.77"
 

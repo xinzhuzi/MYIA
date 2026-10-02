@@ -4,4 +4,4 @@
 视觉:Linear 式深空蓝底,青(#22D3EE)→紫(#8B5CF6)渐变,瞳孔高亮 #67E8F9,右上紫色信号 blip。
 
 再生成:`rsvg-convert -w 1024 -h 1024 -o myia-icon-1024.png myia-icon.svg`
-全尺寸图标集:`cd desktop-spike && npx tauri icon branding/myia-icon-1024.png`
+全尺寸图标集:`cd desktop && npx tauri icon branding/myia-icon-1024.png`

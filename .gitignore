@@ -57,13 +57,13 @@ coverage.xml
 .zcode/workflow-drafts/
 .zcode/workflow-runs/
 
-# ---- Node / 桌面端 spike(desktop-spike 构建产物可达 ~1GB,防误提交)----
+# ---- Node / 桌面端(desktop/ 是打包正式出处;构建产物可达 ~1GB,严禁入库)----
 node_modules/
-desktop-spike/src-tauri/target/
-desktop-spike/src-tauri/gen/
-desktop-spike/.venv-build/
-desktop-spike/build-pyi/
-desktop-spike/src-tauri/binaries/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/.venv-build/
+desktop/build-pyi/
+desktop/src-tauri/binaries/
 
 # ---- 编辑器 / OS ----
 .idea/

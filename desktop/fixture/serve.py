@@ -1,4 +1,4 @@
-"""desktop-spike 夹具静态服务:仅绑定 127.0.0.1,serve 本目录,零外网。
+"""desktop 夹具静态服务:仅绑定 127.0.0.1,serve 本目录,零外网。
 
 用法:python3 serve.py [port]   (默认 8765)
 """

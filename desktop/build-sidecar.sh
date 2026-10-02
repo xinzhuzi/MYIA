@@ -1,5 +1,5 @@
 #!/bin/zsh
-# desktop-spike sidecar 构建脚本(可重放):
+# desktop sidecar 构建脚本(可重放,v1.1 桌面打包从此处出):
 # 1) spike 隔离 venv(不动项目 .venv / pyproject / uv.lock)
 # 2) pip 安装 pyinstaller + 本项目(依赖从 PyPI 拉,仅进本 venv)
 # 3) PyInstaller --onefile 打包 entry.py → dist/myia
