@@ -786,7 +786,7 @@ def test_pipeline_run_feeds_trend_context_into_rendered_card(tmp_path, monkeypat
     import io
 
     from myia.pipeline import Pipeline
-    from tests.conftest import FakeClock  # noqa: F401  (make_pipeline 语义)
+    from conftest import FakeClock  # noqa: F401  (make_pipeline 语义);裸 pytest 下 tests/ 由 prepend 模式入 sys.path
 
     # 1) 配置:直接构造 CategoryConfig 并手工挂 baseline sidecar(与
     #    load_category 挂载语义一致),含 watchlist 关键词与 MSRP 对照。
