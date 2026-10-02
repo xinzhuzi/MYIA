@@ -3,7 +3,7 @@
   "name": "v111-desktop-paths",
   "title": "v1.1.1 桌面数据通路:应用数据根统一 + 插件随包 + 首跑种子(P0)",
   "description": "已装 App 仪表盘/情报流/源管理三屏不可用(实测);根因=三套路径策略并存+cwd 依赖+无随包插件无首跑种子;主人 2026-10-03 报障并指示先探查后建档",
-  "status": "in_progress",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -21,7 +21,7 @@
   "children": [],
   "parent": null,
   "relatedFiles": [],
-  "notes": "",
+  "notes": " 2026-10-03:v1.1.1 修复已交付(45639c3),验收全勾,状态对齐仓惯例(review=待归档)。",
   "meta": {
     "priority": "P0"
   }
