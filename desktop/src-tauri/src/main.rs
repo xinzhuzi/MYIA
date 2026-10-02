@@ -6,6 +6,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -121,6 +122,24 @@ fn pump_task(app: AppHandle, mut rx: tauri::async_runtime::Receiver<CommandEvent
     });
 }
 
+/// MYIA 应用数据根(v1.1.1 桌面数据通路统一,与 entry.py `myia_home()` 同路径):
+/// macOS `~/Library/Application Support/MYIA` / Windows `%APPDATA%\MYIA`
+/// (按 Roaming 惯例拼,APPDATA 重定向的边缘形态由 Python 侧 APPDATA env 兜底)
+/// / Linux `~/.myia`。spawn sidecar 时经 `MYIA_HOME` env 注入 —— 桌面上下文
+/// 的路径解析一处定案;sidecar 自带 .app bundle 探测作双保险。
+fn myia_home_dir(app: &AppHandle) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let home = app.path().home_dir()?;
+    let dir = if cfg!(target_os = "macos") {
+        home.join("Library/Application Support/MYIA")
+    } else if cfg!(target_os = "windows") {
+        home.join("AppData").join("Roaming").join("MYIA")
+    } else {
+        home.join(".myia")
+    };
+    std::fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
+
 fn main() {
     let started = Instant::now();
     tauri::Builder::default()
@@ -132,11 +151,13 @@ fn main() {
         .invoke_handler(tauri::generate_handler![sidecar_request])
         .setup(move |app| {
             // 冷启动打点(沿用 spike 惯例):进程启动 → sidecar spawn 完成。
-            let (rx, child) = app
-                .shell()
-                .sidecar("myia")?
-                .args(["serve"]) // entry.py RPC 模式;直通模式(无参数)留给 CLI 场景
-                .spawn()?;
+            // MYIA_HOME 注入尊重用户显式设置(自动化/自定位数据根的逃生口):
+            // 已设则原样继承,不夺权;未设才计算平台根并注入 + 预建目录。
+            let mut command = app.shell().sidecar("myia")?.args(["serve"]); // entry.py RPC 模式;直通模式(无参数)留给 CLI 场景
+            if std::env::var_os("MYIA_HOME").is_none() {
+                command = command.env("MYIA_HOME", myia_home_dir(app.handle())?);
+            }
+            let (rx, child) = command.spawn()?;
             app.manage(Sidecar {
                 child: Mutex::new(Some(child)),
                 pending: Mutex::new(HashMap::new()),

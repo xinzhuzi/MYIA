@@ -138,6 +138,8 @@ export interface HealthResult {
   summary: HealthSummary;
   /** healthy 语义对齐 doctor:dead=error 级;degraded 只算 warning */
   healthy: boolean;
+  /** v1.1.1:数据根内零品类 YAML(真·首跑/种子失败);UI 据此给初始化引导而非报错 */
+  first_run?: boolean;
   exit_code: number;
 }
 

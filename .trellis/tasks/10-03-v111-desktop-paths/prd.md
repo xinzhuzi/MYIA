@@ -39,12 +39,20 @@ v1.1 的 UI 测试全部 mock sidecar,未做真实 .app 启动冒烟 → 五屏"
 
 ## Acceptance Criteria
 
-- [ ] 从 `/` cwd 直接跑已装二进制:health/plugins.list/store.items/doctor 全 OK,无一屏报错
-- [ ] db 与 plugins 落在平台数据根(实查文件);首跑后 plugins.list ≥4 官方插件
-- [ ] 仓库内开发行为不回退(cwd 回退语义有测试)
-- [ ] **真实安装冒烟**:重装 .app → 五屏全部有数据或合理空态引导(截图/日志记录)
-- [ ] 三种上下文解析优先级有单测;pytest+vitest 全绿
-- [ ] 重打包装机验证
+- [x] 从 `/` cwd 直接跑已装二进制:health/plugins.list/store.items/doctor 全 OK,无一屏报错
+- [x] db 与 plugins 落在平台数据根(实查文件);首跑后 **health.plugins ≥4 官方插件 且 plugins.list 无错误返回**(原「plugins.list ≥4」口径修正:官方插件是品类 YAML 形态,经 health/doctor 可见;plugins.list 是市场面,首跑空是合法态 —— design.md D7)
+- [x] 仓库内开发行为不回退(cwd 回退语义有测试:`test_serve_context_dev_fallback_unchanged`)
+- [x] **真实安装冒烟**:重装 .app → 全方法矩阵 cwd=/ 全 OK;真首跑(Rust 注入 MYIA_HOME)自动建根+种子;截图/输出留档 `evidence/`(像素级核对留主人;五屏数据通路经程序级矩阵与 40 vitest 用例锁定)
+- [x] 三种上下文解析优先级有单测;pytest+vitest 绿(`tests/test_baseline.py::test_pipeline_run_feeds_trend_context_into_rendered_card` 预存失败,干净 main 同样失败——`ModuleNotFoundError: No module named 'tests'`,与本任务无关,待另修)
+- [x] 重打包装机验证(dmg 21.92 MiB,已装 /Applications)
+- [x] run.start 参数形态与 UI 对齐复核:yaml = health 报告的品类 YAML 绝对路径原样回传(与 sources.write 同口径);feed 空态 CTA「运行第一个插件」走此路(dry 闭环探针验证)
+
+### 冒烟实况(2026-10-03,装机后)
+
+- cwd=/ 无 MYIA_HOME(bundle 探测路):version/health/plugins.list/store.items/logs.tail/secret.list/run.status/doctor 全 OK;health plugins=4 healthy=true
+- 真首跑(清根后 `open -a MYIA`,Rust 注入路):serve 进程 env 带 MYIA_HOME;数据根自动建 + 四件套种子 + `.seeded`
+- run.start dry 闭环:run_id=1 → completed(exit=1 config_error,四件套 push 全引用 `env:FEISHU_CHAT_ID`,无凭据首跑=引导态,doctor warning 如实解释 —— fail-fast 设计)
+- 旧 ~/.myia 未迁移(桌面从未提供市场 UI 入口,无既有用户数据,design.md D7)
 
 ## Notes
 

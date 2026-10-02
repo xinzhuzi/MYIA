@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bookmark, Inbox, RefreshCw, Star } from "lucide-react";
+import { Bookmark, Inbox, Play, RefreshCw, Star } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
@@ -7,8 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SidecarRequestError } from "@/lib/api";
-import type { FeedItem } from "@/lib/api";
+import { api, onSidecarEvent, SidecarRequestError } from "@/lib/api";
+import type { FeedItem, UnlistenFn } from "@/lib/api";
 
 import {
   applyFeedFilter,
@@ -37,6 +38,14 @@ const EMPTY_TEXT: Record<FeedFilter, { title: string; description: string }> = {
   later: { title: "稍后读还是空的", description: "点击书签按钮把条目放入稍后读" },
   all: { title: "情报流还是空的", description: "数据源为 store.items(新→旧);先跑一次采集" },
 };
+
+/** 空流 CTA「运行第一个插件」的状态机(idle → starting → collecting → done/error) */
+type RunCtaState =
+  | { phase: "idle" }
+  | { phase: "starting" }
+  | { phase: "collecting"; runId: number }
+  | { phase: "done" }
+  | { phase: "error"; message: string };
 
 function FeedCard({
   item,
@@ -131,6 +140,7 @@ function FeedCard({
  * + 游标分页加载(见 ./api 的协议缺口注记)。
  */
 export function FeedScreen() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [states, setStates] = useState<FeedStateMap>({});
   const [filter, setFilter] = useState<FeedFilter>("unread");
@@ -139,6 +149,9 @@ export function FeedScreen() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<SidecarRequestError | null>(null);
+  /** health.first_run:空流时区分「无插件(首跑初始化)」与「有插件未采集」 */
+  const [firstRun, setFirstRun] = useState(false);
+  const [cta, setCta] = useState<RunCtaState>({ phase: "idle" });
 
   useEffect(() => {
     setStates(loadFeedStates());
@@ -152,6 +165,14 @@ export function FeedScreen() {
       setItems(page.items);
       setCursor(page.nextCursor);
       setHasMore(page.hasMore);
+      if (page.items.length === 0) {
+        // 空流才追问 health(一次 RPC):空态文案按有无插件分叉
+        try {
+          setFirstRun((await api.health()).first_run ?? false);
+        } catch {
+          // health 失败不遮蔽情报流自身的空态;CTA 点击时还有一次兜底
+        }
+      }
     } catch (err) {
       setError(
         err instanceof SidecarRequestError
@@ -213,6 +234,49 @@ export function FeedScreen() {
 
   const visible = useMemo(() => applyFeedFilter(items, states, filter), [items, states, filter]);
 
+  /** 空流 CTA:health 取第一个可加载插件 → run.start(yaml 绝对路径,与 sources.write 同口径) */
+  const startFirstPlugin = useCallback(async () => {
+    setCta({ phase: "starting" });
+    try {
+      const health = await api.health();
+      const plugin = health.plugins.find((candidate) => candidate.loaded) ?? health.plugins[0];
+      if (!plugin) {
+        setCta({
+          phase: "error",
+          message: "插件目录为空:重启应用触发首跑初始化,或到「源管理」检查插件目录。",
+        });
+        return;
+      }
+      const started = await api.runStart({ yaml: plugin.file });
+      setCta({ phase: "collecting", runId: started.run_id });
+    } catch (err) {
+      setCta({
+        phase: "error",
+        message: err instanceof SidecarRequestError ? `${err.code}:${err.message}` : String(err),
+      });
+    }
+  }, []);
+
+  // completed 事件 → 回 idle(可再跑)+ 自动刷新;订阅随 collecting 状态起止
+  useEffect(() => {
+    if (cta.phase !== "collecting") return;
+    let unlisten: UnlistenFn | null = null;
+    let cancelled = false;
+    void onSidecarEvent((event) => {
+      if (event.type === "completed" && event.run_id === cta.runId) {
+        setCta({ phase: "done" });
+        void refresh();
+      }
+    }).then((un) => {
+      if (cancelled) un();
+      else unlisten = un;
+    });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [cta, refresh]);
+
   return (
     <div className="flex flex-col gap-4 pb-6">
       <PageHeader
@@ -263,14 +327,62 @@ export function FeedScreen() {
             <Skeleton className="h-24 w-full" />
           </>
         ) : visible.length === 0 ? (
-          <Card>
-            <CardContent className="p-0">
-              <EmptyState
-                title={EMPTY_TEXT[filter].title}
-                description={EMPTY_TEXT[filter].description}
-              />
-            </CardContent>
-          </Card>
+          items.length === 0 && firstRun ? (
+            <Card data-testid="feed-first-run">
+              <CardContent className="p-0">
+                <EmptyState
+                  title="还没有可运行的插件"
+                  description="应用首次运行尚未装上官方插件;重启应用会自动完成初始化,或到「源管理」查看插件目录。"
+                  tag="首跑"
+                  action={
+                    <Button variant="outline" size="sm" onClick={() => navigate("/sources")}>
+                      去源管理
+                    </Button>
+                  }
+                />
+              </CardContent>
+            </Card>
+          ) : items.length === 0 ? (
+            <Card data-testid="feed-run-cta">
+              <CardContent className="p-0">
+                <EmptyState
+                  title="情报流还是空的"
+                  description={
+                    cta.phase === "collecting"
+                      ? `采集中(run #${cta.runId}),完成后自动刷新…`
+                      : cta.phase === "done"
+                        ? "本次采集已结束;若仍无条目,可到「日志」查看运行明细。"
+                        : cta.phase === "error"
+                          ? cta.message
+                          : "先运行一个插件:采集到的条目会按新→旧出现在这里。"
+                  }
+                  action={
+                    cta.phase === "collecting" ? (
+                      <Button size="sm" disabled>
+                        <RefreshCw className="size-3.5 animate-spin" />
+                        采集中…
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => void startFirstPlugin()}
+                        disabled={cta.phase === "starting"}
+                      >
+                        <Play className="size-3.5" />
+                        {cta.phase === "starting" ? "启动中…" : "运行第一个插件"}
+                      </Button>
+                    )
+                  }
+                />
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <EmptyState title={EMPTY_TEXT[filter].title} description={EMPTY_TEXT[filter].description} />
+              </CardContent>
+            </Card>
+          )
         ) : (
           visible.map((item) => (
             <FeedCard

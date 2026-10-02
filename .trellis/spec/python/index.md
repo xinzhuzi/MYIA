@@ -31,3 +31,11 @@ push/           通道(feishu_card/telegram/webhook/stdout)+ 阈值分级路由
 
 - 现有文件多为薄壳:任务是**填充**而非新建;新模块先在对应 PRD 登记
 - plugins/*.yaml 是 schema 的端到端测试:发现 schema 缺口先回改 schema,不许插件私加字段
+
+## 桌面发行数据根(v1.1.1 定案,task 10-03-v111-desktop-paths)
+
+- **CLI 相对路径默认(`myia.db`/`plugins`)是仓库开发契约,永不在 CLI 层改动**;桌面上下文的解析全部收口在 `desktop/entry.py` 的 `_serve_context()`,优先级:显式 params > `MYIA_HOME` env(Tauri 壳 main.rs spawn 注入)> 冻结 .app bundle 探测 > dev 回退 cwd
+- 平台数据根 `myia_home()`:macOS `~/Library/Application Support/MYIA` / Windows `%APPDATA%\MYIA` / Linux `~/.myia`;home 模式解析即建 `<home>` 与 `<home>/plugins`(全新数据根上 health/doctor 必须空态 OK,不得 plugins_dir 报错)
+- 首跑种子:home 模式 && plugins 空 && 无 `.seeded` 标志 → 拷随包 `Resources/plugins/*.yaml`(官方品类 YAML 四件套);标志在即永不复种(尊重用户删除)。dev 模式零动作
+- 市场面(`myia plugin list`,InstalledPluginStore)与品类 YAML 平铺共用 `<home>/plugins` 不冲突(health 扫描非递归);官方插件 = 品类 YAML 形态,经 health/doctor 可见,plugins.list 首跑空是合法态
+- 改路径行为必须同步 `tests/test_desktop_sidecar_protocol.py` 的上下文/种子用例;发布前必跑「真实安装冒烟」(cwd=/ 全方法矩阵),mock 层绿不算数(v1.1 教训)

@@ -5,11 +5,12 @@
  * 覆盖:卡片渲染(标题/来源/分类/score/时间) / 未读·星标·稍后读三态(本地持久)
  * / 游标分页加载与判停 / 结构化错误与空态。
  */
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within, act } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SidecarRequestError } from "@/lib/api";
-import type { FeedItem, StoreItemsParams, StoreItemsResult } from "@/lib/api";
+import type { FeedItem, HealthResult, StoreItemsParams, StoreItemsResult } from "@/lib/api";
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
@@ -18,14 +19,56 @@ vi.mock("@/lib/api", async (importOriginal) => {
     api: {
       ...actual.api,
       storeItems: vi.fn(),
+      health: vi.fn(),
+      runStart: vi.fn(),
     },
+    onSidecarEvent: vi.fn(),
   };
 });
 
-const { api } = await import("@/lib/api");
+const { api, onSidecarEvent } = await import("@/lib/api");
 const storeItemsMock = vi.mocked(api.storeItems);
+const healthMock = vi.mocked(api.health);
+const runStartMock = vi.mocked(api.runStart);
+const onSidecarEventMock = vi.mocked(onSidecarEvent);
 
 import { FeedScreen } from "./feed-screen";
+
+/** 空流时 refresh 会追问 health(first_run 分叉);默认给「有插件」的最小应答 */
+function healthResult(overrides: Partial<HealthResult> = {}): HealthResult {
+  return {
+    command: "list",
+    plugins_dir: "/home/plugins",
+    db: "/home/myia.db",
+    store_error: null,
+    plugins: [
+      {
+        file: "/home/plugins/ai-news.yaml",
+        id: "ai-news",
+        name: "AI资讯",
+        schedule: "0 8,20 * * *",
+        timezone: null,
+        push_channels: [],
+        loaded: true,
+        load_errors: null,
+        sources: [],
+      },
+    ],
+    summary: { plugins: 1, sources: 0, ok: 0, degraded: 0, dead: 0, unknown: 0 },
+    healthy: true,
+    first_run: false,
+    exit_code: 0,
+    ...overrides,
+  } as HealthResult;
+}
+
+function renderScreen() {
+  return render(
+    <MemoryRouter>
+      <FeedScreen />
+    </MemoryRouter>,
+  );
+}
 
 // ---------------------------------------------------------------------------
 // 夹具(形状严格对齐 types.ts:FeedItem / StoreItemsResult)
@@ -75,6 +118,8 @@ const localStorageStub = memoryStorage();
 beforeEach(() => {
   vi.stubGlobal("localStorage", localStorageStub);
   localStorageStub.clear();
+  healthMock.mockResolvedValue(healthResult());
+  onSidecarEventMock.mockResolvedValue(() => {});
 });
 
 afterEach(() => {
@@ -91,7 +136,7 @@ afterEach(() => {
 describe("FeedScreen", () => {
   it("条目卡渲染:标题 / 来源 / 分类标签 / score 徽标 / 相对时间", async () => {
     storeItemsMock.mockResolvedValue(result([fixtureItem()]));
-    render(<FeedScreen />);
+    renderScreen();
 
     await screen.findByText("条目 1");
     expect(screen.getByText(/Example/)).toBeTruthy();
@@ -104,7 +149,7 @@ describe("FeedScreen", () => {
   it("三态(本地):点标题记已读、星标与稍后读切换,过滤页签生效", async () => {
     const items = [fixtureItem(), fixtureItem(), fixtureItem()];
     storeItemsMock.mockResolvedValue(result(items));
-    render(<FeedScreen />);
+    renderScreen();
     await screen.findByText("条目 1");
 
     // 点标题 → 已读 → 默认「未读」过滤下消失
@@ -137,13 +182,13 @@ describe("FeedScreen", () => {
   it("重挂载后本地态仍在(localStorage 持久)", async () => {
     const item = fixtureItem();
     storeItemsMock.mockResolvedValue(result([item]));
-    const { unmount } = render(<FeedScreen />);
+    const { unmount } = renderScreen();
     await screen.findByText("条目 1");
     const card = screen.getByTestId(`feed-item-${item.id}`);
     fireEvent.click(within(card).getByRole("button", { name: "星标" }));
     unmount();
 
-    render(<FeedScreen />);
+    renderScreen();
     const cardAgain = await screen.findByTestId(`feed-item-${item.id}`);
     expect(within(cardAgain).getByRole("button", { name: "星标" }).getAttribute("aria-pressed")).toBe("true");
   });
@@ -163,7 +208,7 @@ describe("FeedScreen", () => {
       if (params?.since) return Promise.resolve(result(page2));
       return Promise.resolve(result(page1));
     });
-    render(<FeedScreen />);
+    renderScreen();
 
     const loadMore = await screen.findByRole("button", { name: "加载更早的条目" });
     expect(screen.getByText("50 / 50 条")).toBeTruthy(); // 默认「未读」过滤:计数 50/50
@@ -186,7 +231,7 @@ describe("FeedScreen", () => {
       page1.push(fixtureItem({ id, dedup_key: `dk-${id}`, title: `条目 ${id}` }));
     }
     storeItemsMock.mockImplementation(() => Promise.resolve(result(page1)));
-    render(<FeedScreen />);
+    renderScreen();
     const loadMore = await screen.findByRole("button", { name: "加载更早的条目" });
     fireEvent.click(loadMore);
 
@@ -200,20 +245,65 @@ describe("FeedScreen", () => {
     storeItemsMock.mockRejectedValue(
       new SidecarRequestError({ code: "store_corrupt", path: "params.db", message: "库文件损坏" }),
     );
-    render(<FeedScreen />);
+    renderScreen();
 
     const banner = await screen.findByTestId("feed-error");
     expect(banner.textContent).toContain("store_corrupt");
     expect(banner.textContent).toContain("库文件损坏");
   });
 
-  it("空态:无条目给引导文案(默认未读页签)", async () => {
+  it("空态:无条目给「运行第一个插件」CTA(默认未读页签同口径)", async () => {
     storeItemsMock.mockResolvedValue(result([]));
-    render(<FeedScreen />);
+    renderScreen();
 
-    expect(await screen.findByText("没有未读条目")).toBeTruthy();
-    // 切「全部」页签换成整流空态
-    fireEvent.click(screen.getByRole("button", { name: "过滤:全部" }));
-    expect(screen.getByText("情报流还是空的")).toBeTruthy();
+    expect(await screen.findByText("情报流还是空的")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /运行第一个插件/ })).toBeTruthy();
+  });
+
+  it("空态 first_run 分支:无插件给初始化引导 + 去源管理,无运行 CTA", async () => {
+    storeItemsMock.mockResolvedValue(result([]));
+    healthMock.mockResolvedValue(healthResult({ first_run: true, plugins: [] }));
+    renderScreen();
+
+    expect(await screen.findByText("还没有可运行的插件")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "去源管理" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /运行第一个插件/ })).toBeNull();
+  });
+
+  it("空流 CTA:点击 → health 取已加载插件 → run.start(yaml) → 采集中 → completed 刷新", async () => {
+    storeItemsMock.mockResolvedValue(result([]));
+    runStartMock.mockResolvedValue({
+      run_id: 3, state: "running", yaml: "/home/plugins/ai-news.yaml", dry: false, db: "/home/myia.db",
+    });
+    let emitEvent: ((event: { type: string; run_id: number }) => void) | undefined;
+    onSidecarEventMock.mockImplementation((handler: (event: never) => void) => {
+      emitEvent = handler as (event: { type: string; run_id: number }) => void;
+      return Promise.resolve(() => {});
+    });
+    renderScreen();
+
+    fireEvent.click(await screen.findByRole("button", { name: /运行第一个插件/ }));
+    await waitFor(() =>
+      expect(runStartMock).toHaveBeenCalledWith({ yaml: "/home/plugins/ai-news.yaml" }),
+    );
+    expect(await screen.findByText(/采集中\(run #3\)/)).toBeTruthy();
+
+    // completed 事件 → done 文案 + 刷新(store.items 再被调用)
+    const callsBefore = storeItemsMock.mock.calls.length;
+    act(() => emitEvent?.({ type: "completed", run_id: 3 }));
+    expect(await screen.findByText(/本次采集已结束/)).toBeTruthy();
+    await waitFor(() => expect(storeItemsMock.mock.calls.length).toBeGreaterThan(callsBefore));
+  });
+
+  it("空流 CTA 错误路径:run_busy 结构化拒绝上屏,按钮可重试", async () => {
+    storeItemsMock.mockResolvedValue(result([]));
+    runStartMock.mockRejectedValue(
+      new SidecarRequestError({ code: "run_busy", path: "$", message: "已有 run 在执行" }),
+    );
+    renderScreen();
+
+    fireEvent.click(await screen.findByRole("button", { name: /运行第一个插件/ }));
+    expect(await screen.findByText(/run_busy/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /运行第一个插件/ })).toBeTruthy();
   });
 });

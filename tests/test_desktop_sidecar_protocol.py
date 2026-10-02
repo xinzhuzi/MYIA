@@ -92,6 +92,9 @@ def _reset_sidecar_state(monkeypatch):
     monkeypatch.setattr(entry, "_NEXT_RUN_ID", 0)
     monkeypatch.setattr(entry, "_LOG_RING", deque(maxlen=entry.LOG_RING_CAPACITY))
     monkeypatch.setattr(entry, "_LOG_SEQ", 0)
+    # v1.1.1 上下文隔离:ambient MYIA_HOME 不得影响任何用例(dev 模式是默认前提)
+    monkeypatch.delenv("MYIA_HOME", raising=False)
+    monkeypatch.delenv("MYIA_PLUGIN_DIR", raising=False)
     backend = InMemoryKeychainBackend()
     monkeypatch.setattr(entry, "set_secret", _capture_secret(backend))
     monkeypatch.setattr(entry, "list_secrets", lambda: sorted(name for _, name in backend._items))
@@ -593,3 +596,195 @@ def test_sources_write_structured_refusals(tmp_path):
 
     assert [source.name for source in load_category_file(yaml_path).sources] == ["keep-me"]
     assert yaml_path.read_text(encoding="utf-8") != before
+
+
+# ---------------------------------------------------------------------------
+# v1.1.1 应用数据根:上下文解析优先级 / .app bundle 探测 / 首跑种子 / first_run
+# (task 10-03-v111-desktop-paths,design.md D1-D3/D8)
+# ---------------------------------------------------------------------------
+
+OFFICIAL_TEMPLATE = """
+id: {pid}
+name: 官方夹具 {pid}
+schedule: "0 9 * * *"
+sources:
+  - name: local-api
+    engine: direct_api
+    url: "http://127.0.0.1:9/x"
+    rate_limit:
+      qps: 1000.0
+      respect_robots: false
+    retry: 0
+    extract:
+      type: json_path
+      fields:
+        title: "$.a"
+        url: "$.b"
+classify:
+  builtin: false
+"""
+
+
+def _fake_bundle(tmp_path: Path, *plugin_ids: str) -> Path:
+    bundle = tmp_path / "bundle" / "plugins"
+    bundle.mkdir(parents=True, exist_ok=True)
+    for pid in plugin_ids:
+        (bundle / f"{pid}.yaml").write_text(OFFICIAL_TEMPLATE.format(pid=pid), encoding="utf-8")
+    return bundle
+
+
+def test_serve_context_myia_home_env(tmp_path, monkeypatch):
+    """MYIA_HOME env → home 模式:db/plugins 默认全落数据根(并即时建目录)。"""
+    home = tmp_path / "home"
+    monkeypatch.setenv("MYIA_HOME", str(home))
+    ctx = entry._serve_context()
+    assert ctx.home == home
+    assert ctx.db == str(home / "myia.db")
+    assert ctx.plugins_dir == str(home / "plugins")
+    assert ctx.install_root == str(home / "plugins")
+    assert home.is_dir()
+
+
+def test_serve_context_plugin_dir_env_respected(tmp_path, monkeypatch):
+    """既有 MYIA_PLUGIN_DIR 约定不被夺权:安装根显式 env 优先于 <home>/plugins。"""
+    market = tmp_path / "market"
+    monkeypatch.setenv("MYIA_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("MYIA_PLUGIN_DIR", str(market))
+    assert entry._serve_context().install_root == str(market)
+
+
+def test_serve_context_dev_fallback_unchanged(monkeypatch):
+    """dev 回退:三项默认与 v1.1 CLI 常量逐字节一致(仓库内行为不回退)。"""
+    from myia.cli import DEFAULT_DB_PATH, DEFAULT_PLUGINS_DIR
+    from myia.plugins.installed import default_install_root
+
+    monkeypatch.delattr(sys, "frozen", raising=False)
+    ctx = entry._serve_context()
+    assert ctx.home is None
+    assert ctx.db == DEFAULT_DB_PATH
+    assert ctx.plugins_dir == DEFAULT_PLUGINS_DIR
+    assert ctx.install_root == str(default_install_root())
+
+
+def test_bundle_detection_dot_app(tmp_path, monkeypatch):
+    """冻结 exe 位于 .app 内 → 平台数据根(bundle 探测,Rust 注入丢失时的兜底)。"""
+    exe = tmp_path / "MYIA.app" / "Contents" / "MacOS" / "myia"
+    exe.parent.mkdir(parents=True)
+    exe.write_text("#!/bin/sh\n", encoding="utf-8")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(exe))
+    platform_root = tmp_path / "platform-root"
+    monkeypatch.setattr(entry, "myia_home", lambda: platform_root)
+    assert entry._inside_app_bundle() is True
+    assert entry._serve_context().home == platform_root
+
+
+def test_bundle_detection_requires_dot_app(tmp_path, monkeypatch):
+    """冻结但不在 .app 内(裸 CLI 分发形态)→ 仍 dev 回退,不偷偷进家目录。"""
+    exe = tmp_path / "bin" / "myia"
+    exe.parent.mkdir(parents=True)
+    exe.write_text("#!/bin/sh\n", encoding="utf-8")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(exe))
+    assert entry._inside_app_bundle() is False
+    assert entry._serve_context().home is None
+
+
+def test_seed_copies_official_plugins_and_marks(tmp_path, monkeypatch):
+    """首跑种子:空 plugins → 拷官方四件套 + 写 .seeded;标志抑制复种。"""
+    home = tmp_path / "home"
+    bundle = _fake_bundle(tmp_path, "ai-news", "wool", "stocks", "gpu-prices")
+    monkeypatch.setattr(entry, "_bundle_plugins_dir", lambda: bundle)
+    ctx = entry.ServeContext(
+        home=home, db=str(home / "myia.db"),
+        plugins_dir=str(home / "plugins"), install_root=str(home / "plugins"),
+    )
+    assert entry._seed_first_run(ctx) is True
+    seeded = sorted(path.name for path in (home / "plugins").glob("*.yaml"))
+    assert seeded == ["ai-news.yaml", "gpu-prices.yaml", "stocks.yaml", "wool.yaml"]
+    assert (home / entry.SEED_MARKER).exists()
+
+    # 幂等:用户删光一个插件后重启,标志在 → 不复种(尊重用户删除)
+    (home / "plugins" / "wool.yaml").unlink()
+    assert entry._seed_first_run(ctx) is False
+    assert not (home / "plugins" / "wool.yaml").exists()
+
+
+def test_seed_skips_when_user_has_plugins(tmp_path, monkeypatch):
+    """升级安装/手动放置过插件(plugins 非空)→ 零打扰:不种、不写标志。"""
+    home = tmp_path / "home"
+    bundle = _fake_bundle(tmp_path, "ai-news")
+    plugins = home / "plugins"
+    plugins.mkdir(parents=True)
+    (plugins / "mine.yaml").write_text(OFFICIAL_TEMPLATE.format(pid="mine"), encoding="utf-8")
+    monkeypatch.setattr(entry, "_bundle_plugins_dir", lambda: bundle)
+    ctx = entry.ServeContext(
+        home=home, db=str(home / "myia.db"),
+        plugins_dir=str(plugins), install_root=str(plugins),
+    )
+    assert entry._seed_first_run(ctx) is False
+    assert not (home / entry.SEED_MARKER).exists()
+    assert sorted(path.name for path in plugins.glob("*.yaml")) == ["mine.yaml"]
+
+
+def test_serve_startup_seeds_in_home_mode(tmp_path, monkeypatch):
+    """serve 启动即种子(home 模式);dev 模式连 bundle 探测都不碰。"""
+    home = tmp_path / "home"
+    bundle = _fake_bundle(tmp_path, "ai-news")
+    monkeypatch.setenv("MYIA_HOME", str(home))
+    monkeypatch.setattr(entry, "_bundle_plugins_dir", lambda: bundle)
+    code, responses, _ = rpc({"id": 1, "method": "version", "params": {}})
+    assert code == 0 and responses[0]["result"]["version"]
+    assert (home / "plugins" / "ai-news.yaml").exists()
+
+    monkeypatch.delenv("MYIA_HOME")
+    monkeypatch.setattr(
+        entry, "_bundle_plugins_dir",
+        lambda: (_ for _ in ()).throw(AssertionError("dev 模式不得触发 bundle 探测")),
+    )
+    code, responses, _ = rpc({"id": 2, "method": "version", "params": {}})
+    assert code == 0 and responses[0]["result"]["version"]
+
+
+def test_health_first_run_flag_and_home_defaults(tmp_path, monkeypatch):
+    """health:home 模式 db/plugins 落数据根;零 yaml → first_run=true,种上即 false。"""
+    home = tmp_path / "home"
+    monkeypatch.setenv("MYIA_HOME", str(home))
+    code, responses, _ = rpc({"id": 1, "method": "health", "params": {}})
+    result = responses[0]["result"]
+    assert code == 0
+    assert result["plugins_dir"] == str(home / "plugins")
+    assert result["db"] == str(home / "myia.db")
+    assert result["first_run"] is True
+    assert result["healthy"] is True  # 空态是合法态,不是错误
+
+    (home / "plugins").mkdir(parents=True, exist_ok=True)
+    (home / "plugins" / "ai-news.yaml").write_text(
+        OFFICIAL_TEMPLATE.format(pid="ai-news"), encoding="utf-8"
+    )
+    code, responses, _ = rpc({"id": 2, "method": "health", "params": {}})
+    result = responses[0]["result"]
+    assert result["first_run"] is False
+    assert [plugin["id"] for plugin in result["plugins"]] == ["ai-news"]
+
+
+def test_health_explicit_params_win_over_env(tmp_path, monkeypatch):
+    """优先级之首:显式 params 永远赢过 MYIA_HOME(env 只供缺省)。"""
+    monkeypatch.setenv("MYIA_HOME", str(tmp_path / "home"))
+    plugins_dir = tmp_path / "elsewhere"
+    plugins_dir.mkdir()
+    code, responses, _ = rpc(
+        {"id": 1, "method": "health", "params": {"plugins_dir": str(plugins_dir)}},
+    )
+    assert code == 0
+    assert responses[0]["result"]["plugins_dir"] == str(plugins_dir)
+
+
+def test_store_items_and_run_default_db_follow_home(tmp_path, monkeypatch):
+    """store.items / run.start 的 db 缺省同收口:一条数据通路一个库。"""
+    home = tmp_path / "home"
+    monkeypatch.setenv("MYIA_HOME", str(home))
+    code, responses, _ = rpc({"id": 1, "method": "store.items", "params": {"limit": 5}})
+    assert code == 0
+    assert responses[0]["result"]["db"] == str(home / "myia.db")
+    assert responses[0]["result"]["items"] == []

@@ -61,6 +61,14 @@ sources.write     (品类 YAML 源启停写回)          disable 摘出/enable �
 铁律:凭据只进系统钥匙链(``secret.set`` 薄包装 myia.secrets,值不落日志/协议流);
 桌面零 Docker;任何插件装不上不拦核心(doctor/list 只产 findings)。
 
+serve 上下文路径解析(v1.1.1 统一,优先级):显式 params > ``MYIA_HOME`` env
+(Tauri 壳 spawn 时注入)> 冻结 .app bundle 探测(平台数据根
+``~/Library/Application Support/MYIA`` / ``%APPDATA%\\MYIA`` / ``~/.myia``)>
+dev 回退 cwd(仓库内运行行为不变)。home 模式下 db/plugins 缺省
+``<home>/myia.db``、``<home>/plugins``;serve 启动时首跑种子 —— plugins
+目录空则从随包 Resources 拷官方品类 YAML(标志 ``.seeded`` 抑制复种);
+health 应答附 ``first_run`` 供 UI 空态引导。
+
 == 退出码 ==
 
 - serve 模式:stdin EOF(壳退出/管道关闭)= 干净退出 0;serve 循环自身致命
@@ -75,17 +83,19 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, NamedTuple
 
 import myia
 import yaml
 from myia.cli import DEFAULT_DB_PATH, DEFAULT_PLUGINS_DIR, main as cli_main
+from myia.plugins.installed import INSTALL_ROOT_ENV, default_install_root
 from myia.schema import LoadError, load_category
 from myia.secrets import SecretError, list_secrets, set_secret
 from myia.store import SQLiteStore, StoreSchemaError
@@ -95,6 +105,158 @@ PROTOCOL_VERSION = 1
 LOG_RING_CAPACITY = 4000
 #: 单次 run 的日志事件与环形上限一致;超限仅丢最旧行。
 STATUS_BY_EXIT = {0: "success", 1: "config_error", 2: "failed", 3: "partial"}
+
+#: 应用数据根环境变量名(Tauri 壳 spawn sidecar 时注入,优先级见 _serve_context)。
+MYIA_HOME_ENV = "MYIA_HOME"
+#: 首跑种子标志文件名(数据根下;存在即永不复种,用户删光插件也不打扰)。
+SEED_MARKER = ".seeded"
+
+
+# ---------------------------------------------------------------------------
+# 应用数据根与 serve 上下文(v1.1.1 桌面数据通路统一)
+# ---------------------------------------------------------------------------
+
+
+def myia_home() -> Path:
+    """平台应用数据根:darwin ``~/Library/Application Support/MYIA`` /
+    win32 ``%APPDATA%\\MYIA`` / 其余 ``~/.myia``(design.md D1)。"""
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "MYIA"
+    if sys.platform == "win32":
+        base = os.environ.get("APPDATA")
+        root = Path(base) if base else Path.home() / "AppData" / "Roaming"
+        return root / "MYIA"
+    return Path.home() / ".myia"
+
+
+def _inside_app_bundle() -> bool:
+    """冻结二进制是否位于 .app 内(桌面发行形态;dev/CLI 直跑为 False)。"""
+    if not getattr(sys, "frozen", False):
+        return False
+    return any(parent.suffix == ".app" for parent in Path(sys.executable).resolve().parents)
+
+
+def _bundle_plugins_dir() -> Path | None:
+    """随包官方插件目录(Tauri resources;dev 或无资源时 None)。
+
+    候选按平台资源布局:macOS .app 的 ``Contents/Resources/plugins``、
+    Windows/Linux 资源保持相对结构落在 exe 旁(``plugins/``)。
+    """
+    if not getattr(sys, "frozen", False):
+        return None
+    exe = Path(sys.executable).resolve()
+    candidates = [
+        exe.parent.parent / "Resources" / "plugins",
+        exe.parent / "plugins",
+        exe.parent / "resources" / "plugins",
+    ]
+    for candidate in candidates:
+        if candidate.is_dir() and any(candidate.glob("*.yaml")):
+            return candidate
+    return None
+
+
+def _has_category_yamls(root: Path) -> bool:
+    """目录内是否已有品类 YAML(平铺 ``*.yaml``/``*.yml``,非递归)。"""
+    return root.is_dir() and (any(root.glob("*.yaml")) or any(root.glob("*.yml")))
+
+
+class ServeContext(NamedTuple):
+    """serve 请求的路径上下文:显式 params 永远赢,这里只供缺省。
+
+    ``home=None`` 即 dev 回退(cwd 相对常量,仓库内行为与 v1.1 逐字节一致);
+    home 模式下 db/plugins 默认 ``<home>/myia.db``、``<home>/plugins``,市场
+    安装根尊重既有 ``MYIA_PLUGIN_DIR`` env,否则同为 ``<home>/plugins``
+    (品类 YAML 平铺与市场插件子目录互不干扰:health 扫描非递归)。
+    NamedTuple 而非 dataclass:本模块经 importlib 直载(测试),dataclass
+    的注解解析依赖 sys.modules 注册,此处没有。
+    """
+
+    home: Path | None
+    db: str
+    plugins_dir: str
+    install_root: str
+
+    def first_run(self) -> bool:
+        """首跑判定:home 模式且 plugins 目录内零品类 YAML(种子失败/被删光)。"""
+        return self.home is not None and not _has_category_yamls(Path(self.plugins_dir))
+
+
+def _serve_context() -> ServeContext:
+    """解析当前 serve 上下文(每请求调用,极廉价;env 可被测试逐例注入)。
+
+    优先级:**显式 params(各方法自行合并)> ``MYIA_HOME`` env > .app bundle
+    探测 > dev 回退 cwd**。
+    """
+    env_home = os.environ.get(MYIA_HOME_ENV)
+    if env_home:
+        home = Path(env_home).expanduser()
+    elif _inside_app_bundle():
+        home = myia_home()
+    else:
+        home = None
+    if home is None:
+        return ServeContext(
+            home=None,
+            db=DEFAULT_DB_PATH,
+            plugins_dir=DEFAULT_PLUGINS_DIR,
+            install_root=str(default_install_root()),
+        )
+    try:
+        home.mkdir(parents=True, exist_ok=True)
+        # plugins 目录一并建:全新数据根上 health/doctor 要的是空态 OK,
+        # 不是 NotADirectoryError(prd 探查矩阵的「无创建逻辑」根因)
+        (home / "plugins").mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise ProtocolError(
+            "myia_home_unwritable", f"应用数据根不可创建: {home} ({exc})", path=f"env.{MYIA_HOME_ENV}"
+        ) from exc
+    install_root = os.environ.get(INSTALL_ROOT_ENV) or str(home / "plugins")
+    return ServeContext(
+        home=home,
+        db=str(home / "myia.db"),
+        plugins_dir=str(home / "plugins"),
+        install_root=str(Path(install_root).expanduser()),
+    )
+
+
+def _seed_first_run(ctx: ServeContext) -> bool:
+    """首跑种子:``<home>/plugins`` 无品类 YAML 且未种过 → 拷随包官方插件。
+
+    幂等由 ``<home>/.seeded`` 标志保证(用户删光插件不复种);拷贝非原子
+    可接受 —— 中途失败最坏半份副本且无标志,下次启动整体重拷覆盖。
+    仅 home 模式调用;dev 模式零动作。
+    """
+    assert ctx.home is not None
+    if (ctx.home / SEED_MARKER).exists():
+        return False
+    plugins_dir = Path(ctx.plugins_dir)
+    if _has_category_yamls(plugins_dir):
+        return False  # 升级安装/用户手动放置过插件 —— 不打扰
+    bundle = _bundle_plugins_dir()
+    if bundle is None:
+        return False
+    plugins_dir.mkdir(parents=True, exist_ok=True)
+    copied: list[str] = []
+    for pattern in ("*.yaml", "*.yml"):
+        for source in sorted(bundle.glob(pattern)):
+            shutil.copy2(source, plugins_dir / source.name)
+            copied.append(source.name)
+    (ctx.home / SEED_MARKER).write_text(_now_iso() + "\n", encoding="utf-8")
+    _ring_append(
+        None, "stderr", f"sidecar: 首跑种子 {len(copied)} 个官方插件 -> {plugins_dir}"
+    )
+    return bool(copied)
+
+
+def _startup_seed() -> None:
+    """serve 启动时的一次性种子入口;失败只留痕,绝不拦服务起来。"""
+    try:
+        ctx = _serve_context()
+        if ctx.home is not None:
+            _seed_first_run(ctx)
+    except Exception as exc:  # noqa: BLE001 — 种子是增强,不是依赖
+        print(f"sidecar: 首跑种子失败(忽略): {exc}", file=sys.stderr)
 
 
 class ProtocolError(Exception):
@@ -212,11 +374,16 @@ def _m_version(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def _m_health(params: dict[str, Any]) -> dict[str, Any]:
-    """``myia list --json`` 等价:插件清单 + 源健康度 + 计数聚合。"""
+    """``myia list --json`` 等价:插件清单 + 源健康度 + 计数聚合。
+
+    plugins_dir/db 缺省走 serve 上下文(home 模式 = 数据根;dev = cwd 相对);
+    home 模式零品类 YAML 时附 ``first_run=true``(UI 空态引导,不报错)。
+    """
+    ctx = _serve_context()
     argv = [
         "list",
-        "--plugins-dir", str(params.get("plugins_dir") or DEFAULT_PLUGINS_DIR),
-        "--db", str(params.get("db") or DEFAULT_DB_PATH),
+        "--plugins-dir", str(params.get("plugins_dir") or ctx.plugins_dir),
+        "--db", str(params.get("db") or ctx.db),
         "--json",
     ]
     code, payload = _cli_json(argv)
@@ -236,15 +403,19 @@ def _m_health(params: dict[str, Any]) -> dict[str, Any]:
     }
     # healthy 语义对齐 doctor:dead=error 级;degraded 只算 warning。
     payload["healthy"] = counts["dead"] == 0 and payload.get("store_error") is None
+    payload["first_run"] = ctx.first_run()
     payload["exit_code"] = code
     return payload
 
 
 def _m_plugins_list(params: dict[str, Any]) -> dict[str, Any]:
-    """``myia plugin list --json`` 等价:已装市场插件 + findings。"""
-    argv = ["plugin", "list", "--json"]
-    if params.get("dir"):
-        argv += ["--dir", str(params["dir"])]
+    """``myia plugin list --json`` 等价:已装市场插件 + findings。
+
+    ``dir`` 缺省走 serve 上下文安装根(home 模式 = ``MYIA_PLUGIN_DIR`` env
+    否则 ``<home>/plugins``;市场面首跑合法为空,design.md D7)。
+    """
+    ctx = _serve_context()
+    argv = ["plugin", "list", "--json", "--dir", str(params.get("dir") or ctx.install_root)]
     code, payload = _cli_json(argv)
     if code != 0:
         raise _cli_error(code, payload)
@@ -255,12 +426,12 @@ def _m_plugins_list(params: dict[str, Any]) -> dict[str, Any]:
 
 def _m_doctor(params: dict[str, Any]) -> dict[str, Any]:
     """``myia doctor --json`` 等价:结构化诊断(问题全在 findings,完成即 0)。"""
+    ctx = _serve_context()
     argv = ["doctor"]
     for yaml_path in params.get("yamls") or []:
         argv.append(str(yaml_path))
-    if params.get("plugins_dir"):
-        argv += ["--plugins-dir", str(params["plugins_dir"])]
-    argv += ["--db", str(params.get("db") or DEFAULT_DB_PATH)]
+    argv += ["--plugins-dir", str(params.get("plugins_dir") or ctx.plugins_dir)]
+    argv += ["--db", str(params.get("db") or ctx.db)]
     if params.get("config"):
         argv += ["--config", str(params["config"])]
     if params.get("probe_timeout") is not None:
@@ -299,7 +470,7 @@ def _item_dict(item: Any) -> dict[str, Any]:
 
 def _m_store_items(params: dict[str, Any]) -> dict[str, Any]:
     """SQLiteStore.list_items 直读(数据面复用:SQLite 单库,零新后端)。"""
-    db = params.get("db") or DEFAULT_DB_PATH
+    db = params.get("db") or _serve_context().db
     since_raw = params.get("since")
     since = None
     if since_raw:
@@ -668,7 +839,7 @@ def _m_run_start(params: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(yaml_path, str) or not yaml_path:
         raise ProtocolError("invalid_params", "缺少品类 YAML 路径 yaml", path="params.yaml")
     dry = bool(params.get("dry", False))
-    db = str(params.get("db") or DEFAULT_DB_PATH)
+    db = str(params.get("db") or _serve_context().db)
     with _RUNS_LOCK:
         if _ACTIVE_RUN_ID is not None:
             raise ProtocolError(
@@ -803,6 +974,7 @@ def serve(stdin: Any | None = None, stdout: Any | None = None) -> int:
     """
     global _OUT
     _OUT = stdout if stdout is not None else sys.stdout
+    _startup_seed()
     source = stdin if stdin is not None else sys.stdin
     while True:
         raw = source.readline()
