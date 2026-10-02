@@ -34,11 +34,16 @@ WORKDIR /app
 # README.md is part of the hatchling build (pyproject readme = "README.md").
 COPY pyproject.toml uv.lock README.md ./
 
-# Dependency layer first: cached unless the lockfile changes.
+# Workspace sources must exist before any uv sync: uv.lock references the
+# myia-classifier member as an editable path (packages/myia-classifier), and
+# --frozen resolution fails with "Distribution not found" without it.
+# Trade-off: source changes now bust the dependency cache layer.
+COPY src ./src
+COPY packages ./packages
+
+# Dependency layer: cached unless pyproject/uv.lock/sources change.
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev
-
-COPY src ./src
 
 # Full sync installs the myia package itself (editable by default; the source
 # ships alongside the venv so that is fine in the final image too).

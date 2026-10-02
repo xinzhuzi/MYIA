@@ -22,6 +22,8 @@ docs/demo/
 └── video/
     ├── script.md              2:30 视频分镜脚本(解说词中英双语)
     ├── myia-demo.srt          双语字幕(18 条,总长 150s,已校验)
+    ├── myia-demo.mp4          成片(装配版):72s / 1920×1080 / H.264+AAC / ≈1.0MB
+    ├── build_video.sh         成片装配脚本(ffmpeg 单遍滤镜图,可复跑)
     └── shot-list.md           素材清单 + 打码红线 + 发布清单(成片外链占位)
 ```
 
@@ -52,10 +54,11 @@ $ myia test docs/demo/demo-news.yaml --source demo-hub
   凭据 `myia secret set` 进系统钥匙链 —— 卡片模板不变。
 - 完整分镜(每帧命令与预期画面)见 [`gif/storyboard.md`](gif/storyboard.md)。
 
-## 动图:README 嵌入点(发布工位操作)
+## 动图:README 嵌入(已完成)
 
-动图文件:`assets/myia-demo.gif`。**根 README 的嵌入由发布工位完成**(本工位
-不改动 README),在 README 顶部徽标区之后插入:
+动图文件:`assets/myia-demo.gif`。**根 README 已嵌入该动图**(顶部徽标区之后,
+`<img src="docs/demo/assets/myia-demo.gif" … width="820">`,见根 README 第 11 行;
+嵌入时使用的片段如下,留作参考):
 
 ```markdown
 <p align="center">
@@ -87,5 +90,11 @@ $ myia test docs/demo/demo-news.yaml --source demo-hub
   总长 150s,时码与分镜一致)。
 - 素材清单与发布清单:[`video/shot-list.md`](video/shot-list.md)(素材核对表、
   录制环境、打码红线、B站/YouTube 发布字段)。
-- 成片未拍:外链占位已就位,拍摄需真实 GUI 会话与收卡群 —— openIssues
-  登记「需主人录一次」。
+- **成片(装配版)已交付**:[`video/myia-demo.mp4`](video/myia-demo.mp4) ——
+  72s / 1920×1080 / H.264+AAC / ≈1.0MB。**装配版:由演示动图+卡片合成**
+  (片头卡 → 动图放大+烧录中文字幕 → 五步能力卡 → 片尾卡),ffmpeg 一遍
+  合成,`video/build_video.sh` 可复跑;**真人录屏版可选**,2:30 全版分镜
+  (`video/script.md`)与外链占位(`video/shot-list.md`)为其保留。
+- 装配版两条如实说明:音轨为静音 AAC(旁白配音未录,属真人版范畴);动图
+  段画面即 `assets/myia-demo.gif` 的内容(真实命令输出合成,见
+  `gif/storyboard.md`),场景间约 150ms 淡入淡出为动图原生转场。

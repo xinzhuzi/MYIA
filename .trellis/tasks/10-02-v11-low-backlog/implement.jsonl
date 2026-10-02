@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/python/index.md", "reason": "工程约定"}
+{"file": ".trellis/spec/domain/yaml-schema.md", "reason": "schema 铁律"}
+{"file": ".trellis/spec/domain/security-baseline.md", "reason": "安全底线"}
+{"file": ".trellis/tasks/10-01-myia-v10-launch/research/v11-low-backlog.md", "reason": "18 条 low backlog 素材(逐条 where/what/修法)"}

@@ -1,0 +1,33 @@
+{
+  "id": "v11-low-backlog",
+  "name": "v11-low-backlog",
+  "title": "v1.1 打磨:low backlog 清偿",
+  "description": "三轮深度评审 129 条发现,high/medium 已修;本任务清偿余下 18 条 low,按模块拆 6 个子任务(docs 文档漂移 / plugins 包 / engines 引擎 / feedback 反馈 / baseline+aggregate / release 收尾)。素材:.trellis/tasks/10-01-myia-v10-launch/research/v11-low-backlog.md",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-02",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "10-02-v11-low-docs-drift",
+    "10-02-v11-low-plugins",
+    "10-02-v11-low-engines",
+    "10-02-v11-low-feedback",
+    "10-02-v11-low-baseline-aggregate",
+    "10-02-v11-low-release"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}
