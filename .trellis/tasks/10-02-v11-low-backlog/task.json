@@ -24,7 +24,8 @@
     "10-02-v11-low-engines",
     "10-02-v11-low-feedback",
     "10-02-v11-low-baseline-aggregate",
-    "10-02-v11-low-release"
+    "10-02-v11-low-release",
+    "10-02-v11-packages-layout"
   ],
   "parent": null,
   "relatedFiles": [],
