@@ -1,0 +1,9 @@
+MYIA test:docs/demo/demo-news.yaml(试抓不入库不推送)
+  源 demo-hub(成功,engine=static_html,条目 7)
+    指纹:内容有变化或首次抓取,线上调度会正常提取
+    条目 dedup_key=http://127.0.0.1:8765/articles/2026/huguang-70b.html fields={"title": "「萤火」开源大模型正式发布:70B 参数,中文评测登顶", "url": "http://127.0.0.1:8765/articles/2026/huguang-70b.html"}
+    条目 dedup_key=http://127.0.0.1:8765/articles/2026/myiaflow-v2.html fields={"title": "智能体框架 MyiaFlow v2.0 上线:多智能体协作与工具编排", "url": "http://127.0.0.1:8765/articles/2026/myiaflow-v2.html"}
+    条目 dedup_key=http://127.0.0.1:8765/articles/2026/huguang-infer.html fields={"title": "「湖光」推理引擎更新:7B 模型可离线跑在手机端", "url": "http://127.0.0.1:8765/articles/2026/huguang-infer.html"}
+    条目 dedup_key=http://127.0.0.1:8765/articles/2026/wanxiang-multimodal.html fields={"title": "万象实验室多模态接口上线:图像理解能力正式商用", "url": "http://127.0.0.1:8765/articles/2026/wanxiang-multimodal.html"}
+    条目 dedup_key=http://127.0.0.1:8765/articles/2026/star-quant.html fields={"title": "「星辰」发布量化工具链:消费级显卡可微调 30B 模型", "url": "http://127.0.0.1:8765/articles/2026/star-quant.html"}
+状态:success

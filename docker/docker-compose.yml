@@ -1,12 +1,73 @@
 # MYIA's primary form is the desktop app; this compose file is the server
-# form for 24/7 self-hosting. Same core, same plugin YAMLs.
+# form for 24/7 self-hosting. Same core, same plugin YAMLs — the host
+# `plugins/` directory is bind-mounted read-only, never copied or rewritten.
+#
+# Quick start (from the repository root):
+#   cp docker/env.example docker/.env   # fill in credentials, never commit it
+#   docker compose -f docker/docker-compose.yml up -d --build
+#
+# Zero-plaintext-credential rule (spec domain/security-baseline): this file
+# contains no credential values. All secrets enter through docker/.env
+# (git-ignored) and reach the pipeline as plain environment variables, which
+# plugin YAMLs reference via `env:VAR` (resolved by src/myia/schema.py at
+# run time; a missing variable fails fast with a structured env_var_missing
+# error and exit code 1).
+
+name: myia
+
 services:
   myia:
     build:
       context: ..
-      # Image build lands with the v0.2 release.
-      dockerfile: docker/Dockerfile
-    command: myia run
-    volumes:
-      - ./data:/data
+      dockerfile: Dockerfile
+    # Pull the prebuilt CI image instead of building locally by removing the
+    # `build:` block above and running `docker compose pull` first.
+    image: ghcr.io/xinzhuzi/myia:latest
+    # Resident mode: APScheduler fires the category cron (schedule+timezone
+    # sections of the YAML) inside the container — no external orchestrator
+    # (plan decision: no n8n/Kestra). Which plugin to run is chosen via
+    # MYIA_PLUGIN; the SQLite DB lives in the persisted /data volume.
+    command: run /config/plugins/${MYIA_PLUGIN:-stocks.yaml} --loop --db /data/myia.db
+    # Image default is uid 1000 (non-root); override to match the host owner
+    # of the data/ bind mount (docker/README.md「目录与卷」).
+    user: "${MYIA_UID:-1000}:${MYIA_GID:-1000}"
+    init: true
     restart: unless-stopped
+    environment:
+      # TZ is the container system zone. Plugins that declare
+      # schedule.timezone are unaffected; TZ governs the fallback when a
+      # plugin omits timezone and the AM/PM push-slot boundary (local 12:00,
+      # src/myia/dedup.py) when that slot logic resolves against the system
+      # zone.
+      TZ: ${TZ:-Asia/Shanghai}
+    # Credential injection: every FEISHU_* / TG_* / LLM key / source cookie
+    # used by your plugin YAMLs goes here, one VAR=value per line.
+    env_file:
+      - path: ./.env
+        required: false
+    volumes:
+      # Same plugin YAMLs the local CLI uses — byte-identical, read-only.
+      - ../plugins:/config/plugins:ro
+      # Persistent state: SQLite (entries / dedup registry / engine hints /
+      # run history). uid 1000 must own the host directory (see README).
+      - ../data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ------------------------------------------------------------------
+  # Web panel — PLACEHOLDER ONLY (v0.2+; plan positioning: 旁观窗口).
+  # There is no web UI implementation yet; do not enable this service.
+  # Shape reserved so the compose file does not have to be restructured
+  # later: a small static/server service reading the same /data volume.
+  # ------------------------------------------------------------------
+  # web:
+  #   image: ghcr.io/xinzhuzi/myia-web:latest
+  #   profiles: ["web"]
+  #   ports:
+  #     - "127.0.0.1:8080:8080"   # localhost only until token auth lands
+  #   volumes:
+  #     - ../data:/data:ro
+  #   restart: unless-stopped

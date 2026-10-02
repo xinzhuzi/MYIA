@@ -1,0 +1,52 @@
+{
+  "hooks": {
+    "enabled": true,
+    "events": {
+      "SessionStart": [
+        {
+          "matcher": "startup|clear|compact",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "S=.zcode/hooks/session-start.py; D=\"${ZCODE_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}\"; while [ \"$D\" != / ] && [ ! -f \"$D/$S\" ]; do D=$(dirname \"$D\"); done; [ -f \"$D/$S\" ] && exec python3 \"$D/$S\"; exit 0",
+              "timeout": 30
+            }
+          ]
+        }
+      ],
+      "UserPromptSubmit": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "S=.zcode/hooks/inject-workflow-state.py; D=\"${ZCODE_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}\"; while [ \"$D\" != / ] && [ ! -f \"$D/$S\" ]; do D=$(dirname \"$D\"); done; [ -f \"$D/$S\" ] && exec python3 \"$D/$S\"; exit 0",
+              "timeout": 15
+            }
+          ]
+        }
+      ],
+      "PreToolUse": [
+        {
+          "matcher": "Agent|Task",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "S=.zcode/hooks/inject-subagent-context.py; D=\"${ZCODE_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}\"; while [ \"$D\" != / ] && [ ! -f \"$D/$S\" ]; do D=$(dirname \"$D\"); done; [ -f \"$D/$S\" ] && exec python3 \"$D/$S\"; exit 0",
+              "timeout": 30
+            }
+          ]
+        },
+        {
+          "matcher": "Bash",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "S=.zcode/hooks/inject-shell-session-context.py; D=\"${ZCODE_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}\"; while [ \"$D\" != / ] && [ ! -f \"$D/$S\" ]; do D=$(dirname \"$D\"); done; [ -f \"$D/$S\" ] && exec python3 \"$D/$S\"; exit 0",
+              "timeout": 5
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

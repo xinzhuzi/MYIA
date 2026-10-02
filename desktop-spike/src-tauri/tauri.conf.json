@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MYIA",
+  "version": "0.1.0",
+  "identifier": "com.myia.app",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "MYIA",
+        "width": 880,
+        "height": 640
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg"],
+    "icon": ["icons/icon.icns", "icons/icon.png"],
+    "externalBin": ["binaries/myia"],
+    "resources": {
+      "../fixture/spike.yaml": "spike.yaml"
+    },
+    "category": "DeveloperTool",
+    "shortDescription": "MYIA — AI-native intelligence hub"
+  }
+}

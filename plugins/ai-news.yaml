@@ -1,53 +1,111 @@
-# plugins/ai-news.yaml — AI news digest; two runs per day (08:00 / 20:00).
+# plugins/ai-news.yaml — AI news digest: aggregator hot feed + AI forums.
+#
+# Section semantics are documented once, fully, in plugins/stocks.yaml (the
+# schema showcase). This file adds the patterns that file does not show:
+# a firecrawl-backend source, Discourse list extraction with pagination,
+# and a login-walled placeholder source.
+
 id: ai-news
 name: AI资讯
+
+# 08:00 and 20:00 local — one card per slot; the AM/PM registry (local-noon
+# boundary) keeps a digest item from being re-sent inside the same slot.
 schedule: "0 8,20 * * *"
 timezone: Asia/Shanghai
 
 sources:
+  # aihot.news — AI industry hot-feed aggregator. NOTE on engine choice:
+  # the schema's engine vocabulary has no "firecrawl" literal yet (recorded
+  # gap), so the firecrawl backend is reached through "auto": the v0.1 chain
+  # is L1 direct_api -> L2 static_html -> firecrawl, and once firecrawl (or
+  # any engine) succeeds the choice is persisted as an engine hint in SQLite
+  # (never written back into this YAML). Today the root feed happens to be
+  # server-rendered, so L2 usually wins; if the site moves to full JS
+  # rendering the chain degrades to firecrawl — configure the backend via
+  # MYIA_FIRECRAWL_URL / MYIA_FIRECRAWL_API_KEY (or the commented
+  # engine_options below) BEFORE relying on that path.
   - name: aihot
-    engine: crawl4ai              # JS-rendered aggregator list (L3); pip install myia[crawl4ai]
-    url: "https://aihot.example.com/?page={page}"   # replace with your hotlist instance
-    pagination:
-      mode: template
-      max_pages: 2
+    engine: auto
+    url: "https://aihot.news/"    # root page = today's curated feed (~20 items)
+    method: GET
+    headers:
+      User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    extract:                      # verified against the 2026-10 SSR markup
+      type: list
+      item: "article[data-item-id]"   # cards without a title anchor are
+                                      # skipped automatically (zero-hit records)
+      fields:
+        title: "h3"                 # headline text
+        url: "h3 a@href"            # /items/<id>, resolved against the page URL
     rate_limit:
       qps: 0.5
       jitter: "2s"
       backoff: exponential
-      respect_robots: true
+      respect_robots: true          # robots allows content pages (only /api/,
+                                    # /admin/ and retired paths are blocked)
     proxy: direct
     retry: 3
+    # engine_options.firecrawl:            # backend knobs (all optional, all
+    #   endpoint: env:MYIA_FIRECRAWL_URL   # credential refs — plaintext refused)
+    #   api_key: env:MYIA_FIRECRAWL_API_KEY
 
-  - name: v2ex
-    engine: direct_api            # public JSON API (L1), fastest and free
-    url: "https://www.v2ex.com/api/topics/hot.json"
+  # CocoLoop — Discourse community (AI/agent sections). L2 static_html over
+  # the standard Discourse topic list; template pagination walks /latest.
+  - name: cocoloop
+    engine: static_html
+    url: "https://www.cocoloop.cn/latest?page={page}"
     method: GET
-    extract:
-      type: json_path
+    headers:
+      User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    pagination:                   # template mode: {page} in the URL is mandatory
+      mode: template
+      max_pages: 2                # walk stops early on unchanged/empty pages
+    extract:                      # standard Discourse list markup
+      type: list
+      item: "tr.topic-list-item"
       fields:
-        title: "$[*].title"
-        url: "$[*].url"
-        time: "$[*].created"
+        title: "a.raw-topic-link"
+        url: "a.raw-topic-link@href"   # already absolute on this site
     rate_limit:
       qps: 0.5
+      jitter: "2s"
       backoff: exponential
-      respect_robots: true
+      respect_robots: true          # robots allows /latest; blocks /u/, /my/,
+                                    # *.json and admin paths
     proxy: direct
     retry: 3
 
-watchlist:
-  keywords: [LLM, Agent, 开源模型, AI芯片]
-  mute: [广告]
+  # linux.do — placeholder for a login-walled Discourse source. stealth_browser
+  # (L5) is implemented and sits at the auto chain's tail carrying login state:
+  # it needs an invisible_playwright_mcp service (engine_options.stealth_browser);
+  # without it the leg fails with mcp_server_missing and the chain keeps degrading.
+  # - name: linuxdo
+  #   engine: auto                  # L5 stealth_browser handles the login wall
+  #   url: "https://linux.do/latest"
+  #   extract:
+  #     type: list
+  #     item: "tr.topic-list-item"
+  #     fields:
+  #       title: "a.raw-topic-link"
+  #       url: "a.raw-topic-link@href"
+  #   headers:
+  #     Cookie: env:LINUXDO_COOKIE  # login state via env reference only
 
-classify:
-  builtin: true                   # ai-news is one of the seven built-in categories
+watchlist:
+  keywords: [LLM, Agent, 开源模型, AI芯片, 大模型, 多模态]
+  mute: [广告, 招聘]
+
+classify:                       # AI 资讯 is one of the seven builtin categories
+  builtin: true                 # keyword pre-filter; unmatched titles drop
+  rules: []                     # (visible skip: classify_unmatched)
 
 dedup:
-  key: "{url}"
+  key: "{url}"                  # default semantics, spelled out for clarity
 
 enrich:
-  enabled: true                   # digest-heavy category: LLM scoring decides what surfaces
+  enabled: false                # v0.1: section is a pass-through; flip on with
+                                # an explicit OpenAI-compatible endpoint in v0.2
+                                # (base_url must be an env: reference — grill Q6)
   model: glm-4-flash
   scores: [value, relevance, credibility]
   batch: 20
@@ -56,16 +114,20 @@ enrich:
 
 push:
   - channel: feishu_card
-    target: env:FEISHU_CHAT_ID
-    route:                        # digest-heavy: only breakout news pushes immediately
-      - when: "score >= 9"
+    target: env:FEISHU_CHAT_ID  # bot token comes from env:FEISHU_BOT_TOKEN
+    route:
+      - when: "score >= 9"      # v0.2 slot: only breakout news (scored) pushes now
         mode: immediate
-      - when: "score >= 4"
+      - when: "category in ['freebie', 'proxy-node', 'buying-agent']"   # v0.1:
+        mode: immediate         # give-aways inside AI communities go out now
+      - when: "category == 'ai-news'"   # v0.1: the daily digest bucket
         mode: digest
-      - when: "score < 4"
-        mode: archive
     template: |
-      **AI 资讯日报 · {{date}}**
-      {{#each items}}
-      - [{{title}}]({{url}}) (value {{scores.value}} / relevance {{scores.relevance}})
-      {{/each}}
+      **AI 资讯 · {{ date }}**
+      {% for item in items %}
+      - [{{ item.title }}]({{ item.url }})
+      {% endfor %}
+
+storage:
+  retention: 90d
+  vacuum: monthly

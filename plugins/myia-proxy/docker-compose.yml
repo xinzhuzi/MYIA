@@ -1,0 +1,18 @@
+services:
+  # 上游 docker-compose.yml 的等价薄封装(jhao104/proxy_pool,MIT):
+  # 首次 `docker compose up -d` 时由 compose 从上游 git 仓库拉源码构建。
+  proxy-pool:
+    build: https://github.com/jhao104/proxy_pool.git
+    container_name: myia-proxy-pool
+    ports:
+      - "127.0.0.1:5010:5010"   # 默认只绑回环;对外暴露请自行加反代 + 鉴权
+    environment:
+      DB_CONN: "redis://@proxy-redis:6379/0"   # 池存储:compose 内网 redis,无口令默认
+    depends_on:
+      - proxy-redis
+    restart: unless-stopped
+
+  proxy-redis:
+    image: redis:7-alpine
+    container_name: myia-proxy-redis
+    restart: unless-stopped

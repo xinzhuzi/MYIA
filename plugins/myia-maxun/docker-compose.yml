@@ -1,0 +1,93 @@
+# 上游 getmaxun/maxun(AGPL-3.0)master docker-compose.yml 的等价薄封装:
+# 拓扑与官方镜像一致(postgres + minio + backend + frontend + browser),
+# 差异仅两点——基础设施服务不发布宿主端口(走 compose 内网),backend/
+# frontend 只绑回环。完整环境变量清单见上游 .env.example 与 docs.maxun.dev。
+# 本文件零明文凭据:口令一律 ${VAR:?必填} 从 .env/环境注入,先建 .env 再 up。
+services:
+  postgres:
+    image: postgres:13
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:?请在插件目录 .env 设置 DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?请在插件目录 .env 设置 DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:?请在插件目录 .env 设置 DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?请在插件目录 .env 设置 MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?请在插件目录 .env 设置 MINIO_SECRET_KEY}
+    command: server /data --console-address :9001
+    volumes:
+      - minio_data:/data
+
+  backend:
+    image: getmaxun/maxun-backend:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file: .env   # 缺失时 compose 会拒启;先按 README 从上游 .env.example 建
+    environment:
+      BACKEND_URL: ${BACKEND_URL:?请在插件目录 .env 设置 BACKEND_URL}
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "0"
+      CI: "true"
+      CONTAINER: "true"
+      CHROMIUM_FLAGS: "--disable-gpu --no-sandbox --headless=new"
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    security_opt:
+      - seccomp=unconfined
+    shm_size: "2gb"
+    mem_limit: 6g
+    depends_on:
+      - postgres
+      - minio
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+
+  frontend:
+    image: getmaxun/maxun-frontend:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5173:5173"
+    env_file: .env
+    environment:
+      PUBLIC_URL: ${PUBLIC_URL:?请在插件目录 .env 设置 PUBLIC_URL}
+      BACKEND_URL: ${BACKEND_URL:?请在插件目录 .env 设置 BACKEND_URL}
+    depends_on:
+      - backend
+
+  browser:
+    image: getmaxun/maxun-browser:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      BROWSER_WS_PORT: "3001"
+      BROWSER_HEALTH_PORT: "3002"
+      BROWSER_WS_HOST: browser
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - seccomp=unconfined
+    shm_size: "2gb"
+    cap_add:
+      - SYS_ADMIN
+
+volumes:
+  postgres_data:
+  minio_data:

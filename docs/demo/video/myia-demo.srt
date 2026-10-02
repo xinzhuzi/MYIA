@@ -1,0 +1,89 @@
+1
+00:00:00,000 --> 00:00:06,000
+信息源越攒越多:官网、论坛、群、RSS。
+Sources pile up: sites, forums, groups, RSS.
+
+2
+00:00:06,000 --> 00:00:12,000
+人盯不过来,爬虫脚本又难维护。
+You can't watch them all, and scraper scripts are painful to maintain.
+
+3
+00:00:12,000 --> 00:00:19,000
+在 MYIA,你不用写爬虫,对 AI 说一句需求。
+With MYIA you don't write scrapers — tell your AI what you want.
+
+4
+00:00:19,000 --> 00:00:28,000
+agent 跑 myia init,拿到机器可读的信息清单:要收集什么、哪些有缺省、哪些是硬规则。
+The agent runs myia init and gets a machine-readable checklist: required inputs, defaults, hard rules.
+
+5
+00:00:28,000 --> 00:00:35,000
+MYIA 是 AI-native 的:每条命令的 JSON 输出,就是 agent 的行动依据。
+MYIA is AI-native: every command's JSON output is the agent's action basis.
+
+6
+00:00:35,000 --> 00:00:44,000
+agent 据此生成 12 节 YAML:从哪抓、怎么礼貌地抓、怎么分类去重、推到哪里。
+The agent turns it into a 12-section YAML: what to fetch, how to fetch politely, classify, dedup, where to push.
+
+7
+00:00:44,000 --> 00:00:53,000
+凭据位置只允许写 env: 或 keychain: 引用 —— 明文直接拒载。
+Credential slots only accept env: or keychain: references — plaintext is rejected at load time.
+
+8
+00:00:53,000 --> 00:01:05,000
+本例把推送先指到 stdout:零凭据,先跑通。
+In this demo the push goes to stdout first: zero credentials, run it end to end.
+
+9
+00:01:05,000 --> 00:01:13,000
+先单源试抓:提取字段、去重键,不推送、不入库。
+Test one source first: extracted fields and dedup keys — no push, no storage.
+
+10
+00:01:13,000 --> 00:01:21,000
+然后整链跑一遍:抓到 7 条,推送一张卡。
+Then run the full pipeline: 7 items fetched, one card pushed.
+
+11
+00:01:21,000 --> 00:01:30,000
+1 条与 AI 无关,被分类跳过 —— 跳过原因可见,不是黑盒。
+1 off-topic item is visibly skipped by the classifier — skips are visible, never a black box.
+
+12
+00:01:30,000 --> 00:01:38,000
+这就是推出去的卡片:标题、链接,整整齐齐。
+This is the pushed card: titles and links, neatly packed.
+
+13
+00:01:38,000 --> 00:01:47,000
+想发进飞书或 Telegram:模板不动,通道换一行配置。
+To send the same content to Feishu or Telegram, keep the template and switch the channel.
+
+14
+00:01:47,000 --> 00:01:55,000
+凭据用 myia secret set 放进系统钥匙链,配置文件里永远只有引用。
+Store credentials with myia secret set — config files only ever hold references.
+
+15
+00:01:55,000 --> 00:02:03,000
+再跑一次:内容没变,指纹直接跳过,不发打扰消息。
+Run it again: nothing changed, the fingerprint skips it — no spam.
+
+16
+00:02:03,000 --> 00:02:15,000
+每个源的健康度 myia list 一屏看完;出问题,myia doctor 给 agent 开结构化诊断。
+Per-source health is one myia list away; myia doctor gives your agent structured diagnostics.
+
+17
+00:02:15,000 --> 00:02:23,000
+MYIA:把信息源交给 AI。一个 YAML,一条管线,推送随取。
+MYIA — hand your sources to the AI. One YAML, one pipeline, pushes on demand.
+
+18
+00:02:23,000 --> 00:02:30,000
+GitHub 链接见简介。
+GitHub link in the description.

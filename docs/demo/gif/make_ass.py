@@ -1,0 +1,280 @@
+#!/usr/bin/env python3
+"""Generate the libass subtitle file that renders the demo GIF frames.
+
+The GIF (``../assets/myia-demo.gif``) is a *terminal-composited* animation:
+every frame's text comes verbatim from ``transcript/*.txt`` (real command
+output captured on 2026-10-02, see ``storyboard.md``). This script turns the
+scene table below into ``frames.ass``; ``build_gif.sh`` then rasterizes it
+with ffmpeg. No GUI recording is involved — for a real screen re-record see
+``storyboard.md`` §「给主人的真实屏幕重录指引」.
+
+Usage:
+    python3 make_ass.py            # writes frames.ass next to this script
+
+Only the Python standard library is used (unicodedata for CJK-aware wrap).
+"""
+
+from __future__ import annotations
+
+import unicodedata
+from pathlib import Path
+
+__all__ = ["build_ass", "main"]
+
+HERE = Path(__file__).resolve().parent
+
+# Canvas + typography (GitHub-dark terminal look).
+WIDTH, HEIGHT = 1100, 640
+FPS = 12
+FONT = "Menlo"
+SIZE = 15
+LINE_SPACING = 1.45
+MARGIN_X = 28
+MARGIN_V = 24
+#: Columns available in a line before hard wrap (Menlo advance ≈ 0.6em).
+COLUMNS = int((WIDTH - 2 * MARGIN_X) / (SIZE * 0.6))
+
+# libass colours are &HAABBGGRR (alpha first, 00 = opaque).
+PALETTE = {
+    "default": "&H00EDEDF3",  # #f3eded-ish light text (BGR of #f3edef)
+    "prompt": "&H0050B93F",  # #3fb950 green (BGR)
+    "note": "&H009E948B",  # #8b949e gray (BGR)
+    "accent": "&H0022B9D2",  # #d2b922 yellow (BGR)
+    "white": "&H00FFFFFF",
+}
+
+
+def char_width(ch: str) -> int:
+    """East-Asian-width aware column width (W/F count as 2, else 1)."""
+    return 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+
+
+def wrap(line: str, columns: int = COLUMNS) -> list[str]:
+    """Greedy terminal-style hard wrap (URLs break mid-token, like a tty)."""
+    lines: list[str] = []
+    current: list[str] = []
+    used = 0
+    for ch in line:
+        w = char_width(ch)
+        if used + w > columns:
+            lines.append("".join(current))
+            current, used = [], 0
+        current.append(ch)
+        used += w
+    if current or not lines:
+        lines.append("".join(current))
+    return lines
+
+
+def esc(text: str) -> str:
+    """Escape ASS special characters, then join wrapped lines with \\N.
+
+    Multi-line content (e.g. the card transcript) is split on newlines FIRST:
+    a raw newline inside a Dialogue Text field terminates the event and the
+    remainder is silently dropped by libass.
+    """
+    text = text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+    return "\\N".join(wrapped for line in text.split("\n") for wrapped in wrap(line))
+
+
+def seg(text: str, color: str = "default", bold: bool = False) -> str:
+    """One colour/weight segment, ASS-escaped and wrapped.
+
+    NOTE: the override block must contain ONLY the overrides — ``\\r`` (reset
+    to style defaults) goes in its own block AFTER the text, otherwise it
+    cancels the overrides it shares a block with.
+    """
+    prefix = "{\\c" + PALETTE[color]
+    if bold:
+        prefix += "\\b1"
+    return prefix + "}" + esc(text) + "{\\r}"
+
+
+def term_scene(start: float, end: float, body: list[list[str]]) -> str:
+    """A terminal frame: `body` is a list of lines, each a list of segments."""
+    text = "\\N".join("".join(parts) for parts in body)
+    return dialogue(start, end, "{\\an7}" + text)
+
+
+def title_scene(start: float, end: float, big: str, sub: str, small: str) -> str:
+    body = (
+        "{\\an5}{\\fs64\\b1\\c" + PALETTE["white"] + "}" + big + "{\\r}\\N"
+        "{\\fs22\\c" + PALETTE["accent"] + "}" + sub + "{\\r}\\N\\N"
+        "{\\fs16\\c" + PALETTE["note"] + "}" + small + "{\\r}"
+    )
+    return dialogue(start, end, body)
+
+
+def dialogue(start: float, end: float, text: str) -> str:
+    fade = "{\\fad(150,150)}"
+    return f"Dialogue: 0,{_ts(start)},{_ts(end)},Term,,0,0,0,,{fade}{text}\n"
+
+
+def _ts(seconds: float) -> str:
+    centis = round(seconds * 100)
+    h, rem = divmod(centis, 360000)
+    m, rem = divmod(rem, 6000)
+    s, cs = divmod(rem, 100)
+    return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
+
+
+def read_transcript(name: str) -> list[str]:
+    """Transcript lines, minus the machine JSON card line when present."""
+    lines = (HERE / "transcript" / name).read_text(encoding="utf-8").splitlines()
+    return [line for line in lines if not line.startswith('{"channel"')]
+
+
+def excerpt(lines: list[str], keep_prefixes: tuple[str, ...], limit: int) -> list[str]:
+    """Keep the first `limit` lines whose start matches keep_prefixes."""
+    out = [ln for ln in lines if ln.startswith(keep_prefixes)]
+    return out[:limit]
+
+
+def prompt(cmd: str, comment: str | None = None) -> list[str]:
+    parts = [seg("$ ", "prompt", bold=True), seg(cmd, "white", bold=True)]
+    if comment:
+        parts.append(seg("  " + comment, "note"))
+    return parts
+
+
+def note_line(text: str) -> list[str]:
+    return [seg(text, "note")]
+
+
+def build_ass() -> str:
+    """Assemble every scene; returns the full .ass document."""
+    header = f"""[Script Info]
+; Generated by make_ass.py — do not edit by hand; edit the scene table instead.
+Title: MYIA demo — one YAML to intelligence push
+ScriptType: v4.00+
+PlayResX: {WIDTH}
+PlayResY: {HEIGHT}
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Term,{FONT},{SIZE},{PALETTE["default"]},&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,{MARGIN_X},{MARGIN_X},{MARGIN_V},1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+    events: list[str] = []
+
+    # S1 title 0.0-3.0
+    events.append(
+        title_scene(
+            0.0,
+            3.0,
+            "MYIA",
+            "一个 YAML → 情报推送 · 3 分钟上手",
+            "AI-NATIVE 信息情报管线 · 本演示零凭据零外网(演示源为仓库自带虚构数据)",
+        )
+    )
+
+    # S2 cat YAML 3.0-9.0 (real file excerpt — same lines as storyboard S2)
+    yaml_lines = [
+        "id: demo-news",
+        "name: 演示情报",
+        'schedule: "0 9,21 * * *"',
+        "timezone: Asia/Shanghai",
+        "sources:",
+        "  - name: demo-hub",
+        "    engine: static_html    # 真实源可留 auto:L1→L2→L3→firecrawl 降级",
+        '    url: "http://127.0.0.1:8765/"',
+        "    extract:",
+        "      type: list",
+        '      item: "article.post"',
+        "      fields:",
+        '        title: "h3"',
+        '        url: "h3 a@href"',
+        "# …(watchlist / enrich / storage 等节见 docs/demo/demo-news.yaml)",
+        "classify:",
+        "  builtin: true             # 第一层漏斗:七大类关键词,零 token",
+        "dedup:",
+        '  key: "{url}"              # 永不标题指纹',
+        "push:",
+        "  - channel: stdout         # 演示通道:零凭据;换 feishu_card 即发飞书群",
+        "    route:",
+        "      - when: \"category in ['ai-news']\"",
+        "        mode: digest",
+    ]
+    body = [prompt("cat docs/demo/demo-news.yaml")]
+    body += [seg(ln) for ln in yaml_lines]
+    events.append(term_scene(3.0, 9.0, body))
+
+    # S3 http.server 9.0-12.0
+    banner = (
+        (HERE / "transcript" / "02-http-server.txt").read_text(encoding="utf-8").strip()
+    )
+    body = [
+        prompt(
+            "python3 -m http.server 8765 --bind 127.0.0.1 --directory docs/demo/assets/demo-site"
+        ),
+        seg(banner, "prompt"),
+        note_line("# 起演示源 = 仓库自带的虚构数据页,仅监听本机回环地址"),
+    ]
+    events.append(term_scene(9.0, 12.0, body))
+
+    # S4 first run 12.0-21.0 (real output, JSON card line filtered like a tty would wrap it away)
+    body = [prompt("myia run docs/demo/demo-news.yaml --db /tmp/myia-demo/demo.db")]
+    body += [seg(ln) for ln in read_transcript("03-run1.txt")]
+    body.append(
+        note_line("# 每层漏斗可见:抓到 7 条,1 条与 AI 无关被分类跳过(原因可见)")
+    )
+    events.append(term_scene(12.0, 21.0, body))
+
+    # S5 the pushed card 21.0-27.5 (real `text` field of the stdout JSON card)
+    card = (
+        (HERE / "transcript" / "04-card.txt").read_text(encoding="utf-8").rstrip("\n")
+    )
+    body = [
+        prompt(
+            "myia run docs/demo/demo-news.yaml --db /tmp/myia-demo/demo.db > run.out"
+        ),
+        prompt("grep '^{\"channel\"' run.out | jq -r .text"),
+        seg(card, "accent"),
+        note_line(
+            "# stdout 通道收到一条 JSON 卡片;text 字段即渲染后的卡片(与飞书卡同模板)"
+        ),
+    ]
+    events.append(term_scene(21.0, 27.5, body))
+
+    # S6 second run 27.5-33.0 (real incremental semantics)
+    body = [prompt("myia run docs/demo/demo-news.yaml --db /tmp/myia-demo/demo.db")]
+    body += [seg(ln) for ln in read_transcript("05-run2.txt")]
+    body.append(note_line("# 内容没变 → 变更指纹跳过;同一 URL → dedup 拦截:不打扰"))
+    events.append(term_scene(27.5, 33.0, body))
+
+    # S7 single-source test 33.0-38.5 (real output excerpt)
+    test_lines = read_transcript("06-test.txt")
+    body = [prompt("myia test docs/demo/demo-news.yaml --source demo-hub")]
+    body += [seg(ln) for ln in test_lines[:4]]
+    body.append(
+        seg("    条目 dedup_key=…(其余 4 条预览略,见 transcript/06-test.txt)", "note")
+    )
+    body += [seg(ln) for ln in test_lines[-1:]]
+    body.append(note_line("# 改 YAML 后先 test 单源:提取字段与去重键预览,不推送不入库"))
+    events.append(term_scene(33.0, 38.5, body))
+
+    # S8 end card 38.5-42.5
+    events.append(
+        title_scene(
+            38.5,
+            42.5,
+            "MYIA · AI 帮你盯信息源",
+            "对 AI 说需求 → agent 写 YAML → 跑通 → 推送",
+            "docs/demo/README.md · 真实收卡:push 换 feishu_card + myia secret set",
+        )
+    )
+    return header + "".join(events)
+
+
+def main() -> None:
+    out = HERE / "frames.ass"
+    out.write_text(build_ass(), encoding="utf-8")
+    print(f"wrote {out} ({out.stat().st_size} bytes), columns={COLUMNS}")
+
+
+if __name__ == "__main__":
+    main()

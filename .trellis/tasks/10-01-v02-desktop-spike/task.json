@@ -1,0 +1,28 @@
+{
+  "id": "v02-desktop-spike",
+  "name": "v02-desktop-spike",
+  "title": "桌面原型:Tauri+PyInstaller sidecar",
+  "description": "Tauri 壳+PyInstaller 打包 Python 核心 sidecar 的最小原型(〇.5 定调对齐;若 Rust 胶水成本超预期切 Flet)",
+  "status": "review",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-01",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "10-01-myia-v02-usable",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P2"
+  }
+}

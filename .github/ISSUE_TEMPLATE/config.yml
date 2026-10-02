@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability / 安全漏洞
+    url: https://github.com/xinzhuzi/MYIA/blob/main/SECURITY.md
+    about: Please do NOT report vulnerabilities (or leaked credentials) in a public issue. / 请勿在公开 issue 中报告漏洞或凭据泄漏,走安全策略。
+  - name: Usage questions / 使用问题
+    url: https://github.com/xinzhuzi/MYIA/blob/main/docs/en/getting-started.md
+    about: Start with the docs and the FAQ; `myia doctor --json` answers most config questions. / 先看文档与 FAQ,`myia doctor --json` 能回答大部分配置问题。

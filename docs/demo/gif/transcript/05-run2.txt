@@ -1,0 +1,9 @@
+MYIA run:demo-news(演示情报) run_id=2
+  - fetch:ok | 1→0 条
+  - classify:ok
+  - dedup:ok
+  - analyze:ok
+  - push:ok
+  源 demo-hub(跳过,engine=static_html,条目 0,skip=not_modified)
+  推送 stdout:immediate=0 digest=0 archive=0,发送成功
+状态:success

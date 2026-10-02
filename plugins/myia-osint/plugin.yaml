@@ -1,0 +1,20 @@
+# myia-osint — 官方场景件:OSINT 侦察爬虫(封装 s0md3v/Photon)。
+#
+# 许可注意:上游 Photon 为 GPL-3.0 —— 本插件只以 manifest 声明依赖、文档
+# 引用与 compose 拉取上游源码的方式接入,**不复制其任何源码进本仓库**。
+id: myia-osint
+name: OSINT 侦察爬虫(Photon)
+version: 1.0.0
+compatible: ">=0.1,<2.0"
+requires: docker
+provides: [photon]
+modes:
+  local:
+    compose: docker-compose.yml
+    install: docker compose build photon
+  remote:
+    # Photon 是 CLI 工具,上游无服务形态;remote 面向「自建 HTTP 包装层」,
+    # 端点占位、按需填写。上游无鉴权,故无 token 声明。
+    endpoint: https://photon-wrapper.example.com
+install:
+  source: https://github.com/xinzhuzi/MYIA.git

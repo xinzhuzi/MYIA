@@ -1,0 +1,4 @@
+{"file": "LOCAL-NOTES.md", "reason": "本地私有路径与规划文档索引(gitignored,不入库)"}
+{"file": ".trellis/spec/python/index.md", "reason": "工程约定"}
+{"file": ".trellis/spec/domain/yaml-schema.md", "reason": "schema 铁律"}
+{"file": ".trellis/spec/domain/security-baseline.md", "reason": "安全底线"}

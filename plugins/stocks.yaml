@@ -1,74 +1,134 @@
-# plugins/stocks.yaml — complete 12-section schema showcase: stock intelligence.
-# Reference example for docs/write-a-plugin.md; run with `myia run plugins/stocks.yaml`.
+# plugins/stocks.yaml — stock intelligence over the public Yahoo chart API.
+#
+# The 12-section schema showcase (v01-plugins-official): every section below
+# is explained inline so this file doubles as the "AI writes the YAML"
+# reference. Load-check any plugin with:
+#   myia run plugins/stocks.yaml --dry-run --json
+#
+# Section guide (schema order, src/myia/schema.py):
+#   id/name      category identity; id is [a-z0-9][a-z0-9_-]{0,63}
+#   schedule     5-field cron; timezone defaults to the system zone
+#   sources[]    what to fetch: engine / url template / extract / politeness
+#   watchlist    v0.2 relevance-scoring baseline (keywords boost, mute demotes)
+#   classify     first funnel: builtin keyword scan and/or custom rules
+#   dedup        composite key template ({title} is forbidden forever)
+#   enrich       LLM precision scoring (v0.2; the section shape is fixed now)
+#   push[]       channels with threshold routes (immediate/digest/archive)
+#   storage      SQLite retention + vacuum cadence
+
 id: stocks
 name: 股票情报
-schedule: "0 9,15 * * 1-5"        # trading days 09:00 / 15:00 (cron semantics)
+
+# 09:00 / 15:00 CST on weekdays approximates trading days (A-share pre-open
+# and close). Cron cannot express market holidays — on holidays the fetch
+# simply returns unchanged prices and the dedup/skip paths handle it as
+# normal, visible skips. 09:00 falls in the AM push slot, 15:00 in PM
+# (local-noon boundary, grill Q3), so the same symbol can surface in both
+# daily slots.
+schedule: "0 9,15 * * 1-5"
 timezone: Asia/Shanghai
 
 sources:
-  - name: yahoo
-    engine: auto                  # auto = L1->L4 degrade chain | direct_api | static_html | crawl4ai | scrapling | stealth_browser | llm_browser
-    url: "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&page={page}"
-    method: GET                   # GET/POST; POST takes a post_body key
-    headers:                      # request headers / login state; credential refs only, plaintext refused
-      User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
-      Cookie: "keychain:linuxsb_cookie"   # keychain: / env: reference, never plaintext
-    pagination:                   # list-style categories need pagination
-      mode: template              # template (?page={n}) | selector (a.next@href) | scroll
-      max_pages: 3
-    extract:                      # field extraction; L2/list sources need it, crawl4ai auto-structures when absent
-      type: list                  # list (list page -> item array) | item (single page) | json_path (JSON API)
-      item: "div.topic-list tr"
+  # One source fans out into one request per symbol: {symbol} is resolved
+  # against the source-level extra param "symbols" (plural-fanout convention:
+  # placeholder {symbol} <- param "symbols", one walk per value).
+  - name: yahoo-chart
+    engine: direct_api          # L1 JSON API; the fastest, zero-cost path
+    url: "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&interval=1d"
+    method: GET                 # GET | POST (POST additionally requires post_body)
+    headers:                    # plain values are fine; credential-like keys
+      Accept: "application/json"
+      # NOTE: do NOT spoof a browser User-Agent here — during verification
+      # Yahoo answered 429 to a Chrome UA and 200 to the honest MYIA product
+      # UA, so the source lets the engine default stand. Credential values
+      # may ONLY appear as env:VAR / keychain:NAME references (plaintext is
+      # refused at load time):
+      # Cookie: env:YAHOO_COOKIE
+    extract:                    # json_path: read fields out of the JSON body
+      type: json_path           # list (HTML items) | item (single page) | json_path (APIs)
       fields:
-        title: "a.title"
-        url: "a.title@href"
-        time: "td.time"
-    rate_limit:                   # politeness, implemented once in the engine layer (same-domain merged)
-      qps: 0.5
-      jitter: "2s"                # random delay
-      backoff: exponential        # 429/5xx exponential backoff
-      respect_robots: true
-    proxy: direct                 # direct | pool:main | residential:us
-    retry: 3
-    symbols: [NVDA, AAPL, TSLA, "0700.HK"]
+        # NOTE — known schema gap: json_path cannot express "item URL =
+        # request URL", and the chart payload carries no per-item URL.
+        # "url" is schema-mandatory, so the stable symbol acts as the item
+        # identity until the schema grows a request-URL reference
+        # (recorded in the plugins task open issues).
+        title: "$.chart.result[0].meta.longName"
+        url: "$.chart.result[0].meta.symbol"
+        symbol: "$.chart.result[0].meta.symbol"
+        price: "$.chart.result[0].meta.regularMarketPrice"
+        change_pct: "$.chart.result[0].meta.regularMarketChangePercent"
+        currency: "$.chart.result[0].meta.currency"
+    # No pagination section: this API is one request per symbol — the
+    # {symbol} fan-out replaces pages (template pagination requires a
+    # {page} placeholder, which this endpoint does not have).
+    rate_limit:                 # politeness lives once in the engine layer
+      qps: 0.5                  # requests per second ceiling
+      jitter: "2s"              # uniform random delay on top of the interval
+      backoff: exponential      # 429/5xx retry backoff policy
+      respect_robots: false     # SEE NOTE BELOW — deliberate, documented override
+    # NOTE — robots override: query1/query2.finance.yahoo.com serve
+    # "Disallow: /" to every agent. This endpoint is a structured public
+    # data API called twice per trading day for a handful of symbols at
+    # qps<=0.5 — API usage, not page crawling. The default stays true
+    # everywhere else; flip back before repurposing this source.
+    proxy: direct               # v0.1: only "direct" takes effect (pool/residential land later)
+    retry: 3                    # transient-error retry budget (0-10)
+    symbols: [NVDA, AAPL, TSLA, "0700.HK", 600519.SS]   # {symbol} fan-out source
 
-watchlist:                        # relevance profile — baseline for the LLM relevance score
-  keywords: [NVDA, AI芯片, 美股]
-  mute: [广告, 中奖]              # hit -> demote / archive
+watchlist:                      # relevance profile — the v0.2 LLM relevance
+  keywords: [NVDA, 英伟达, 特斯拉, 苹果, 腾讯, AI芯片]   # baseline reads this
+  mute: [广告, 中奖]            # mute hits get demoted/archived
 
-classify:                         # first funnel: keyword pre-filter, zero token
+classify:                       # first funnel (zero token)
+  builtin: false                # stock quotes never match the seven forum
+                                # categories — the builtin scan would drop
+                                # every item, so custom rules take over
   rules:
     - name: 异动
       when: "abs(change_pct) >= 3"
       tag: "大涨/大跌"
 
 dedup:
-  key: "{symbol}-{date}"          # URL/composite key, never title fingerprint
+  key: "{symbol}-{date}-{slot}" # composite key over extracted fields + the slot
+                                # context the pipeline injects (date = local
+                                # YYYY-MM-DD, slot = am/pm). One entry per
+                                # symbol per slot-window: the afternoon run
+                                # re-surfaces the same symbol by design, and
+                                # the next trading day starts fresh. A bare
+                                # {symbol} would be all-time and silence the
+                                # plugin after the first run. {title} is
+                                # rejected by the schema — never title fingerprints
 
-enrich:                           # second funnel: explicit LLM precision scoring
-  enabled: true
-  model: glm-4-flash              # any OpenAI-compatible endpoint
-  scores: [value, relevance, credibility]   # 0-10, three dimensions
-  batch: 20                       # batch scoring saves tokens
-  cache: true                     # same URL never scored twice
-  budget_per_run: 50000           # token guardrail; exhausted -> keyword-only for the rest of the run
+enrich:                         # second funnel — LLM scoring (v0.2 on-ramp;
+  enabled: false                # v0.1 runs this section as pass-through)
+  model: glm-4-flash            # default model (OpenAI-compatible endpoints)
+  scores: [value, relevance, credibility]   # 0-10 each
+  batch: 20                     # batched scoring to save tokens
+  cache: true                   # a URL is never scored twice
+  budget_per_run: 50000         # token guardrail; exhausted -> keyword-only
 
 push:
-  - channel: feishu_card
-    target: env:FEISHU_CHAT_ID
-    route:                        # threshold routing — what happens after scoring
-      - when: "score >= 8"
-        mode: immediate           # push now
-      - when: "score >= 5"
-        mode: digest              # daily digest, AM/PM slots
-      - when: "score < 5"
-        mode: archive             # store only, never pushed
+  - channel: feishu_card        # feishu_card | telegram | webhook | stdout
+    target: env:FEISHU_CHAT_ID  # credential reference; resolved at send time.
+                                # The bot token is read from
+                                # env:FEISHU_BOT_TOKEN (channel default).
+    route:                      # threshold routing; first match wins.
+      - when: "score >= 8"      # v0.2 interface slot: rules referencing
+        mode: immediate         # `score` stay dormant until enrich backfills
+      - when: "abs(change_pct) >= 3"    # v0.1 tier 1: real movers -> push now
+        mode: immediate
+      - when: "abs(change_pct) < 3"     # v0.1 tier 2: quiet quotes -> digest
+        mode: digest
+    # Jinja2 in a sandbox (grill Q2). Context: items / date / slot /
+    # category / count; unknown variables fail loudly (StrictUndefined).
+    # NOTE: everything below the "|" is literal template text — comments
+    # inside the block would leak into the card.
     template: |
-      **股票异动 · {{date}}**
-      {{#each items}}
-      {{symbol}} {{change_pct}}% 现价 {{price}}
-      {{/each}}
+      **股票情报 · {{ date }}**
+      {% for item in items %}
+      - {{ item.symbol }} {{ item.change_pct }}% 现价 {{ item.price }} {{ item.currency }}
+      {% endfor %}
 
-storage:                          # data lifecycle (long-running desktop safety)
-  retention: 90d                  # items auto-purged after the retention window
-  vacuum: monthly                 # periodic SQLite VACUUM
+storage:                        # data lifecycle for long-running desktops
+  retention: 90d                # <n>d / <n>w — items purged after the window
+  vacuum: monthly               # SQLite VACUUM cadence

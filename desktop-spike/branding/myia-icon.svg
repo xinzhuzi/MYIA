@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0A0E1C"/>
+      <stop offset="1" stop-color="#131B31"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.42" r="0.55">
+      <stop offset="0" stop-color="#8B5CF6" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pupilglow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#67E8F9" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#67E8F9" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="229" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1024" height="1024" rx="229" fill="url(#halo)"/>
+  <!-- 雷达扫掠扇形 -->
+  <path d="M512,512 L512+139.8,394.3 A170,170 0 0 1 512+167.3,442.5 Z" fill="#22D3EE" opacity="0.20"/>
+  <!-- 眼形:两条 560 半径圆弧 -->
+  <path d="M142,512 A560,560 0 0 1 882,512 A560,560 0 0 1 142,512" fill="none" stroke="url(#accent)" stroke-width="30" stroke-linecap="round"/>
+  <!-- 虹膜雷达环 -->
+  <circle cx="512" cy="512" r="170" fill="none" stroke="url(#accent)" stroke-width="14"/>
+  <circle cx="512" cy="512" r="122" fill="none" stroke="url(#accent)" stroke-width="12"/>
+  <circle cx="512" cy="512" r="74"  fill="none" stroke="url(#accent)" stroke-width="10"/>
+  <!-- 瞳孔:辉光 + 实心 -->
+  <circle cx="512" cy="512" r="105" fill="url(#pupilglow)"/>
+  <circle cx="512" cy="512" r="52" fill="#67E8F9"/>
+  <!-- 信号点(右上) -->
+  <circle cx="621" cy="382" r="52" fill="none" stroke="#A78BFA" stroke-width="8" opacity="0.35"/>
+  <circle cx="621" cy="382" r="34" fill="none" stroke="#A78BFA" stroke-width="9" opacity="0.6"/>
+  <circle cx="621" cy="382" r="19" fill="#A78BFA"/>
+</svg>

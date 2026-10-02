@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/python/index.md", "reason": "工程约定"}
+{"file": ".trellis/spec/domain/yaml-schema.md", "reason": "schema 铁律"}
+{"file": ".trellis/spec/domain/security-baseline.md", "reason": "安全底线"}

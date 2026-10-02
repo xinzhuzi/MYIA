@@ -1,0 +1,33 @@
+{
+  "id": "myia-v03-ecosystem",
+  "name": "myia-v03-ecosystem",
+  "title": "v0.3 生态:Skill发行+插件双模式+Scrapling+反馈闭环",
+  "description": "v0.3 生态:Skill发行+插件双模式+Scrapling+反馈闭环(MYIA 开源项目 Roadmap 阶段任务)",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-01",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "10-01-v03-agent-skill",
+    "10-01-v03-plugin-market",
+    "10-01-v03-engine-scrapling",
+    "10-01-v03-feedback-loop"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P1"
+  }
+}

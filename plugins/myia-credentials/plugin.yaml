@@ -1,0 +1,17 @@
+# myia-credentials — 官方场景件:凭证猎手数据源(aipocket)。
+#
+# aipocket 为私有 REST 服务,**不随插件分发实现、无 local compose**;
+# 接入只走 endpoint + token 占位(填你自己的部署地址),绝不写死任何
+# 内网地址或真实端点。品类侧示例:plugins/credentials.yaml。
+id: myia-credentials
+name: 凭证猎手数据源(aipocket)
+version: 1.0.0
+compatible: ">=0.1,<2.0"
+requires: []
+provides: [aipocket]
+modes:
+  remote:
+    endpoint: https://aipocket.example.com   # 你的 aipocket 部署地址占位(RFC 2606 保留域)
+    token: keychain:myia/credentials/token   # myia secret set myia/credentials/token(Bearer)
+install:
+  source: https://github.com/xinzhuzi/MYIA.git

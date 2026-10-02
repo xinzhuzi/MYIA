@@ -1,0 +1,34 @@
+name: Feature request / 功能建议
+description: Suggest an idea for MYIA. / 给 MYIA 提个想法。
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / 想解决的问题
+      description: What intelligence category or workflow is hard today? / 今天哪类情报或工作流做不了、很别扭?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution / 建议方案
+      description: What should change — ideally phrased as YAML/CLI surface, since that is what agents consume. / 最好用 YAML/CLI 的形态描述(agent 要消费的就是这层)。
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives & prior art / 备选与先例
+      description: Existing tools that solve this, and why it still fits MYIA. / 现有工具怎么解决的,为什么仍值得进 MYIA。
+
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Design principles / 设计原则自检
+      description: MYIA is AI-native and dependency-light; proposals are weighed against this. / MYIA 是 AI-NATIVE 且核心零重依赖的项目,建议将对照以下原则权衡。
+      options:
+        - label: An agent could operate the proposed surface from `--json` output alone. / 该功能对 agent 可用(仅凭 --json 输出即可操作)。
+        - label: It fits as config (YAML), an optional extra, or a plugin — not a new core dependency. / 以配置/可选依赖/插件承载,不新增核心重依赖。

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>湖光科技情报站 · MYIA 演示源</title>
+  <!--
+    MYIA 演示源(docs/demo)。
+    本页为演示用虚构内容:公司、产品、数据均为编造,不含任何真实凭据或私人信息。
+    仅用于本机回放:python3 -m http.server 8765 --bind 127.0.0.1 --directory docs/demo/assets/demo-site
+    MYIA 采集选择器见 docs/demo/demo-news.yaml(extract.item = article.post)。
+  -->
+  <style>
+    body { font-family: -apple-system, "PingFang SC", sans-serif; max-width: 760px;
+           margin: 0 auto; padding: 24px; background: #f6f8fa; color: #1f2328; }
+    .banner { background: #fff8c5; border: 1px solid #d4a72c66; border-radius: 6px;
+              padding: 8px 14px; font-size: 13px; margin-bottom: 20px; }
+    h1 { font-size: 22px; } h2 { font-size: 14px; color: #59636e; font-weight: 400; }
+    article.post { background: #fff; border: 1px solid #d1d9e0; border-radius: 8px;
+                   padding: 14px 18px; margin-bottom: 12px; }
+    article.post h3 { margin: 0 0 6px; font-size: 16px; }
+    article.post h3 a { color: #0969da; text-decoration: none; }
+    article.post p { margin: 0; font-size: 13px; color: #59636e; }
+    footer { font-size: 12px; color: #818b98; margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <div class="banner">🧪 MYIA 演示源:本页由 docs/demo 随仓库分发,内容为<b>演示用虚构数据</b>;请仅以
+    <code>http.server --bind 127.0.0.1</code> 本机回放,不要部署到公网。</div>
+
+  <h1>湖光科技 · 情报站</h1>
+  <h2>每日更新:大模型 / 智能体 / 端侧推理(演示用虚构内容)</h2>
+
+  <article class="post">
+    <h3><a href="/articles/2026/huguang-70b.html">「萤火」开源大模型正式发布:70B 参数,中文评测登顶</a></h3>
+    <p>湖光科技发布新一代开源大模型「萤火-70B」,宣称在三项中文基准上超过上一代旗舰。(演示用虚构内容)</p>
+  </article>
+
+  <article class="post">
+    <h3><a href="/articles/2026/myiaflow-v2.html">智能体框架 MyiaFlow v2.0 上线:多智能体协作与工具编排</a></h3>
+    <p>MyiaFlow v2.0 上线,新增多智能体协作调度、工具编排与回放调试面板。(演示用虚构内容)</p>
+  </article>
+
+  <article class="post">
+    <h3><a href="/articles/2026/huguang-infer.html">「湖光」推理引擎更新:7B 模型可离线跑在手机端</a></h3>
+    <p>推理引擎更新到 3.2 版:7B 模型经 4bit 量化后可在旗舰手机上离线运行。(演示用虚构内容)</p>
+  </article>
+
+  <article class="post">
+    <h3><a href="/articles/2026/wanxiang-multimodal.html">万象实验室多模态接口上线:图像理解能力正式商用</a></h3>
+    <p>万象实验室宣布多模态接口正式商用,首批开放图像理解与文档解析两类能力。(演示用虚构内容)</p>
+  </article>
+
+  <article class="post">
+    <h3><a href="/articles/2026/star-quant.html">「星辰」发布量化工具链:消费级显卡可微调 30B 模型</a></h3>
+    <p>星辰 AI 发布 4bit 量化训练工具链,宣称消费级单卡即可微调 30B 模型。(演示用虚构内容)</p>
+  </article>
+
+  <article class="post">
+    <h3><a href="/articles/2026/lakeview-agent.html">湖光云上线智能体托管服务:按调用量计费,支持私有化部署</a></h3>
+    <p>湖光云智能体托管服务上线,提供按调用量计费与私有化部署两种形态。(演示用虚构内容)</p>
+  </article>
+
+  <article class="post">
+    <h3><a href="/articles/2026/bakery-market.html">湖光园区烘焙工作室周末市集通知:新品试吃与团购</a></h3>
+    <p>(此条与 AI 无关,用于演示分类漏斗:内置分类不命中,条目在 classify 阶段可见跳过。演示用虚构内容)</p>
+  </article>
+
+  <footer>MYIA demo source · 内容为演示用虚构数据 · 仅限 127.0.0.1 本机回放</footer>
+</body>
+</html>

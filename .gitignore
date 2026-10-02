@@ -1,4 +1,44 @@
-# Python
+# ===== 安全红线:私有数据零上传 =====
+# 本仓库与 .trellis/ 都会公开;任何凭据、抓取数据、密钥文件不得入库。
+# MYIA 凭据只走 env:/keychain: 引用,配置文件出现明文凭据即拒跑(spec 铁律)。
+
+# ---- 密钥与凭据文件(防误拷入仓库)----
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.*
+# 例外:核心源码模块不叫"secrets 文件",必须入库(fresh clone / wheel 缺它即崩)
+!src/myia/secrets.py
+.env
+.env.*
+.envrc
+
+# ---- 本地私有路径索引(真实姓名/内网拓扑,仅本机)----
+LOCAL-NOTES.md
+
+# ---- MYIA 运行时数据(抓取的情报内容属私有数据)----
+myia.db
+*.db-journal
+*.db-wal
+*.db-shm
+data/
+# 例外:随包分发的程序数据(prompt/关键词表)不是抓取数据,必须入库与进 wheel
+!src/myia/classify/data/
+!src/myia/enrich/data/
+!packages/myia-classifier/src/myia_classifier/data/
+out/
+output/
+exports/
+backups/
+logs/
+*.log
+# 场景插件运行时产物(osint 类插件的侦察情报:邮箱/密钥泄漏指纹等)
+# 与抓取数据同级零容忍:插件安装根可在仓库树内(repo 内 compose 副本原地跑、
+# MYIA_PLUGIN_DIR 指向仓库),loot/ 落进工作树就必须被防线覆盖。
+plugins/**/loot/
+
+# ---- Python ----
 __pycache__/
 *.py[cod]
 .venv/
@@ -6,21 +46,29 @@ venv/
 dist/
 build/
 *.egg-info/
-
-# Environment / secrets
-.env
-.env.*
-
-# Local data
-*.sqlite
-*.sqlite3
-*.db
-
-# Node (desktop app scaffolding)
-node_modules/
-
-# OS / tooling
-.DS_Store
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# ---- 工作流运行态(本机私有,勿提交;.zcode/workflows/ 保存的工作流除外)----
+.zcode/workflow-drafts/
+.zcode/workflow-runs/
+
+# ---- Node / 桌面端 spike(desktop-spike 构建产物可达 ~1GB,防误提交)----
+node_modules/
+desktop-spike/src-tauri/target/
+desktop-spike/src-tauri/gen/
+desktop-spike/.venv-build/
+desktop-spike/build-pyi/
+desktop-spike/src-tauri/binaries/
+
+# ---- 编辑器 / OS ----
+.idea/
+.vscode/
+.DS_Store
+*.bak
+*~
+Thumbs.db

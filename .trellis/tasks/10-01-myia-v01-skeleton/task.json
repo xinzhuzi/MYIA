@@ -1,0 +1,39 @@
+{
+  "id": "myia-v01-skeleton",
+  "name": "myia-v01-skeleton",
+  "title": "v0.1 骨架:核心流水线+引擎+schema+分类+推送",
+  "description": "MYIA v0.1:core pipeline、L1/L2/firecrawl 引擎、完整 YAML schema、变更指纹、七大类分类、飞书分级推送、ai/wool/stocks 插件",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-01",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "10-01-v01-yaml-schema",
+    "10-01-v01-fetch-base",
+    "10-01-v01-engine-l1-l2",
+    "10-01-v01-engine-firecrawl",
+    "10-01-v01-store-dedup",
+    "10-01-v01-classify-builtin",
+    "10-01-v01-push-feishu-route",
+    "10-01-v01-pipeline-orchestrator",
+    "10-01-v01-cli-basic",
+    "10-01-v01-plugins-official"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P0"
+  }
+}

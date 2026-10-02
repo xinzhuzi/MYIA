@@ -1,0 +1,28 @@
+{
+  "id": "v01-store-dedup",
+  "name": "v01-store-dedup",
+  "title": "存储+去重:SQLite 注册表+AM/PM 槽位",
+  "description": "SQLite 存储(条目/去重注册表/变更基线表)、URL/组合键去重、AM/PM 槽位防重发语义",
+  "status": "review",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-01",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "10-01-myia-v01-skeleton",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P0"
+  }
+}

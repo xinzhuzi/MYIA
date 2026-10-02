@@ -1,0 +1,89 @@
+# docs/demo/demo-news.yaml — README「3 分钟上手」演示品类。
+#
+# 一个最小的 12 节品类:抓取本机 http.server 上的演示页(docs/demo/assets/
+# demo-site/,内容为演示用虚构数据),走内置七大类分类,经 stdout 通道输出
+# 推送卡片 —— 全程零凭据、零外网(127.0.0.1 是安全基线的显式例外)。
+#
+# 复现(docs/demo/README.md 有逐帧分镜):
+#   python3 -m http.server 8765 --bind 127.0.0.1 --directory docs/demo/assets/demo-site
+#   uv run --no-sync myia run docs/demo/demo-news.yaml --db /tmp/myia-demo/demo.db
+#
+# 换成飞书收卡:把 push[] 换成文件尾部的 feishu_card 注释块即可 —— 卡片
+# 模板不变,只换通道。
+
+id: demo-news
+name: 演示情报
+
+# 真实使用按此节奏调度;单次演示直接 `myia run` 不受 schedule 影响。
+schedule: "0 9,21 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  # 本机演示页:server 端渲染的静态列表,L2 static_html 一击即中。
+  # 真实源把 engine 留着 auto 即可(L1 direct_api → L2 static_html →
+  # L3 crawl4ai → firecrawl 自动降级,成功选择回写 SQLite,不改 YAML)。
+  - name: demo-hub
+    engine: static_html
+    url: "http://127.0.0.1:8765/"
+    method: GET
+    extract:                       # 列表页选择器;title/url 是卡片的最小字段
+      type: list
+      item: "article.post"
+      fields:
+        title: "h3"                # 标题文本
+        url: "h3 a@href"           # 相对链接按页面 URL 归一为绝对地址
+    rate_limit:                    # 礼貌限速是默认行为,这里写给演示完整
+      qps: 2
+      jitter: "0.5s"
+      backoff: exponential
+      respect_robots: true         # 本地 server 无 robots.txt,按「全允许」处理
+    proxy: direct
+    retry: 2
+
+watchlist:                         # 相关性基线(v0.2 LLM 精评读取)
+  keywords: [大模型, Agent, 智能体, 推理, 多模态]
+  mute: [广告]
+
+classify:                          # 第一层漏斗(零 token):内置七大类扫描
+  builtin: true                    # 演示页 7 条中 6 条命中 ai-news;
+  rules: []                        # 烘焙市集一条不命中 → classify_unmatched 可见跳过
+
+dedup:
+  key: "{url}"                     # 缺省语义写明:URL 指纹;{title} 永久禁止
+
+enrich:                            # 第二层漏斗(LLM 精评)演示关闭;
+  enabled: false                   # 启用需 OpenAI 兼容端点的 env:/keychain: 引用
+  model: glm-4-flash
+  scores: [value, relevance, credibility]
+  batch: 20
+  cache: true
+  budget_per_run: 50000
+
+push:
+  # 演示通道:stdout 无需任何凭据,一条 JSON 卡片(含渲染后的 text)。
+  # AI/CI 消费结构化字段;`text` 与飞书卡片同一模板同一内容。
+  - channel: stdout
+    route:
+      - when: "category in ['ai-news']"   # 白名单 AST 表达式,永不 eval
+        mode: digest                      # 合并成一张卡;AM/PM 槽位防重发
+    template: |
+      **演示情报 · {{ date }}**(channel=stdout,换 feishu_card 即发飞书群)
+      {% for item in items %}
+      - [{{ item.title }}]({{ item.url }})
+      {% endfor %}
+  # 飞书收卡(真实使用取消注释并配置两个 env: 引用;值进钥匙链
+  # `myia secret set`,YAML 出现明文凭据会启动即拒):
+  # - channel: feishu_card
+  #   target: env:FEISHU_CHAT_ID          # bot token 读 env:FEISHU_BOT_TOKEN
+  #   route:
+  #     - when: "category in ['ai-news']"
+  #       mode: digest
+  #   template: |
+  #     📡 **演示情报 · {{ date }}**
+  #     {% for item in items %}
+  #     - [{{ item.title }}]({{ item.url }})
+  #     {% endfor %}
+
+storage:                           # 演示库是一次性的:不保留、不 VACUUM
+  retention: 30d
+  vacuum: never

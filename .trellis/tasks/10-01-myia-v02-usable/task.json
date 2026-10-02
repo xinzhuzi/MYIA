@@ -1,0 +1,38 @@
+{
+  "id": "myia-v02-usable",
+  "name": "myia-v02-usable",
+  "title": "v0.2 可用:存储+CLI完整+crawl4ai+LLM精评+安全底座",
+  "description": "v0.2 可用:存储+CLI完整+crawl4ai+LLM精评+安全底座(MYIA 开源项目 Roadmap 阶段任务)",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-01",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "10-01-v02-storage-hardening",
+    "10-01-v02-cli-full",
+    "10-01-v02-engine-crawl4ai",
+    "10-01-v02-enrich-llm",
+    "10-01-v02-secrets-keychain",
+    "10-01-v02-push-telegram",
+    "10-01-v02-docker-compose",
+    "10-01-v02-desktop-spike",
+    "10-01-v02-proxy-transport"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P1"
+  }
+}

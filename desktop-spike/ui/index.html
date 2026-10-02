@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>MYIA</title>
+  <style>
+    body { font-family: -apple-system, "PingFang SC", sans-serif; margin: 16px; background: #fafafa; }
+    h1 { font-size: 18px; }
+    #out { white-space: pre-wrap; background: #111; color: #9f9; padding: 12px; border-radius: 8px;
+           max-height: 60vh; overflow: auto; font-size: 12px; }
+    input { width: 60%; }
+  </style>
+</head>
+<body>
+  <h1>MYIA — AI 替主人看着世界</h1>
+  <p>
+    YAML 路径(留空 = 用 .app 内置夹具 spike.yaml):
+    <input id="yaml" placeholder="(内置夹具)" />
+    <button id="go">myia run --json</button>
+  </p>
+  <pre id="out">待运行…(页面加载后自动跑一次内置夹具)</pre>
+  <script>
+    // withGlobalTauri:true 的免构建前端,直接用 window.__TAURI__。
+    const out = document.getElementById("out");
+    async function run() {
+      out.textContent = "运行中…";
+      const yaml = document.getElementById("yaml").value;
+      try {
+        const result = await window.__TAURI__.core.invoke("run_pipeline", { yaml });
+        out.textContent = result;
+      } catch (err) {
+        out.textContent = "sidecar 调用失败: " + err;
+      }
+    }
+    document.getElementById("go").addEventListener("click", run);
+    window.addEventListener("DOMContentLoaded", () => setTimeout(run, 300));
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# myia-proxy — 官方场景件:爬虫代理池(封装 jhao104/proxy_pool)。
+#
+# 市场插件包 = 一个目录:plugin.yaml(manifest,规范见 src/myia/plugins/manifest.py)
+# + README(local/remote 双路径)+ docker-compose.yml(local 模式)。
+# 核心仓库只装声明与文档,重依赖全在插件侧;装不上不拦核心流水线。
+id: myia-proxy
+name: 代理池(proxy_pool)
+version: 1.0.0
+compatible: ">=0.1,<2.0"          # 兼容的 myia 核心版本范围
+requires: docker
+provides: [proxy_pool]
+modes:
+  local:
+    compose: docker-compose.yml
+    install: docker compose up -d
+  remote:
+    endpoint: https://proxy-pool.example.com   # 已部署的 proxy_pool API 占位地址
+install:
+  source: https://github.com/xinzhuzi/MYIA.git

@@ -1,0 +1,32 @@
+# 上游 dgtlmoon/changedetection.io(Apache-2.0)官方 compose 的等价薄封装;
+# 本文件零明文凭据。浏览器渲染抓取(JS 页面)为可选增强,见下方注释。
+services:
+  changedetection:
+    image: ghcr.io/dgtlmoon/changedetection.io:latest
+    container_name: myia-changedetection
+    volumes:
+      - changedetection-data:/datastore
+    ports:
+      # 默认只绑回环;macOS 上若与 AirPlay 冲突可换 "127.0.0.1:5050:5000"。
+      - "127.0.0.1:5000:5000"
+    restart: unless-stopped
+    # JS 渲染抓取(可选):取消本段与下方 browser 服务的注释。
+    # environment:
+    #   PLAYWRIGHT_DRIVER_URL: ws://browser-sockpuppet-chrome:3000
+    # depends_on:
+    #   - browser-sockpuppet-chrome
+
+  # browser-sockpuppet-chrome:
+  #   image: dgtlmoon/sockpuppetbrowser:latest
+  #   hostname: browser-sockpuppet-chrome
+  #   cap_add:
+  #     - SYS_ADMIN
+  #   restart: unless-stopped
+  #   environment:
+  #     SCREEN_WIDTH: "1920"
+  #     SCREEN_HEIGHT: "1020"
+  #     SCREEN_DEPTH: "16"
+  #     MAX_CONCURRENT_CHROME_PROCESSES: "10"
+
+volumes:
+  changedetection-data:

@@ -1,0 +1,28 @@
+{
+  "id": "v01-plugins-official",
+  "name": "v01-plugins-official",
+  "title": "官方插件:ai-news/wool/stocks",
+  "description": "按完整 schema 实例化三个官方插件 YAML:ai-news(aihot+论坛)、wool(linux.sb 等)、stocks(Yahoo API)",
+  "status": "review",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-01",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "10-01-myia-v01-skeleton",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P1"
+  }
+}

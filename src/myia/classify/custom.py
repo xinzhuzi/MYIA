@@ -1,35 +1,31 @@
-"""User-defined classification rules loaded from a plugin YAML `classify:` section."""
+"""Compatibility shim: implementation lives in ``myia_classifier.custom``.
 
-from __future__ import annotations
+See :mod:`myia.classify` (the package shim) for the migration note.
 
-from dataclasses import dataclass
+``_BIN_OPS`` is re-exported on purpose (private, not in ``__all__``): tests
+monkeypatch the operator table via ``monkeypatch.setitem`` on this module's
+reference, which must stay the *same dict object* the implementation reads.
+"""
 
+from myia_classifier.custom import (
+    ALLOWED_FUNCTIONS,
+    Rule,
+    RuleConfigError,
+    RuleEvalError,
+    RuleSyntaxError,
+    _BIN_OPS,
+    evaluate_expression,
+    load_rules,
+    rules_from_config,
+)
 
-@dataclass
-class Rule:
-    """One custom rule: `name`, a `when` expression over item fields, and a `tag`."""
-
-    name: str
-    when: str
-    tag: str = ""
-
-    def evaluate(self, item) -> bool:
-        # TODO: restricted evaluator for the `when` expression
-        # (e.g. "abs(change_pct) >= 3") — never raw eval().
-        raise NotImplementedError
-
-
-def load_rules(yaml_path: str) -> list[Rule]:
-    """Load the `classify.rules` entries from a plugin YAML."""
-    import yaml  # deferred: keeps this module importable without PyYAML
-
-    with open(yaml_path, encoding="utf-8") as fh:
-        data = yaml.safe_load(fh) or {}
-    return [
-        Rule(
-            name=str(rule.get("name", "")),
-            when=str(rule.get("when", "")),
-            tag=str(rule.get("tag", "")),
-        )
-        for rule in (data.get("classify") or {}).get("rules", [])
-    ]
+__all__ = [
+    "ALLOWED_FUNCTIONS",
+    "Rule",
+    "RuleConfigError",
+    "RuleEvalError",
+    "RuleSyntaxError",
+    "evaluate_expression",
+    "load_rules",
+    "rules_from_config",
+]

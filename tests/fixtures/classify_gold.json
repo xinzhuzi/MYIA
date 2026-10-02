@@ -1,0 +1,245 @@
+{
+  "description": "金测集:公开论坛标题 + 生产系统实测标签(脱敏,只留标题与期望分类)",
+  "items": [
+    {
+      "title": "羊毛速薅，注册送5000额度，签到1000到2000",
+      "expected": "token"
+    },
+    {
+      "title": "关于claude充值20美金套餐送100美元额度和一次重置卡说明",
+      "expected": "token"
+    },
+    {
+      "title": "Claude 免费领100$",
+      "expected": "token"
+    },
+    {
+      "title": "Claude Pro、Max用户免费领取$100、$250积分额度，10月7号之前",
+      "expected": "token"
+    },
+    {
+      "title": "【富可敌国】Fluxion AI丨GPT Pro持续稳定供应，限时低至0.13｜L站新用户留言送$3丨真实产品评价$10",
+      "expected": "token"
+    },
+    {
+      "title": "【NEXA】ASTRA不降智！ 透明号池最低0.24x / 评论最高送8 / 绝不掺水 / 1:1充值 / 无阶梯价格无缓存写入价格",
+      "expected": "token"
+    },
+    {
+      "title": "爽蹬公益站(拯救没有Token的孩子)",
+      "expected": "token"
+    },
+    {
+      "title": "Aether API 公益站",
+      "expected": "token"
+    },
+    {
+      "title": "白嫖王者荣耀灵宝token，这是在工作写代码，不是摸鱼！！！",
+      "expected": "token"
+    },
+    {
+      "title": "🎉🎉B2Proxy福利！新用户免费试用 / 动态 $0.7/GB / 静态 $0.12/IP/天 / 不限量 $10/小时",
+      "expected": "freebie"
+    },
+    {
+      "title": "Plus 用一周价格薅一个月 Pro",
+      "expected": "freebie"
+    },
+    {
+      "title": "优麦云MCP内测最高30天免费试用？这羊毛我先薅为敬！",
+      "expected": "freebie"
+    },
+    {
+      "title": "青龙面板 夸克签到领取永久空间",
+      "expected": "freebie"
+    },
+    {
+      "title": "【中秋福利】RoxyBrowser 月满人团圆·中秋狂欢季：抽大奖 + 充值加赠 + 官网寻宝免费领会员",
+      "expected": "freebie"
+    },
+    {
+      "title": "Fox AI！中秋福利来了喵！233刀",
+      "expected": "freebie"
+    },
+    {
+      "title": "庆祝linux.sb开业大吉送100个 1000G不限时订阅",
+      "expected": "freebie"
+    },
+    {
+      "title": "签到获得 12 个月 gemini Plus，还行 胜在白嫖",
+      "expected": "freebie"
+    },
+    {
+      "title": "匿名大模型 Space Bunny Alpha 免费上线",
+      "expected": "freebie"
+    },
+    {
+      "title": "别被低价中转骗了",
+      "expected": "channel"
+    },
+    {
+      "title": "求推荐claude低价中转",
+      "expected": "channel"
+    },
+    {
+      "title": "【顺风Token】GPT低至0.075x，CCMAX仅0.9x，中秋限时国模0.04x",
+      "expected": "channel"
+    },
+    {
+      "title": "宝藏超低价、性价比超高的AI漫剧平台限时发放额度啦！！！",
+      "expected": "channel"
+    },
+    {
+      "title": "有什么比较好用的中转站吗·",
+      "expected": "channel"
+    },
+    {
+      "title": "【开源项目】企业级大模型SaaS平台：team-api， 专为企业打造的AI中转平台",
+      "expected": "channel"
+    },
+    {
+      "title": "bestbuy和giftly礼品卡充值",
+      "expected": "channel"
+    },
+    {
+      "title": "codex中转无法控制浏览器,提示”Codex auth token is unavailable”,有什么解决方案",
+      "expected": "channel"
+    },
+    {
+      "title": "【webcodex】 v0.4.2 发布，功能上也许近乎完善了。",
+      "expected": "channel"
+    },
+    {
+      "title": "typesafe.ai account generator, unlimited jev, one account every 0.2 seconds",
+      "expected": "channel"
+    },
+    {
+      "title": "测试了一下 GPT-6 Sol，顺便分享一个低成本 API 接入方式，官方的 0.07x",
+      "expected": "channel"
+    },
+    {
+      "title": "bybit普通用户的100% AI订阅返现将在10.5取消",
+      "expected": "credit-card"
+    },
+    {
+      "title": "【方法合集】获取境外银行卡（非虚拟卡），实现百分百成功 AI 订阅 ChatGPT、Claude 的方法，有门槛，多种方法可选择",
+      "expected": "credit-card"
+    },
+    {
+      "title": "在微软云的vps上运行Claude code会封号吗",
+      "expected": "server"
+    },
+    {
+      "title": "有没有头铁只用vps用claude没被封的",
+      "expected": "server"
+    },
+    {
+      "title": "之前找咸鱼代充GPT，全程都是自动化的，请问原理是这样的吗？",
+      "expected": "buying-agent"
+    },
+    {
+      "title": "AI国模订阅推荐求助",
+      "expected": "proxy-node"
+    },
+    {
+      "title": "cline 订阅不需要国外的卡，银联就成功了",
+      "expected": "proxy-node"
+    },
+    {
+      "title": "想问问还有什么低价订阅YouTube Premium的方式吗",
+      "expected": "proxy-node"
+    },
+    {
+      "title": "【开源推广】基于Rust打造的低风控、高颜值透明代理网关 Codex-Proxy-RS",
+      "expected": "proxy-node"
+    },
+    {
+      "title": "Azure 学生订阅悲报",
+      "expected": "proxy-node"
+    },
+    {
+      "title": "Google AI 计划包含 Colab 了【仅付费订阅】",
+      "expected": "proxy-node"
+    },
+    {
+      "title": "claude 的cloud session 100刀 能用吗，用了他会不会封我号呢",
+      "expected": "proxy-node"
+    },
+    {
+      "title": "【纯干货】我宣布gemini 3.8 flash已经王朝了，生成的ASS字幕远超我的预期",
+      "expected": "proxy-node"
+    },
+    {
+      "title": "A\\ 增加 5h session 的可用额度",
+      "expected": "proxy-node"
+    },
+    {
+      "title": "GPT-6-Astra turn state长度780什么情况？",
+      "expected": "ai-news"
+    },
+    {
+      "title": "米哈游千亿进军大模型，力争进入第一梯队(附录音)",
+      "expected": "ai-news"
+    },
+    {
+      "title": "Anthropic要IPO了 投资人嫌老板天天讲AI毁灭世界 这就尴尬了",
+      "expected": "ai-news"
+    },
+    {
+      "title": "【EnsoCode】又一个开源 Agent，EnsoAI 的弟弟 EnsoCode 来了～",
+      "expected": "ai-news"
+    },
+    {
+      "title": "智谱和openai的比较",
+      "expected": "ai-news"
+    },
+    {
+      "title": "Gemini API的托管智能体一口气加了后台任务、远程MCP和hooks 谷歌这回是认真在补课",
+      "expected": "ai-news"
+    },
+    {
+      "title": "感觉astra在对于“现实规划”上断档领先",
+      "expected": null
+    },
+    {
+      "title": "AI时代的赛博阳痿",
+      "expected": null
+    },
+    {
+      "title": "为什么网页端的 chat 似乎比 codex 弱了很多?",
+      "expected": null
+    },
+    {
+      "title": "muse.ai网页自动通过website审批脚本",
+      "expected": null
+    },
+    {
+      "title": "用Gemini可以完美绕过限制！1分钟注册Muse！",
+      "expected": null
+    },
+    {
+      "title": "muse ai/oracle龟壳注册经验分享",
+      "expected": null
+    },
+    {
+      "title": "【富可敌国】面向小企业的中转站开放注册了",
+      "expected": null
+    },
+    {
+      "title": "使用protonmail邮箱收Telegram验证码，收到封号警告",
+      "expected": null
+    },
+    {
+      "title": "算力池，邀请码注册得100000算力（≈$10调用额度），模型极全，聚合多渠道/多家中转可用",
+      "expected": null
+    },
+    {
+      "title": "krak card（英国）虚拟卡 10英镑奖励+中国身份证可开卡+图文注册开卡教程+入金最低磨损方法+可绑支付宝和微信，订阅ChatGPT",
+      "expected": null
+    },
+    {
+      "title": "Opus5.5 100刀，仅限开发，CC客户端调用（增加Astra）已耗尽",
+      "expected": null
+    }
+  ]
+}

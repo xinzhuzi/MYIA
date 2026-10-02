@@ -1,0 +1,33 @@
+{
+  "id": "myia-v10-launch",
+  "name": "myia-v10-launch",
+  "title": "v1.0 立项开源:双语文档+demo+发布",
+  "description": "v1.0 立项开源:双语文档+demo+发布(MYIA 开源项目 Roadmap 阶段任务)",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-01",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "10-01-v10-docs-bilingual",
+    "10-01-v10-demo",
+    "10-01-v10-classifier-pypi",
+    "10-01-v10-release"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P2"
+  }
+}

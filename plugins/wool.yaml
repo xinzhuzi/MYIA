@@ -1,61 +1,231 @@
-# plugins/wool.yaml — freebie/deal intelligence; list-page sources with selector pagination.
+# plugins/wool.yaml — freebie/deal intelligence over public community forums.
+#
+# Section semantics are documented once, fully, in plugins/stocks.yaml (the
+# schema showcase). This file is the many-sources example: six L2 list pages
+# with per-source extract/rate_limit, plus a login-walled placeholder.
+# Source list per the v0.1 research facts (7 domains); every extract here
+# was verified against the live pages' 2026-10 server-rendered markup.
+
 id: wool
 name: 羊毛情报
+
+# Give-away intel is time-sensitive: immediate-routed items go out as soon
+# as a run finds them; 08:00 / 20:00 keeps the digest tier to two cards a
+# day (AM/PM slot, local-noon boundary).
 schedule: "0 8,20 * * *"
 timezone: Asia/Shanghai
 
+# Shared notes for every source below:
+# - engine: static_html = L2 server-rendered pages (v0.1 default for forums).
+#   "auto" would first try the L1 JSON API and only then degrade — pointless
+#   for plain HTML, so the engine is pinned.
+# - no Cookie headers: these list pages are public; a login-cookie source
+#   would carry `Cookie: env:<VAR>` (see the linux.do placeholder).
+# - proxy: direct — v0.1 only implements "direct" (pool/residential land in
+#   v0.2/v0.3 and raise a structured not-implemented error meanwhile).
+
 sources:
   - name: linuxsb
-    engine: static_html           # server-rendered forum list (L2)
-    url: "https://linux.sb/latest?page={page}"
+    engine: static_html
+    url: "https://linux.sb/"      # homepage = latest topic list
     method: GET
     headers:
       User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
-      Cookie: "keychain:linuxsb_cookie"   # login state via keychain reference
-    pagination:
-      mode: selector              # follow the next-page link instead of a URL template
-      selector: "a.pagination-next@href"
-      max_pages: 5
-    extract:                      # CSS extraction over the topic list
+    extract:
       type: list
-      item: "div.topic-list tr"
+      item: "div.post-body"       # one block per topic (title row + meta)
       fields:
-        title: "a.title"
-        url: "a.title@href"
-        time: "td.time"
-    rate_limit:
+        title: "a.post-title"
+        url: "a.post-title@href"  # /topic/<id>, resolved against the page URL
+    rate_limit:                   # robots only blocks admin/login/search pages
       qps: 0.5
       jitter: "2s"
       backoff: exponential
       respect_robots: true
     proxy: direct
     retry: 3
+    # No pagination: the site's page-2 URL pattern could not be verified
+    # (only the homepage is guaranteed) — single-page walk until confirmed.
+
+  - name: bbsbtsb
+    engine: static_html
+    url: "https://bbs.bt.sb/latest"
+    method: GET
+    headers:
+      User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    extract:
+      type: list
+      item: 'a.min-w-0[href^="/posts/"]'   # topic cards only — comment anchors
+                                           # share the /posts/ prefix but lack h2
+      fields:
+        title: "h2"
+        url: "@href"              # attribute of the item node itself
+    rate_limit:                   # robots blocks /api/ and /write only
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true
+    proxy: direct
+    retry: 3
+    # No pagination: /latest?page=2 307-redirects back to /latest (loop-guarded
+    # walk would stop anyway) — single-page walk until a real pattern exists.
+
+  - name: nodeloc
+    engine: static_html
+    url: "https://www.nodeloc.com/latest?page={page}"
+    method: GET
+    headers:
+      User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    pagination:
+      mode: template              # {page} placeholder in the URL is mandatory
+      max_pages: 2
+    extract:                      # standard Discourse topic list
+      type: list
+      item: "tr.topic-list-item"
+      fields:
+        title: "a.raw-topic-link"
+        url: "a.raw-topic-link@href"
+    rate_limit:
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true        # robots allows /latest (only SEO bots and
+                                  # admin/auth paths are blocked)
+    proxy: direct
+    retry: 3
+
+  - name: cocoloop
+    engine: static_html
+    url: "https://www.cocoloop.cn/latest?page={page}"
+    method: GET
+    headers:
+      User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    pagination:
+      mode: template
+      max_pages: 2
+    extract:                      # standard Discourse topic list
+      type: list
+      item: "tr.topic-list-item"
+      fields:
+        title: "a.raw-topic-link"
+        url: "a.raw-topic-link@href"
+    rate_limit:
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true        # robots allows /latest; blocks /u/, /my/,
+                                  # *.json and admin paths
+    proxy: direct
+    retry: 3
+
+  - name: sbsb
+    engine: static_html
+    url: "https://sb.sb/"
+    method: GET
+    headers:
+      User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    extract:
+      type: list
+      item: "div.post-body"
+      fields:
+        title: "a.post-title"
+        url: "a.post-title@href"  # /t/<id>, resolved against the page URL
+    rate_limit:                   # robots blocks admin/profile/login paths only
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true
+    proxy: direct
+    retry: 3
+    # No pagination: homepage covers the active list; deeper pages exist but
+    # the stable URL pattern is unverified — single-page walk for now.
+
+  # v2ex — parked placeholder, same treatment as linux.do below. Cloudflare
+  # fronts both the HTML and the JSON API: from v0.1's direct-only transport
+  # a run gets challenged (403 "Just a moment"), and the auto chain ends on
+  # the firecrawl backend — without MYIA_FIRECRAWL_URL configured that source
+  # fails EVERY scheduled run (status partial / exit code 3 for the whole
+  # category), so shipping it live is a guaranteed daily false alarm. The
+  # extract follows v2ex's long-stable markup but could NOT be verified
+  # against the live site (challenge blocked probing). Uncomment + fill in
+  # when a firecrawl backend exists, and re-verify the extract on first run:
+  # - name: v2ex
+  #   engine: auto
+  #   url: "https://www.v2ex.com/latest"
+  #   method: GET
+  #   headers:
+  #     User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+  #   extract:
+  #     type: list
+  #     item: "span.item_title"
+  #     fields:
+  #       title: "a"
+  #       url: "a@href"           # /t/<id>, resolved against the page URL
+  #   rate_limit:
+  #     qps: 0.5
+  #     jitter: "2s"
+  #     backoff: exponential
+  #     respect_robots: true
+  #   proxy: direct
+  #   retry: 3
+  #   engine_options.firecrawl:            # needed to pass the challenge:
+  #     endpoint: env:MYIA_FIRECRAWL_URL   # cloud or self-host backend
+  #     api_key: env:MYIA_FIRECRAWL_API_KEY
+
+  # linux.do — placeholder for a login-walled Discourse source. stealth_browser
+  # (L5) is implemented and sits at the auto chain's tail carrying login state:
+  # it needs an invisible_playwright_mcp service (engine_options.stealth_browser);
+  # without it the leg fails with mcp_server_missing and the chain keeps degrading.
+  # - name: linuxdo
+  #   engine: auto                  # L5 stealth_browser handles the login wall
+  #   url: "https://linux.do/latest"
+  #   extract:
+  #     type: list
+  #     item: "tr.topic-list-item"
+  #     fields:
+  #       title: "a.raw-topic-link"
+  #       url: "a.raw-topic-link@href"
+  #   headers:
+  #     Cookie: env:LINUXDO_COOKIE  # login state via env reference only
 
 watchlist:
-  keywords: [免费, 白嫖, 0元, 优惠]
+  keywords: [白嫖, 免费, 0元, 优惠券, 福利, 兑换码]
   mute: [广告, 中奖]
 
-classify:                         # default seven-category keyword classifier
-  builtin: true
+classify:                       # 羊毛 is one of the seven builtin categories;
+  builtin: true                 # free signal beats paid signal in adjudication
+  rules: []                     # unmatched titles drop (classify_unmatched)
 
 dedup:
-  key: "{url}"
+  key: "{url}"                  # one slot-window per topic (AM/PM boundary at
+                                # local noon — a topic hot in both slots can
+                                # legitimately surface twice a day)
 
 enrich:
-  enabled: false                  # keyword pre-filter only; flip to true for LLM precision scoring
+  enabled: false                # keyword pre-filter only; flip to true in v0.2
+                                # with an explicit env: endpoint (grill Q6)
+  model: glm-4-flash
+  scores: [value, relevance, credibility]
+  batch: 20
+  cache: true
+  budget_per_run: 50000
 
 push:
   - channel: feishu_card
-    target: env:FEISHU_CHAT_ID
+    target: env:FEISHU_CHAT_ID  # bot token comes from env:FEISHU_BOT_TOKEN
     route:
-      - when: "score >= 8"
+      - when: "score >= 8"      # v0.2 interface slot (dormant until scores exist)
         mode: immediate
-      - when: "score >= 5"
-        mode: digest
-      - when: "score < 5"
-        mode: archive
+      - when: "category in ['freebie', 'proxy-node', 'buying-agent']"   # v0.1:
+        mode: immediate         # 白给型 (freebie/node/buying-agent) -> push now
+      - when: "category in ['server', 'token', 'credit-card', 'channel', 'ai-news']"
+        mode: digest            # paid/ad-like categories -> daily digest
     template: |
-      **羊毛速报 · {{date}}**
-      {{#each items}}
-      - [{{title}}]({{url}})
-      {{/each}}
+      **羊毛速报 · {{ date }}**
+      {% for item in items %}
+      - [{{ item.title }}]({{ item.url }})
+      {% endfor %}
+
+storage:
+  retention: 90d
+  vacuum: monthly

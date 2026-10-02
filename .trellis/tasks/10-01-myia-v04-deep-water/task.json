@@ -1,0 +1,33 @@
+{
+  "id": "myia-v04-deep-water",
+  "name": "myia-v04-deep-water",
+  "title": "v0.4 深水区:L5/L6引擎+趋势基线+事件聚合",
+  "description": "v0.4 深水区:L5/L6引擎+趋势基线+事件聚合(MYIA 开源项目 Roadmap 阶段任务)",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-01",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "10-01-v04-engine-stealth",
+    "10-01-v04-engine-llm-browser",
+    "10-01-v04-trend-baseline",
+    "10-01-v04-event-aggregation"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P2"
+  }
+}

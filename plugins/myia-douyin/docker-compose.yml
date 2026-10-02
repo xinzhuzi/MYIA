@@ -1,0 +1,13 @@
+# 单容器快速通道(V4 系 Docker Hub 镜像,Apache-2.0)。
+#
+# 上游 v5 主线(默认分支)是 postgres+redis+api+worker 多容器栈:须 git clone
+# 上游仓库后用其自带 docker/compose.yml + 仓库根 .env(DTK_SECRET_KEY 等,
+# 无默认口令,零明文入库),见本目录 README「local 模式」。
+# 本文件零明文凭据。
+services:
+  douyin-tiktok-api:
+    image: evil0ctal/douyin_tiktok_download_api:latest
+    container_name: myia-douyin-api
+    ports:
+      - "127.0.0.1:8000:8000"   # 默认只绑回环
+    restart: unless-stopped

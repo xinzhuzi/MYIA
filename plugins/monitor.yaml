@@ -5,12 +5,16 @@
 # service — zero docker, the desktop path). A plugin that cannot be installed
 # never blocks the core pipeline: the built-in change fingerprint plus the
 # L1-L4 degrade chain cover the basics without it.
+#
+# The `plugin:` declaration is modeled by myia.schema since v0.3
+# (CategoryPluginConfig, validated by load_category and attached to
+# CategoryConfig.plugin; see src/myia/plugins for the market side).
 id: monitor
 name: 变更监控
 schedule: "*/15 * * * *"
 timezone: Asia/Shanghai
 
-plugin:                           # scenario plugin declaration (dual mode, v1.7)
+plugin:                             # scenario plugin declaration (dual mode, v1.7)
   id: myia-monitor
   requires: docker
   modes:
@@ -18,7 +22,7 @@ plugin:                           # scenario plugin declaration (dual mode, v1.7
       install: docker compose up -d
     remote:
       endpoint: https://my-monitor.example.com   # your changedetection.io instance
-      token: keychain:myia_monitor_token
+      token: keychain:myia/monitor/token            # myia secret set myia/monitor/token
 
 sources:
   - name: changedetection-watches
@@ -26,7 +30,9 @@ sources:
     url: "https://my-monitor.example.com/api/v1/watch"   # resolved from plugin.modes.remote
     method: GET
     headers:
-      X-Api-Key: "keychain:myia_monitor_token"
+      # 钥匙链凭据引用,规范名空间 myia/<scope>/<name>(写入:
+      # myia secret set myia/monitor/token)
+      X-Api-Key: "keychain:myia/monitor/token"
     extract:
       type: json_path
       fields:
@@ -54,7 +60,7 @@ push:
       - when: "score < 5"
         mode: archive
     template: |
-      **页面变更 · {{date}}**
-      {{#each items}}
-      - [{{title}}]({{url}})
-      {{/each}}
+      **页面变更 · {{ date }}**
+      {% for item in items %}
+      - [{{ item.title }}]({{ item.url }})
+      {% endfor %}

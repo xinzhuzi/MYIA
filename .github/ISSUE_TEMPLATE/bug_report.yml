@@ -1,0 +1,79 @@
+name: Bug report / 缺陷报告
+description: Something in MYIA is broken. / MYIA 哪里坏了。
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **红线 / Red line:** never paste credentials, cookies, tokens, internal
+        hostnames or private data into this issue. `myia` errors reference
+        credential *names* only — keep it that way when you quote output.
+        **零容忍:**本 issue 里禁止出现任何凭据值、Cookie、token、内网地址或私人数据;
+        引用命令输出时确认凭据位只剩 `env:` / `keychain:` 引用名。
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened? / 发生了什么
+      description: What did you expect, what happened instead? / 期望的行为与实际行为。
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce / 复现步骤
+      description: >-
+        The YAML category (with credentials as `env:`/`keychain:` references
+        only) and the exact command. / 品类 YAML(凭据位只能是 env: 或
+        keychain: 引用)与完整命令。
+      placeholder: |
+        1. `myia run plugins/xxx.yaml --json`
+        2. …
+    validations:
+      required: true
+
+  - type: dropdown
+    id: exit-code
+    attributes:
+      label: CLI exit code / 退出码
+      description: "MYIA contract: 0 success · 1 config error · 2 all sources failed · 3 partial failure. / 0 成功 · 1 配置错误 · 2 采集全部失败 · 3 部分失败"
+      options:
+        - "0"
+        - "1"
+        - "2"
+        - "3"
+        - other / 其它
+    validations:
+      required: false
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Structured output / 结构化输出
+      description: "`myia doctor --json` and/or `myia run --json` output (redact credential values). / `myia doctor --json` 或 `myia run --json` 输出(脱敏后粘贴)。"
+      render: json
+
+  - type: input
+    id: version
+    attributes:
+      label: MYIA version / 版本
+      placeholder: "myia 0.1.0 (`uv run myia --version`)"
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: OS & Python / 系统与 Python
+      placeholder: "macOS 15 / Windows 11, Python 3.12"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: redline
+    attributes:
+      label: Red-line confirmation / 红线确认
+      options:
+        - label: I confirmed no credentials/secrets/private data appear anywhere in this issue. / 我确认本 issue 全文无凭据值与私有数据。
+          required: true

@@ -1,0 +1,181 @@
+{
+  "version": 1,
+  "description": "七大类关键词表与免费/付费双信号裁决表。忠实移植自生产爬虫 wf_crawl.py(2026-09-28 主人纠错版),由金测集钉住语义。AI/用户可直接增改本文件:keywords 里加普通关键词,patterns 里加正则(需熟悉正则),不用改代码。case_insensitive 默认 false(生产正则原样语义)。",
+  "categories": [
+    {
+      "id": "freebie",
+      "label": "🎁羊毛",
+      "stage": "free_target",
+      "priority": 5,
+      "case_insensitive": false,
+      "description": "白嫖类。不参与常规扫描:免费信号(FREE_KW)命中即归此类,除非再命中 signals.token_context 归 token。关键词表即生产 FREE_KW。",
+      "keywords": [
+        "白嫖", "免费", "免单", "无门槛", "注册送", "签到", "兑换码", "激活码",
+        "邀请码", "放送", "赠送", "白送", "试用", "抽奖", "公益", "0元", "零元",
+        "鸡蛋", "白给", "薅", "福利", "羊毛", "优惠券", "盲盒"
+      ],
+      "patterns": [
+        "送\\$|送\\d|领\\$|领\\d",
+        "送会员|送VIP|送券|送网易云",
+        "限时.{0,4}(?:送|领)"
+      ]
+    },
+    {
+      "id": "credit-card",
+      "label": "💳信用卡",
+      "stage": "primary",
+      "priority": 10,
+      "case_insensitive": false,
+      "description": "生产 CAT_RULES[0],无 re.I(生产原样,大小写敏感)。",
+      "keywords": ["信用卡", "开卡礼", "返现", "副卡", "虚拟卡", "货币卡"],
+      "patterns": [
+        " depay|Depay|wildcard|WildCard|fomepay|FomePay|USD?卡"
+      ]
+    },
+    {
+      "id": "proxy-node",
+      "label": "🪄节点",
+      "stage": "primary",
+      "priority": 20,
+      "case_insensitive": true,
+      "description": "生产 CAT_RULES[1]。注意 ssr?/订阅 是宽匹配,生产就如此(金测集钉住)。",
+      "keywords": ["节点", "机场", "订阅", "科学上网", "翻墙", "梯子", "魔法"],
+      "patterns": [
+        "v2ray|clash|vless|trojan|ssr?|hysteria",
+        " scientific",
+        "代理(?!.*服务器)",
+        "proxy",
+        "白嫖.{0,6}(?:ip|IP)",
+        "免费.{0,4}(?:ip|IP)"
+      ]
+    },
+    {
+      "id": "buying-agent",
+      "label": "🛒代买",
+      "stage": "primary",
+      "priority": 30,
+      "case_insensitive": true,
+      "description": "生产 CAT_RULES[2]。",
+      "keywords": ["代购", "代买", "代充", "代付", "拼车", "合租", "合买", "代开", "代注册"],
+      "patterns": [
+        "低成本.{0,4}(?:chatgpt|claude|gpt)",
+        "低价.{0,4}(?:plus|pro|max|会员)"
+      ]
+    },
+    {
+      "id": "server",
+      "label": "🖥️服务器",
+      "stage": "primary",
+      "priority": 40,
+      "case_insensitive": true,
+      "description": "生产 CAT_RULES[3]。",
+      "keywords": ["服务器", "独立服", "物理机", "甲骨文", "母鸡", "小鸡"],
+      "patterns": [
+        "vps",
+        "dedicated",
+        "oracle",
+        "gcp",
+        "aws.{0,4}免费",
+        "azure.{0,4}免费",
+        "nat.{0,3}vps"
+      ]
+    },
+    {
+      "id": "channel",
+      "label": "💰渠道",
+      "stage": "paid_target",
+      "priority": 50,
+      "case_insensitive": true,
+      "description": "付费信号且无免费信号的归宿(付费中转广告绝不进羊毛/token)。不在七大类清单里,是生产系统第 8 个输出标签,待主人确认去留。",
+      "keywords": ["中转", "逆向", "号池", "接入了", "聚合", "车队"],
+      "patterns": [
+        "relay",
+        "api站"
+      ]
+    },
+    {
+      "id": "token",
+      "label": "🔑token",
+      "stage": "fallback",
+      "priority": 60,
+      "case_insensitive": true,
+      "description": "生产 CAT_RULES[5]。注意:免付费都无信号时本类关键词只作为 AI信息 兜底的触发条件之一;token 类仅能经免费分支(signals.token_context)到达——生产语义,金测集钉住。",
+      "keywords": ["额度"],
+      "patterns": [
+        "apikey|API ?[Kk]ey|api ?token|接入.?url|base.?url|oai|token"
+      ]
+    },
+    {
+      "id": "ai-news",
+      "label": "🤖AI信息",
+      "stage": "fallback",
+      "priority": 70,
+      "case_insensitive": true,
+      "description": "生产 CAT_RULES[6]。无免费且无付费信号时的兜底类。",
+      "keywords": ["大模型", "通义", "智谱", "发布", "上线", "更新"],
+      "patterns": [
+        "gpt|claude|gemini|grok|deepseek|llm|openai|anthropic|kimi|qwen|glm|midjourney|sora"
+      ]
+    }
+  ],
+  "signals": {
+    "direct_give": {
+      "case_insensitive": false,
+      "description": "直接送钱信号(生产 DIRECT_GIVE_KW):用于豁免『注册』引流帖,并并入免费信号。",
+      "patterns": [
+        "送\\s?\\$|送\\s?\\d|领\\s?\\$|领\\s?\\d|白送|免费送|白嫖|0元",
+        "送.{0,8}(?:刀|额度|美[金元]|算力|会员|VIP)",
+        "(?:得|拿|领|抽|送)\\s?\\d{2,}\\s?(?:刀|美[金元]|块|元)",
+        "\\d{2,}\\s?刀.{0,8}(?:额度|福利|盲盒)",
+        "抽.{0,10}(?:奖|plan|go\\b)"
+      ]
+    },
+    "paid": {
+      "case_insensitive": false,
+      "description": "付费信号(生产 PAID_KW):有它且无免费信号 → 渠道。",
+      "keywords": [
+        "低至", "元起", "刀起", "充值", "首充", "返赠", "返利", "促销", "大促",
+        "秒杀", "特价", "低价", "比价", "价格", "倍率", "优惠", "特惠", "年付",
+        "月付", "起充"
+      ],
+      "patterns": [
+        "/刀",
+        "每.?刀",
+        "仅.{0,4}[元$]",
+        "0\\.\\d{1,4}"
+      ]
+    },
+    "token_context": {
+      "case_insensitive": true,
+      "target_category": "token",
+      "description": "免费分支细分(生产 cat_of 内联正则):免费信号命中后,标题再命中本表 → 归 target_category 指定的类,否则归羊毛。",
+      "patterns": [
+        "apikey|API ?[Kk]ey|api ?token|额度|token|中转|号池|鸡蛋|opus|claude|gpt|glm|deepseek|kimi|api"
+      ]
+    }
+  },
+  "filters": {
+    "dead": {
+      "case_insensitive": false,
+      "description": "过期/失效标记(生产 DEAD_KW):标题命中即剔除(分类结果为 null)。",
+      "keywords": ["已耗尽", "已跑路", "已关闭", "已失效", "停运", "已经没有", "抢完", "发完"]
+    },
+    "noise": {
+      "case_insensitive": false,
+      "description": "论坛公告/站务(生产 NOISE_KW):标题命中即剔除(分类结果为 null)。",
+      "keywords": ["版规", "封号规则", "公告", "功能上线", "屏蔽用户", "隐私设置", "新人引导", "导读", "积分规则"],
+      "patterns": [
+        "论坛.{0,4}(?:开通|规则)"
+      ]
+    },
+    "registration_lure": {
+      "case_insensitive": false,
+      "description": "『注册 xxx』引流帖过滤(2026-09-28 主人指令):命中且无 signals.direct_give 直接送钱信号 → 剔除(分类结果为 null)。",
+      "keywords": ["注册"]
+    }
+  },
+  "adjudication": {
+    "fallback_target": "ai-news",
+    "description": "无免费且无付费信号时的兜底类目 id:扫描 stage=fallback 的类目关键词,任一命中即归 fallback_target(生产语义:token/AI信息 的模式命中都归 AI信息,token 只能经免费分支到达)。"
+  }
+}

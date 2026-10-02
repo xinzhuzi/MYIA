@@ -1,0 +1,11 @@
+services:
+  # GPL-3.0 红线:compose 直接引用上游源码构建,本仓库不 vendored、不复制。
+  # 首次 `docker compose build` 由 compose 从上游 git 仓库拉取。
+  photon:
+    build: https://github.com/s0md3v/Photon.git
+    container_name: myia-photon
+    volumes:
+      # 侦察产物落在宿主 ./loot(容器内用 `-o /Photon/loot` 指定输出目录)。
+      - ./loot:/Photon/loot
+    stdin_open: true
+    tty: true

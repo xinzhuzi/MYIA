@@ -1,0 +1,28 @@
+{
+  "id": "v02-engine-crawl4ai",
+  "name": "v02-engine-crawl4ai",
+  "title": "引擎 crawl4ai:L3 默认引擎",
+  "description": "crawl4ai 引擎(JS 渲染→LLM 文本、自动结构化提取),无 extract 节时兜底",
+  "status": "review",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-01",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "10-01-myia-v02-usable",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P1"
+  }
+}

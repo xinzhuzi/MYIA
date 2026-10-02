@@ -1,0 +1,95 @@
+# PyPI Publish — myia-classifier / myia 双包发布(PRD 10-01-v10-classifier-pypi)。
+# 仅手动触发(workflow_dispatch),与 CI/Docker 发布刻意分离:CI 管测试,Docker 管镜像,本文件管 PyPI。
+#
+# ── 触发方式 ─────────────────────────────────────────────────────────────────
+#   GitHub 仓库页 → Actions → "PyPI Publish" → Run workflow → 选 package + 鉴权方式。
+#
+# ── 鉴权双通道(二选一,首次发布前主人需完成对应配置)──────────────────────────
+#
+#   A. Trusted Publishing(OIDC,推荐,零长期凭据):
+#      1. PyPI → 项目管理 → Publishing → Add a new "trusted publisher":
+#         owner = 仓库 owner,GitHub仓库名 = 本仓库名,workflow 文件名 = pypi-publish.yml,
+#         environment = pypi。
+#      2. 本仓库 Settings → Environments → 新建 "pypi"(可加保护规则)。
+#      3. dispatch 时 `use-api-token` 选 false,action 走 OIDC,无需任何 secret。
+#
+#   B. API Token(经典方式):
+#      1. PyPI → Account settings → API tokens → 生成 token(建议 scope 到项目)。
+#      2. 本仓库 Settings → Secrets and variables → Actions → 新增 secret:PYPI_API_TOKEN。
+#      3. dispatch 时 `use-api-token` 选 true,action 以 token 上传。
+#      注: TestPyPI 同理,把 trusted publisher/token 配在 test.pypi.org 并改 registry-url。
+#
+# 安全说明:工作流内不出现任何凭据字面值;token 仅经 secrets 注入;零第三方安装脚本,
+# 构建用 uv 官方 astral-sh/setup-uv,发布用 PyPA 官方 action。
+
+name: PyPI Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "要发布的包"
+        type: choice
+        default: myia-classifier
+        options:
+          - myia-classifier
+          - myia
+          - both
+      use-api-token:
+        description: "用 API Token 上传(false = Trusted Publishing OIDC)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Build distributions
+        # --out-dir 统一收口到仓库根 dist/(workspace 成员默认会写各自目录的 dist/)
+        run: |
+          case "${{ inputs.package }}" in
+            myia-classifier) uv build packages/myia-classifier --out-dir dist ;;
+            myia)            uv build . --out-dir dist ;;
+            both)            uv build packages/myia-classifier --out-dir dist && uv build . --out-dir dist ;;
+          esac
+          echo "built:" && ls dist/
+
+      - name: Upload distributions as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write  # Trusted Publishing(OIDC)必需;token 模式下无害
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # use-api-token=true 时走 secret token;false 时空值,action 回落 OIDC trusted publishing
+          password: ${{ inputs.use-api-token && secrets.PYPI_API_TOKEN || '' }}
+          verbose: true
