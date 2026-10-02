@@ -29,3 +29,10 @@
 - Q6 决议+执行项全部当轮落 trellis(3 子任务挂 grill-v112)
 - Round 2 待主人批:R2-1 updater 三密钥生成+Secrets / R2-2 Apple 公证($99/年)买不买 / R2-3 PyPI 先 test.pypi 演练 / R2-4 四帖节奏与定稿人
 - 事实修正:CI 非零起步(desktop-release.yml windows job 已在、pypi-publish.yml 手动 dispatch 已在);「发布零起步」旧口径作废
+
+## 2026-10-03 桌面端清除开发期提示文案(task 10-03-ui-hints-trim)
+
+- 主人点名两处不需要:侧栏「v1.1 骨架 · 业务接入见各屏空态」、顶栏「sidecar v0.1.0 · 协议 v1」→ 侧栏 footer 整块删;顶栏在线态只留绿点,版本/协议退 title 悬浮(排障不丢);connecting/error 态未被点名不动
+- 验证:vitest 40/40 + tsc/vite build 绿(显式退出码);构建产物 grep 两处文案零残留、tooltip 模板仍在;tauri build 重装 /Applications(旧版备份 /tmp/MYIA.app.bak-hints-trim 可删);OCR 截屏目视:侧栏无骨架行、顶栏无版本字样,羊毛/显卡情报正常渲染
+- 冒烟两个坑:①macOS 文件系统大小写不敏感,直跑 MacOS/MYIA 实际执行的是 sidecar(打 argparse help),看壳要看进程 myia-desktop;②System Events 窗口计数对后台窗口报 0,先 activate 再数
+- 普查档 C10 文案半边由此收口(版本字段半边留档);spec 无涉(纯 UI 文案);单 commit

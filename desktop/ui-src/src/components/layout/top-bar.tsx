@@ -52,13 +52,18 @@ function SidecarStatusBadge({
   onRetry: () => void;
 }) {
   if (status === "online") {
+    // 界面不放开发期文案:在线态只留状态点,版本/协议退到 title 悬浮供排障
     return (
-      <Badge variant="ok" className="gap-1.5 px-2 py-1" title={`协议 v${info?.protocol}`}>
+      <Badge
+        variant="ok"
+        className="px-2 py-1"
+        aria-label="sidecar 已连接"
+        title={`sidecar v${info?.version} · 协议 v${info?.protocol}`}
+      >
         <span className="relative flex size-2">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ok opacity-60" />
           <span className="relative inline-flex size-2 rounded-full bg-ok" />
         </span>
-        sidecar v{info?.version} · 协议 v{info?.protocol}
       </Badge>
     );
   }

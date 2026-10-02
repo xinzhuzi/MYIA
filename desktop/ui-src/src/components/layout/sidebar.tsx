@@ -47,10 +47,6 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
-
-      <div className="border-t border-border px-4 py-2.5 text-[10px] leading-relaxed text-muted-foreground">
-        v1.1 骨架 · 业务接入见各屏空态
-      </div>
     </aside>
   );
 }
