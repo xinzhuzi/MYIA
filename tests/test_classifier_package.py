@@ -72,7 +72,7 @@ def test_built_wheel_contains_keyword_data_file(tmp_path):
         pytest.skip("uv 不可用:无法在 CI 验证 wheel 产物内容(请安装 uv)")
     repo_root = Path(__file__).resolve().parents[1]
     subprocess.run(
-        [uv, "build", str(repo_root / "packages" / "myia-classifier"),
+        [uv, "build", str(repo_root / "myia-classifier"),
          "--out-dir", str(tmp_path)],
         check=True, capture_output=True,
     )

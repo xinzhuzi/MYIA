@@ -44,6 +44,12 @@ packages/myia-classifier/src/myia_classifier/data/keywords.json
 - [ ] 全量 pytest 绿;`git grep "packages/myia-classifier"` 零残留(或仅历史文档说明)
 - [ ] 提交信息说明层级行数变化(4→2)
 
+## 执行记录(2026-10-02,主人指示后当日内完成)
+
+- 方案 A 落地:packages/myia-classifier/src/myia_classifier → **myia-classifier/myia_classifier**(4 层→2 层,git mv 历史保留)
+- 8 处引用同步:根 pyproject members、包 pyproject(packages/artifacts)、.gitignore 数据例外、Dockerfile COPY、pypi-publish.yml 构建路径×2、README×2、CONTRIBUTING;tests/test_classifier_package.py 构建路径修正
+- 验证:uv lock/sync 重生成 ✓;全量 pytest 1217×2 绿 ✓;双包 wheel/sdist 构建 + classifier wheel 含 keywords.json ✓;docker build + 容器 myia --version ✓;git grep packages/myia-classifier 零残留(仅历史档案)✓
+
 ## Notes
 
 - 背景:该结构由 v10-classifier-pypi 任务按"uv workspace + src-layout"惯例生成,功能正确但层级冗余;主人 2026-10-02 指出后建档,修复排 v1.1(或主人指示时立即做)

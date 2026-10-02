@@ -26,7 +26,7 @@ data/
 # 例外:随包分发的程序数据(prompt/关键词表)不是抓取数据,必须入库与进 wheel
 !src/myia/classify/data/
 !src/myia/enrich/data/
-!packages/myia-classifier/src/myia_classifier/data/
+!myia-classifier/myia_classifier/data/
 out/
 output/
 exports/

@@ -24,7 +24,7 @@ Layout map / 目录速览:
 | Path | What lives there |
 |---|---|
 | `src/myia/` | All first-party code: `schema.py` (12-section YAML model), `pipeline.py` (orchestration), `engines/` (7-rung fetch chain), `classify/`, `store/`, `enrich/`, `push/`, `feedback/`, `plugins/`, `cli.py` |
-| `packages/myia-classifier/` | Standalone zero-dependency classifier package (own `pyproject.toml`) |
+| `myia-classifier/` | Standalone zero-dependency classifier package (own `pyproject.toml`) |
 | `plugins/` | Official category YAMLs + market plugin packages |
 | `skill/SKILL.md` | Agent-facing condensed schema & workflow |
 | `docs/zh/`, `docs/en/` | Bilingual docs, drift-locked by tests |

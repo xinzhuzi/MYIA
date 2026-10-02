@@ -64,17 +64,17 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Build distributions
-        # uv workspace 双包:根包(myia)与 packages/myia-classifier 是两个独立发行,
+        # uv workspace 双包:根包(myia)与 myia-classifier 是两个独立发行,
         # 分两步 uv build,--out-dir 统一收口到仓库根 dist/(成员默认写各自 dist/)。
         # PACKAGE 经 env 传入,不内插 ${{ }},未知取值直接失败而不是漏建。
         env:
           PACKAGE: ${{ inputs.package }}
         run: |
           case "$PACKAGE" in
-            myia-classifier) uv build packages/myia-classifier --wheel --sdist --out-dir dist ;;
+            myia-classifier) uv build myia-classifier --wheel --sdist --out-dir dist ;;
             myia)            uv build . --wheel --sdist --out-dir dist ;;
             both)
-              uv build packages/myia-classifier --wheel --sdist --out-dir dist
+              uv build myia-classifier --wheel --sdist --out-dir dist
               uv build . --wheel --sdist --out-dir dist
               ;;
             *) echo "::error::未知 package 输入:${PACKAGE}" ; exit 1 ;;

@@ -3,7 +3,7 @@
   "name": "v11-packages-layout",
   "title": "packages 目录层级整理:消除 myia-classifier 路径套娃",
   "description": "主人指出 packages/myia-classifier/src/myia_classifier 四层命名重复;评估扁平化方案并落地,不破坏 workspace/构建/发布",
-  "status": "planning",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,

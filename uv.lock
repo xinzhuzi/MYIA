@@ -1956,7 +1956,7 @@ requires-dist = [
     { name = "httpx", extras = ["socks"], specifier = ">=0.27" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "keyring", specifier = ">=25" },
-    { name = "myia-classifier", editable = "packages/myia-classifier" },
+    { name = "myia-classifier", editable = "myia-classifier" },
     { name = "openai", marker = "extra == 'all'", specifier = ">=1.30" },
     { name = "openai", marker = "extra == 'llm'", specifier = ">=1.30" },
     { name = "pydantic", specifier = ">=2.7" },
@@ -1975,7 +1975,7 @@ dev = [{ name = "pytest", specifier = ">=8.0" }]
 [[package]]
 name = "myia-classifier"
 version = "0.1.0"
-source = { editable = "packages/myia-classifier" }
+source = { editable = "myia-classifier" }
 
 [[package]]
 name = "nest-asyncio"

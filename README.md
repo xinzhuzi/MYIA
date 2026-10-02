@@ -47,7 +47,7 @@ The parts that make it an *intelligence* tool, not just a crawler:
 1. **Seven-category classifier** (credit-card / proxy-node / buying-agent /
    server / token / ai-news / freebie) with free-vs-paid dual-signal
    adjudication — zero tokens, shipped as the standalone
-   [`myia-classifier`](packages/myia-classifier/) package.
+   [`myia-classifier`](myia-classifier/) package.
 2. **URL-key dedup registry + AM/PM digest slots** — production-proven push
    semantics; you never get the same item twice.
 3. **Adaptive multi-engine fetching**: a 7-rung degrade chain (API direct →
@@ -283,7 +283,7 @@ uv run myia run plugins/demo-min.yaml --dry-run   # 演练一次:不推送,先�
   试抓验证、跑起来,并凭 `myia doctor --json` 自行修复失效源。
 - **亮点**:七层采集降级链(L1 API 直连 → L6 LLM 浏览器,源不写死引擎);
   七大类关键词粗筛(零 token,独立包
-  [`myia-classifier`](packages/myia-classifier/))+ LLM 精评(价值/相关性/可信度);
+  [`myia-classifier`](myia-classifier/))+ LLM 精评(价值/相关性/可信度);
   阈值分级路由(score≥8 立即推 / ≥5 进早晚摘要 / <5 只归档);
   反馈闭环:负反馈回写持续调优(`myia feedback mark` 手动标记;
   Telegram/飞书回调接收已就绪,卡片内按钮随桌面版交付)。

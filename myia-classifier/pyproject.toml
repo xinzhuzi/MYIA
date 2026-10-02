@@ -41,10 +41,10 @@ Repository = "https://github.com/xinzhuzi/MYIA"
 Issues = "https://github.com/xinzhuzi/MYIA/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/myia_classifier"]
+packages = ["myia_classifier"]
 # 仓库 .gitignore 的 `data/` 规则按构建根相对匹配,会漏掉包内词表数据文件
 # (v0.2 已踩过"wheel 缺文件"的坑);artifacts 显式强制收录,双保险。
-artifacts = ["src/myia_classifier/data/*.json"]
+artifacts = ["myia_classifier/data/*.json"]
 
 [tool.hatch.build.targets.sdist]
-artifacts = ["src/myia_classifier/data/*.json"]
+artifacts = ["myia_classifier/data/*.json"]

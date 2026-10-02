@@ -38,7 +38,7 @@ myia = "myia.cli:main"
 dev = ["pytest>=8.0"]
 
 [tool.uv.workspace]
-members = ["packages/*"]
+members = ["myia-classifier"]
 
 # myia-classifier 不发布到 PyPI 前先按 workspace 成员解析;发布后可切回注册表源。
 [tool.uv.sources]

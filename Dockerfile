@@ -35,11 +35,11 @@ WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./
 
 # Workspace sources must exist before any uv sync: uv.lock references the
-# myia-classifier member as an editable path (packages/myia-classifier), and
+# myia-classifier member as an editable path (myia-classifier/), and
 # --frozen resolution fails with "Distribution not found" without it.
 # Trade-off: source changes now bust the dependency cache layer.
 COPY src ./src
-COPY packages ./packages
+COPY myia-classifier ./myia-classifier
 
 # Dependency layer: cached unless pyproject/uv.lock/sources change.
 RUN --mount=type=cache,target=/root/.cache/uv \
