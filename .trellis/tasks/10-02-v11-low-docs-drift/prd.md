@@ -17,3 +17,5 @@
 
 - 全部为文档/注释级修改,不动运行时行为(条目 6 需用打包词表实测命中)。
 - 回归:`uv run --no-sync python -m pytest` 相关文档测试与全量绿。
+
+> **2026-10-02 状态批注**:demo 成片已装配(docs/demo/video/myia-demo.mp4,72s);素材条目 4 转为「回填 B站/YouTube 外链 + 可选真人配音版」。

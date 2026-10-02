@@ -58,3 +58,5 @@ plugins/<name>/
 
 - 排期:v1.1(与桌面正式版同批,「我是要做的桌面应用」——本转向是桌面版的配套基建);osint 样板可先行
 - 关联:10-02-v11-plugins-layout 无关;本任务与 10-01-v03-plugin-market(已完成,review)是演进关系,不回滚其 loader/装卸 CLI 成果
+
+> **2026-10-02 关联批注**:吸收 v11-low-plugins 子任务中的 README 修复项(重写时一并做);另注意 packages 套娃已拆(v11-packages-layout 完结),插件 vendor 布局勿再引入类似深层套娃。

@@ -1,1 +1,2 @@
 {"file": ".trellis/spec/python/index.md", "reason": "工程约定"}
+{"file": ".trellis/spec/python/error-handling.md", "reason": "CLI 契约"}

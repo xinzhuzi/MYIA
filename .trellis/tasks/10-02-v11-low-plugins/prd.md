@@ -13,3 +13,5 @@
 
 - 条目 8 执行前先核对四个 README 的实际行号(素材为建档时行号,可能有偏移)。
 - 回归:`uv run --no-sync python -m pytest` 全量绿(改动均为文档,应零影响)。
+
+> **2026-10-02 依赖批注**:README 的 cd 修复项将在 v11-plugins-source-arch 重写 README 时一并完成(该任务为父方向);本任务执行时先核对哪些已随之消失。

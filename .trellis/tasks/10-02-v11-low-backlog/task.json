@@ -27,7 +27,7 @@
     "10-02-v11-low-release",
     "10-02-v11-packages-layout"
   ],
-  "parent": null,
+  "parent": "10-02-v11-umbrella",
   "relatedFiles": [],
   "notes": "",
   "meta": {}

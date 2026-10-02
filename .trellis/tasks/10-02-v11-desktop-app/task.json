@@ -1,8 +1,8 @@
 {
-  "id": "v11-skill-install",
-  "name": "v11-skill-install",
-  "title": "myia skill install:打通 Agent Skill 最后一公里",
-  "description": "SKILL.md 已写好并有一致性测试,但无安装通路——加 myia skill install 命令把它装进 Claude Code/Cursor 等技能目录",
+  "id": "v11-desktop-app",
+  "name": "v11-desktop-app",
+  "title": "v1.1 桌面正式版:五大界面 + 打包流水线",
+  "description": "grill Q11 定案的头号 v1.1 交付:在 desktop/ 地基上实现产品级桌面客户端(仪表盘/情报流/源管理/日志/设置 + updater + dmg/exe 流水线)",
   "status": "planning",
   "dev_type": null,
   "scope": null,
@@ -23,6 +23,6 @@
   "relatedFiles": [],
   "notes": "",
   "meta": {
-    "priority": "P2"
+    "priority": "P1"
   }
 }

@@ -1,0 +1,34 @@
+{
+  "id": "v11-umbrella",
+  "name": "v11-umbrella",
+  "title": "v1.1 桌面版与打磨(总览)",
+  "description": "v1.1 阶段伞任务:桌面正式版为头号交付,配套插件源码化转向、skill 安装通路、backlog 清偿;承载排序与验收总控",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-02",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "10-02-v11-desktop-app",
+    "10-02-v11-plugins-source-arch",
+    "10-02-v11-skill-install",
+    "10-02-v11-repo-hygiene",
+    "10-02-v11-low-backlog"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P1"
+  }
+}
