@@ -30,9 +30,25 @@
 - Round 2 待主人批:R2-1 updater 三密钥生成+Secrets / R2-2 Apple 公证($99/年)买不买 / R2-3 PyPI 先 test.pypi 演练 / R2-4 四帖节奏与定稿人
 - 事实修正:CI 非零起步(desktop-release.yml windows job 已在、pypi-publish.yml 手动 dispatch 已在);「发布零起步」旧口径作废
 
-## 2026-10-03 桌面端清除开发期提示文案(task 10-03-ui-hints-trim)
+## 2026-10-03 桌面端 YAML 配置编辑器立项(task 10-03-yaml-editor,planning)
+
+- 主人指示必须有 YAML 编辑模块;当轮探查落档(prd/design/implement 三件套齐,待拍板 5 项后 start)
+- 探查要点:品类 YAML 是核心配置面,桌面五屏无查看/编辑入口;sidecar `_HANDLERS` 11 方法扩展点干净(sources.write 先例);校验同门 load_category、原子写先例 `_atomic_write_text` 均可复用
+- 形态决议(推荐待批):独立第六屏「配置编辑」+ 源管理行「编辑」跳转;CodeMirror 6 做编辑器;myia-* 插件系统是数据源场景、无 UI 插件机制,编辑器以 UI 模块 + 协议扩展落地
+- 顺带挖出地雷:sources.write 写回用 yaml.safe_dump(entry.py:687),**启停开关即抹掉品类 YAML 全部注释**(官方件大半是注释)——是否并入本任务修,列待拍板 1
+- 关联普查档:C11(yaml.write 泛化缺失)由 yaml.save 收口;C13 增删改由原文编辑覆盖
+
+
 
 - 主人点名两处不需要:侧栏「v1.1 骨架 · 业务接入见各屏空态」、顶栏「sidecar v0.1.0 · 协议 v1」→ 侧栏 footer 整块删;顶栏在线态只留绿点,版本/协议退 title 悬浮(排障不丢);connecting/error 态未被点名不动
 - 验证:vitest 40/40 + tsc/vite build 绿(显式退出码);构建产物 grep 两处文案零残留、tooltip 模板仍在;tauri build 重装 /Applications(旧版备份 /tmp/MYIA.app.bak-hints-trim 可删);OCR 截屏目视:侧栏无骨架行、顶栏无版本字样,羊毛/显卡情报正常渲染
 - 冒烟两个坑:①macOS 文件系统大小写不敏感,直跑 MacOS/MYIA 实际执行的是 sidecar(打 argparse help),看壳要看进程 myia-desktop;②System Events 窗口计数对后台窗口报 0,先 activate 再数
 - 普查档 C10 文案半边由此收口(版本字段半边留档);spec 无涉(纯 UI 文案);单 commit
+
+## 2026-10-03 grill Round 2/3(主人全按推荐;决议全文=10-03-grill-v112)
+
+- Round 2 批复:R2-1 updater 做全(三密钥+UI「检查更新」接线入 v111-release,密钥=主人侧前置);R2-2 不买 Apple Developer,README 写右键打开指引;R2-3 PyPI 先 test.pypi 演练;R2-4 tag+PyPI 后发四帖(AI 素材/主人定稿)
+- Round 3(trellis 文档补全):Q5 普查路由全批+排序修正(立即=推提交+docs 小修;tag 后=ci-gates/v1.1.2 批次/归档会话);Q6 B2/B3/B4=v1.1.1 改宣称、补实现排 v1.2(覆盖普查路由②的回炉);Q7 归档会话授权;Q8 task.py finish 跨会话防护(搭 docs-truth)
+- 执行档全家福(全挂 grill-v112):v111-release(P0)/docs-truth(P1)/v112-desktop-batch(P1)/ci-gates/archive-review/v12-backlog(+B2/B3/B4)/test-baseline-import(已交付 review)
+- 普查档转活清单(D3 ✅718d56c、B1 ✅定向、C10 ✅02a0dce、B5 ✅获批即推),状态归 review
+- 并行会话协调:ui-hints-trim 已交付归档(02a0dce/49e223b),v111-release 的 C10 引用已修注

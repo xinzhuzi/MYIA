@@ -24,6 +24,12 @@ grill 决议 2026-10-03 Q1:发布工程(v1.1.1)先行,以下三项排 v1.2。本
      10-01-v02-proxy-transport);池化(轮换/健康检查/住宅 IP)未写。
    - v1.2 目标:池化抽象 + 至少一家服务商实装;**服务商与预算是主人决策**,
      拆任务时先问。
+4. **B2/B3/B4 桌面补实现**(grill Round 3 Q6:v1.1.1 先改宣称,补实现排 v1.2)
+   - 桌面反馈入口(feed 卡片反馈按钮,对应 CLI feedback mark/list/stats)
+   - settings 屏反馈开关分区(routes 骨架曾列)
+   - dashboard 采集量趋势(v1.1 PRD 承诺项)
+   - 与第 2 项 C 组批次(10-03-v112-desktop-batch)的取舍:实现顺序上
+     C2/C1/C7 优先于本项。
 
 ## Acceptance Criteria(池档口径)
 

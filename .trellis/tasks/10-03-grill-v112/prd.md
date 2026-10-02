@@ -75,9 +75,41 @@
 > A/B/C/D/E/F 六组)。与本轮决议重叠项已互相引用;普查其余项修复路由**仍待主人
 > 另行拍板**,不在本轮决议范围内。
 
+## Round 2 批复(主人 2026-10-03:全按推荐)
+
+- **R2-1 updater 做全 ✅**:三密钥(主人生成+配 Secrets)+ UI「检查更新」接线,
+  一并入 `10-03-v111-release`;密钥生成是主人侧前置,UI 接线是 AI 侧工项。
+- **R2-2 不买 Apple Developer ✅**:不做公证;README 写「右键打开」绕
+  Gatekeeper 指引(入 v111-release 的 README 项)。
+- **R2-3 PyPI 先演练 ✅**:myia + myia-classifier 先 test.pypi.org 再正式。
+- **R2-4 发帖节奏 ✅**:tag+PyPI 后发四帖;AI 出素材(含 demo 真数据截图),
+  主人定稿。
+
+## Round 3 决议(2026-10-03 靶心=trellis 文档补全,主人:全按推荐)
+
+事实背景:并行会话已交付 02a0dce(剥开发期 UI 文案=普查 C10 主体)并示范
+归档(49e223b);未推提交 6 个(B5 放大);普查第 6 节路由成文待批;
+任务态 43 review / 11 planning / 1 in_progress。
+
+- **Q5 普查路由全批 ✅,排序修正**:立即 = 推提交(B5,批后即推)+ docs 小修
+  (`10-03-docs-truth`:A3/A4/A1-docs 部分 + Q8 防护搭车);
+  `10-03-v111-release` 并行(A1/A2/B1 的 README 部分已并入防重复立项);
+  **tag 后** = `10-03-ci-gates`(D1/D2,D3 已修)、`10-03-v112-desktop-batch`
+  (C 组,C2 最优先)、`10-03-archive-review`(E6,独立会话)。
+  普查档转**活清单**:修一条标 ✅+commit 号。
+- **Q6 B2/B3/B4 = v1.1.1 改宣称、补实现排 v1.2 ✅**(覆盖普查路由②的「回炉」):
+  README v1.1 交付列表如实化随 v111-release 一票做完;桌面反馈按钮/settings
+  反馈开关/dashboard 采集趋势的**补实现**进 `10-03-v12-backlog`。理由:发布前
+  补三块 UI 时间风险大且不阻断见人;「说话算数」以文档如实化为第一层兑现。
+- **Q7 E6 归档会话授权 ✅**:43 个 review 批量核对归档,独立会话,排 tag 后。
+- **Q8 task.py finish 跨会话防护 ✅**:非本会话当前任务需确认才清;随
+  docs-truth 批次搭车。
+
 ## Acceptance Criteria(本档=记录型任务)
 
 - [x] Round 1 六项决议全文入档(本文件)
 - [x] 三个执行子任务已建并挂父子关系
 - [x] v10-release 重开 + 两个薄层任务注记完成
-- [ ] Round 2 四问主人批复后补记(答后勾)
+- [x] Round 2 四问批复补记(2026-10-03 全按推荐)
+- [x] Round 3 四项决议补记 + 七个执行档齐备(v111-release/test-baseline-import/
+      v12-backlog/docs-truth/v112-desktop-batch/ci-gates/archive-review 全挂本档)

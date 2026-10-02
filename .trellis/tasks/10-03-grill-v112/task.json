@@ -21,7 +21,11 @@
   "children": [
     "10-03-v111-release",
     "10-03-test-baseline-import",
-    "10-03-v12-backlog"
+    "10-03-v12-backlog",
+    "10-03-docs-truth",
+    "10-03-v112-desktop-batch",
+    "10-03-ci-gates",
+    "10-03-archive-review"
   ],
   "parent": null,
   "relatedFiles": [],

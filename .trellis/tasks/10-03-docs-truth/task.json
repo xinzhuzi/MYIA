@@ -1,0 +1,28 @@
+{
+  "id": "docs-truth",
+  "name": "docs-truth",
+  "title": "docs 小修批次:env.example 键名 + docs pip 宣称 + task.py finish 防护",
+  "description": "普查 A3/A4(env.example 键名照填必炸)与 docs 四处 pip install 宣称纠错;搭车 task.py finish 跨会话防护(grill Q8);立即开工(grill Q5)",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-03",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "10-03-grill-v112",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P1"
+  }
+}

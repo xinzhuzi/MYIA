@@ -98,9 +98,23 @@
 - [x] 三路探查完成,每条缺陷带 file:line 证据(本文件即证据矩阵)
 - [x] 实跑基线记录(pytest 1397/14skip、vitest 40/40、git 状态)
 - [x] 刻意不做清单成文,防止后续误报
-- [ ] 主人过目分组与路由,拍板后按路由开修复任务(本任务随之归档)
+- [x] 主人过目分组与路由,拍板后按路由开修复任务(2026-10-03 grill Round 3 拍板,见文末注记;活清单收口后归档)
 - 本任务全程不改产品代码、不提交(并行会话在途,避免缠绕)
 
 ## 8. 核实通过面(不列条目的部分)
 
 以下经代理逐项核对**无漂移**,不在上表重复:README 全部命令/路径/徽章/相对链接("tests 1300+ passing" 实测成立)、docs zh+en 四页与 write-a-plugin(测试锁定)、skill/SKILL.md 与 cli.py 逐项一致、docker/README vs compose/Dockerfile、SECURITY 凭据契约、desktop/UPDATER.md 与发版流水线互洽、RELEASE.md runbook 与 pypi-publish.yml 逐字一致、六处版本号 0.1.0 一致、tauri resources 引用路径全部存在、capabilities 权限最小自洽、UI 无 skip/xfail、Rust 侧无 todo!/unimplemented!。
+
+> **2026-10-03 拍板注记(grill Round 3,主人全按推荐;决议全文=10-03-grill-v112)**:
+> 第 6 节路由**全部批准**,排序修正:立即=推提交(B5)+ docs 小修
+> (`10-03-docs-truth`:A3/A4/A1-docs 部分+task.py 防护搭车);v111-release 并行
+> (A1/A2/B1 的 README 部分);tag 后=`10-03-ci-gates`(D1/D2)、
+> `10-03-v112-desktop-batch`(C 组,C2 最优先)、`10-03-archive-review`(E6)。
+> **路由②被覆盖**:B2/B3/B4 改为「v1.1.1 改宣称(README 如实化,随 v111-release),
+> 补实现排 v1.2(10-03-v12-backlog)」,不回炉 10-02-v11-desktop-app。
+> 本档转**活清单**,状态推进标记:
+> - D3 ✅ 已修(718d56c,from conftest import;两跑法 1397 绿)
+> - B1 ✅ 已定向(tag/版本/updater/UI 接线全量入 10-03-v111-release;R2 批做全)
+> - C10 ✅ 主体已修(并行会话 02a0dce 剥开发期文案;版本一致性核对随 v111-release)
+> - B5 ✅ 获批即推(grill Q5)
+> - 其余条目开工时按上表路由建任务并回标。
