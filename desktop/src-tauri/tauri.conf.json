@@ -14,7 +14,9 @@
       {
         "title": "MYIA",
         "width": 880,
-        "height": 640
+        "height": 640,
+        "visible": false,
+        "focus": false
       }
     ],
     "security": {

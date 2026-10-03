@@ -11,3 +11,7 @@
 5. 装机/覆盖安装后**不自动拉起**让主人看;报告路径与命令,主人自己点开
 
 > 本文件是所有工作流 COMMON 的强制引用条目;分发模板(.trellis/spec/guides/ai-dispatch-template.md)已同步。
+
+> 桌面壳自身同受此律:10-03-quiet-launch 起 MYIA 静默启动——主窗口出厂隐藏,点 Dock/
+> 对运行中实例再 open 才亮出,冷启动后自动 deactivate 让回前台;dev 构建与
+> `MYIA_SHOW_ON_START=1` 例外照常显示(验证逃生口)。

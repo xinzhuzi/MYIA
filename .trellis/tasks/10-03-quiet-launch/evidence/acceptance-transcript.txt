@@ -1,0 +1,15 @@
+# 验收转录 2026-10-03(纯文字,无截图——os-etiquette 铁律 4:全屏截图禁留)
+
+## 基线(修复前,v1.1.1 原装包)
+- open -g -a MYIA → frontmost: myia-desktop→MYIA(open -g 语义被 tao activateIgnoringOtherApps(true) 覆盖,前台被夺)
+
+## 修复后(重装新包,/tmp/MYIA.app.bak-quiet-launch 留底)
+- 构建:cargo check 绿;npm run tauri build exit 0(app 124.98MiB + dmg 117.49MiB)
+- open -g -a MYIA 冷启动 → frontmost 保持 ZCode 不变;System Events 窗口数 0;myia-core serve pid 在跑(97249)
+- 运行中再 open -a MYIA → frontmost=MYIA、窗口数 1(Reopen 亮窗路径;此步用了 open -a,系当时唯一验证手段,测完即 quit;os-etiquette 落档后代理不再执行)
+- MYIA_SHOW_ON_START=1 直跑 Contents/MacOS/MYIA → 窗口数 1、sidecar 212ms 起来、quit 干净
+- osascript quit → frontmost 回 ZCode,无残留进程
+
+## 未实跑(留主人自验)
+- tauri dev 启动即显示:代码路径 cfg!(debug_assertions) 编译期恒真,未实跑(5173 端口被并行工作流 dev 实例占用;按 os-etiquette 代理不拉 UI)。主人跑 npm run tauri dev 即可目验
+- Dock 图标点击亮窗:与 open -a 同走 applicationShouldHandleReopen→RunEvent::Reopen,同路径已验;主人点 Dock 图标即可目验

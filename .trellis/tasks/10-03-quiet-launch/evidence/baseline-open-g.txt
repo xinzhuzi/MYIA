@@ -1,0 +1,5 @@
+# 基线实测 2026-10-03(修复前,v1.1.1 /Applications/MYIA.app)
+# 前台进程查询:osascript System Events frontmost
+before open -g: myia-desktop(并行工作流 tauri dev 实例,此前已抢过前台——同病)
+after  open -g: MYIA  ← open -g 明确要求后台启动,仍被夺前台
+# 根因:tao app_state.rs:293 无条件 activateIgnoringOtherApps(true)

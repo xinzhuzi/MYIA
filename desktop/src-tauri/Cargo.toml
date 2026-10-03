@@ -22,5 +22,11 @@ serde_json = "1"
 # 仅用 time(请求超时);运行时由 tauri 提供,不另起 tokio 特性树。
 tokio = { version = "1", features = ["time"] }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+# 静默启动让回激活用(10-03-quiet-launch):NSApp.deactivate() 抵消 tao
+# 启动期无条件 activateIgnoringOtherApps(true)。版本随锁内 tao 侧一致。
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3.2", features = ["NSApplication"] }
+
 [profile.release]
 strip = true

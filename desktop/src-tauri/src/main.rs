@@ -140,9 +140,27 @@ fn myia_home_dir(app: &AppHandle) -> Result<PathBuf, Box<dyn std::error::Error>>
     Ok(dir)
 }
 
+/// tao 在 applicationDidFinishLaunching 无条件 activateIgnoringOtherApps(true)
+/// (tao-0.37.1 app_state.rs:293,默认值出自 app_delegate.rs:106),连 `open -g`
+/// 的后台启动语义都会被覆盖。窗口隐藏躲不开应用级自激活(键盘焦点仍被夺),
+/// 只能在启动序列落定后把激活让回前一应用。
+#[cfg(target_os = "macos")]
+fn yield_focus_after_silent_start(app: AppHandle) {
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(500));
+        let _ = app.run_on_main_thread(|| {
+            use objc2::MainThreadMarker;
+            use objc2_app_kit::NSApplication;
+            if let Some(marker) = MainThreadMarker::new() {
+                NSApplication::sharedApplication(marker).deactivate();
+            }
+        });
+    });
+}
+
 fn main() {
     let started = Instant::now();
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         // updater:前端经 @tauri-apps/plugin-updater 检查/下载/安装;签名公钥见 tauri.conf.json
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -166,9 +184,38 @@ fn main() {
                 next_id: AtomicU64::new(1),
             });
             pump_task(app.handle().clone(), rx);
+            // 静默启动(10-03-quiet-launch):主窗口 visible:false 出厂,Dock 点击
+            // (RunEvent::Reopen)或对运行中实例再 open -a 才亮出。dev 构建与
+            // MYIA_SHOW_ON_START=1 例外照旧启动即显示(open 不透传 shell env,
+            // 发布包自动化验证须直跑二进制或 open 两次)。
+            let show_on_start =
+                cfg!(debug_assertions) || std::env::var_os("MYIA_SHOW_ON_START").is_some();
+            if show_on_start {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            } else {
+                #[cfg(target_os = "macos")]
+                yield_focus_after_silent_start(app.handle().clone());
+            }
             eprintln!("desktop: sidecar(serve) spawned in {} ms", started.elapsed().as_millis());
             Ok(())
         })
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("tauri application failed to start");
+    app.run(|app, event| {
+        // Dock 图标点击 / 对运行中实例再 open -a:静默启动藏起的主窗口在此时亮出
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Reopen {
+            has_visible_windows: false,
+            ..
+        } = event
+        {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }
+    });
 }
