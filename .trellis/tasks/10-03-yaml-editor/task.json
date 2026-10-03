@@ -3,7 +3,7 @@
   "name": "yaml-editor",
   "title": "桌面端 YAML 配置编辑器:品类 YAML 可视化查看与编辑",
   "description": "桌面端新增 YAML 编辑模块:左侧品类文件列表 + 语法高亮编辑器(CodeMirror 6),配套 sidecar 协议扩展 yaml.list/read/validate/save(原子写+备份+load_category 同门校验+路径围栏);补上缺口普查 C11(yaml.write 泛化缺失)与 C13(源无增删改)的交汇缺口;探查结论:UI 模块形态落地,不做 myia-* 插件(插件系统是数据源场景,无 UI 插件机制)",
-  "status": "in_progress",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -15,12 +15,12 @@
   "branch": "main",
   "base_branch": "main",
   "worktree_path": null,
-  "commit": null,
+  "commit": "c74eda0+cf0eb32",
   "pr_url": null,
   "subtasks": [],
   "children": [],
   "parent": null,
   "relatedFiles": [],
-  "notes": "",
+  "notes": "2026-10-03 交付转 review:实现主体经并行批次 b4e2787 入库,收尾件 c74eda0(缺口用例/幻影依赖/协议 spec/prd 勾选),GUI 无头冒烟收口 cf0eb32(验收 13/13,截图证据本机 .zcode/smoke/yaml-editor/ 忽略不入库)。并行会话在场,状态直改 task.json(禁 task.py finish,踩踏在案);归档走 archive-review 批次。关联:10-03-yaml-toggle-comments(根治,P2 独立)、10-03-shared-build-races(环境债,P2)、PROTOCOL_VERSION bump 归 feed-ux。",
   "meta": {}
 }
