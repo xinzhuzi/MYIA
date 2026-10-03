@@ -260,6 +260,10 @@
      {
       "mode": "immediate",
       "when": "price >= 10000"
+     },
+     {
+      "mode": "digest",
+      "when": "price > 0"
      }
     ],
     "target": "env:FEISHU_CHAT_ID",
@@ -278,7 +282,8 @@
       "url": "h3 a@href"
      },
      "item": "div.list-item",
-     "type": "list"
+     "type": "list",
+     "url_template": null
     },
     "headers": {
      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
