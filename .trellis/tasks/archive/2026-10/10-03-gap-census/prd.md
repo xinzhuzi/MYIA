@@ -60,7 +60,7 @@
 | D1 | .github/workflows/ci.yml | Rust(src-tauri)push/PR 零编译检查,仅 tag 发版才首次编译——PR 弄坏 Rust 代码 CI 依旧全绿 | P2 |
 | D2 | ci.yml;pyproject.toml | 无任何 lint/类型门禁(ruff/mypy 步骤与配置均无) | P2 |
 | D3 | tests/(无 __init__.py) | 裸 `pytest` 本地跑必假红:`tests/test_baseline.py:789 from tests.conftest import` 依赖 cwd 进 sys.path,只有 `python -m pytest` 可跑;**v111 implement.md 步骤 1 写的恰是失败跑法** `uv run pytest` | P2 |
-| D4 | desktop/myia.spec:9 | PyInstaller 过期生成物入库且含机器绝对路径 `/Users/zhengbingjin/...`(build-sidecar.sh:99-104 每次重新生成,入库副本纯噪声) | P2 |
+| D4 | desktop/myia.spec:9 | PyInstaller 过期生成物入库且含机器绝对路径 `~/...`(build-sidecar.sh:99-104 每次重新生成,入库副本纯噪声) | P2 |
 | D5 | desktop/src-tauri/tauri.conf.json:28 | externalBin 的 binaries/ 被 gitignore 且未配 beforeDevCommand:fresh clone 不先跑 build-sidecar.sh 则 `tauri dev` 直接挂 | P2 |
 | D6 | desktop-release.yml:96-99 | tag 版本只合并进 tauri.release.conf.json,package.json/pyproject 不随 tag 提升——首个 tag 后桌面版本与包版本必然漂移 | P2(设计使然,留意) |
 | E1 | CONTRIBUTING.md:89 | "时间类逻辑用 freezegun" 约定 vs 实际:freezegun 非依赖、测试刻意自建 FakeClock(tests 自注 "no freezegun needed") | P3 |

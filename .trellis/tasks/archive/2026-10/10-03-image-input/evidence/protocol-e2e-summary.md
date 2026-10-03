@@ -39,7 +39,7 @@
       | channel_default: cloud
       | local:
       |   base_url: http://127.0.0.1:8080/v1
-      |   model: /Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx
+      |   model: ~/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx
       | cloud:
       |   base_url: https://open.bigmodel.cn/api/paas/v4
       |   model: glm-4v-flash

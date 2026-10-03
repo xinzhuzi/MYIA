@@ -225,3 +225,9 @@
 - 弹窗(源管理行内 modal)无头冒烟 9/9:开窗加载 stocks.yaml 原文(schedule 第 28 行+注释可见)→CM 内精确改行→Meta+S→「已保存·mtime 基线已更新|doctor 复核通过」→ESC 关闭→源管理表自动刷新(health 二次拉取)→git diff 恰 1 增 1 删→还原;bridge 全跳日志(bridge-req/sidecar-out/bridge-resp)逐帧对齐
 - 排障三次假阴性教训(产品零 bug):①成功判据选择器「text=/已保存|doctor 复核/」撞上 sources 屏背景文案「doctor 复核往返一致」秒匹配→假阳性跳过诊断分支;②ESC 触发的原生 window.confirm 会阻塞页面 JS 事件循环——挂起中的 fetch 回调在 confirm 期间不跑,[rpc] 日志失踪即此;③判定要以 RPC 轨迹([rpc]/bridge 日志)与磁盘 diff 为准,DOM 文案选择器只做辅助
 - 前情:sidecar 直连探针(相对/绝对路径×读后存×全序列重放)全部秒回,早排除产品侧;bridge id 配对+120s 兜底本身健全
+
+## 2026-10-03 公开仓私有信息清扫(task 10-03-public-leak-sweep,review 休止;dwfrun-0cb2078c)
+
+- 主人令「按建议做完它」起 /workflow 动态工作流:初扫 git grep -i -E 四词(私有应用名/私有仓库名/用户名/真实姓名)88 处 → 分类员全判 leak → 13 文件并行泛化(~相对化+LOCAL-NOTES 指针)+档案员登记真实指针 → 复扫归零门禁 → 独立复核通过;heavy 命中在 image-input 的三份 e2e transcript jsonl(74 处)
+- **主会话两处人工兜底**:①工作流把 desktop/myia-core.spec 的绝对路径盲改 '~/…' 字面量——spec 是 Python,~ 不展开必炸构建;该 spec 实为无消费方的历史手写件(build-sidecar.sh 走 CLI 现生成),改用 SPECPATH 相对化修复,顺手治好「只在本机能 build」旧病(py_compile 过);②修复员越权抢写 LOCAL-NOTES 致双条目,已合并去重(期间误删 MYStudio 指针条目一次,即补)
+- 边界(报告已列 notCovered):已 push 历史提交中的旧泄漏仍在,重写需 force-push=主人门禁;未跟踪本机文件与模式外形态不扫。教训入档:①「泛化口径」机械套用到可执行文件(spec/py)须先判语义,~ 字面量≠路径展开;②git grep 门禁接管道会吞 exit code(head 后 $? 是 head 的),正规跑法无管道取码

@@ -7,7 +7,7 @@
 
 | 项 | 值 |
 |---|---|
-| 模型路径 | `/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx` |
+| 模型路径 | `~/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx` |
 | 服务地址 | `http://127.0.0.1:8080/v1/chat/completions`(OpenAI 兼容,无需鉴权) |
 | model 字段 | 上述模型路径全称 |
 | 冒烟 | HTTP 200 + 中文详细描述,✅ 通过 |
@@ -19,7 +19,7 @@
 
 ### ① 键名重映射(~60s)
 
-源:`/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui/models/text_encoders/qwen3vl_8b_bf16.safetensors`(17,534,334,616 字节,ComfyUI 导出,键缺 `language_model` 中缀)。
+源:`~/Library/Application Support/另一私有应用/comfyui/models/text_encoders/qwen3vl_8b_bf16.safetensors`(17,534,334,616 字节,ComfyUI 导出,键缺 `language_model` 中缀)。
 照 SKILL.md 脚本仅改 safetensors 头(权重字节原样拷贝),`model.layers.*`→`model.language_model.layers.*`、`embed_tokens`/`norm` 同法。自检输出:
 
 ```
@@ -71,7 +71,7 @@ nohup uvx --from mlx-vlm mlx_vlm.server \
   --host 127.0.0.1 --port 8080 > /tmp/qwen3vl_server.log 2>&1 &
 # 就绪判据:日志出现 "Uvicorn running on http://127.0.0.1:8080" 且 lsof 见 LISTEN
 # 调用:POST http://127.0.0.1:8080/v1/chat/completions
-#   model = "/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx"
+#   model = "~/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx"
 #   图片放 messages[0].content[].image_url.url = "data:image/png;base64,…"
 # 停服:pkill -f mlx_vlm.server
 ```

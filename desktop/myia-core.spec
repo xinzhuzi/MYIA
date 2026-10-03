@@ -1,8 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
 from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('/Users/zhengbingjin/Project/Github/MYIA/myia-classifier/myia_classifier/data/keywords.json', 'myia_classifier/data')]
+# SPECPATH = spec 所在目录(desktop/);仓库根取其上一级——路径相对化,
+# 任何机器 checkout 后 pyinstaller myia-core.spec 均可跑(不再依赖本机绝对路径)。
+_REPO_ROOT = os.path.dirname(SPECPATH)
+datas = [(os.path.join(_REPO_ROOT, 'myia-classifier', 'myia_classifier', 'data', 'keywords.json'), 'myia_classifier/data')]
 binaries = []
 hiddenimports = ['myia.secrets']
 hiddenimports += collect_submodules('myia')
@@ -15,7 +19,7 @@ datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
-    ['/Users/zhengbingjin/Project/Github/MYIA/desktop/entry.py'],
+    [os.path.join(SPECPATH, 'entry.py')],
     pathex=[],
     binaries=binaries,
     datas=datas,

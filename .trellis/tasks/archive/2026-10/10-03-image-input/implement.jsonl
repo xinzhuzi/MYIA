@@ -2,4 +2,4 @@
 {"file": ".trellis/spec/python/error-handling.md", "reason": "ProtocolError 结构化错误契约,image.*/vision.* 新错误码需对齐"}
 {"file": ".trellis/spec/domain/security-baseline.md", "reason": "凭据铁律:云端 vision api_key 只入钥匙链,vision.yaml 明文拒载"}
 {"file": ".trellis/spec/guides/index.md", "reason": "Cross-Layer Thinking Guide:新增 RPC 方法/配置字段前必读(协议双侧同步)"}
-{"file": "/Users/zhengbingjin/.zcode/skills/local-ocr/SKILL.md", "reason": "引擎蓝图:Vision OCR 置信度门、mlx-vlm Qwen3-VL-8B 启动配方、GLM 云端校对 prompt 均为本机实跑验证"}
+{"file": "~/.zcode/skills/local-ocr/SKILL.md", "reason": "引擎蓝图:Vision OCR 置信度门、mlx-vlm Qwen3-VL-8B 启动配方、GLM 云端校对 prompt 均为本机实跑验证"}

@@ -29,7 +29,7 @@ MYIA 是情报中枢不是聊天助手(五屏无输入框),「看图」落成**�
 ### 本机环境实况(2026-10-03 探测)
 
 - **无 Ollama**;**LM Studio 已装**(`~/.lmstudio`,models:Qwen / lmstudio-community / orcarouter);tesseract 有(homebrew)但引外部二进制不作默认
-- **本机视觉底座**:`漫影工作室/comfyui/.../text_encoders/qwen3vl_8b_bf16.safetensors` 在盘——local-ocr 技能 2026-09-30 实跑验证过整条链:转 MLX → `mlx_vlm.server` → `http://127.0.0.1:8080/v1/chat/completions`(OpenAI 兼容)→ 中文逐字全对(13s 读字/33s 描述);`/tmp` 的转换产物已清,**需一次性重转到常驻路径**
+- **本机视觉底座**:`另一私有应用/comfyui/.../text_encoders/qwen3vl_8b_bf16.safetensors` 在盘——local-ocr 技能 2026-09-30 实跑验证过整条链:转 MLX → `mlx_vlm.server` → `http://127.0.0.1:8080/v1/chat/completions`(OpenAI 兼容)→ 中文逐字全对(13s 读字/33s 描述);`/tmp` 的转换产物已清,**需一次性重转到常驻路径**
 - **macOS Vision OCR**:Swift+Vision 毫秒级、zh-Hans+en-US、每行置信度(任一行 ≤0.5 触发升二级)——已在本机长期实跑
 - **RapidOCR 实跑(2026-10-03 本会话)**:uv 临时环境装 rapidocr-onnxruntime(13 包,下载 ~37MB = onnxruntime 20.5MB + rapidocr 14.2MB 含默认 det/rec/cls 模型,零模型下载);同一张 3840×2160 截图 **85 行 / 0.75s**,中文行分数 0.95-1.00;Vision 同图 ~1s,顶部条目两引擎识别一致——**双引擎对照成立**。注意:两者置信度刻度不同(Vision 有 0.30-1.0 真实分布,RapidOCR 普遍 ≥0.9),≤0.5 警示阈值主要对 Vision 有意义,属刻度特性不是缺陷
 - **云端视觉实测存档**(local-ocr 技能):`glm-4.6v`/`glm-5.3-flash` 逐字全对;`glm-4.5v` 错读勿用;智谱账户曾报 1113 余额不足(2026-09-30),云端联调前需主人确认账户可用

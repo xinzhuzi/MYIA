@@ -1,6 +1,6 @@
 AC2 零出网采样(r2 复测,describe 真图全程;方法同 zero-egress-sample2.txt):
 
-pid=85005 85005 zhengbingjin   21u  IPv4 0x1f8758660aa0529c      0t0  TCP 127.0.0.1:54914->127.0.0.1:7897 (ESTABLISHED)
-pid=85005 85005 zhengbingjin   28u  IPv4 0xef51d9b730dfe971      0t0  TCP 127.0.0.1:54918->127.0.0.1:7897 (ESTABLISHED)
+pid=85005 85005 user   21u  IPv4 0x1f8758660aa0529c      0t0  TCP 127.0.0.1:54914->127.0.0.1:7897 (ESTABLISHED)
+pid=85005 85005 user   28u  IPv4 0xef51d9b730dfe971      0t0  TCP 127.0.0.1:54918->127.0.0.1:7897 (ESTABLISHED)
 
 非 loopback 对端: 无

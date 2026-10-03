@@ -29,7 +29,7 @@ desktop-release.yml 才第一次编译(普查档 D1/B1 行);Python 侧零 lint/�
 | D1 | .github/workflows/ci.yml:9-44 | push/PR 对 desktop/src-tauri 零编译检查,PR 弄坏 Rust 代码 CI 依旧全绿 | ci.yml 全文仅两 job(本档核实);仅 tag 才编译=普查档 D1/B1 行;Cargo.toml:1-27(rust-version 1.77) | **核心**:新增 rust-check job |
 | D2 | .github/workflows/ci.yml;pyproject.toml:37-51 | 零 lint 门禁:CI 无 ruff 步骤,pyproject 无 [tool.ruff],dev 组仅 pytest | pyproject.toml:38;实测 498 错/最小集 0 错(见背景) | **核心**:ruff 最小 select 进 CI+本地;mypy 仅评估 |
 | D3 | tests/test_baseline.py:789 | 裸 `pytest` 假红(v111 implement.md 教的 `uv run pytest` 跑法必炸) | **已修**:718d56c 改回 `from conftest import` 并注明 prepend 语义;提交信息载明双跑法 1397 绿 | **不立项**;仅补防回归注记+回标普查档 |
-| D4 | desktop/myia.spec:9 | PyInstaller 过期生成物入库,含机器绝对路径 `/Users/zhengbingjin/…/entry.py`;build-sidecar.sh:99-104 的 pyinstaller 调用 `--specpath "$SPIKE_DIR"`(SPIKE_DIR=脚本所在 desktop/ 目录,定义于 15 行)每次重新生成,入库副本纯噪声 | myia.spec:9;全仓 grep 除 .trellis 外零引用(本档核实) | 顺风车(可选):直接删 |
+| D4 | desktop/myia.spec:9 | PyInstaller 过期生成物入库,含机器绝对路径 `~/…/entry.py`;build-sidecar.sh:99-104 的 pyinstaller 调用 `--specpath "$SPIKE_DIR"`(SPIKE_DIR=脚本所在 desktop/ 目录,定义于 15 行)每次重新生成,入库副本纯噪声 | myia.spec:9;全仓 grep 除 .trellis 外零引用(本档核实) | 顺风车(可选):直接删 |
 | D5 | desktop/src-tauri/tauri.conf.json:6-10,28 | externalBin 指向被 gitignore 的 binaries/(.gitignore:67),build 段只有 beforeBuildCommand 无 beforeDevCommand:fresh clone 不先跑 build-sidecar.sh 则 `tauri dev` 直接挂且无提示 | tauri.conf.json:28;desktop/package.json:7 已有 `sidecar` 脚本可挂 | 顺风车(可选):beforeDevCommand 或文档提示 |
 
 ### D1 实施口径
