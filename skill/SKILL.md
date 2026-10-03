@@ -114,12 +114,14 @@ stderr(整份 stdout 恒可 `json.load`)。退出码:`0` 成功 / `1` 配置或�
 |---|---|---|
 | `type` | `必填` | `list` = HTML 列表项;`item` = 单页;`json_path` = JSON API |
 | `item` | `null` | `type: list` 时每条目的容器 CSS 选择器(该类型必填;其余类型禁写) |
-| `fields` | `必填` | 字段名 → 选择器/JSONPath 的映射,至少 1 个;`list`/`json_path` 类型**必须含 `url`**(去重键依赖 URL) |
+| `url_template` | `null` | 条目 URL 渲染模板,`{field}` 纯占位(与 `dedup.key` 同款语法,至少一个占位符,且**必须在 `fields` 字段名内——装载期交叉校验,拼错即拒**),提取出口逐条渲染并填入 `url`;仅 `list`/`json_path` 可配(`item` 单页源条目 url 即请求 URL,配即拒);运行期单条目占位缺「值」→ url 置空串、该条目被管线按 `invalid_item` 拒掉(不入库);与 `fields` 里的 `url` 二选一,**都有 = `url` 字段胜出、模板静默不用** |
+| `fields` | `必填` | 字段名 → 选择器/JSONPath 的映射,至少 1 个;`list`/`json_path` 类型**必须含 `url` 或配 `url_template`**(二选一;去重键依赖 URL) |
 
 选择器语法:L1/L2 用 CSS(item 内相对选择器,`a@href` 取属性,相对 URL 自动按页面地址补全);
 `json_path` 用 `$` 路径(`$.chart.result[0].meta.price`、`$[*].keyword` 通配)。
-已知缺口:`json_path` 表达不了「条目 URL = 请求 URL」,此类 API 用稳定业务字段
-(如 symbol)充当 `url` 字段(官方 `plugins/stocks.yaml` 即此写法)。
+响应没有页面 URL 只有 slug/appid 的 API(Epic/Steam 形态)用 `url_template` 渲染条目链接
+(官方 `plugins/games.yaml` 即此写法);`json_path` 仍表达不了「条目 URL = 请求 URL」,
+此类 API 用稳定业务字段(如 symbol)充当 `url` 字段(官方 `plugins/stocks.yaml` 即此写法)。
 
 ### 2.6 sources[].rate_limit(RateLimitConfig)
 
@@ -418,8 +420,9 @@ findings → 修复动作对照:
 3. `sources` 至少 1 个;每个 `url` 是 http(s);`method: POST` 配了 `post_body`,
    `GET` 没配;`pagination.mode: template` 时 url 含 `{page}`;`mode: selector`
    给了 `selector`。
-4. `extract.type: list` 给了 `item`;`list`/`json_path` 的 `fields` 里有 `url`;
-   完全没写 `extract` 时引擎选了 L3+(自动结构化)。
+4. `extract.type: list` 给了 `item`;`list`/`json_path` 的 `fields` 里有 `url`
+   或配了 `extract.url_template`(二选一);完全没写 `extract` 时引擎选了 L3+
+   (自动结构化)。
 5. 所有凭据类键(Cookie/Authorization/Token/Secret/Password/ApiKey/Session 等,
    含子串匹配)的值都是 `env:` / `keychain:myia/<scope>/<name>` 引用;
    `push[].target` 除 `stdout` 外都已写引用;没出现任何明文凭据。

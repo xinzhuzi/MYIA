@@ -127,14 +127,17 @@ extract:
 |---|---|---|
 | `type` | required | `list` = repeated HTML items; `item` = single page; `json_path` = JSON API |
 | `item` | `null` | Per-item container CSS selector for `type: list` (required there; forbidden elsewhere) |
-| `fields` | required | field name → selector/JSONPath, at least 1; `list`/`json_path` **must include `url`** |
+| `url_template` | `null` | Per-item URL template, plain `{field}` placeholders (at least one, and each must name a key of `fields` — load-time cross-check, typos are refused), rendered into `url` at the extraction outlet; allowed on `list`/`json_path` only (refused on `item` single-page extracts — the item URL is the request URL); a placeholder field missing its *value* on one element → empty url for that item, which the pipeline then rejects as `invalid_item` (never stored with a broken link); either/or with the `url` field — both declared = the `url` field wins, the template is silently unused |
+| `fields` | required | field name → selector/JSONPath, at least 1; `list`/`json_path` **must include `url` or declare `url_template`** (either/or) |
 
 Selector grammar: L1/L2 use CSS (relative to the item; `a@href` reads an
 attribute; relative URLs resolve against the page); `json_path` uses `$`
-paths (`$.chart.result[0].meta.price`, `$[*].keyword` wildcards). Known gap:
-`json_path` cannot express "item URL = the request URL" — such APIs use a
-stable business field as `url` (official `plugins/stocks.yaml` does exactly
-this).
+paths (`$.chart.result[0].meta.price`, `$[*].keyword` wildcards). APIs whose
+payload has no page URL, only a slug or numeric id (the Epic/Steam shape),
+render item links via `url_template` (official `plugins/games.yaml` does
+exactly this). Known gap: `json_path` cannot express "item URL = the request
+URL" — such APIs use a stable business field as `url` (official
+`plugins/stocks.yaml` does exactly this).
 
 rate_limit:
 
@@ -398,7 +401,8 @@ error types:
 | `invalid_value` | value outside the enum vocabulary (the legal values are listed) |
 | `title_fingerprint_forbidden` | `dedup.key` uses `{title}` |
 | `invalid_dedup_key` | the dedup key has no placeholder, or a placeholder cannot be rendered by any source |
-| `missing_url_field` | `extract.fields` lacks `url` (required for `list`/`json_path`) |
+| `missing_url_field` | `extract.fields` lacks `url` and no `url_template` is set (`list`/`json_path` need one of the two) |
+| `invalid_url_template` / `unexpected_url_template` | `url_template` has no placeholder or names a field outside `fields` / set on an `item` single-page extract |
 | `unexpected_transport_field` | `timeout`/`retries`/`retry_backoff_seconds` on a non-webhook channel |
 
 ## Consistency guarantees

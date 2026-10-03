@@ -528,11 +528,44 @@ class ExtractConfig(_StrictModel):
     selectors); ``item`` scrapes a single page; ``json_path`` reads JSON
     APIs. Without ``extract`` at all, L3+ engines auto-structure (schema
     keeps it ``None``).
+
+    ``url_template`` (D1, task 10-03-games): when the payload carries no
+    clickable page URL (only a slug / numeric id — Epic freeGamesPromotions,
+    Steam featuredcategories), the per-item ``url`` is rendered from
+    ``{field}`` placeholders at the extraction outlet
+    (:func:`myia.engines.fetch_base.extract_json` / ``extract_html``)
+    instead of being read from ``fields``. This closes the gap stocks.yaml
+    documented as「json_path cannot express "item URL = f(field)"」: the
+    ``url`` field remains the stable-identity fallback, ``url_template``
+    renders a real link. Either/or with the ``url`` field (both declared →
+    the ``url`` field wins, the template is silently unused); rejected on
+    ``item`` extracts (single-page source: the item URL *is* the request
+    URL). Placeholders must name keys of ``fields`` — load-time cross-check
+    with the same rationale as the dedup-key check: a typo'd placeholder
+    would render every item's url empty and the pipeline would silently
+    reject the whole source as ``invalid_item``. A field missing *values* on
+    some elements (Epic ``urlSlug: null``) is the normal render-time path:
+    that item's url renders empty and is dropped with a visible failure
+    record, the rest of the source is unaffected.
     """
 
     type: ExtractType
     item: str | None = Field(default=None, min_length=1)
+    #: 条目 URL 渲染模板,``{field}`` 纯占位(与 dedup.key 同款迷你模板语义,
+    #: 装载期至少一个占位符);仅 ``list`` / ``json_path`` 可配。
+    url_template: str | None = Field(default=None, min_length=1)
     fields: dict[str, str] = Field(min_length=1)
+
+    @field_validator("url_template")
+    @classmethod
+    def _check_url_template_placeholders(cls, value: str | None) -> str | None:
+        """至少一个 ``{field}`` 占位符(纯占位语法,_PLACEHOLDER_RE 同款)。"""
+        if value is not None and not _PLACEHOLDER_RE.search(value):
+            raise SchemaValueError(
+                "invalid_url_template",
+                f"extract.url_template 至少要包含一个占位符(如 {{url_slug}}),当前为 {value!r}",
+            )
+        return value
 
     @model_validator(mode="after")
     def _check_shape(self) -> "ExtractConfig":
@@ -548,10 +581,31 @@ class ExtractConfig(_StrictModel):
                 "extract.type 为 list 时必须提供 item 选择器",
                 path_suffix="item",
             )
-        if self.type in ("list", "json_path") and "url" not in self.fields:
+        if self.type == "item" and self.url_template is not None:
+            raise SchemaValueError(
+                "unexpected_url_template",
+                "extract.url_template 仅在 type 为 list/json_path 时有效(单页源条目 url 即请求 URL,无需模板)",
+                path_suffix="url_template",
+            )
+        if self.url_template is not None:
+            # 占位符-字段交叉校验(同 _check_dedup_key_fields 的设计动机:
+            # AI 生成质量问题要在加载期可检出)。拼错的占位符装载通过的话,
+            # 运行期每个条目都渲染成空 url、整源被管线逐条拒成 invalid_item
+            # ——静默整源全灭。逐条目的缺「值」(如 Epic urlSlug=null 元素)不
+            # 在此列:那是渲染层按缺字段处理的正常路径(条目被拒、其余照常)。
+            missing = set(_PLACEHOLDER_RE.findall(self.url_template)) - set(self.fields)
+            if missing:
+                raise SchemaValueError(
+                    "invalid_url_template",
+                    f"extract.url_template 占位符 {sorted(missing)} 不在 extract.fields"
+                    f"({sorted(self.fields)})中:运行期将恒渲染为空 url、整源条目被拒",
+                    path_suffix="url_template",
+                )
+        if self.type in ("list", "json_path") and "url" not in self.fields and not self.url_template:
             raise SchemaValueError(
                 "missing_url_field",
-                "extract.fields 必须包含 url 字段(去重键依赖 URL,禁止标题指纹)",
+                "extract.fields 必须包含 url 字段,或提供 extract.url_template 渲染条目 URL"
+                "(二者必居其一;去重键依赖 URL,禁止标题指纹)",
                 path_suffix="fields",
             )
         return self

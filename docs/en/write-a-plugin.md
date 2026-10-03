@@ -59,7 +59,7 @@ error carries the field path):
 
 | Layer | Engine | Use when | Cost / prerequisite |
 |---|---|---|---|
-| L1 | `direct_api` | the data has a public JSON/REST API (quotes, releases, community REST) | fastest and cheapest; `extract.type: json_path`; curl the endpoint to confirm the shape before writing fields |
+| L1 | `direct_api` | the data has a public JSON/REST API (quotes, releases, community REST) | fastest and cheapest; `extract.type: json_path`; curl the endpoint to confirm the shape before writing fields; when the payload carries no page URL, render item links with `extract.url_template` from `{field}` placeholders (see plugins/games.yaml) |
 | L2 | `static_html` | server-rendered HTML (forum lists, news pages) | zero deps; `extract.type: list` + CSS selectors |
 | L3 | `crawl4ai` | JS-rendered pages — the data is not in the page source | optional dep `myia[crawl4ai]`; when missing, `dependency_missing` and the chain continues; without `extract` it auto-structures |
 | L3' | `firecrawl` | cloud alternative to crawl4ai | needs endpoint+key (`MYIA_FIRECRAWL_URL` / `MYIA_FIRECRAWL_API_KEY`, or `engine_options.firecrawl.endpoint/api_key` references); unconfigured → this rung fails and the chain continues |

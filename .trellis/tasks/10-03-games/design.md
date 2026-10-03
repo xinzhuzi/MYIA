@@ -168,9 +168,15 @@ implement 阶段为准。)
 
 ## 4. 风险与缓解
 
-- **R1 Epic urlSlug 为 None 的元素**:url 渲染为空 → 条目入库但链接差。
+- **R1 Epic urlSlug 为 None 的元素**:url 渲染为空。
   缓解:v1 接受(缺注);后继可加 productSlug 兜底字段(需字符串清理,
   json_path 无字符串操作,得靠 url_template 多占位或 python 侧,不进本任务)。
+  **实施期质检修正(2026-10-03)**:核订 pipeline.py `Item.from_extracted`
+  对空/缺 url 抛 ValueError → 该条目在 fetch 阶段记 `invalid_item` 失败后
+  丢弃,**不是**「条目入库但链接差」——实际损失面更小(丢那一条情报,
+  不产生坏链接行),「v1 接受」结论不变;所有文档锁定面已按实际行为改写。
+  同轮加占位符-字段装载期交叉校验(字段名拼错即拒,防 AI 写错 = 静默整源
+  全灭,同 dedup.key 先例)。
 - **R2 Steam 特惠轮换下架**:条目自然消失,retention 90d 清尾,无需特判。
 - **R3 API 变更**:fixture 钉形状,变了测试即红,维护面小;两家 API 均
   多年稳定(Epic 免费游戏页官方数据通道、Steam featured 官方接口)。

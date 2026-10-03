@@ -474,6 +474,101 @@ def test_content_hash_raw_bytes_when_no_text():
     assert normalize_text("x")  # keep import used
 
 
+# ------------------------------------------------- extract.url_template(D1, 10-03-games)
+
+
+def test_extract_json_renders_url_template_from_item_fields():
+    """字段齐 → URL 拼对;int 字段(steam_id 形态)渲染成字符串。"""
+    from myia.engines.fetch_base import extract_json
+    from myia.schema import ExtractConfig
+
+    data = {"apps": [
+        {"name": "The Outlast Trials", "id": 1593500, "final_price": 1360},
+        {"name": "深埋之星", "id": 1130, "final_price": 0},
+    ]}
+    extract = ExtractConfig(
+        type="json_path",
+        url_template="https://store.steampowered.com/app/{steam_id}",
+        fields={
+            "title": "$.apps[*].name",
+            "steam_id": "$.apps[*].id",
+            "final_price": "$.apps[*].final_price",
+        },
+    )
+    items = extract_json(data, extract)
+    assert [item["url"] for item in items] == [
+        "https://store.steampowered.com/app/1593500",  # int → str
+        "https://store.steampowered.com/app/1130",
+    ]
+    assert items[0]["title"] == "The Outlast Trials"
+
+
+def test_extract_json_missing_placeholder_field_yields_empty_url():
+    """逐条目占位缺「值」(如 Epic urlSlug=null 元素)→ url 置空串、提取层
+    不抛其余条目照常;该空 url 条目随后在管线 fetch 阶段被记 invalid_item
+    丢弃(不带坏链接入库——design R1 修正口径)。注意与装载期交叉校验的
+    分工:字段名拼错在 schema 装载期即拒,到不了这里。"""
+    from myia.engines.fetch_base import extract_json
+    from myia.schema import ExtractConfig
+
+    data = {"elements": [
+        {"title": "无 slug 条目"},  # urlSlug 为 None 的元素(实测 Epic 形态)
+        {"title": "有 slug 条目", "urlSlug": "buried-stars"},
+    ]}
+    extract = ExtractConfig(
+        type="json_path",
+        url_template="https://store.epicgames.com/zh-CN/p/{url_slug}",
+        fields={
+            "title": "$.elements[*].title",
+            "url_slug": "$.elements[*].urlSlug",
+        },
+    )
+    items = extract_json(data, extract)
+    assert [item["url"] for item in items] == [
+        "",  # 占位缺值 → 空串(提取层保留;管线随后按 invalid_item 拒掉该条)
+        "https://store.epicgames.com/zh-CN/p/buried-stars",
+    ]
+
+
+def test_extract_json_url_field_value_wins_over_template():
+    """都有 = url 字段值胜出,模板静默不用(schema/implement 步骤 1 同款定死)。"""
+    from myia.engines.fetch_base import extract_json
+    from myia.schema import ExtractConfig
+
+    data = {"apps": [{"name": "以 symbol 为稳定键的 API", "symbol": "NVDA"}]}
+    extract = ExtractConfig(
+        type="json_path",
+        url_template="https://example.com/app/{symbol}",
+        fields={"title": "$.apps[*].name", "url": "$.apps[*].symbol", "symbol": "$.apps[*].symbol"},
+    )
+    items = extract_json(data, extract)
+    assert items[0]["url"] == "NVDA"  # fields 抽出的 url 原样保留
+
+
+def test_extract_html_renders_url_template_for_list_type():
+    """list 提取同样走模板出口:href 不可得的列表页用 slug 字段构 URL。"""
+    from myia.engines.fetch_base import extract_html
+    from myia.schema import ExtractConfig
+
+    html = (
+        "<html><body>"
+        "<div class='deal'><a class='t'>深埋之星</a><span class='s'>buried-stars</span></div>"
+        "<div class='deal'><a class='t'>无 slug</a></div>"
+        "</body></html>"
+    )
+    extract = ExtractConfig(
+        type="list",
+        item="div.deal",
+        url_template="https://store.epicgames.com/zh-CN/p/{slug}",
+        fields={"title": "a.t", "slug": "span.s"},
+    )
+    items = extract_html(html, extract)
+    assert [item["url"] for item in items] == [
+        "https://store.epicgames.com/zh-CN/p/buried-stars",
+        "",
+    ]
+
+
 # ---------------------------------------------------------------------------
 # 真实源 smoke(PRD 10-01-v01-fetch-base):手动可选执行,CI 不依赖外网。
 # ---------------------------------------------------------------------------

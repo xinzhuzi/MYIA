@@ -1,6 +1,6 @@
 """Official plugin YAMLs validated end-to-end (PRD 10-01-v01-plugins-official).
 
-The three rewritten plugins are the schema's acceptance sample: every file
+The rewritten plugins are the schema's acceptance sample: every file
 must load through :func:`myia.schema.load_category_file` (which forbids
 unknown fields and plaintext credentials by construction), declare all twelve
 sections explicitly, keep the two-tier push route (immediate + digest), and
@@ -8,6 +8,10 @@ render its push template against representative items. Extraction configs are
 additionally exercised against minimal HTML/JSON snippets mirroring the
 verified live markup (engines use recorded/replayed shapes — no test hits the
 network except the opt-in smoke at the bottom).
+
+games (task 10-03-games) joined the battery: its two official-API sources
+have no page URL in the payload (only urlSlug / numeric id), so the snippet
+tests also pin the extract.url_template rendering at the extraction outlet.
 """
 
 import asyncio
@@ -23,13 +27,13 @@ from myia.classify import rules_from_config
 from myia.engines.fetch_base import extract_html, extract_json
 from myia.pipeline import Pipeline
 from myia.push.base import SendContext
-from myia.push.route import routes_from_config
+from myia.push.route import resolve_route, routes_from_config
 from myia.push.templates import TemplateRenderer
 from myia.schema import ClassifyConfig, LoadError, SourceConfig, load_category, load_category_file
 from myia.store import SQLiteStore
 
 PLUGINS_DIR = Path(__file__).resolve().parents[1] / "plugins"
-OFFICIAL_PLUGINS = ("stocks", "ai-news", "wool")
+OFFICIAL_PLUGINS = ("stocks", "ai-news", "wool", "games")
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +136,50 @@ def test_wool_declares_seven_source_slots():
     assert all(source.engine in ("static_html", "auto") for source in config.sources)
 
 
+def test_games_uses_direct_api_json_path_with_url_template():
+    """10-03-games D1/D6:双源 direct_api + json_path,响应无页面 URL
+    (Epic 只有 urlSlug、Steam 只有数字 id),条目 URL 全靠 url_template
+    渲染;dedup 稳定键 {url}(baseline 价格历史按 dedup_key 存,不能带日期)。"""
+    config = _load("games")
+    assert {source.name for source in config.sources} == {"epic-free", "steam-specials"}
+    for source in config.sources:
+        assert source.engine == "direct_api"
+        assert source.extract is not None and source.extract.type == "json_path"
+        assert source.extract.url_template, "两源响应无页面 URL,url 必须来自模板渲染"
+        assert "url" not in source.extract.fields
+    assert config.dedup.key == "{url}"
+    assert config.classify.builtin is False, "游戏标题不落七大类,内置扫描只会误杀"
+    assert config.baseline is not None and config.baseline.enabled
+    assert config.baseline.fields == ["final_price"], "两家单位同为分,final_price 可直接比"
+
+
+def test_games_free_item_hits_rules_and_immediate_route():
+    """10-03-games D3 零 token 双漏斗:合成限免条目(final_price=0)命中限免
+    规则与 immediate 路由;普通大折扣只进 digest。规则求值对缺字段整条让路,
+    所以两源必须产出同名归一化字段。"""
+    config = _load("games")
+    rules = {
+        rule.tag: rule
+        for rule in rules_from_config([rule.model_dump() for rule in config.classify.rules])
+    }
+    free = {
+        "title": "合成限免", "url": "https://store.epicgames.com/zh-CN/p/synthetic",
+        "final_price": 0, "discount_pct": 0,
+    }
+    discount = {
+        "title": "合成大折扣", "url": "https://store.steampowered.com/app/1",
+        "final_price": 1360, "discount_pct": 90,
+    }
+    assert rules["限免"].evaluate(free) is True
+    assert rules["限免"].evaluate(discount) is False
+    assert rules["半价+"].evaluate(discount) is True
+
+    (push,) = config.push
+    routes = routes_from_config(push.route)
+    assert resolve_route(free, routes).mode == "immediate"
+    assert resolve_route(discount, routes).mode == "digest"
+
+
 # ---------------------------------------------------------------------------
 # Security / policy red lines
 # ---------------------------------------------------------------------------
@@ -215,9 +263,22 @@ def test_plugin_template_renders_with_representative_items(name):
         ],
         "ai-news": [{"title": "公开演示标题", "url": "https://example.com/t/1"}],
         "wool": [{"title": "公开演示标题", "url": "https://example.com/t/2"}],
+        # games 两条覆盖两种字段形态:Epic 限免(price_text 直出)与 Steam
+        # 特惠(无 price_text,模板退 final_price/100)
+        "games": [
+            {"title": "深埋之星", "url": "https://store.epicgames.com/zh-CN/p/buried-stars",
+             "final_price": 0, "original_price": 11600, "discount_pct": 0, "price_text": "0"},
+            {"title": "The Outlast Trials", "url": "https://store.steampowered.com/app/1304930",
+             "final_price": 1360, "original_price": 13600, "discount_pct": 90},
+        ],
     }[name]
     renderer = TemplateRenderer()
-    expected_marker = {"stocks": "NVDA", "ai-news": "公开演示标题", "wool": "公开演示标题"}[name]
+    expected_marker = {
+        "stocks": "NVDA",
+        "ai-news": "公开演示标题",
+        "wool": "公开演示标题",
+        "games": "深埋之星",
+    }[name]
     for push in config.push:
         if push.template is None:
             continue
@@ -282,6 +343,70 @@ _SNIPPETS = {
         "expect_url": "https://sb.sb/t/82/",
         "expect_title": "公开演示标题",
     },
+    # games (10-03-games): both JSON snippets are trimmed from the live
+    # responses recorded on 2026-10-03 under
+    # .trellis/tasks/10-03-games/evidence/ — the item URL is rendered by
+    # extract.url_template (the payload has none), so these pin the D1
+    # extraction-outlet rendering as well as the field mapping.
+    ("games", "epic-free"): {
+        # evidence/epic-free.json elements[9](深埋之星,限免形状:
+        # discountPrice 0 / discountPercentage 0)与 elements[3](幽灵行者 2,
+        # 无当前促销形状:promotionalOffers 空 → discount_pct 逐元素省略)
+        "json": {
+            "data": {"Catalog": {"searchStore": {"elements": [
+                {
+                    "title": "深埋之星",
+                    "urlSlug": "buried-stars",
+                    "price": {"totalPrice": {
+                        "discountPrice": 0, "originalPrice": 11600, "discount": 11600,
+                        "currencyCode": "CNY",
+                        "fmtPrice": {"originalPrice": "¥116.00", "discountPrice": "0",
+                                     "intermediatePrice": "0"},
+                    }},
+                    "promotions": {"promotionalOffers": [{"promotionalOffers": [{
+                        "startDate": "2026-10-01T15:00:00.000Z",
+                        "endDate": "2026-10-08T15:00:00.000Z",
+                        "discountSetting": {"discountType": "PERCENTAGE", "discountPercentage": 0},
+                    }]}], "upcomingPromotionalOffers": []},
+                },
+                {
+                    "title": "《幽灵行者 2》",
+                    "urlSlug": "ghostrunner-2",
+                    "price": {"totalPrice": {
+                        "discountPrice": 16900, "originalPrice": 16900, "discount": 0,
+                        "currencyCode": "CNY",
+                        "fmtPrice": {"originalPrice": "¥169.00", "discountPrice": "¥169.00",
+                                     "intermediatePrice": "¥169.00"},
+                    }},
+                    "promotions": {"promotionalOffers": [], "upcomingPromotionalOffers": []},
+                },
+            ]}}},
+        },
+        "expect_url": "https://store.epicgames.com/zh-CN/p/buried-stars",
+        "expect_title": "深埋之星",
+    },
+    ("games", "steam-specials"): {
+        # evidence/steam-featured.json specials.items[0](The Outlast Trials,
+        # 90% 大折扣形状)与 items[5](How to Fish,38% 不命中半价+ 形状)
+        "json": {"specials": {"id": "specials", "name": "Specials", "items": [
+            {
+                "id": 1304930, "type": 0, "name": "The Outlast Trials", "discounted": True,
+                "discount_percent": 90, "original_price": 13600, "final_price": 1360,
+                "currency": "CNY", "windows_available": True, "mac_available": False,
+                "linux_available": False, "discount_expiration": 1791478800,
+                "controller_support": "full",
+            },
+            {
+                "id": 4001890, "type": 0, "name": "How to Fish", "discounted": True,
+                "discount_percent": 38, "original_price": 3300, "final_price": 2046,
+                "currency": "CNY", "windows_available": True, "mac_available": False,
+                "linux_available": False, "discount_expiration": 1791478800,
+                "controller_support": "full",
+            },
+        ]}},
+        "expect_url": "https://store.steampowered.com/app/1304930",
+        "expect_title": "The Outlast Trials",
+    },
     # v2ex is parked (commented out in wool.yaml, challenge-gated until a
     # firecrawl backend exists) — its extract was never live-verified, so it
     # has no snippet here; re-add one when the source ships.
@@ -327,6 +452,27 @@ def test_plugin_builds_a_pipeline(name):
 # One representative live source per plugin; second-run payloads change the
 # content (new price / new topic) so the fetch-level change fingerprint does
 # NOT swallow the second run — the interception under test is the dedup stage.
+def _epic_free_body(discount_price: int, fmt_price: str) -> dict:
+    """One-element Epic freeGamesPromotions body(trimmed evidence 形状).
+
+    Same urlSlug both runs → same url_template 渲染 → 同一 {url} dedup 键;
+    price 变化让内容指纹不吞掉第二次 run(拦截发生在 dedup 阶段)。
+    """
+    return {"data": {"Catalog": {"searchStore": {"elements": [{
+        "title": "深埋之星",
+        "urlSlug": "buried-stars",
+        "price": {"totalPrice": {
+            "discountPrice": discount_price, "originalPrice": 11600,
+            "discount": 11600 - discount_price, "currencyCode": "CNY",
+            "fmtPrice": {"originalPrice": "¥116.00", "discountPrice": fmt_price},
+        }},
+        "promotions": {"promotionalOffers": [{"promotionalOffers": [{
+            "startDate": "2026-10-01T15:00:00.000Z", "endDate": "2026-10-08T15:00:00.000Z",
+            "discountSetting": {"discountType": "PERCENTAGE", "discountPercentage": 0},
+        }]}], "upcomingPromotionalOffers": []},
+    }]}}}}
+
+
 _TWO_RUN_PLANS: dict[str, dict[str, Any]] = {
     "stocks": {
         "source": "yahoo-chart",
@@ -357,6 +503,13 @@ _TWO_RUN_PLANS: dict[str, dict[str, Any]] = {
             '<div class="post-body"><div class="post-title-row"><a class="post-title" href="/topic/1">公开演示标题</a></div></div>',
             '<div class="post-body"><div class="post-title-row"><a class="post-title" href="/topic/1">公开演示标题</a></div></div>'
             '<div class="post-body"><div class="post-title-row"><a class="post-title" href="/topic/2">新羊毛标题</a></div></div>',
+        ],
+    },
+    "games": {
+        "source": "epic-free",
+        "payloads": [
+            _epic_free_body(0, "0"),            # 限免价 0(实录形状)
+            _epic_free_body(100, "¥1.00"),      # 促销价变了,URL 不变
         ],
     },
 }

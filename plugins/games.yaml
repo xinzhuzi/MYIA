@@ -1,0 +1,131 @@
+# plugins/games.yaml — official plugin: game deal intelligence (折扣/限免)
+# over two public official APIs — Epic weekly freebies + Steam daily specials
+# (task 10-03-games; source evidence 2026-10-03 in
+# .trellis/tasks/10-03-games/evidence/). Same 12-section shape as
+# stocks/gpu-prices with every section explained inline ("AI writes the YAML"
+# reference duty). Load-check any plugin with:
+#   myia run plugins/games.yaml --dry-run --json
+
+id: games
+name: 游戏情报
+
+# 每日 11:00(AM 槽)一跑:Epic 喜加一周四刷新、Steam 特惠每日轮换,每日
+# 一跑全覆盖。长促销会在每个新槽位/新日重推一次(dedup 槽位抑制语义,
+# 窗口期可见性优先,grill 决议⑥);嫌吵调稀 cron(如 0 11 * * 4,6)是
+# 排程旋钮,不动结构。
+schedule: "0 11 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  # Epic 每周限免官方 JSON(zh-CN 标题直出;robots.txt 404 = 无限制)。
+  # 响应元素没有可点的页面 URL(url 恒 None,只有 urlSlug)——这正是
+  # stocks.yaml 注释记录过的 schema 缺口,由 extract.url_template(D1,
+  # 10-03-games)收口:提取出口用 {url_slug} 渲染条目 URL。
+  - name: epic-free
+    engine: direct_api          # L1 JSON API;零成本最快路径
+    url: "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=zh-CN&country=CN&allowCountries=CN"
+    method: GET
+    headers:                    # 无凭据头;honest MYIA UA 用引擎缺省
+      Accept: "application/json"   # (stocks 的 Yahoo 教训:别伪装浏览器头)
+    extract:                    # json_path:字段全部走同一 elements[*] 前缀,
+      type: json_path           # 逐元素提取,缺字段省略不错位(无促销元素
+                                # 自然没有 discount_pct)
+      # 条目 URL = 商店页 + slug;占位符在装载期与 fields 交叉校验(拼错即
+      # 拒载)。偶发 urlSlug=null 的元素 url 渲染为空串,该条目被管线按
+      # invalid_item 记失败后丢弃——不带坏链接入库(design R1 修正口径,
+      # v1 接受该损失面:损失的是那一条情报,不是数据质量)
+      url_template: "https://store.epicgames.com/zh-CN/p/{url_slug}"
+      fields:
+        title: "$.data.Catalog.searchStore.elements[*].title"                                # zh-CN 直出
+        url_slug: "$.data.Catalog.searchStore.elements[*].urlSlug"                           # 构 URL 用
+        final_price: "$.data.Catalog.searchStore.elements[*].price.totalPrice.discountPrice"     # 分(decimals=2);限免=0
+        original_price: "$.data.Catalog.searchStore.elements[*].price.totalPrice.originalPrice"  # 分
+        price_text: "$.data.Catalog.searchStore.elements[*].price.totalPrice.fmtPrice.discountPrice"  # "¥60.00" 直出,免换算
+        discount_pct: "$.data.Catalog.searchStore.elements[*].promotions.promotionalOffers[0].promotionalOffers[0].discountSetting.discountPercentage"  # 仅当前促销存在;缺=无促销
+    # 无 pagination:单请求全量返回(不需要 {page} 翻页)
+    rate_limit:                 # 礼貌档(同 stocks)
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true      # Epic robots.txt 404(无限制),缺省即允许
+    proxy: direct
+    retry: 3
+
+  # Steam 每日特惠官方接口(featuredcategories 的 specials 即特惠区,
+  # discount_percent 直出;store.steampowered.com robots 不禁 /api/)。
+  # 响应只有数字 id 没有页面 URL —— 同样走 url_template(D1)。
+  - name: steam-specials
+    engine: direct_api
+    url: "https://store.steampowered.com/api/featuredcategories?cc=cn"
+    method: GET
+    headers:
+      Accept: "application/json"
+    extract:
+      type: json_path
+      url_template: "https://store.steampowered.com/app/{steam_id}"  # int 渲染成 str
+      fields:
+        title: "$.specials.items[*].name"            # 游戏名
+        steam_id: "$.specials.items[*].id"           # int;构 URL 用
+        final_price: "$.specials.items[*].final_price"      # 分(样本 1360=¥13.60)
+        original_price: "$.specials.items[*].original_price"  # 分
+        discount_pct: "$.specials.items[*].discount_percent"  # int 直出(样本 90)
+    rate_limit:
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true
+    proxy: direct
+    retry: 3
+
+watchlist:                      # enrich 关闭时仅做提及量统计,不做降权
+  keywords: [喜加一, 限免, 免费, 史低, 折扣, 白嫖]   # (核订:watchlist 只在
+  mute: [抽奖, 求购, 二手, 代练]                     # enrich 阶段消费,不会误杀标题)
+
+classify:                       # 零 token 第一漏斗;游戏标题不落七大类,
+  builtin: false                # 内置扫描只会误杀,同 gpu-prices 口径关闭
+  rules:
+    # 两源产出同名归一化字段(final_price/discount_pct),规则缺字段整条
+    # 让路(含 None 运算 = 该条不命中)——无促销条目自然落空
+    - name: 限免
+      when: "final_price == 0 or discount_pct >= 100"
+      tag: 限免
+    - name: 大折扣
+      when: "discount_pct >= 50"
+      tag: 半价+
+
+dedup:
+  key: "{url}"                  # 稳定键(不带 {date}):槽位抑制语义下同一条
+                                # 每天每槽最多重推一次;baseline 价格历史按
+                                # dedup_key 存,带 {date} 每天换键会断链
+                                # (vs_yesterday 失效)。{title} schema 永拒。
+
+enrich:                         # 零 token 路线:游戏价格数值自解释,不烧
+  enabled: false                # LLM 精评(趋势交给 baseline 数值基线)
+
+baseline:                       # v0.4 趋势基线(sidecar 节):两家单位同为分,
+  enabled: true                 # final_price 可直接比
+  fields: [final_price]         # vs_yesterday 给「这游戏今天又降了」
+  windows: [day, week]          # msrp 对照不进:游戏 SKU 名对照不现实,
+                                # 史低判定交给折扣阈值 + 价格趋势(D4)
+
+push:
+  - channel: feishu_card        # 单通道起步(grill 决议⑤);telegram 后续
+    target: env:FEISHU_CHAT_ID  # 加挂 = YAML 再加一个 push 条目,不动结构。
+                                # bot token 走渠道缺省 env:FEISHU_BOT_TOKEN。
+    route:                      # 首匹配;规则未命中走保守缺省 digest
+      - when: "final_price == 0 or discount_pct >= 100"   # 喜加一即推
+        mode: immediate
+      - when: "final_price > 0"                           # 普通折扣进日报
+        mode: digest
+    # 价格优先 price_text(Epic "¥60.00"/"0" 直出);Steam 无该字段退
+    # final_price/100(分 → 元)。折扣只在有值时显示(vs_yesterday 无
+    # 历史时渲染空串,不是错误)。
+    template: |
+      **游戏情报 · {{ date }}**
+      {% for item in items %}
+      - [{{ item.title }}]({{ item.url }}) {{ item.price_text | default(item.final_price / 100) }}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %} {{ vs_yesterday(item, 'final_price') }}
+      {% endfor %}
+
+storage:                        # 基线期自动长于条目期:metric_history 按
+  retention: 90d                # 2× retention 保留(周环比至少两个完整窗口)
+  vacuum: monthly

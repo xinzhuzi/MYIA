@@ -51,6 +51,7 @@ import httpx
 import yaml
 from selectolax.parser import HTMLParser
 
+from myia.dedup import DedupRegistry
 from myia.schema import (  # noqa: F401 - _UniqueKeyLoader 复用其重复键拒载行为
     ExtractConfig,
     RateLimitConfig,
@@ -1095,6 +1096,44 @@ class ChangeDetector:
 # ---------------------------------------------------------------------------
 # Extraction: json_path (APIs) and CSS list/item (HTML), shared by L1/L2/firecrawl
 # ---------------------------------------------------------------------------
+# extract.url_template (D1, task 10-03-games): payloads without a clickable
+# page URL (Epic urlSlug / Steam numeric id) get their item URL rendered from
+# ``{field}`` placeholders at the extraction outlets below.
+
+
+def _render_url_template(template: str, item: Mapping[str, Any]) -> str:
+    """Render one item's ``url_template`` ``{field}`` placeholders.
+
+    复用 dedup 的迷你模板渲染器(:meth:`DedupRegistry.make_key`)——同一套
+    Formatter 纯字段名语义,int 值渲染成 str(steam_id 形态)。dedup 渲染器对
+    缺字段以 ValueError 拒绝,这里映射为空串:提取层保留该条目、不做半渲染
+    的假 URL;空 url 条目随后在管线 fetch 阶段被 ``Item.from_extracted`` 记
+    invalid_item 后丢弃(不带坏链接入库;schema 装载期已交叉校验占位符在
+    fields 内并保证模板含占位符,运行期缺字段只剩逐条目缺「值」,如 Epic
+    urlSlug=null 元素——R1 接受的损失面:该条目不产出,其余照常)。
+    """
+    try:
+        return DedupRegistry.make_key(template, item)
+    except ValueError as exc:
+        logger.debug("url_template 占位字段缺值,条目 url 置空: %s", exc)
+        return ""
+
+
+def _apply_url_template(items: list[dict], extract: ExtractConfig) -> list[dict]:
+    """提取出口统一填 url:url 字段值胜出,缺 url 才渲染模板(D1)。
+
+    与 schema 的「url 字段或 url_template 二选一、都有 = url 字段胜出」
+    对齐:fields 抽出的 url(非空)优先,模板静默不用;条目缺 url 键或为空
+    才渲染。``type: item`` 配不了模板(schema 拒),这里天然 no-op。
+    """
+    template = extract.url_template
+    if not template:
+        return items
+    for item in items:
+        if item.get("url"):
+            continue  # url 字段胜出(implement 步骤 1 定死)
+        item["url"] = _render_url_template(template, item)
+    return items
 
 _JSONPATH_TOKEN_RE = re.compile(r"\.([A-Za-z_][\w\-]*)|(\[\*\])|\[(\d+)\]")
 
@@ -1164,6 +1203,12 @@ def extract_json(data: Any, extract: ExtractConfig) -> list[dict]:
     lacked a field (标题配到别人的 URL 的静默数据污染). Scalar paths (no
     ``[*]``, e.g. ``$.chart.result[0].meta.url``) and mixed prefixes fall back
     to per-field index zip (shorter lists omit the field for later indexes).
+
+    When ``extract.url_template`` is set, each item's ``url`` is rendered from
+    its fields at the outlet (a placeholder field missing on one element →
+    empty url for that item, which the pipeline's fetch stage then rejects as
+    ``invalid_item`` — no broken-link rows reach the store; an extracted
+    ``url`` field value wins — D1, task 10-03-games).
     """
     splits: dict[str, tuple[list[tuple[str, Any]], list[tuple[str, Any]]] | None] = {}
     for name, path in extract.fields.items():
@@ -1184,7 +1229,7 @@ def extract_json(data: Any, extract: ExtractConfig) -> list[dict]:
                 }
                 if record:
                     items.append(record)
-            return items
+            return _apply_url_template(items, extract)
     matches = {name: json_path_resolve(data, path) for name, path in extract.fields.items()}
     longest = max((len(values) for values in matches.values()), default=0)
     items = []
@@ -1196,7 +1241,7 @@ def extract_json(data: Any, extract: ExtractConfig) -> list[dict]:
         }
         if record:
             items.append(record)
-    return items
+    return _apply_url_template(items, extract)
 
 
 def split_attr_selector(selector: str) -> tuple[str, str | None]:
@@ -1258,7 +1303,9 @@ def extract_html(html: str, extract: ExtractConfig, *, base_url: str = "") -> li
 
     ``list`` iterates ``extract.item`` nodes; ``item`` runs field selectors
     against the whole document. Fields that match nothing are omitted; a
-    record with zero hits is skipped.
+    record with zero hits is skipped. ``extract.url_template`` (list type
+    only — schema rejects it on ``item``) renders item URLs at the outlet,
+    same either/or semantics as :func:`extract_json`.
     """
     tree = HTMLParser(html)
     if extract.type == "item":
@@ -1267,7 +1314,7 @@ def extract_html(html: str, extract: ExtractConfig, *, base_url: str = "") -> li
             for name, selector in extract.fields.items()
             if (value := _field_value(tree.root, selector, base_url)) is not None
         }
-        return [record] if record else []
+        return _apply_url_template([record] if record else [], extract)
     if not extract.item:
         raise ExtractionError("extract.type 为 list 时缺少 item 选择器")
     items: list[dict] = []
@@ -1279,7 +1326,7 @@ def extract_html(html: str, extract: ExtractConfig, *, base_url: str = "") -> li
         }
         if record:
             items.append(record)
-    return items
+    return _apply_url_template(items, extract)
 
 
 # ---------------------------------------------------------------------------

@@ -113,12 +113,15 @@ extract:
 |---|---|---|
 | `type` | `必填` | `list` = HTML 列表项;`item` = 单页;`json_path` = JSON API |
 | `item` | `null` | `type: list` 时的条目容器 CSS 选择器(该类型必填;其余禁写) |
-| `fields` | `必填` | 字段名 → 选择器/JSONPath,至少 1 个;`list`/`json_path` **必须含 `url`** |
+| `url_template` | `null` | 条目 URL 渲染模板,`{field}` 纯占位(至少一个占位符,且必须在 `fields` 字段名内——装载期交叉校验,拼错即拒),提取出口逐条渲染并填入 `url`;仅 `list`/`json_path` 可配(`item` 单页源配即拒);运行期单条目占位缺「值」→ url 置空串、该条目被管线按 `invalid_item` 拒掉(不入库);与 `fields` 的 `url` 二选一,都有 = `url` 字段胜出、模板静默不用 |
+| `fields` | `必填` | 字段名 → 选择器/JSONPath,至少 1 个;`list`/`json_path` **必须含 `url` 或配 `url_template`**(二选一) |
 
 选择器语法:L1/L2 用 CSS(条目内相对选择器,`a@href` 取属性,相对 URL 自动
 补全);`json_path` 用 `$` 路径(`$.chart.result[0].meta.price`、`$[*].keyword`
-通配)。已知缺口:`json_path` 表达不了「条目 URL = 请求 URL」,此类 API 用
-稳定业务字段充当 `url`(官方 `plugins/stocks.yaml` 即此写法)。
+通配)。响应没有页面 URL 只有 slug/appid 的 API(Epic/Steam 形态)用
+`url_template` 渲染条目链接(官方 `plugins/games.yaml` 即此写法);
+`json_path` 仍表达不了「条目 URL = 请求 URL」,此类 API 用稳定业务字段充当
+`url`(官方 `plugins/stocks.yaml` 即此写法)。
 
 rate_limit:
 
@@ -369,7 +372,8 @@ push:
 | `invalid_value` | 取值不在枚举词表内(错误信息列出合法值) |
 | `title_fingerprint_forbidden` | `dedup.key` 用了 `{title}` |
 | `invalid_dedup_key` | 去重键无占位符,或占位符无法由源渲染 |
-| `missing_url_field` | `extract.fields` 缺 `url`(`list`/`json_path` 必填) |
+| `missing_url_field` | `extract.fields` 缺 `url` 且未配 `url_template`(`list`/`json_path` 二者必居其一) |
+| `invalid_url_template` / `unexpected_url_template` | `url_template` 无占位符或占位符不在 `fields` 字段名内 / 配在 `item` 单页源上 |
 | `unexpected_transport_field` | `timeout`/`retries`/`retry_backoff_seconds` 出现在非 webhook 通道 |
 
 ## 一致性保证

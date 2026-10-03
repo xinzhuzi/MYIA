@@ -467,6 +467,118 @@ class TestCrossFieldRules:
         assert detail.path == "$.push[0].target"
 
 
+class TestExtractUrlTemplate:
+    """D1(task 10-03-games):extract.url_template 微扩展 —— url 字段或模板二选一。
+
+    背景见 plugins/stocks.yaml 记录的 open issue:「json_path cannot express
+    "item URL = f(field)"」;响应只有 slug/appid 的 API 源(Epic/Steam)靠
+    url_template 渲染出可点链接。占位语法沿用 dedup.key 的 {field} 纯占位。
+    """
+
+    def test_json_path_with_url_template_instead_of_url_field_loads(self):
+        data = _minimal_data()
+        data["sources"][0]["extract"] = {
+            "type": "json_path",
+            "url_template": "https://store.example.com/p/{slug}",
+            "fields": {"title": "$.elements[*].title", "slug": "$.elements[*].slug"},
+        }
+        extract = load_category(data).sources[0].extract
+        assert extract is not None
+        assert extract.url_template == "https://store.example.com/p/{slug}"
+
+    def test_url_template_without_placeholder_rejected(self):
+        data = _minimal_data()
+        data["sources"][0]["extract"] = {
+            "type": "json_path",
+            "url_template": "https://store.example.com/p/free-now",
+            "fields": {"url": "$[*].u", "slug": "$[*].slug"},
+        }
+
+        error = _load_error(data)
+        detail = _error_of_type(error, "invalid_url_template")
+        assert detail.path == "$.sources[0].extract.url_template"
+
+    def test_url_template_placeholder_not_in_fields_rejected(self):
+        """占位符-字段交叉校验(同 dedup.key 先例):拼错的占位符装载即拒——
+        否则运行期整源条目 url 恒渲染为空串、被管线逐条拒成 invalid_item,
+        AI 写错字段名 = 静默整源全灭。逐条目缺「值」(urlSlug=null 元素)不受
+        影响,那是渲染层的正常路径。"""
+        data = _minimal_data()
+        data["sources"][0]["extract"] = {
+            "type": "json_path",
+            "url_template": "https://store.example.com/p/{wrong_field}",
+            "fields": {"title": "$[*].title", "slug": "$[*].slug"},
+        }
+
+        error = _load_error(data)
+        detail = _error_of_type(error, "invalid_url_template")
+        assert detail.path == "$.sources[0].extract.url_template"
+        assert "wrong_field" in detail.message
+
+        # 占位符全部落在 fields 里则装载通过(games.yaml 双源即此形态)
+        data["sources"][0]["extract"] = {
+            "type": "json_path",
+            "url_template": "https://store.example.com/p/{slug}",
+            "fields": {"title": "$[*].title", "slug": "$[*].slug"},
+        }
+        assert load_category(data).sources[0].extract is not None
+
+    def test_url_field_and_template_are_either_or(self):
+        """矩阵:只有 url ✓ / 只有 template ✓ / 都缺 ✗(旧 yaml 零影响)。"""
+        base = {"type": "json_path"}
+        only_url = dict(base, fields={"url": "$[*].u"})
+        only_template = dict(base, url_template="https://x/{slug}", fields={"slug": "$[*].s"})
+
+        data = _minimal_data()
+        data["sources"][0]["extract"] = only_url
+        assert load_category(data).sources[0].extract is not None
+
+        data["sources"][0]["extract"] = only_template
+        assert load_category(data).sources[0].extract is not None
+
+        data["sources"][0]["extract"] = dict(base, fields={"title": "$[*].t"})
+        error = _load_error(data)
+        detail = _error_of_type(error, "missing_url_field")
+        assert detail.path == "$.sources[0].extract.fields"
+
+    def test_url_field_wins_when_both_declared(self):
+        """定死(implement 步骤 1):都有 = url 字段胜出,template 静默不用 ——
+        不为此新增报错分支(引擎侧同样让 url 字段值胜出)。"""
+        data = _minimal_data()
+        data["sources"][0]["extract"] = {
+            "type": "json_path",
+            "url_template": "https://x/{slug}",
+            "fields": {"url": "$[*].u", "slug": "$[*].s"},
+        }
+        cfg = load_category(data)  # 不拒载
+        assert cfg.sources[0].extract is not None
+        assert "url" in cfg.sources[0].extract.fields
+
+    def test_item_type_rejects_url_template(self):
+        """单页源(item)条目 url 即请求 URL,配模板即拒(与 item 选择器语义对齐)。"""
+        data = _minimal_data()
+        data["sources"][0]["extract"] = {
+            "type": "item",
+            "url_template": "https://x/{slug}",
+            "fields": {"title": "h1"},
+        }
+
+        error = _load_error(data)
+        detail = _error_of_type(error, "unexpected_url_template")
+        assert detail.path == "$.sources[0].extract.url_template"
+
+    def test_list_type_accepts_url_template(self):
+        data = _minimal_data()
+        data["sources"][0]["extract"] = {
+            "type": "list",
+            "item": "div.post",
+            "url_template": "https://x/{slug}",
+            "fields": {"title": "a.title", "slug": "span.slug"},
+        }
+        extract = load_category(data).sources[0].extract
+        assert extract is not None and extract.url_template is not None
+
+
 # ---------------------------------------------------------------------------
 # Acceptance: structured load errors (field path + reason) for doctor/agents
 # ---------------------------------------------------------------------------
