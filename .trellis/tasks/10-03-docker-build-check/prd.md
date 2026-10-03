@@ -18,10 +18,10 @@ grill Q8 决议(2026-10-03,出自 10-03-tag-release 八问全按推荐):发布�
 
 ## Acceptance Criteria
 
-- [ ] **AC1** `ci.yml` 新增 docker-build job,push main 与 PR 均触发;`docker build .` 成功为绿、失败为红。
-- [ ] **AC2** 全程无 registry login / push / metadata 步骤(零发布语义;与 docker-publish.yml 职责不重叠)。
-- [ ] **AC3** 仅 amd64 原生构建(无 QEMU/buildx 多架构),job 内注释注明覆盖边界(arm64 特有问题不在此 job 覆盖)。
-- [ ] **AC4** actionlint 过 `ci.yml`;改动仅 ci.yml(+ 本任务档)。
+- [x] **AC1** `ci.yml` 新增 docker-build job,push main 与 PR 均触发;`docker build .` 成功为绿、失败为红。
+- [x] **AC2** 全程无 registry login / push / metadata 步骤(零发布语义;与 docker-publish.yml 职责不重叠)。
+- [x] **AC3** 仅 amd64 原生构建(无 QEMU/buildx 多架构),job 内注释注明覆盖边界(arm64 特有问题不在此 job 覆盖)。
+- [x] **AC4** actionlint 过 `ci.yml`;改动仅 ci.yml(+ 本任务档)。
 
 ## 不做的事
 
@@ -31,3 +31,7 @@ grill Q8 决议(2026-10-03,出自 10-03-tag-release 八问全按推荐):发布�
 ## Notes
 
 - 轻量任务:PRD-only。执行时与 10-03-tag-release 无依赖关系,可并行也可其后;若在其后,注意两者都碰 `.github/workflows/`,提交分开、stage 各自文件。
+
+## 验收勾档(2026-10-03 执行完毕,dwfrun-cc671057)
+
+**AC1-AC4 全 passed**:ci.yml 新增 docker-build job(与既有 job 同触发,checkout+docker build .,零 login/push/metadata/QEMU,注释含覆盖边界与任务号);actionlint v1.7.7 对 ci.yml 零告警;git status 核对改动仅 ci.yml + 本任务档(实现员与质检员双核)。

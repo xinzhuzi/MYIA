@@ -84,3 +84,16 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - name: Ruff check (locked version)
         run: uvx ruff@0.16.10 check .
+
+  # 10-03-docker-build-check:发布改 tag-only(10-03-tag-release)后,Dockerfile
+  # 只有发 tag 才被真实构建,改坏要等发布日才暴露。PR/push 期 docker build .
+  # 拦语法/依赖错:仅 ubuntu 原生 amd64,不装 QEMU/buildx 多架构,arm64
+  # 特有问题不在覆盖面;不 login 不 push 不打 tag,零发布语义(发布归
+  # docker-publish.yml)。
+  docker-build:
+    name: Docker image build check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker build .
+        run: docker build .
