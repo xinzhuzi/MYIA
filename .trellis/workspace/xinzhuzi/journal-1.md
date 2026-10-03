@@ -300,3 +300,9 @@
 - **PyPI run 37115937696 红在 verify 步,非预期中的 OIDC 红**:守卫与 Build 均 success(实产 dist/shishi-0.0.1-* 与 shishi_classifier-0.0.1-* 四件),但 verify 脚本 projects 字典仍取旧发行名 stem——glob `dist/myia-*.whl` 等四条全落空,publish/attach-release 双 skipped(OIDC 类报错从未到达);根因=包更名 shishi 后发行名 stem 未随同步,模块目录 src/myia、myia_classifier 过渡保留非错;pypi.org 双包 JSON API 404 证零误发
 - 待主人四件:①修 pypi-publish.yml verify 脚本发行名 myia→shishi、myia_classifier→shishi_classifier(needs 内层模块路径 needle 不动,以实际 wheel namelist 复核)actionlint 后提交 main;②PyPI 注册双包 pending publisher 各一次(owner=xinzhuzi / repository=shishi / workflow_filename=pypi-publish.yml / environment=pypi,Repository 必须填 shishi 不是 MYIA);③重发不可 Re-run(沿用 tag commit 旧文件必重蹈 verify 红)——按 RELEASE.md runbook bump v0.0.2 重打 tag 更稳,不动已存在的 v0.0.1 Release/GHCR 产物;④publish 绿后核 attach-release 自动补挂 4 件 PyPI 资产凑齐 8 件、pypi.org 双包页 0.0.1,再 GHCR 包页清存量(删 1.1.1/v1.1.1/sha-*,保 0.0.1+latest)+旧 1.1.1 桌面端重装 0.0.1 dmg(updater 不自动降级)
 - 收口提交:8 份 docs/launch 发帖文案版本口径 1.1.x→0.0.1(3ecaba5);本段+PRD AC8 回写一笔入库(journal 本线两在途块随行,news-rss/dedup/shishi-everywhere 四段他线块仍留工作树归各自会话);CHANGELOG 按指令不碰,task.json 保持 review
+
+## 2026-10-03 v0.0.1 重发收口(E2E 双缺陷修复+tag 移动,主会话直做)
+
+- E2E 首轮暴露 verify 发行名 glob 未随 shishi 更名(myia-*→实产 shishi-*,4 glob 全空);本地真跑 uv build+脚本全文复验再抓获第二缺陷=classifier sdist 针脚误照根包 src 布局(平铺布局应 myia_classifier/data/...)——双修 96751a5,本地 all-OK 后删 Release+tag 移到修复提交重推
+- 二轮终态:Desktop success(Release 4 资产重构,latest.json 0.0.1)、Docker success(恰 0.0.1+latest 同 digest ae5fa91c)、PyPI 守卫/Build/verify 全绿+publish 红在 OIDC claim 被拒=预期 pending-publisher 红(排错链接为证)
+- 教训:从未运行过的工作流,静态审查(质检两轮)抓不住「模块名≠发行名」「布局差异」这类只在真实产物上显形的缺陷;发布前本地 uv build+verify 脚本真跑应进 runbook 为 tag 前置(已含在体检流程)
