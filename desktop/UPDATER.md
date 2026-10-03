@@ -117,4 +117,5 @@ npx tauri build --bundles app,dmg --config \
 > **构建警示(2026-10-03 装机冒烟实测)**:任何**绕过 tauri CLI 的裸 `cargo build`**
 > 都会产出零资产嵌入、烤死 devUrl 的白屏二进制(Cargo.toml 无 `[features]`
 > custom-protocol 转发)。发版/验证一律走 `npm run tauri build`(或
-> build-sidecar.sh 链);根治方案(features 段转发)已建议入 v1.1.2 桌面对齐批次。
+> build-sidecar.sh 链);根治方案(features 段转发)已建议入桌面对齐批次
+> (10-03-v112-desktop-parity,随下个发布版节奏走)。

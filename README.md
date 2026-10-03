@@ -13,7 +13,7 @@
 <img src="https://img.shields.io/badge/tests-1300%2B%20passing-2EA44F" alt="tests: 1300+ passing" />
 <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="python 3.11+" />
 <img src="https://img.shields.io/badge/license-MIT-3DA639" alt="MIT license" />
-<img src="https://img.shields.io/badge/status-1.1%20stable-2EA44F" alt="status: v1.1 stable" />
+<img src="https://img.shields.io/badge/status-0.0.1%20first%20release-2EA44F" alt="status: v0.0.1 first release" />
 </p>
 <p>
 <img src="https://img.shields.io/badge/fetch%20engines-6%20(L1%E2%80%93L6)-22D3EE" alt="6 fetch engines, L1–L6" />
@@ -114,8 +114,9 @@ URL 键去重注册表 + 早/晚摘要槽位 —— 生产验证过的语义;同
 <td width="50%" valign="top">
 
 🔁 **反馈闭环自我调优**
-对推送标记有价值 / 无价值(CLI 现已可用;Telegram/飞书回调接收已就绪,
-桌面卡片内按钮排 v1.1.2 桌面对齐批次交付)—— 负反馈持续回写,调优盯盘权重与阈值。
+对推送标记有价值 / 无价值(CLI 现已可用;桌面卡片内按钮已随桌面对齐批次
+落地 main、随下个发布版交付;Telegram/飞书回调接收已就绪)—— 负反馈持续
+回写,调优盯盘权重与阈值。
 
 </td>
 </tr>
@@ -130,7 +131,7 @@ URL 键去重注册表 + 早/晚摘要槽位 —— 生产验证过的语义;同
 git clone https://github.com/xinzhuzi/shishi
 cd shishi
 uv sync                     # uv workspace(主口径):一并装好 shishi 与 shishi-classifier
-uv run shishi --version       # shishi 1.1.1
+uv run shishi --version       # shishi 0.0.1
 ```
 
 > 本仓是 uv workspace(`shishi-classifier` 是 workspace 成员):裸 `pip install -e .`
@@ -182,14 +183,15 @@ uv run shishi run plugins/demo-min.yaml                    # 正式跑;--loop �
 macOS(Apple Silicon)安装包随 GitHub Releases 发布:
 
 1. 从 [Releases](https://github.com/xinzhuzi/shishi/releases) 下载
-   `shishi_1.1.1_aarch64.dmg`,把 世事 拖入「应用程序」;
+   `shishi_<版本>_aarch64.dmg`(版本号随发布更替,以 Releases 页面实际资产为准),
+   把 世事 拖入「应用程序」;
 2. 首次打开:**在「应用程序」里右键 世事 →「打开」→ 再点「打开」**
    (或双击被拦后到 系统设置 → 隐私与安全性 → 点「仍要打开」);
 3. 安装包未做 Apple 公证(公证需付费开发者账号)—— 代码完全开源可审计,
    每个安装包由 GitHub Actions 公开构建、日志可溯;右键打开一次即完成
    Gatekeeper 放行,之后正常双击启动。
 
-装机首跑自动种子官方插件(含零凭据演示件 `shishi-demo`:GitHub 新星榜),
+装机首跑自动种子官方插件(含零凭据演示件 `myia-demo`:GitHub 新星榜),
 第一次点「运行第一个插件」就出真数据;设置页「检查更新」走签名更新通道。
 
 桌面五屏(截图为 demo 插件真实抓取数据):
@@ -263,9 +265,10 @@ shishi doctor --json                        # 拿 findings;agent 自修后复查
 ## 路线图
 
 核心流水线已实现且有测试覆盖 —— 1300+ 测试跑在 CI 里,无一条碰真实网络。
-桌面端自 v1.1.1 起可日常使用(数据通路统一、官方插件随包、开箱 demo、
-签名更新通道);桌面卡片内反馈按钮、设置反馈开关、采集量趋势排下一批次
-(v1.1.2 桌面对齐,反馈闭环 CLI 现已可用);Windows 构建这版未通过,Release 暂无 Windows 安装包(v1.1.2 计划补上)。
+桌面端已可日常使用(数据通路统一、官方插件随包、开箱 demo、签名更新通道,
+v0.0.1 起随 Releases 交付);桌面卡片内反馈按钮、设置反馈开关、采集量趋势
+已随桌面对齐批次落地 main、随下个发布版交付(反馈闭环 CLI 现已可用);
+Windows 构建这版未通过,Release 暂无 Windows 安装包(后续批次计划补上)。
 
 | 里程碑 | 范围 | 状态 |
 |---|---|---|
@@ -274,7 +277,7 @@ shishi doctor --json                        # 拿 findings;agent 自修后复查
 | v0.3 生态 | Agent Skill、插件市场(本地/远端双模)、Scrapling L4、反馈闭环(CLI + 回调接收) | ✅ 已交付 |
 | v0.4 深水区 | stealth_browser L5、llm_browser L6、趋势基线、事件聚合 | ✅ 已交付 |
 | v1.0 发布 | 双语文档、演示物料、GitHub 门面、公开交付 | ✅ 已交付 |
-| v1.1 桌面优先 | Tauri 桌面壳(Python 核心以 sidecar 嵌入)、五屏 UI、进程内插件级;卡片内反馈按钮/settings 反馈开关/采集量趋势排 v1.1.2 桌面对齐批次(反馈 CLI 已可用) | ✅ 已交付 |
+| v1.1 桌面优先 | Tauri 桌面壳(Python 核心以 sidecar 嵌入)、五屏 UI、进程内插件级;卡片内反馈按钮/settings 反馈开关/采集量趋势已随桌面对齐批次落地、随下个发布版交付(反馈 CLI 已可用) | ✅ 已交付 |
 | v1.1.1 通路修复 | 桌面数据通路统一(MYIA_HOME/官方插件随包/首跑种子)、开箱 demo 插件、签名更新通道(检查更新 + 自动安装) | ✅ 已交付 |
 | Web UI | 同一核心上的浏览器前端 | 📋 规划中 |
 
@@ -411,9 +414,9 @@ not just a human.
 <td width="50%" valign="top">
 
 🔁 **A feedback loop that tunes itself**
-Mark pushed items valuable / not valuable (CLI today; Telegram/Feishu
-callback receivers ship now, in-card buttons land in the v1.1.2
-desktop-parity batch) —
+Mark pushed items valuable / not valuable (CLI today; in-card desktop
+buttons have landed on main in the desktop-parity batch and ship with the
+next release; Telegram/Feishu callback receivers are ready) —
 negative feedback retunes watchlist weights and thresholds over time.
 
 </td>
@@ -429,7 +432,7 @@ daemon), retention + auto-VACUUM, in-process scheduling.
 git clone https://github.com/xinzhuzi/shishi
 cd shishi
 uv sync                     # uv workspace (primary): installs shishi + shishi-classifier
-uv run shishi --version       # shishi 1.1.1
+uv run shishi --version       # shishi 0.0.1
 ```
 
 > This repo is a uv workspace (`shishi-classifier` is a workspace member): a bare
@@ -484,8 +487,9 @@ Full walk-through: [docs/en/getting-started.md](docs/en/getting-started.md).
 
 The macOS (Apple Silicon) installer ships via GitHub Releases:
 
-1. Download `shishi_1.1.1_aarch64.dmg` from
-   [Releases](https://github.com/xinzhuzi/shishi/releases) and drag 世事 into
+1. Download `shishi_<version>_aarch64.dmg` from
+   [Releases](https://github.com/xinzhuzi/shishi/releases) (the version token
+   rotates per release — the Releases page is authoritative) and drag 世事 into
    Applications;
 2. On first launch: **right-click 世事 in Applications → Open → Open**
    (or, after a blocked double-click: System Settings → Privacy & Security →
@@ -496,7 +500,7 @@ The macOS (Apple Silicon) installer ships via GitHub Releases:
    open clears Gatekeeper; subsequent launches open normally.
 
 A fresh install auto-seeds the official plugins (including the
-zero-credential demo `shishi-demo`: GitHub's new-star board), so the first click
+zero-credential demo `myia-demo`: GitHub's new-star board), so the first click
 of "run your first plugin" shows real data; the settings screen offers
 "Check for updates" over a signed update channel.
 
@@ -572,12 +576,14 @@ Agent-facing condensed reference: [`skill/SKILL.md`](skill/SKILL.md).
 ### Roadmap
 
 The core pipeline is implemented and tested — 1300+ tests run in CI, none of
-them touch the real network. The desktop app is ready for daily use as of
-v1.1.1 (unified data paths, bundled official plugins, an out-of-the-box demo,
-a signed update channel); in-card feedback buttons, the settings feedback
-toggle and collection trends are scheduled for the v1.1.2 desktop-parity
-batch (the feedback loop already works via CLI); the Windows build did not ship in v1.1.1 (no Windows
-installer in Releases yet; planned for the v1.1.2 batch).
+them touch the real network. The desktop app is ready for daily use
+(unified data paths, bundled official plugins, an out-of-the-box demo, a
+signed update channel — shipping in Releases since v0.0.1); in-card
+feedback buttons, the settings feedback toggle and collection trends have
+landed on main in the desktop-parity batch and ship with the next release
+(the feedback loop already works via CLI); the Windows build did not ship
+in this release (no Windows installer in Releases yet; planned for a
+follow-up batch).
 
 | Milestone | Scope | Status |
 |---|---|---|
@@ -586,7 +592,7 @@ installer in Releases yet; planned for the v1.1.2 batch).
 | v0.3 ecosystem | Agent Skill, plugin market (local/remote dual-mode), Scrapling L4, feedback loop (CLI + callback receivers) | ✅ shipped |
 | v0.4 deep water | stealth_browser L5, llm_browser L6, trend baselines, event aggregation | ✅ shipped |
 | v1.0 launch | Bilingual docs, demo assets, GitHub facade, public delivery | ✅ shipped |
-| v1.1 desktop-first | Tauri desktop shell (Python core as sidecar), five-screen UI, in-process plugin tier; in-card feedback buttons / settings feedback toggle / collection trends land in the v1.1.2 desktop-parity batch (feedback works via CLI today) | ✅ shipped |
+| v1.1 desktop-first | Tauri desktop shell (Python core as sidecar), five-screen UI, in-process plugin tier; in-card feedback buttons / settings feedback toggle / collection trends have landed in the desktop-parity batch and ship with the next release (feedback works via CLI today) | ✅ shipped |
 | v1.1.1 data paths | Desktop data-path unification (MYIA_HOME / bundled official plugins / first-run seed), out-of-the-box demo plugin, signed update channel (check + install) | ✅ shipped |
 | Web UI | browser front-end on the same core | 📋 planned |
 

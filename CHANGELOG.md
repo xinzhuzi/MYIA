@@ -179,10 +179,22 @@ repeated here.
 
 ### Added
 
-- **Out-of-the-box demo plugin** (`plugins/shishi-demo.yaml`, bundled): a
+- **Out-of-the-box demo plugin** (`plugins/myia-demo.yaml`, bundled): a
   zero-credential GitHub new-stars watcher over the GitHub Search API
   (single unauthenticated JSON request). A fresh install shows real data on
   the very first plugin run — no `config_error`, no secrets to fill in.
+- **Per-item AI summary on the feed** (desktop, protocol v6 `feed.enrich`):
+  a card action that runs the enrich pipeline on a single item and shows the
+  composite score, per-dimension scores and model — cached hits cost zero
+  tokens; unconfigured enrichment degrades to a fix-it hint instead of an
+  error.
+- **Logs screen power tools** (desktop): re-run a past run from its header
+  (replays the same yaml/dry/db flags), filter runs by category and status,
+  and search within logs with match highlighting.
+- **Feed batch actions & keyword pinning** (desktop): mark all loaded items
+  read/unread in one click; pin any feed card's keywords into a category
+  YAML watchlist straight from the card (mtime-guarded, cross-file id
+  checked).
 - **Signed update channel**: Tauri updater with signature verification
   (endpoints + pubkey injected by the release CI) and a new "Software update"
   card in the desktop settings screen — check for updates, review the notes,
@@ -245,15 +257,3 @@ repeated here.
      [1.1.1]/[1.1.0]/[1.0.0] headings above are kept as the historical record
      with no link targets (verified: `git tag` lists only v0.0.1 and
      releases/tags/v1.1.1 returns 404). -->
-- **Per-item AI summary on the feed** (desktop, protocol v6 `feed.enrich`):
-  a card action that runs the enrich pipeline on a single item and shows the
-  composite score, per-dimension scores and model — cached hits cost zero
-  tokens; unconfigured enrichment degrades to a fix-it hint instead of an
-  error.
-- **Logs screen power tools** (desktop): re-run a past run from its header
-  (replays the same yaml/dry/db flags), filter runs by category and status,
-  and search within logs with match highlighting.
-- **Feed batch actions & keyword pinning** (desktop): mark all loaded items
-  read/unread in one click; pin any feed card's keywords into a category
-  YAML watchlist straight from the card (mtime-guarded, cross-file id
-  checked).
