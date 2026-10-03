@@ -245,3 +245,15 @@ repeated here.
      [1.1.1]/[1.1.0]/[1.0.0] headings above are kept as the historical record
      with no link targets (verified: `git tag` lists only v0.0.1 and
      releases/tags/v1.1.1 returns 404). -->
+- **Per-item AI summary on the feed** (desktop, protocol v6 `feed.enrich`):
+  a card action that runs the enrich pipeline on a single item and shows the
+  composite score, per-dimension scores and model — cached hits cost zero
+  tokens; unconfigured enrichment degrades to a fix-it hint instead of an
+  error.
+- **Logs screen power tools** (desktop): re-run a past run from its header
+  (replays the same yaml/dry/db flags), filter runs by category and status,
+  and search within logs with match highlighting.
+- **Feed batch actions & keyword pinning** (desktop): mark all loaded items
+  read/unread in one click; pin any feed card's keywords into a category
+  YAML watchlist straight from the card (mtime-guarded, cross-file id
+  checked).
