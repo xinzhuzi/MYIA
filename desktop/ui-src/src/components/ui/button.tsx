@@ -13,7 +13,9 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         outline: "border border-border bg-transparent hover:bg-accent hover:text-accent-foreground",
         ghost: "hover:bg-accent hover:text-accent-foreground",
-        destructive: "bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90",
+        // destructive 实底压暗(WCAG 实算):#fdebec on --destructive(#e5484d)仅 3.41,
+        // 压暗到 #c53136 → 4.73(hover /90 在最亮落面 accent 上仍 5.35),≥4.5
+        destructive: "bg-[#c53136] text-destructive-foreground shadow-xs hover:bg-[#c53136]/90",
       },
       size: {
         default: "h-8 px-3 py-1.5 has-[>svg]:px-2.5",

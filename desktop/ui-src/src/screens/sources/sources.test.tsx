@@ -266,7 +266,7 @@ describe("源管理:排序/筛选/分页", () => {
     expect(screen.queryByText(/^source-0/)).toBeNull();
   });
 
-  it("点列头排序(URL 升序),健康度 chips 过滤", async () => {
+  it("点列头排序(URL 升序),健康度 chips 过滤;排序控件为原生 button(Tab 可聚焦,Enter/Space 触发)", async () => {
     const { map } = okSidecar(["beta", "alpha"]);
     map.health = () =>
       healthResult([
@@ -284,7 +284,17 @@ describe("源管理:排序/筛选/分页", () => {
     expect(await screen.findByText("beta")).toBeTruthy();
 
     const urlHeader = screen.getByRole("columnheader", { name: /URL/ });
-    fireEvent.click(urlHeader);
+    // 键盘可达(P1):排序控件 = 列头内原生 button(type=button,默认 Tab 可聚焦;
+    // Enter/Space 由 UA 合成 click —— jsdom 不模拟该合成,故此处以 focus 可达 +
+    // click(即键盘激活的最终事件)断言同一 handler 生效)
+    const sortButton = urlHeader.querySelector("button");
+    expect(sortButton instanceof HTMLButtonElement).toBe(true);
+    expect((sortButton as HTMLButtonElement).type).toBe("button");
+    expect((sortButton as HTMLButtonElement).tabIndex).toBe(0);
+    (sortButton as HTMLButtonElement).focus();
+    expect(document.activeElement).toBe(sortButton);
+
+    fireEvent.click(sortButton as HTMLButtonElement);
     expect(urlHeader.getAttribute("aria-sort")).toBe("ascending");
     const firstRowUrl = screen.getAllByText(/https:\/\/example\.com\//)[0];
     expect(firstRowUrl.textContent).toContain("alpha");

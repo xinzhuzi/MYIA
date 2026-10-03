@@ -324,22 +324,31 @@ export function SourcesTable({
                 <TableHead
                   key={header.id}
                   style={index === headers.length - 1 ? undefined : { width: header.getSize() }}
-                  className={cn("relative", canSort && "cursor-pointer select-none hover:text-foreground")}
-                  onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                  className={cn("relative", canSort && "select-none")}
                   aria-sort={direction === "asc" ? "ascending" : direction === "desc" ? "descending" : undefined}
                 >
-                  <span className="flex items-center gap-1">
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                    {canSort ? (
-                      direction === "asc" ? (
+                  {canSort ? (
+                    /* 键盘可达(P1):排序控件用原生 button —— Tab 可聚焦,Enter/Space
+                       由 UA 合成 click 触发同一 handler;焦点环走全局 :focus-visible ring */
+                    <button
+                      type="button"
+                      onClick={header.column.getToggleSortingHandler()}
+                      className="flex w-full cursor-pointer items-center gap-1 text-left hover:text-foreground"
+                    >
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      {direction === "asc" ? (
                         <ChevronUp className="size-3" />
                       ) : direction === "desc" ? (
                         <ChevronDown className="size-3" />
                       ) : (
                         <ChevronsUpDown className="size-3 opacity-50" />
-                      )
-                    ) : null}
-                  </span>
+                      )}
+                    </button>
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                    </span>
+                  )}
                   {canResize ? (
                     <span
                       aria-hidden

@@ -110,13 +110,14 @@ export function Sidebar() {
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border/60 px-4">
         <MyiaMark className="size-6" />
         <span className="text-sm font-medium text-sidebar-foreground">世事</span>
-        <span className="text-2xs text-muted-foreground/70">MYIA</span>
+        {/* 整值 muted-foreground(WCAG 实算):/70 在 sidebar 底上仅 3.68,/80 仅 4.49,均 <4.5;整值 6.46 */}
+        <span className="text-2xs text-muted-foreground">MYIA</span>
       </div>
       <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-2 pt-3 pb-2" aria-label="主导航">
         {NAV_GROUPS.map((group, index) => (
           <div key={group.label ?? `main-${index}`} className="flex flex-col gap-0.5">
             {group.label ? (
-              <div className="px-2.5 pb-0.5 pt-1 text-2xs text-muted-foreground/80">{group.label}</div>
+              <div className="px-2.5 pb-0.5 pt-1 text-2xs text-muted-foreground">{group.label}</div>
             ) : null}
             {group.entries.map((entry) => (
               <NavRow key={entry.to} entry={entry} />
