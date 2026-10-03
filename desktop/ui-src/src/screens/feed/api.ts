@@ -11,8 +11,10 @@
  * 超单页 limit 也能推进直至取尽(旧「since 复用 + 客户端去重 + added==0
  * 判停」的卡死边界已修)。客户端 dedup 与 added==0 防御判停保留为兜底。
  */
-import { api } from "@/lib/api";
-import type { FeedItem } from "@/lib/api";
+import { invoke } from "@tauri-apps/api/core";
+
+import { api, SidecarRequestError } from "@/lib/api";
+import type { FeedItem, SidecarErrorShape } from "@/lib/api";
 
 /** 单页条数(与卡片瀑布一屏量级匹配) */
 export const FEED_PAGE_SIZE = 50;
@@ -203,6 +205,31 @@ export function toggleMarker(states: FeedStateMap, key: string, marker: keyof Fe
   return result;
 }
 
+/**
+ * 批量置位(G9,10-03-fe-small-batch):对 loaded 全部条目把 marker 置为
+ * value;全 false 的键顺手剪除(与 toggleMarker 同存储纪律)。作用域 =
+ * 已加载条目(本地态只能按 itemKey 置位,未翻页条目不在内,按钮 title
+ * 如实注明)。
+ */
+export function setMarkerBulk(
+  items: FeedItem[],
+  states: FeedStateMap,
+  marker: keyof FeedItemState,
+  value: boolean,
+): FeedStateMap {
+  const result: FeedStateMap = { ...states };
+  for (const item of items) {
+    const key = itemKey(item);
+    const next: FeedItemState = { ...(result[key] ?? {}), [marker]: value };
+    if (!next.read && !next.starred && !next.later) {
+      delete result[key];
+    } else {
+      result[key] = next;
+    }
+  }
+  return result;
+}
+
 export type FeedFilter = "unread" | "starred" | "later" | "all";
 
 /** 过滤视图:未读 = 未标记已读;星标/稍后读按各自标记;全部 = 不过滤 */
@@ -326,4 +353,196 @@ export function groupFeedItems(items: FeedItem[], now: Date = new Date()): FeedG
   return order
     .filter((key) => buckets[key].length > 0)
     .map((key) => ({ key, label: GROUP_LABELS[key], items: buckets[key] }));
+}
+
+// ---------------------------------------------------------------------------
+// G12 沉淀为关键词(10-03-fe-small-batch):yaml.* 屏私有封装 + 原文文本手术。
+// 写通道语义复用 yaml-editor(yaml.read → 文本手术 → yaml.save:mtime 乐观
+// 锁 + 服务端同门校验 + 跨文件 id 查重 duplicate_category_id——改词不动 id,
+// 查重天然不破);契约权威 = entry.py `_m_yaml_*`,错误码族由后端结构化
+// 抛出,这里只归一化为 SidecarRequestError(惯例同 sources/yaml-editor 屏
+// 私有封装:invoke 直连 + asSidecarError 同规则归一)。
+// ---------------------------------------------------------------------------
+
+/** yaml.list 单项(G12 只需选择面字段;权威形状 entry.py `_m_yaml_list`) */
+export interface YamlTargetFile {
+  /** 品类 YAML 绝对路径(yaml.read/save 同口径) */
+  file: string;
+  /** 文件名(如 ai-news.yaml) */
+  name: string;
+  parse_ok: boolean;
+  category_id: string | null;
+  category_name: string | null;
+}
+
+export interface YamlTargetList {
+  plugins_dir: string;
+  files: YamlTargetFile[];
+}
+
+/** yaml.read 应答(mtime = save 乐观锁基线) */
+export interface YamlRawRead {
+  file: string;
+  /** UTF-8 原文(注释/顺序逐字节原样;手术只动 keywords 一处) */
+  content: string;
+  mtime: number;
+}
+
+/** yaml.save 应答(写入面字段;warnings 原样透传不展开) */
+export interface YamlRawSave {
+  file: string;
+  written: true;
+  created: boolean;
+  backed_up: string | null;
+  mtime: number;
+  warnings: unknown[];
+}
+
+/** 任意抛出物 → SidecarRequestError(规则与 yaml-editor/api.ts asSidecarError 相同)。 */
+function asSidecarError(raw: unknown): SidecarRequestError {
+  if (raw instanceof SidecarRequestError) return raw;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw) as Partial<SidecarErrorShape>;
+      if (parsed && typeof parsed.code === "string" && typeof parsed.message === "string") {
+        return new SidecarRequestError({
+          code: parsed.code,
+          path: typeof parsed.path === "string" ? parsed.path : "$",
+          message: parsed.message,
+          data: parsed.data,
+        });
+      }
+    } catch {
+      // 非 JSON 文本:按裸消息包装
+    }
+    return new SidecarRequestError({ code: "transport_error", path: "$", message: raw });
+  }
+  return new SidecarRequestError({
+    code: "sidecar_unavailable",
+    path: "$",
+    message: raw instanceof Error ? `Tauri IPC 不可用: ${raw.message}` : `Tauri IPC 不可用: ${String(raw)}`,
+  });
+}
+
+/** 类型化往返:yaml.* 经壳命令 sidecar_request,失败归一化抛出。 */
+async function sidecarRequest<R>(method: string, params: unknown): Promise<R> {
+  try {
+    return await invoke<R>("sidecar_request", { method, params });
+  } catch (raw) {
+    throw asSidecarError(raw);
+  }
+}
+
+/** 品类 YAML 清单(G12 目标选择;坏文件 parse_ok=false 由 UI 过滤不选)。 */
+export function listYamlTargets(): Promise<YamlTargetList> {
+  return sidecarRequest<YamlTargetList>("yaml.list", {});
+}
+
+/** 原文直读(手术基底 + mtime 乐观锁基线)。 */
+export function readYamlRaw(file: string): Promise<YamlRawRead> {
+  return sidecarRequest<YamlRawRead>("yaml.read", { file });
+}
+
+/** 编辑写回:服务端同门校验(零容忍 error 级)+ 跨文件 id 查重 + .bak 留底。 */
+export function saveYamlRaw(file: string, content: string, expected_mtime: number): Promise<YamlRawSave> {
+  return sidecarRequest<YamlRawSave>("yaml.save", { file, content, expected_mtime });
+}
+
+/** 关键词长度上限(schema ShortStr = 1..64;前端预检,后端仍是守门) */
+export const KEYWORD_MAX_CHARS = 64;
+
+/** 手术结果:ok=false 的 reason 驱动 UI 文案(空/超长/已在/不可解析) */
+export type KeywordAppendOutcome =
+  | { ok: true; content: string }
+  | { ok: false; reason: "empty_keyword" | "keyword_too_long" | "already_present" | "keywords_unparsed" };
+
+/** 流式/块式列表里安全的关键词形态:纯词原样,含 YAML 特殊字符则双引号转义 */
+function yamlSafeKeyword(keyword: string): string {
+  if (/^[A-Za-z0-9_\-\u4e00-\u9fff][A-Za-z0-9_\-\u4e00-\u9fff ]*$/.test(keyword)) return keyword;
+  return JSON.stringify(keyword); // 双引号 + 反斜杠转义(YAML 双引号串兼容)
+}
+
+/** 列表项词面值(已存在比对用;单/双引号包裹剥壳,其余原样) */
+function keywordLiteral(entry: string): string {
+  const trimmed = entry.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2)
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+/**
+ * watchlist.keywords 文本手术(G12):把关键词追加进 YAML **原文**(注释/
+ * 顺序/其余节点逐字节不动,只动 keywords 一处;id 行原样 → 服务端跨文件
+ * id 查重不破)。支持四种现实形态:
+ *   ① 流式 `keywords: [a, b]`(含空 `[]`)→ 闭括号前插入 `, 新词`
+ *   ② 块式 `keywords:` + 深缩进 `- 项` 行列表 → 末项后追加同缩进 `- 新词`
+ *   ③ `keywords:` 空值 / null / ~ → 键行后起块式首项
+ *   ④ 无 keywords 键:有 `watchlist:` 顶层键 → 其下补 `keywords:` 块;
+ *      连 watchlist 都没有 → 文件末尾追加整个 watchlist 节(缺省即空表,
+ *      补节不改变其余语义)
+ * 词已在列表 → `already_present`(零写入);非常规排版(标量值等)→
+ * `keywords_unparsed`(UI 引导去配置编辑,不硬猜)。最终守门仍是
+ * yaml.save 的 load_category 同门校验(坏结果结构化拒,零落盘)。
+ */
+export function appendWatchlistKeyword(content: string, rawKeyword: string): KeywordAppendOutcome {
+  const keyword = rawKeyword.trim();
+  if (!keyword) return { ok: false, reason: "empty_keyword" };
+  if (keyword.length > KEYWORD_MAX_CHARS) return { ok: false, reason: "keyword_too_long" };
+  const safe = yamlSafeKeyword(keyword);
+  const lines = content.split("\n");
+
+  const keywordsIndex = lines.findIndex((line) => /^(\s*)keywords:/.test(line));
+  if (keywordsIndex >= 0) {
+    const match = lines[keywordsIndex].match(/^(\s*)keywords:\s*(.*)$/);
+    const indent = match?.[1] ?? "";
+    const rest = (match?.[2] ?? "").trim();
+    // ① 流式单行列表(允许尾随注释)
+    const flow = lines[keywordsIndex].match(/^(\s*keywords:\s*\[)(.*?)(\].*)$/);
+    if (flow) {
+      const inner = flow[2].trim();
+      const entries = inner === "" ? [] : inner.split(",").map(keywordLiteral);
+      if (entries.includes(keyword)) return { ok: false, reason: "already_present" };
+      const nextInner = inner === "" ? safe : `${inner}, ${safe}`;
+      lines[keywordsIndex] = `${flow[1]}${nextInner}${flow[3]}`;
+      return { ok: true, content: lines.join("\n") };
+    }
+    // ② 块式 / ③ 空值(null/~ 需先落定键行):键行后连续的(更深缩进)- 项行
+    if (rest === "" || rest === "null" || rest === "~") {
+      if (rest !== "") lines[keywordsIndex] = `${indent}keywords:`;
+      let lastItemIndex = -1;
+      let itemIndent = "";
+      for (let index = keywordsIndex + 1; index < lines.length; index += 1) {
+        const line = lines[index];
+        if (line.trim() === "") continue;
+        const itemMatch = line.match(/^(\s+)-\s?(.*)$/);
+        if (!itemMatch || itemMatch[1].length <= indent.length) break;
+        lastItemIndex = index;
+        itemIndent = itemMatch[1];
+        if (keywordLiteral(itemMatch[2]) === keyword) return { ok: false, reason: "already_present" };
+      }
+      if (lastItemIndex >= 0) {
+        lines.splice(lastItemIndex + 1, 0, `${itemIndent}- ${safe}`);
+      } else {
+        lines.splice(keywordsIndex + 1, 0, `${indent}  - ${safe}`);
+      }
+      return { ok: true, content: lines.join("\n") };
+    }
+    // 标量值等非常规排版:不硬猜,引导去配置编辑
+    return { ok: false, reason: "keywords_unparsed" };
+  }
+
+  // ④a 无 keywords 键:顶层 watchlist: 键下补块(顺序无关,YAML 语义等价)
+  const watchlistIndex = lines.findIndex((candidate) => /^watchlist:\s*(#.*)?$/.test(candidate));
+  if (watchlistIndex >= 0) {
+    lines.splice(watchlistIndex + 1, 0, "  keywords:", `    - ${safe}`);
+    return { ok: true, content: lines.join("\n") };
+  }
+
+  // ④b 连 watchlist 节都没有:文件末尾整节追加(schema 缺省即空表,补节安全)
+  const base = content.length === 0 ? "" : content.endsWith("\n") ? content : `${content}\n`;
+  return { ok: true, content: `${base}watchlist:\n  keywords:\n    - ${safe}\n` };
 }

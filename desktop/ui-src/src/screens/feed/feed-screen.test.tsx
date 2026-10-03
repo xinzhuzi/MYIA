@@ -7,6 +7,10 @@
  * D4 批(10-03-ui-deep-imitation):品类色条与未读 accent 竖条、分组时间轴、
  * hover 浮现操作簇(accent/50 行背景 + time 让位)、U 快捷键、贴形加载骨架、
  * 错误态重试;纯函数 groupFeedItems/categoryColor 边界单测。
+ * fe-small-batch 批(10-03-fe-small-batch):G8 卡片「AI 摘要」(feed.enrich:
+ * loading/done/cached/scores 并回/无配置 graceful)/ G9 批量标已读未读(计数
+ * 同步 + localStorage)/ G12 沉淀为关键词(yaml.list/read/save 经 invoke mock,
+ * mtime 乐观锁 + 手术内容断言)/ P2⑤ 搜索框焦点环归全局体系(无局部 ring 覆写)。
  */
 import { cleanup, fireEvent, render, screen, waitFor, within, act } from "@testing-library/react";
 import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom";
@@ -15,9 +19,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CategoryFilterContext } from "@/components/layout/app-layout";
 
 import { SidecarRequestError } from "@/lib/api";
-import type { FeedExportResult, FeedItem, HealthResult, StoreItemsParams, StoreItemsResult } from "@/lib/api";
+import type {
+  FeedEnrichResult,
+  FeedExportResult,
+  FeedItem,
+  HealthResult,
+  StoreItemsParams,
+  StoreItemsResult,
+} from "@/lib/api";
 
-import { categoryColor, groupFeedItems } from "./api";
+import { appendWatchlistKeyword, categoryColor, groupFeedItems, setMarkerBulk } from "./api";
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
@@ -29,23 +40,29 @@ vi.mock("@/lib/api", async (importOriginal) => {
       health: vi.fn(),
       runStart: vi.fn(),
       feedExport: vi.fn(),
+      feedEnrich: vi.fn(),
     },
     onSidecarEvent: vi.fn(),
   };
 });
 
-// G2/G3 的 Tauri 壳包:open(打开原文)/ save(导出对话框)均 mock(零真实动作)
+// G2/G3 的 Tauri 壳包:open(打开原文)/ save(导出对话框)均 mock(零真实动作);
+// core 的 invoke = G12 yaml.* 屏私有封装的唯一传输面,按 method 分发夹具
 vi.mock("@tauri-apps/plugin-shell", () => ({ open: vi.fn() }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ save: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 const { api, onSidecarEvent } = await import("@/lib/api");
 const storeItemsMock = vi.mocked(api.storeItems);
 const healthMock = vi.mocked(api.health);
 const runStartMock = vi.mocked(api.runStart);
 const feedExportMock = vi.mocked(api.feedExport);
+const feedEnrichMock = vi.mocked(api.feedEnrich);
 const onSidecarEventMock = vi.mocked(onSidecarEvent);
 const shellOpenMock = vi.mocked((await import("@tauri-apps/plugin-shell")).open);
 const dialogSaveMock = vi.mocked((await import("@tauri-apps/plugin-dialog")).save);
+// invoke 分发 mock(untyped Mock,惯例同 settings.test.tsx 的 mocks.invoke)
+const invokeMock = (await import("@tauri-apps/api/core")).invoke as unknown as import("vitest").Mock;
 
 import { FeedScreen } from "./feed-screen";
 
@@ -125,6 +142,58 @@ function fixtureItem(overrides: Partial<FeedItem> = {}): FeedItem {
 
 function result(items: FeedItem[]): StoreItemsResult {
   return { db: "myia.db", count: items.length, items };
+}
+
+// G12 夹具:plugins 目录两个 YAML(一好一坏)+ 目标原文(流式 keywords)
+const G12_FILES = [
+  {
+    file: "/home/plugins/ai-news.yaml",
+    name: "ai-news.yaml",
+    parse_ok: true,
+    category_id: "ai-news",
+    category_name: "AI资讯",
+  },
+  {
+    file: "/home/plugins/broken.yaml",
+    name: "broken.yaml",
+    parse_ok: false,
+    category_id: null,
+    category_name: null,
+  },
+];
+const G12_CONTENT = "id: ai-news\nname: AI资讯\nwatchlist:\n  keywords: [LLM, Agent]\n  mute: [广告]\n";
+
+/**
+ * G12 yaml.* 三方法分发 mock(yaml.list/read/save);返回 save 调用捕获数组。
+ * saveImpl 注入失败路径(如 mtime_conflict 的 JSON 串拒绝,= Rust Err 形态)。
+ */
+function mockYamlSidecar(options: { readContent?: string; saveImpl?: () => Promise<unknown> } = {}) {
+  const readContent = options.readContent ?? G12_CONTENT;
+  const saves: { file: string; content: string; expected_mtime: number }[] = [];
+  invokeMock.mockImplementation(async (_command: string, args?: { method?: string; params?: Record<string, unknown> }) => {
+    const method = args?.method;
+    const params = args?.params ?? {};
+    if (method === "yaml.list") return { plugins_dir: "/home/plugins", files: G12_FILES };
+    if (method === "yaml.read") return { file: params.file, content: readContent, mtime: 111 };
+    if (method === "yaml.save") {
+      saves.push({
+        file: String(params.file),
+        content: String(params.content),
+        expected_mtime: params.expected_mtime as number,
+      });
+      if (options.saveImpl) return options.saveImpl();
+      return {
+        file: params.file,
+        written: true as const,
+        created: false,
+        backed_up: "/home/plugins/ai-news.yaml.bak",
+        mtime: 222,
+        warnings: [],
+      };
+    }
+    throw JSON.stringify({ code: "method_not_found", path: "$", message: `测试未 mock 方法:${method}` });
+  });
+  return saves;
 }
 
 /** 内存 Storage:node 25 + vitest 4 的 jsdom 环境下 window.localStorage 被
@@ -732,6 +801,213 @@ describe("FeedScreen", () => {
     await screen.findByTestId("feed-item-1");
     expect(screen.queryByTestId("feed-error")).toBeNull();
   });
+
+  // -------------------------------------------------------------------------
+  // fe-small-batch 批(10-03-fe-small-batch):G8 AI 摘要 / G9 批量 /
+  // G12 沉淀为关键词 / P2⑤ 搜索框焦点环
+  // -------------------------------------------------------------------------
+
+  it("G8 AI 摘要:点击 → feed.enrich(dedup_key)→ 复合分/模型/维度分/缓存命中上屏,scores 并回刷新徽标", async () => {
+    const item = fixtureItem({ scores: { tech: 0.87 } });
+    storeItemsMock.mockResolvedValue(result([item]));
+    renderScreen();
+    await screen.findByText("条目 1");
+    expect(screen.getByText("0.87")).toBeTruthy(); // 初始分数徽标
+
+    feedEnrichMock.mockResolvedValue({
+      item_id: item.id,
+      model: "test-model",
+      scores: { 相关性: 8, 新颖性: 6 },
+      score: 7.2,
+      cached: true,
+    } as FeedEnrichResult);
+
+    fireEvent.click(within(screen.getByTestId(`feed-item-${item.id}`)).getByRole("button", { name: "AI 摘要" }));
+    expect(feedEnrichMock).toHaveBeenCalledWith({ item: item.dedup_key });
+
+    const block = await screen.findByTestId(`feed-enrich-${item.id}`);
+    expect(block.textContent).toContain("7.20");
+    expect(block.textContent).toContain("test-model");
+    expect(block.textContent).toContain("缓存命中");
+    expect(block.textContent).toContain("相关性 8");
+    // scores 并回本地列表:分数徽标 0.87 → 8.00(维度最大分)
+    await waitFor(() => expect(screen.getByText("8.00")).toBeTruthy());
+    expect(screen.queryByText("0.87")).toBeNull();
+  });
+
+  it("G8 loading 态:请求在途按钮禁用 + 「精评中…」行", async () => {
+    const item = fixtureItem();
+    storeItemsMock.mockResolvedValue(result([item]));
+    renderScreen();
+    await screen.findByText("条目 1");
+
+    feedEnrichMock.mockImplementation(() => new Promise<FeedEnrichResult>(() => {}));
+    const button = within(screen.getByTestId(`feed-item-${item.id}`)).getByRole("button", { name: "AI 摘要" });
+    fireEvent.click(button);
+
+    expect(await screen.findByTestId(`feed-enrich-loading-${item.id}`)).toBeTruthy();
+    expect(button.getAttribute("disabled")).not.toBeNull();
+  });
+
+  it("G8 无配置 graceful:enrich_not_configured 明示「无精评配置」(不伪装成传输错误),按钮可重试", async () => {
+    const item = fixtureItem();
+    storeItemsMock.mockResolvedValue(result([item]));
+    renderScreen();
+    await screen.findByText("条目 1");
+
+    feedEnrichMock.mockRejectedValue(
+      new SidecarRequestError({
+        code: "enrich_not_configured",
+        path: "params.item",
+        message: "无法精评:品类 'tech' 未启用 enrich",
+        data: { category: "tech", reason: "enrich_disabled" },
+      }),
+    );
+    const button = within(screen.getByTestId(`feed-item-${item.id}`)).getByRole("button", { name: "AI 摘要" });
+    fireEvent.click(button);
+
+    const error = await screen.findByTestId(`feed-enrich-error-${item.id}`);
+    expect(error.textContent).toContain("无精评配置");
+    expect(error.textContent).toContain("未启用 enrich");
+    expect(error.getAttribute("title")).toContain("enrich_not_configured");
+    await waitFor(() => expect(button.getAttribute("disabled")).toBeNull());
+  });
+
+  it("G9 全部标已读:一键生效 → 计数同步 0/3 + 本地持久;全部标未读可还原", async () => {
+    const items = [fixtureItem(), fixtureItem(), fixtureItem()];
+    storeItemsMock.mockResolvedValue(result(items));
+    renderScreen();
+    await screen.findByText("条目 1");
+    expect(screen.getByText("3 / 3 条")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "全部标已读" }));
+
+    // 默认「未读」过滤:计数 0/3、卡片全部离场、空态如实
+    await waitFor(() => expect(screen.getByText("0 / 3 条")).toBeTruthy());
+    expect(screen.queryByTestId(/^feed-item-/)).toBeNull();
+    expect(screen.getByText("没有未读条目")).toBeTruthy();
+    const persisted: unknown = JSON.parse(localStorageStub.getItem("myia.feed.states.v1") ?? "{}");
+    for (const item of items) {
+      expect((persisted as Record<string, { read?: boolean }>)[item.dedup_key]?.read).toBe(true);
+    }
+
+    fireEvent.click(screen.getByRole("button", { name: "全部标未读" }));
+    await waitFor(() => expect(screen.getByText("3 / 3 条")).toBeTruthy());
+    expect(screen.getAllByTestId(/^feed-item-/)).toHaveLength(3);
+  });
+
+  it("G9 空载时批量按钮禁用(无事可做不诱点击)", async () => {
+    storeItemsMock.mockResolvedValue(result([]));
+    renderScreen();
+    await screen.findByText("情报流还是空的");
+    expect(screen.getByRole("button", { name: "全部标已读" }).getAttribute("disabled")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "全部标未读" }).getAttribute("disabled")).not.toBeNull();
+  });
+
+  it("P2⑤:搜索框焦点环归全局 :focus-visible 体系(无局部 ring-1/focus-visible 覆写)", async () => {
+    storeItemsMock.mockResolvedValue(result([fixtureItem()]));
+    renderScreen();
+    await screen.findByText("条目 1");
+    const input = screen.getByLabelText("搜索条目");
+    expect(input.className).not.toContain("ring-1");
+    expect(input.className).not.toContain("focus-visible");
+  });
+
+  it("G12 沉淀为关键词:面板只列 parse_ok 目标,词面默认条目标题;read(mtime)→ 手术 → save → 回执带 .bak", async () => {
+    const item = fixtureItem({ title: "GLM-5 发布" });
+    storeItemsMock.mockResolvedValue(result([item]));
+    renderScreen();
+    await screen.findByText("GLM-5 发布");
+    const card = screen.getByTestId(`feed-item-${item.id}`);
+
+    const saves = mockYamlSidecar();
+    fireEvent.click(within(card).getByRole("button", { name: "沉淀为关键词" }));
+
+    const panel = await screen.findByTestId(`feed-keyword-pin-${item.id}`);
+    // 目标下拉只列可解析文件(坏文件不给选:写入必过校验,不往死路上引)
+    const select = within(panel).getByLabelText("目标品类 YAML") as HTMLSelectElement;
+    const options = Array.from(select.querySelectorAll("option"));
+    expect(options).toHaveLength(1);
+    expect(options[0]?.textContent).toContain("ai-news.yaml");
+    // 词面默认 = 条目标题(可改)
+    expect((within(panel).getByLabelText("沉淀关键词") as HTMLInputElement).value).toBe("GLM-5 发布");
+
+    fireEvent.click(within(panel).getByRole("button", { name: "写入" }));
+
+    await waitFor(() => expect(saves).toHaveLength(1));
+    expect(invokeMock).toHaveBeenCalledWith("sidecar_request", {
+      method: "yaml.read",
+      params: { file: "/home/plugins/ai-news.yaml" },
+    });
+    // 手术内容:keywords 闭括号前追加新词,注释/其余行(含 id 行)逐字节不动;
+    // expected_mtime = read 带回的乐观锁基线
+    expect(saves[0]).toEqual({
+      file: "/home/plugins/ai-news.yaml",
+      content: "id: ai-news\nname: AI资讯\nwatchlist:\n  keywords: [LLM, Agent, GLM-5 发布]\n  mute: [广告]\n",
+      expected_mtime: 111,
+    });
+    const note = await screen.findByTestId(`feed-keyword-note-${item.id}`);
+    expect(note.textContent).toContain("已写入 ai-news.yaml");
+    expect(note.textContent).toContain(".bak");
+  });
+
+  it("G12 词已在列表:already_present 零写入(save 不发),回执如实", async () => {
+    const item = fixtureItem();
+    storeItemsMock.mockResolvedValue(result([item]));
+    renderScreen();
+    await screen.findByText("条目 1");
+
+    const saves = mockYamlSidecar();
+    const card = screen.getByTestId(`feed-item-${item.id}`);
+    fireEvent.click(within(card).getByRole("button", { name: "沉淀为关键词" }));
+    const panel = await screen.findByTestId(`feed-keyword-pin-${item.id}`);
+    fireEvent.change(within(panel).getByLabelText("沉淀关键词"), { target: { value: "LLM" } });
+    fireEvent.click(within(panel).getByRole("button", { name: "写入" }));
+
+    const note = await screen.findByTestId(`feed-keyword-note-${item.id}`);
+    expect(note.textContent).toContain("已在目标 YAML");
+    await waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("sidecar_request", { method: "yaml.read", params: expect.anything() }),
+    );
+    expect(saves).toHaveLength(0);
+  });
+
+  it("G12 mtime_conflict:save 乐观锁拒绝 → 结构化码原样明示", async () => {
+    const item = fixtureItem();
+    storeItemsMock.mockResolvedValue(result([item]));
+    renderScreen();
+    await screen.findByText("条目 1");
+
+    mockYamlSidecar({
+      saveImpl: () =>
+        Promise.reject(JSON.stringify({ code: "mtime_conflict", path: "params.file", message: "文件已被其他进程修改" })),
+    });
+    const card = screen.getByTestId(`feed-item-${item.id}`);
+    fireEvent.click(within(card).getByRole("button", { name: "沉淀为关键词" }));
+    const panel = await screen.findByTestId(`feed-keyword-pin-${item.id}`);
+    fireEvent.click(within(panel).getByRole("button", { name: "写入" }));
+
+    const note = await screen.findByTestId(`feed-keyword-note-${item.id}`);
+    expect(note.textContent).toContain("mtime_conflict");
+    expect(note.textContent).toContain("文件已被其他进程修改");
+  });
+
+  it("G12 清单拉取失败:list_error 明示 + 重试入口", async () => {
+    const item = fixtureItem();
+    storeItemsMock.mockResolvedValue(result([item]));
+    renderScreen();
+    await screen.findByText("条目 1");
+
+    invokeMock.mockImplementation(async () => {
+      throw JSON.stringify({ code: "source_dir_unreadable", path: "$", message: "插件目录不可读" });
+    });
+    const card = screen.getByTestId(`feed-item-${item.id}`);
+    fireEvent.click(within(card).getByRole("button", { name: "沉淀为关键词" }));
+
+    const error = await screen.findByTestId(`feed-keyword-list-error-${item.id}`);
+    expect(error.textContent).toContain("source_dir_unreadable");
+    expect(within(error).getByRole("button", { name: "重试" })).toBeTruthy();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -778,5 +1054,94 @@ describe("feed D4 纯函数(api.ts)", () => {
       expect(color).toMatch(/^#[0-9a-f]{6}$/);
       expect(categoryColor(category)).toBe(color); // 稳定散列:两次调用同色
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fe-small-batch 纯函数(api.ts):appendWatchlistKeyword 文本手术四形态 /
+// 查重零写入 / id 行不动(跨文件 id 查重不破);setMarkerBulk 批量置位
+// ---------------------------------------------------------------------------
+
+describe("feed fe-small-batch 纯函数(api.ts)", () => {
+  it("appendWatchlistKeyword 流式列表:闭括号前追加,尾随注释与其余行逐字节不动(id 行原样)", () => {
+    const content = "# 顶注\nid: ai-news\nname: AI资讯\nwatchlist:\n  keywords: [LLM, Agent]  # 关注词\n  mute: [广告]\n";
+    const outcome = appendWatchlistKeyword(content, "多模态");
+    expect(outcome).toEqual({
+      ok: true,
+      content: "# 顶注\nid: ai-news\nname: AI资讯\nwatchlist:\n  keywords: [LLM, Agent, 多模态]  # 关注词\n  mute: [广告]\n",
+    });
+  });
+
+  it("appendWatchlistKeyword 流式空表 []:首词入表;词已在(流式)→ already_present", () => {
+    expect(appendWatchlistKeyword("watchlist:\n  keywords: []\n", "首词")).toEqual({
+      ok: true,
+      content: "watchlist:\n  keywords: [首词]\n",
+    });
+    expect(appendWatchlistKeyword("watchlist:\n  keywords: [LLM, Agent]\n", "LLM")).toEqual({
+      ok: false,
+      reason: "already_present",
+    });
+  });
+
+  it("appendWatchlistKeyword 块式列表:末项后追加同缩进行,后续节点(mute)不动;词已在(块式)→ already_present", () => {
+    const content = "id: ai-news\nwatchlist:\n  keywords:\n    - LLM\n    - Agent\n  mute:\n    - 广告\n";
+    expect(appendWatchlistKeyword(content, "新词")).toEqual({
+      ok: true,
+      content: "id: ai-news\nwatchlist:\n  keywords:\n    - LLM\n    - Agent\n    - 新词\n  mute:\n    - 广告\n",
+    });
+    expect(appendWatchlistKeyword(content, "Agent")).toEqual({ ok: false, reason: "already_present" });
+  });
+
+  it("appendWatchlistKeyword 空值键行:keywords: 直接起首项;null 值先落定键行再起项", () => {
+    expect(appendWatchlistKeyword("watchlist:\n  keywords:\n  mute: []\n", "首词")).toEqual({
+      ok: true,
+      content: "watchlist:\n  keywords:\n    - 首词\n  mute: []\n",
+    });
+    expect(appendWatchlistKeyword("watchlist:\n  keywords: null\n", "落定词")).toEqual({
+      ok: true,
+      content: "watchlist:\n  keywords:\n    - 落定词\n",
+    });
+  });
+
+  it("appendWatchlistKeyword 无 keywords 键:有 watchlist 键补块;连 watchlist 都没有则末尾整节追加", () => {
+    expect(appendWatchlistKeyword("id: x\nwatchlist:\n  mute: [广告]\n", "补词")).toEqual({
+      ok: true,
+      content: "id: x\nwatchlist:\n  keywords:\n    - 补词\n  mute: [广告]\n",
+    });
+    expect(appendWatchlistKeyword("id: x\n", "末词")).toEqual({
+      ok: true,
+      content: "id: x\nwatchlist:\n  keywords:\n    - 末词\n",
+    });
+    expect(appendWatchlistKeyword("", "孤词")).toEqual({
+      ok: true,
+      content: "watchlist:\n  keywords:\n    - 孤词\n",
+    });
+  });
+
+  it("appendWatchlistKeyword 边界:标量值 keywords_unparsed / 空词 / 超长(>64);特殊字符词双引号转义", () => {
+    expect(appendWatchlistKeyword("watchlist:\n  keywords: LLM\n", "新词")).toEqual({
+      ok: false,
+      reason: "keywords_unparsed",
+    });
+    expect(appendWatchlistKeyword("watchlist:\n  keywords: []\n", "  ")).toEqual({ ok: false, reason: "empty_keyword" });
+    expect(appendWatchlistKeyword("watchlist:\n  keywords: []\n", "词".repeat(65))).toEqual({
+      ok: false,
+      reason: "keyword_too_long",
+    });
+    const quoted = appendWatchlistKeyword("watchlist:\n  keywords: []\n", "a,b:c");
+    expect(quoted).toEqual({ ok: true, content: "watchlist:\n  keywords: [\"a,b:c\"]\n" });
+  });
+
+  it("setMarkerBulk:全部置 read=true 逐条落键;置回 false 时无其他标记的键剪除", () => {
+    const items = [fixtureItem(), fixtureItem()];
+    const states = { [items[1].dedup_key]: { starred: true } };
+    const allRead = setMarkerBulk(items, states, "read", true);
+    expect(allRead[items[0].dedup_key]).toEqual({ read: true });
+    expect(allRead[items[1].dedup_key]).toEqual({ starred: true, read: true });
+    const backUnread = setMarkerBulk(items, allRead, "read", false);
+    expect(backUnread[items[0].dedup_key]).toBeUndefined();
+    // 有其他标记的键保留显式 read:false(与 toggleMarker 的存储纪律一致:
+    // 显式 false 与缺省同义,只有三态全 false 才剪键)
+    expect(backUnread[items[1].dedup_key]).toEqual({ starred: true, read: false });
   });
 });

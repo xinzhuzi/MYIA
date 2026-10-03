@@ -9,7 +9,10 @@ import {
   Play,
   RefreshCw,
   Search,
+  Sparkles,
   Star,
+  Tags,
+  X,
 } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 
@@ -21,11 +24,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, onSidecarEvent, SidecarRequestError } from "@/lib/api";
-import type { FeedItem, UnlistenFn } from "@/lib/api";
+import type { FeedEnrichResult, FeedItem, UnlistenFn } from "@/lib/api";
 
 import {
-  applyFeedFilter,
   appendFeedPage,
+  appendWatchlistKeyword,
+  applyFeedFilter,
   categoryColor,
   defaultExportName,
   exportFeedView,
@@ -34,11 +38,17 @@ import {
   groupFeedItems,
   isOpenableUrl,
   itemKey,
+  KEYWORD_MAX_CHARS,
+  listYamlTargets,
   loadFeedStates,
   primaryScore,
+  readYamlRaw,
   saveFeedStates,
+  saveYamlRaw,
+  setMarkerBulk,
   toggleMarker,
   type ExportFormat,
+  type YamlTargetFile,
 } from "./api";
 import type { FeedFilter, FeedStateMap } from "./api";
 import { FeedCardFeedback } from "./feed-card-feedback";
@@ -100,6 +110,24 @@ type RunCtaState =
   | { phase: "done" }
   | { phase: "error"; message: string };
 
+/** G8 卡片「AI 摘要」状态机(idle → loading → done 保留展示可重跑 / error 可重试;
+ *  精评结果由服务端回填 items 表 + enrich_cache,重进屏重取即缓存命中零 token)。 */
+type EnrichCardState =
+  | { phase: "idle" }
+  | { phase: "loading" }
+  | { phase: "done"; result: FeedEnrichResult }
+  | { phase: "error"; code: string; message: string };
+
+/** G12 卡片「沉淀为关键词」就地面板状态机(closed → listing → ready ⇄ writing
+ *  → note(saved/present/error;note 态可改词/换目标重写,亦可关闭收起)。 */
+type KeywordPinState =
+  | { phase: "closed" }
+  | { phase: "listing" }
+  | { phase: "list_error"; message: string }
+  | { phase: "ready" }
+  | { phase: "writing" }
+  | { phase: "note"; kind: "saved" | "present" | "error"; message: string };
+
 /** 「打开原文」:plugin-shell open(受控 shell:allow-open,scope 仅 https?://)。
  *  动态 import:浏览器直开(vitest/预览)不加载 Tauri 壳包,点击才触路。 */
 async function openInBrowser(url: string): Promise<void> {
@@ -124,6 +152,7 @@ function FeedCard({
   onMarkRead,
   onToggle,
   onOpenError,
+  onEnriched,
 }: {
   item: FeedItem;
   state: { read?: boolean; starred?: boolean; later?: boolean };
@@ -133,15 +162,108 @@ function FeedCard({
   onMarkRead: (item: FeedItem) => void;
   onToggle: (item: FeedItem, marker: "starred" | "later" | "read") => void;
   onOpenError: (message: string) => void;
+  /** G8 精评成功回传(FeedScreen 把 scores 并回列表,分数徽标即时刷新) */
+  onEnriched: (item: FeedItem, result: FeedEnrichResult) => void;
 }) {
   // 展开态属卡片本地(每次进屏重置;不与已读/星标本地态混存)
   const [expanded, setExpanded] = useState(false);
+  // G8 AI 摘要:卡片本地状态机(idle → loading → done/error)
+  const [enrich, setEnrich] = useState<EnrichCardState>({ phase: "idle" });
+  // G12 沉淀为关键词:就地面板(目标清单/选中目标/可编辑词面)
+  const [pin, setPin] = useState<KeywordPinState>({ phase: "closed" });
+  const [pinFiles, setPinFiles] = useState<YamlTargetFile[]>([]);
+  const [pinTarget, setPinTarget] = useState("");
+  const [pinKeyword, setPinKeyword] = useState(() =>
+    (item.title || item.url).trim().slice(0, KEYWORD_MAX_CHARS),
+  );
   const score = primaryScore(item);
   const time = formatRelativeTime(item.first_seen);
   const openable = isOpenableUrl(item.url);
   const rowKey = item.id ?? itemKey(item);
   const key = itemKey(item);
   const expandable = Boolean(item.content) || hasImageDetails(item);
+
+  /** G8:单条精评(feed.enrich;item 传 dedup_key,resolve 口径同 feedback.mark)。
+   *  无配置(enrich_not_configured)/超时/失败都走 error 态结构化明示,可重试。 */
+  const runEnrich = useCallback(async () => {
+    setEnrich({ phase: "loading" });
+    try {
+      const result = await api.feedEnrich({ item: item.dedup_key });
+      setEnrich({ phase: "done", result });
+      onEnriched(item, result);
+    } catch (err) {
+      setEnrich(
+        err instanceof SidecarRequestError
+          ? { phase: "error", code: err.code, message: err.message }
+          : { phase: "error", code: "transport_error", message: String(err) },
+      );
+    }
+  }, [item, onEnriched]);
+
+  /** G12:开面板即拉品类 YAML 清单(坏文件 parse_ok=false 不给选,写入必过
+   *  校验,不把用户往注定失败的路上引)。 */
+  const openPin = useCallback(async () => {
+    setPin({ phase: "listing" });
+    try {
+      const list = await listYamlTargets();
+      const writable = list.files.filter((file) => file.parse_ok);
+      setPinFiles(writable);
+      setPinTarget(writable[0]?.file ?? "");
+      setPin({ phase: "ready" });
+    } catch (err) {
+      setPin({
+        phase: "list_error",
+        message: err instanceof SidecarRequestError ? `${err.code}:${err.message}` : String(err),
+      });
+    }
+  }, []);
+
+  /** G12:yaml.read(mtime 基线)→ watchlist.keywords 原文手术 → yaml.save
+   *  (乐观锁 + 服务端同门校验 + 跨文件 id 查重;改词不动 id,查重不破)。 */
+  const writeKeyword = useCallback(async () => {
+    const keyword = pinKeyword.trim();
+    if (keyword === "") {
+      setPin({ phase: "note", kind: "error", message: "关键词不能为空" });
+      return;
+    }
+    if (keyword.length > KEYWORD_MAX_CHARS) {
+      setPin({ phase: "note", kind: "error", message: `关键词超长(上限 ${KEYWORD_MAX_CHARS} 字)` });
+      return;
+    }
+    if (pinTarget === "") {
+      setPin({ phase: "note", kind: "error", message: "没有可写目标:plugins 目录内无可解析品类 YAML" });
+      return;
+    }
+    setPin({ phase: "writing" });
+    try {
+      const raw = await readYamlRaw(pinTarget);
+      const outcome = appendWatchlistKeyword(raw.content, keyword);
+      if (!outcome.ok) {
+        if (outcome.reason === "already_present") {
+          setPin({ phase: "note", kind: "present", message: `「${keyword}」已在目标 YAML 的 watchlist.keywords,未重复写入` });
+        } else if (outcome.reason === "keywords_unparsed") {
+          setPin({ phase: "note", kind: "error", message: "该文件的 watchlist.keywords 排版无法就地解析;请到「配置」手动添加" });
+        } else {
+          setPin({ phase: "note", kind: "error", message: `关键词不合法(${outcome.reason === "keyword_too_long" ? "超长" : "为空"})` });
+        }
+        return;
+      }
+      const saved = await saveYamlRaw(pinTarget, outcome.content, raw.mtime);
+      const name = pinFiles.find((file) => file.file === pinTarget)?.name ?? pinTarget;
+      setPin({
+        phase: "note",
+        kind: "saved",
+        message: `已写入 ${name}${saved.backed_up ? `(备份 ${saved.backed_up})` : ""}`,
+      });
+    } catch (err) {
+      // mtime_conflict(并发改写)/ category_invalid(手术结果未过校验)等码原样明示
+      setPin({
+        phase: "note",
+        kind: "error",
+        message: err instanceof SidecarRequestError ? `${err.code}:${err.message}` : String(err),
+      });
+    }
+  }, [pinKeyword, pinTarget, pinFiles]);
   // 品类色(D4):色条与品类徽标同源;无品类 → null(零色件)
   const color = categoryColor(item.category);
   return (
@@ -193,6 +315,39 @@ function FeedCard({
       >
         {/* B2:卡片 👍/👎 反馈(channel=desktop,CLI feedback list 可见) */}
         <FeedCardFeedback item={item} />
+        {/* G8:AI 摘要(feed.enrich 单条精评;loading 期禁用,done 后可重跑刷新) */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6"
+          aria-label="AI 摘要"
+          aria-expanded={enrich.phase === "done"}
+          title="AI 精评摘要(feed.enrich:骑品类 enrich 端点现跑,enrich_cache 命中零 token)"
+          disabled={enrich.phase === "loading"}
+          onClick={() => void runEnrich()}
+        >
+          <Sparkles
+            className={
+              enrich.phase === "done"
+                ? "size-3.5 fill-primary text-primary"
+                : enrich.phase === "loading"
+                  ? "size-3.5 animate-pulse text-primary"
+                  : "size-3.5 text-muted-foreground"
+            }
+          />
+        </Button>
+        {/* G12:沉淀为关键词(watchlist.keywords 写入;就地面板在卡内展开) */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6"
+          aria-label="沉淀为关键词"
+          aria-expanded={pin.phase !== "closed"}
+          title="沉淀为关键词:把本条目关键词写入所选品类 YAML 的 watchlist.keywords"
+          onClick={() => (pin.phase === "closed" ? void openPin() : setPin({ phase: "closed" }))}
+        >
+          <Tags className={pin.phase !== "closed" ? "size-3.5 text-primary" : "size-3.5 text-muted-foreground"} />
+        </Button>
         {openable ? (
           <Button
             variant="ghost"
@@ -374,6 +529,133 @@ function FeedCard({
           </ul>
         </div>
       ) : null}
+
+      {/* G8 AI 摘要回显:loading / done(复合分 + 模型 + 维度分 + 缓存命中)/
+          错误(enrich_not_configured 等 graceful 明示,重按按钮即重试) */}
+      {enrich.phase === "loading" ? (
+        <p className="mt-1.5 text-2xs text-muted-foreground" data-testid={`feed-enrich-loading-${rowKey}`}>
+          精评中…
+        </p>
+      ) : enrich.phase === "done" ? (
+        <div className="mt-1.5 flex flex-col gap-1" data-testid={`feed-enrich-${rowKey}`}>
+          <span className="flex flex-wrap items-center gap-1.5 text-2xs text-muted-foreground">
+            <Badge variant="outline" className="shrink-0" title="AI 精评摘要(feed.enrich)">
+              AI
+            </Badge>
+            精评 {enrich.result.score.toFixed(2)} · 模型 {enrich.result.model}
+            <Badge variant="secondary" title="enrich_cache 命中 = 零 token">
+              {enrich.result.cached ? "缓存命中" : "现跑"}
+            </Badge>
+          </span>
+          <span className="flex flex-wrap items-center gap-1">
+            {Object.entries(enrich.result.scores).map(([dimension, value]) =>
+              typeof value === "number" ? (
+                <Badge key={dimension} variant="outline" className="text-2xs">
+                  {dimension} {value}
+                </Badge>
+              ) : null,
+            )}
+          </span>
+        </div>
+      ) : enrich.phase === "error" ? (
+        <p
+          className="mt-1.5 text-2xs text-warning"
+          data-testid={`feed-enrich-error-${rowKey}`}
+          title={`${enrich.code}:${enrich.message}`}
+        >
+          {enrich.code === "enrich_not_configured"
+            ? `无精评配置:${enrich.message}(在品类 YAML enrich 节配置端点后重试)`
+            : `精评失败(${enrich.code}):${enrich.message}`}
+        </p>
+      ) : null}
+
+      {/* G12 沉淀为关键词:就地面板(目标清单 → 词面/目标 → 写入回执) */}
+      {pin.phase !== "closed" ? (
+        <div
+          className="mt-1.5 flex flex-col gap-1.5 rounded-md border border-border/60 bg-muted/20 p-2"
+          data-testid={`feed-keyword-pin-${rowKey}`}
+        >
+          <span className="flex items-center justify-between gap-2">
+            <span className="text-2xs font-medium text-muted-foreground">沉淀为关键词(watchlist.keywords)</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-5"
+              aria-label="关闭沉淀面板"
+              onClick={() => setPin({ phase: "closed" })}
+            >
+              <X className="size-3 text-muted-foreground" />
+            </Button>
+          </span>
+
+          {pin.phase === "listing" ? (
+            <p className="text-2xs text-muted-foreground" data-testid={`feed-keyword-listing-${rowKey}`}>
+              载入品类 YAML 清单…
+            </p>
+          ) : pin.phase === "list_error" ? (
+            <p className="flex items-center gap-2 text-2xs text-destructive" data-testid={`feed-keyword-list-error-${rowKey}`}>
+              清单拉取失败:{pin.message}
+              <Button variant="outline" size="sm" className="h-5 px-1.5 text-2xs" onClick={() => void openPin()}>
+                重试
+              </Button>
+            </p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <label className="flex flex-wrap items-center gap-1.5 text-2xs text-muted-foreground">
+                关键词
+                <input
+                  type="text"
+                  value={pinKeyword}
+                  maxLength={KEYWORD_MAX_CHARS}
+                  aria-label="沉淀关键词"
+                  placeholder="来自条目标题,可改"
+                  className="h-6 min-w-40 flex-1 rounded-md border border-border bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground"
+                  onChange={(event) => setPinKeyword(event.target.value)}
+                  disabled={pin.phase === "writing"}
+                />
+              </label>
+              <label className="flex flex-wrap items-center gap-1.5 text-2xs text-muted-foreground">
+                目标 YAML
+                <select
+                  value={pinTarget}
+                  aria-label="目标品类 YAML"
+                  className="h-6 min-w-40 flex-1 rounded-md border border-border bg-background px-1.5 text-xs text-foreground"
+                  onChange={(event) => setPinTarget(event.target.value)}
+                  disabled={pin.phase === "writing" || pinFiles.length === 0}
+                >
+                  {pinFiles.length === 0 ? (
+                    <option value="">无可解析品类 YAML</option>
+                  ) : (
+                    pinFiles.map((file) => (
+                      <option key={file.file} value={file.file}>
+                        {file.name}({file.category_name ?? file.category_id ?? "?"})
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={() => void writeKeyword()}
+                disabled={pin.phase === "writing" || pinFiles.length === 0}
+                title="yaml.read → watchlist.keywords 原文手术 → yaml.save(mtime 乐观锁 + 跨文件 id 查重)"
+              >
+                {pin.phase === "writing" ? "写入中…" : "写入"}
+              </Button>
+              {pin.phase === "note" ? (
+                <p
+                  className={`text-2xs ${pin.kind === "error" ? "text-destructive" : "text-muted-foreground"}`}
+                  data-testid={`feed-keyword-note-${rowKey}`}
+                >
+                  {pin.message}
+                </p>
+              ) : null}
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -389,6 +671,12 @@ function FeedCard({
  * 分组时间轴(今天/昨天/7 天内/更早,sticky 组头)、hover 浮现操作簇 +
  * 行背景 accent/50、未读 accent 竖条 + U 快捷键、空/载/错三态按
  * frontend-ui-engineering(贴形骨架/带重试错误卡/EmptyState)。
+ *
+ * fe-small-batch(10-03-fe-small-batch):G8 卡片「AI 摘要」(feed.enrich 单条
+ * 精评,loading/错误态,无配置 graceful 明示)/ G9 过滤区批量操作(全部标
+ * 已读/未读,计数同步)/ G12 卡片「沉淀为关键词」(yaml.read → watchlist
+ * 文本手术 → yaml.save,mtime 乐观锁 + 跨文件 id 查重);P2⑤ 搜索框焦点环
+ * 归 index.css 全局 :focus-visible 体系(不再局部 ring-1 覆写)。
  */
 export function FeedScreen() {
   const navigate = useNavigate();
@@ -504,6 +792,29 @@ export function FeedScreen() {
       updateStates(toggleMarker(states, itemKey(item), marker));
     },
     [states, updateStates],
+  );
+
+  /** G8:精评成功 → 把维度分并回列表条目(卡片分数徽标即时刷新;items 表
+   *  已由服务端回填,这里只是本地视图对齐,不重拉整页)。 */
+  const onEnriched = useCallback((item: FeedItem, result: FeedEnrichResult) => {
+    setItems((current) =>
+      current.map((candidate) =>
+        itemKey(candidate) === itemKey(item) ? { ...candidate, scores: result.scores } : candidate,
+      ),
+    );
+  }, []);
+
+  /** G9 批量:全部标已读/未读(作用域 = 已加载条目;本地态按 itemKey 置位,
+   *  未翻页条目不在内——按钮 title 如实注明,计数行随 states 派生自动同步)。 */
+  const markAllRead = useCallback(
+    (value: boolean) => {
+      updateStates(setMarkerBulk(items, states, "read", value));
+    },
+    [items, states, updateStates],
+  );
+  const unreadLoaded = useMemo(
+    () => items.filter((candidate) => !(states[itemKey(candidate)]?.read)).length,
+    [items, states],
   );
 
   const visible = useMemo(() => applyFeedFilter(items, states, filter), [items, states, filter]);
@@ -656,6 +967,29 @@ export function FeedScreen() {
         <span className="ml-2 text-[11px] text-muted-foreground">
           {filter === "all" ? `共 ${items.length} 条` : `${visible.length} / ${items.length} 条`}
         </span>
+        {/* G9 批量操作(入口在过滤区):作用域 = 已加载条目,计数行随本地态自动同步 */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-1.5 text-2xs text-muted-foreground"
+          aria-label="全部标已读"
+          title={`把已加载的 ${items.length} 条(未读 ${unreadLoaded})全部标记为已读;本地态,未翻页条目不含`}
+          onClick={() => markAllRead(true)}
+          disabled={items.length === 0 || unreadLoaded === 0}
+        >
+          全部标已读
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-1.5 text-2xs text-muted-foreground"
+          aria-label="全部标未读"
+          title={`把已加载的 ${items.length} 条(已读 ${items.length - unreadLoaded})全部恢复未读;本地态`}
+          onClick={() => markAllRead(false)}
+          disabled={items.length - unreadLoaded === 0}
+        >
+          全部标未读
+        </Button>
         {searchActive ? (
           <span className="text-[11px] text-muted-foreground" data-testid="feed-search-scope">
             服务端搜索「{query}」{category ? ` × 品类 ${category}` : ""} × 本地
@@ -669,7 +1003,7 @@ export function FeedScreen() {
             value={searchInput}
             aria-label="搜索条目"
             placeholder="搜索标题 / 摘要 / 来源(服务端全库)"
-            className="h-7 w-56 rounded-md border border-border bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="h-7 w-56 rounded-md border border-border bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground"
             onChange={(event) => setSearchInput(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") setQuery(searchInput.trim());
@@ -824,6 +1158,7 @@ export function FeedScreen() {
                     onMarkRead={markRead}
                     onToggle={toggle}
                     onOpenError={setOpenError}
+                    onEnriched={onEnriched}
                   />
                 ))}
               </div>

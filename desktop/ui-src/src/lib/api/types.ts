@@ -481,6 +481,28 @@ export interface FeedExportResult {
   bytes: number;
 }
 
+// feed.enrich(G8,10-03-fe-small-batch:单条情报卡 AI 摘要/精评,骑既有 enrich
+// 管线 myia.enrich.LLMEnricher 现跑;与 entry.py `_m_feed_enrich` 互指)
+export interface FeedEnrichParams {
+  /** 条目引用:items.id(int)或 dedup_key/URL(str);同 resolve_item_ref
+   *  (feedback.mark 口径) */
+  item: string | number;
+  db?: string;
+}
+
+export interface FeedEnrichResult {
+  /** 精评条目行 id(resolve 命中行;可为 null 的协议余量) */
+  item_id: number | null;
+  /** 品类 YAML enrich 节配置的模型名 */
+  model: string;
+  /** 维度分 {维度: 分值}(LLMEnricher 原路回填 items 表) */
+  scores: Record<string, unknown>;
+  /** 复合标量分(metadata["score"];route 依赖位) */
+  score: number;
+  /** enrich_cache 命中((url, model, scores_key) 命中零 token) */
+  cached: boolean;
+}
+
 // schedule.preview(G4,10-03-feed-ux:品类排程 Next runs 预览,纯计算零副作用;
 // 与 entry.py `_m_schedule_preview` 互指)
 export interface SchedulePreviewParams {
@@ -852,6 +874,7 @@ export interface SidecarProtocol {
   "logs.tail": { params: LogsTailParams; result: LogsTailResult };
   "store.items": { params: StoreItemsParams; result: StoreItemsResult };
   "feed.export": { params: FeedExportParams; result: FeedExportResult };
+  "feed.enrich": { params: FeedEnrichParams; result: FeedEnrichResult };
   "schedule.preview": { params: SchedulePreviewParams; result: SchedulePreviewResult };
   "secret.set": { params: SecretSetParams; result: SecretSetResult };
   "secret.list": { params: EmptyParams; result: SecretListResult };

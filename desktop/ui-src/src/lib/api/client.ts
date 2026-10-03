@@ -1,8 +1,9 @@
 /**
  * MYIA 桌面 sidecar API client —— sidecar 协议(`desktop/entry.py` `_HANDLERS`,
  * 方法数随批滚动,单一事实源 = spec 注册表)的共享封装:
- * 类型面 `SidecarProtocol` 盖 23 方法(核心 + image.config.* + v1.1.2 批八方法 +
- * feed-ux 批三方法),`api` 门面封装核心 21 方法
+ * 类型面 `SidecarProtocol` 盖 31 方法(核心 + image.config.* + v1.1.2 批八方法 +
+ * feed-ux 批三方法 + vision-v2 批七方法 + fe-small-batch 批 feed.enrich),
+ * `api` 门面封装核心 22 方法
  * ——封装面 ≠ 协议面,分工见下方 api 对象头注释。
  *
  * 传输:壳命令 `sidecar_request`(src-tauri/src/main.rs);Rust 侧
@@ -23,6 +24,8 @@ import type {
   FeedbackMarkResult,
   FeedbackStatsParams,
   FeedbackStatsResult,
+  FeedEnrichParams,
+  FeedEnrichResult,
   FeedExportParams,
   FeedExportResult,
   HealthParams,
@@ -134,7 +137,8 @@ async function request<M extends SidecarMethod>(
  * 共享类型化门面 —— 核心 10 方法(version … secret.list)+ v1.1.2 桌面对齐批
  * 8 方法(runCancel/runsList/secretDelete/sourcesTest + feedbackMark/
  * feedbackList/feedbackStats/storeTrend,10-03-v112-desktop-parity)
- * + feed-ux 批 3 方法(feedExport/schedulePreview/pushTest,10-03-feed-ux),
+ * + feed-ux 批 3 方法(feedExport/schedulePreview/pushTest,10-03-feed-ux)
+ * + fe-small-batch 批 1 方法(feedEnrich,10-03-fe-small-batch G8),
  * 非协议全量。协议面(单一事实源 = entry.py `_HANDLERS`,注册表见
  * .trellis/spec/desktop/sidecar-protocol.md)的其余方法走屏私有封装:
  * sources.write → screens/sources/api.ts、yaml.* → screens/yaml-editor/api.ts、
@@ -173,6 +177,10 @@ export const api = {
   /** 导出当前过滤视图为 JSONL/CSV(G3;sidecar 直写,数据不经 webview) */
   feedExport: (params: FeedExportParams): Promise<FeedExportResult> =>
     request("feed.export", params),
+  /** 单条情报卡「AI 摘要」精评(G8;骑 LLMEnricher 现跑,enrich_cache 复用;
+   *  无配置 = enrich_not_configured 结构化明示,非传输错误) */
+  feedEnrich: (params: FeedEnrichParams): Promise<FeedEnrichResult> =>
+    request("feed.enrich", params),
   /** 品类排程 Next runs 预览(G4;Apify 式,纯计算零副作用) */
   schedulePreview: (params: SchedulePreviewParams): Promise<SchedulePreviewResult> =>
     request("schedule.preview", params),
