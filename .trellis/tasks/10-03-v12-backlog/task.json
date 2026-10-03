@@ -18,8 +18,10 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [],
-  "parent": "10-03-grill-v112",
+  "children": [
+    "10-03-v12-crawl4ai-l3"
+  ],
+  "parent": null,
   "relatedFiles": [],
   "notes": "",
   "meta": {}

@@ -18,7 +18,7 @@ grill 决议 2026-10-03 Q1:发布工程(v1.1.1)先行,以下三项排 v1.2。本
    - 现状:`src/myia/engines/crawl4ai.py` 为薄层(~10KB);v0.2 任务
      (10-01-v02-engine-crawl4ai)按其范围已毕,L3 降级档实质缺位。
    - v1.2 目标:真引擎进降级链(L2 失败→L3 接管),extras 可选依赖
-     `myia[crawl4ai]`,测试走录制回放(CI 零外网,Python spec)。
+     `shishi[crawl4ai]`,测试走录制回放(CI 零外网,Python spec)。
 3. **proxy_pool 对接**
    - 现状:fetch_base 有 143 处 proxy 引用,transport 单上游(v0.2 已毕,
      10-01-v02-proxy-transport);池化(轮换/健康检查/住宅 IP)未写。
@@ -44,6 +44,26 @@ grill 决议 2026-10-03 Q1:发布工程(v1.1.1)先行,以下三项排 v1.2。本
    - G10:代理池连通性测试按钮(doctor --config 探测已有,差 UI)
    - G12:条目卡「就地沉淀为关键词」入口(OpenCTI 快捷订阅铃铛式,衔接 yaml-editor)
    - G11 不入池:并入 F 类刻意不做(凭据导出,security-baseline 红线)
+6. **UI 模仿总表远期形态三项入池**(2026-10-03 `10-03-ui-deep-imitation` grill 决议②:
+   不入 v1.x 视觉批次,沉本池;对标与取材策略见该任务 prd「取材策略」节)
+   - 八爪鱼点选式任务配置(可视化建源,YAML 编辑器的远期形态;对标八爪鱼/EasySpider/Maxun)
+   - 代理池管理面板(出口列表/测活/成功率统计,对标 jhao104/proxy_pool 面板;
+     与第 3 项 proxy_pool 后端对接、G10 测试按钮同属一族,拆任务时合并考虑)
+   - 凭证猎手面板(key/余额/高危列表,对标 aipocket;**只展示与管理,不含导出**——
+     与 G11 红线区分)
+7. **Reddit 情报源**(2026-10-03 主人点名入池:「Reddit 也是情报收集渠道」;
+   RSS 采集能力已随 `10-03-news-rss` 落地,缺的只是 Reddit 的合规通道)
+   - 现状(wrap 三路探查,证据 `archive/2026-10/10-03-games-wrap/evidence/news-probe-reddit-*`):
+     `new.json` 对 honest UA 403;`.rss` 200 Atom 且 round2 实测 `entry link@href`
+     25/25 可提取,但 robots.txt `User-agent: *` `Disallow: /` 全站禁抓 +
+     Public Content Policy 限自动化——respect_robots 判例维持不可直抓
+     (news-rss prd 同判)。
+   - 可行路径(connector-selection「免费路径是什么」):官方 Data API OAuth
+     免费层(非商业 ~100 QPM 口径,robots.txt 自指 r/reddit4researchers 为
+     研究/非商业通道;拆任务时核实额度并加快照日期);聚合器(XFlux 型,
+     supplier-map 判例:收紧源优先评估聚合器,但只做可选后端永不默认)。
+   - robots/政策会漂移:拆任务时先重探 robots.txt 再定通道。
+   - 场景通用:games(r/GamingNews 曾候选)之外,ai-news 等场景同享。
 
 ## 主人侧前置(2026-10-03 grill Q4 已答)
 

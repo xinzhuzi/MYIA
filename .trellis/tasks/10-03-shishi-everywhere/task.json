@@ -21,6 +21,6 @@
   "children": [],
   "parent": null,
   "relatedFiles": [],
-  "notes": "",
+  "notes": "v1.1.1 已发布(Release 四资产齐,run 37095582342 success)。剩余:①模块改名等树静(脚本 dwfrun-18df6728 已验证,树静即跑)②PyPI 等主人前置(trusted publisher 或 token+test 开关)③随后 v1.1.2 tag。",
   "meta": {}
 }
