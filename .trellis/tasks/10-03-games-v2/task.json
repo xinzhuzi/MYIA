@@ -3,7 +3,7 @@
   "name": "games-v2",
   "title": "游戏情报 v2:Epic 下周免费预告+gpu-prices 补测试电池+平台扩展探查",
   "description": "games grill 决议②⑧①③的尾巴:upcoming 预告=v2 首项(字段融合方案不改 dedup);gpu-prices 补进 OFFICIAL_PLUGINS 全套电池;GOG/Switch/中文 L2 源探查落证据。主人令 2026-10-03「深化与补全」。",
-  "status": "planning",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -21,6 +21,6 @@
   "children": [],
   "parent": null,
   "relatedFiles": [],
-  "notes": "",
+  "notes": "2026-10-03 主人令「深化与补全」,轻量直做(决议尾巴三项):A upcoming 预告字段融合(b665236)/B gpu-prices 全套电池+golden 再生成(da390fc+63bbe82)/C 平台探查(CheapShark 盖 14 店含 GOG=v3 候选首项,smzdm 可达,Switch 无 API)。门禁:scoped 79 绿/golden 23 绿/dry-run 0/全量本任务范围零失败(7 条外来红归属并行发布线与 docs 在途)。状态直改 review(并行会话在场禁 task.py start/finish)。",
   "meta": {}
 }
