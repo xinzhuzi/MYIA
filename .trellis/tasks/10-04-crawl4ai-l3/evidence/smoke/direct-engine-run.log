@@ -1,0 +1,15 @@
+[INIT].... → Crawl4AI 0.9.4 
+[FETCH]... ↓ https://aihot.news/items/bzodztryi4kvwm4kz9mrwb6nn                                                   | ✓ | ⏱: 0.74s 
+[SCRAPE].. ◆ https://aihot.news/items/bzodztryi4kvwm4kz9mrwb6nn                                                   | ✓ | ⏱: 0.01s 
+[COMPLETE] ● https://aihot.news/items/bzodztryi4kvwm4kz9mrwb6nn                                                   | ✓ | ⏱: 0.76s 
+[direct-smoke] target=https://aihot.news/items/bzodztryi4kvwm4kz9mrwb6nn
+[direct-smoke] engine=crawl4ai items=1 skipped=False failures=[]
+[direct-smoke] markdown_len=3949 title='GPT-6.1 Sol (Max) 进入 Agent Arena 第 5 名，以更低成本逼近前列模型 · AIHOT'
+[direct-smoke] same_domain_images=2
+[direct-smoke]   img https://aihot.news/api/img-proxy?u=https%3A%2F%2Fpbs.twimg.com%2Fmedia%2FHTplehXagAEeLl1.jpg&mode=full&exp=1791244800&sig=f22ab9780d7d9214
+[direct-smoke]   img https://aihot.news/api/img-proxy?u=https%3A%2F%2Fpbs.twimg.com%2Fmedia%2FHTplehZaIAAZvYc.jpg&mode=full&exp=1791244800&sig=185b7741d9e27ef9
+[direct-smoke] hint_after=crawl4ai
+[direct-smoke] elapsed=1.99s
+[direct-smoke] RESULT=PASS
+uv run --no-sync python  2>&1  0.94s user 0.38s system 55% cpu 2.363 total
+SCRIPT_EXIT=0

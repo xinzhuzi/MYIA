@@ -22,7 +22,7 @@
 cli.py          命令入口(输出对 AI/人类双友好)
 schema.py       12 节品类 YAML 模型与校验 + images: sidecar 节(管线图片处理环开关;detail_fetch/detail_max_items(10-03-detail-images)= 无图条目详情页追抓:开时 fetch 尾部按管线顺序追抓、HTML 同域 <img> 写回 metadata.images 进同一识图环,每 run 上限 detail_max_items(1-50,缺省 10)、串行每请求 ≥1s、10s/页超时,失败只写 metadata.detail_status 绝不阻管线,源级 images_detail_max_items 覆写 = 该源独立预算;$.images 错误前缀,不入 12 节契约)(AI 写 YAML 的地基)
 pipeline.py     编排:fetch→classify→dedup→analyze→push(自研 ~200 行量级)
-engines/        六层引擎:fetch_base(公共底座)+ registry(降级编排)+ L1-L6 各文件一一对应
+engines/        六层引擎:fetch_base(公共底座)+ registry(降级编排,含零结果 L3 首遇探测:auto 链 static_html 真零结果且无 hint 的首遇源一次性降级 crawl4ai 探测(30s 短帽、单 run 预算 3=`FetchContext.l3_probe_budget`),出条落 L3 回写 hint、零条/异常回滚空页语义零误报;指纹 skip 与显式 engine 配置永不探测,存量 hint 源零打扰;10-04-crawl4ai-l3)+ L1-L6 各文件一一对应
 classify/       builtin(七大类+双信号,数据与代码分离)/ custom(YAML 规则)
 dedup.py store/ SQLite + 去重注册表 + 变更基线;接口可插拔(PG 留位)
 enrich/         LLM 精评(批量/缓存/预算护栏)

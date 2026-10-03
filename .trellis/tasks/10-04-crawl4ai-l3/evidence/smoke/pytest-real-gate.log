@@ -1,0 +1,9 @@
+s[INIT].... → Crawl4AI 0.9.4 
+[FETCH]... ↓ https://aihot.news/items/bzodztryi4kvwm4kz9mrwb6nn                                                   | ✓ | ⏱: 0.78s 
+[SCRAPE].. ◆ https://aihot.news/items/bzodztryi4kvwm4kz9mrwb6nn                                                   | ✓ | ⏱: 0.01s 
+[COMPLETE] ● https://aihot.news/items/bzodztryi4kvwm4kz9mrwb6nn                                                   | ✓ | ⏱: 0.80s 
+[smoke] target=https://aihot.news/items/bzodztryi4kvwm4kz9mrwb6nn items=1 markdown_len=3949 same_domain_images=2
+.
+1 passed, 1 skipped, 39 deselected in 1.88s
+MYIA_SMOKE_REAL=1 uv run --no-sync python -m pytest tests/test_crawl4ai.py -k  1.08s user 0.39s system 61% cpu 2.408 total
+PYTEST_EXIT=0

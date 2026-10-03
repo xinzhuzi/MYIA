@@ -1,0 +1,5 @@
+........................................................................ [ 62%]
+............................................                             [100%]
+116 passed in 0.18s
+uv run --no-sync python -m pytest tests/test_docs.py tests/test_skill_doc.py   0.36s user 0.07s system 79% cpu 0.543 total
+DOCS_EXIT=0

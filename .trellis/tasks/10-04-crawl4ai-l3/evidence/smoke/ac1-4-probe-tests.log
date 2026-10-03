@@ -1,0 +1,4 @@
+.......                                                                  [100%]
+7 passed, 34 deselected in 0.19s
+uv run --no-sync python -m pytest tests/test_crawl4ai.py -q -k  --tb=short 2>  0.24s user 0.15s system 89% cpu 0.438 total
+PROBE_EXIT=0

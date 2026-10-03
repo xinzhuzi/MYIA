@@ -96,8 +96,14 @@
 **源级扩展参数**:未知键(如 `symbols: [NVDA, AAPL]`)原样传给引擎——URL 里的
 `{symbol}` 按列表逐值扇出(一值一请求);`engine_options.<引擎名>` 是引擎
 旋钮命名空间(如 `engine_options.firecrawl.endpoint`、
-`engine_options.scrapling.backend`、`engine_options.stealth_browser.max_pages`)。
-扩展参数里的凭据类键同样禁明文。
+`engine_options.scrapling.backend`、`engine_options.stealth_browser.max_pages`;
+`engine_options.crawl4ai` 有 `timeout`(单页预算秒,缺省 60s)、`headless`
+(缺省 `true`)与 `browser_options` / `run_options` 两个透传映射——分别合并进
+crawl4ai 的 `BrowserConfig` / `CrawlerRunConfig`,打开其余配置面;透传映射不得
+携带引擎自管键(browser 侧 `headless` / `proxy` / `proxy_config` / `headers`,
+run 侧 `cache_mode` / `page_timeout`——代理解析、凭据脱敏、缓存旁路与预算护栏
+均由引擎单一来源推导),冲突即 fetch 期结构化报错 `invalid_browser_options` /
+`invalid_run_options`)。扩展参数里的凭据类键同样禁明文。
 
 pagination:
 

@@ -110,8 +110,18 @@ entry point): `plugin:` (scenario plugin dual mode, v0.3), `baseline:`
 fans out per value (one request each); `engine_options.<engine>` is the
 engine knob namespace (e.g. `engine_options.firecrawl.endpoint`,
 `engine_options.scrapling.backend`,
-`engine_options.stealth_browser.max_pages`). Credential-like keys inside
-extension parameters are plaintext-refused as well.
+`engine_options.stealth_browser.max_pages`; `engine_options.crawl4ai`
+carries `timeout` (per-page budget in seconds, default 60s), `headless`
+(default `true`) and the two passthrough maps `browser_options` /
+`run_options` — merged into crawl4ai's `BrowserConfig` /
+`CrawlerRunConfig`, opening the rest of its config surface; a passthrough
+map may not carry the engine-owned keys (browser side `headless` / `proxy`
+/ `proxy_config` / `headers`, run side `cache_mode` / `page_timeout` —
+proxy parsing, credential masking, cache bypass and the budget rail are
+single-sourced by the engine), a collision fails the fetch with the
+structured error `invalid_browser_options` / `invalid_run_options`).
+Credential-like keys inside extension parameters are plaintext-refused as
+well.
 
 pagination:
 
