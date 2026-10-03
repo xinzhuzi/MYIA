@@ -22,7 +22,11 @@
     "10-03-messaging-core",
     "10-03-messaging-feishu",
     "10-03-messaging-telegram",
-    "10-03-messaging-ui"
+    "10-03-messaging-ui",
+    "10-03-messaging-platforms",
+    "10-03-messaging-hermes-look",
+    "10-03-messaging-w2-platforms",
+    "10-03-messaging-weixin-bridge"
   ],
   "parent": null,
   "relatedFiles": [],

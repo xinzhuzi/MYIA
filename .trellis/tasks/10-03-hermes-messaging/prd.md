@@ -29,10 +29,11 @@ AskUserQuestion 三项决议(2026-10-03):
 | W1(本轮) | feishu 飞书 | `plugins/platforms/feishu/` | MYIA 已有 im/v1/messages 通道,补目录发现 |
 | W1(本轮) | telegram | `plugins/platforms/telegram/` | MYIA 已有 sendMessage;目录靠被动积累 |
 | W1(本轮) | —(核心引擎+UI) | `gateway/channel_directory.py` 等 | 见子任务 |
-| W2 | weixin 微信、wecom 企微、dingtalk 钉钉、ntfy | `gateway/platforms/weixin.py`、`plugins/platforms/{wecom,dingtalk,ntfy}` | 中文 IM 群+最轻推送服务;weixin 依赖 bot relay 架构,是 W2 最重项 |
+| W2(档已立,执行等主人令) | wecom 企微、dingtalk 钉钉、ntfy | `plugins/platforms/{wecom,dingtalk,ntfy}` | `10-03-messaging-w2-platforms`:三平台蓝本形态(事实核订:企微=自建应用 text 私聊出站、钉钉=静态自定义机器人 text、ntfy=一次性 POST;三家零目录发现;「bot relay 依赖」旧说不实——微信走 iLink,见下) |
+| 独立(同批,档已立) | weixin 微信 | `gateway/platforms/weixin.py` | `10-03-messaging-weixin-bridge`:可选桥接(iLink 每条出站须回显 context_token,token 只由常驻 long-poll 落盘,冷发必拒——自实现即半个常驻服务,已否决;出站经本机 Hermes) |
 | W3 | slack、discord、whatsapp_cloud、signal、line、matrix、mattermost、google_chat、teams、email、sms、irc、simplex、bluebubbles、msgraph_webhook、qqbot、yuanbao、a2a、buzz、photon、raft、homeassistant | `gateway/platforms/` 与 `plugins/platforms/` 对应目录 | 长尾;官方 API 直连可行的先做,需外部守护进程的(signal/bluebubbles)标 extras |
 
-W2/W3 不预建子任务,到波次开工时再建(避免空壳任务);本 PRD 的清单即它们的登记锚点。
+W3 不预建子任务,到波次开工时再建(本 PRD 清单即登记锚点);W2 经 grill round-2 已立档两任务(见子任务地图),执行等主人令。
 
 ## 子任务地图(W1)
 
@@ -42,6 +43,10 @@ W2/W3 不预建子任务,到波次开工时再建(避免空壳任务);本 PRD �
 | `10-03-messaging-feishu` | 飞书适配器:目录发现(机器人所在群/私聊/话题)+ 定向发送 |
 | `10-03-messaging-telegram` | Telegram 适配器:chat_id 被动积累目录 + 定向发送 |
 | `10-03-messaging-ui` | 桌面端第 6 屏「消息」:目录浏览/别名编辑/规则挑对象(完整写回,含 `push.write` 新端点) |
+| `10-03-messaging-platforms`(review,56728a1+bb71d57+2e7e252) | 平台总览网格/三档筛选/三态徽标/分平台凭据指南(截图对照矩阵四个出站缺口) |
+| `10-03-messaging-hermes-look`(在途流水线) | 照 Hermes 源码重皮消息页:平台头像/左网格右详情面板/三态色彩/状态条(模仿纪律:以上游为准最大程度贴近) |
+| `10-03-messaging-w2-platforms`(planning,执行等令) | W2 三平台适配:企微/钉钉/ntfy 蓝本形态,三件套齐 |
+| `10-03-messaging-weixin-bridge`(planning,执行等令) | 微信可选桥接:出站经本机 Hermes,PRD 齐(design/implement 于 start 前补) |
 
 执行顺序:core → feishu/telegram(可并行)→ ui(依赖前三者可演示)。core 未落地前其余三个不得 start。
 
@@ -57,9 +62,9 @@ W2/W3 不预建子任务,到波次开工时再建(避免空壳任务);本 PRD �
 - [x] 全量测试绿:push 层新旧单测 + 桌面协议测试不回归。
   - 证据(2026-10-03 收口两次真跑,混合工作树含并行会话在飞改动):首跑(世事改名入树前)`python -m pytest tests/ -q` → **1759 passed / 14 skipped 全绿**,`-k push` → 221 passed,`tests/test_desktop_sidecar_protocol.py` → 85 passed,desktop/ui-src `npm test` → 97 passed(含 messaging-screen 8 项);终跑(并行 cb87302「世事/shishi 改名」与 docs 批次入树后)→ 7 failed / 1764 passed / 14 skipped,**7 失败全部归属并行在飞会话**(4 = CLI/协议测试仍断言 `myia 1.1.1`/`MYIA run:` 而 cb87302 已改 `shishi 1.1.1`/`世事 run:`;3 = test_docs 文档重构在飞),消息平台范围零失败(`-k push` → 222 passed;消息九测试文件 200 passed;sidecar 84/85,唯一失败即上述品牌改名契约测试,与四端点无关;desktop/ui-src `npm test` → 105 passed)
 - [x] W1 收口后回填 W2 开工条件;W2 不自动接力,等主人指令排期(grill Q7 定案)。
-  - 证据:W2 开工条件已回填至下方「W1 执行结果」节;`.trellis/tasks/` 无任何 W2 平台任务目录(`ls | grep -E "weixin|wecom|dingtalk|ntfy|slack|discord"` = 0,2026-10-03 收口核)
+  - 证据:W2 开工条件已回填至「W1 执行结果」节;grill round-2(2026-10-03 晚)进一步立档 `10-03-messaging-w2-platforms`(三件套齐)与 `10-03-messaging-weixin-bridge`(PRD),执行仍等主人令
 
-## Grill 决议记录(2026-10-03,round 1 终,无第二轮)
+## Grill 决议记录(2026-10-03,round 1 终;round 2 = W2 立项,见下)
 
 - **Q1 集成方式 = 蓝本移植**(逐字 vendor 否决;spec 红线不动)
 - **Q2 targets 同平台约束**:元素平台前缀须与条目通道一致,加载期即拒;跨平台 = 多条 push 条目;targets 在场时 legacy `target` 可省
@@ -71,6 +76,14 @@ W2/W3 不预建子任务,到波次开工时再建(避免空壳任务);本 PRD �
 - **Q8 UI = 完整写回**:新增 `push.write` sidecar 端点(照 `sources.write` 范式),选择器直写 YAML
 
 事实核订两轮(MYIA 侧:装配点/凭据/协议/CLI/工具链;Hermes 侧:解析顺序/死信语义/目录发现/别名机制),证据与偏离注记已落各子任务档案。
+
+## Grill 决议记录 round 2(2026-10-03 晚,W2 立项,四条全按推荐)
+
+- **Q1 排期口径 = 文档立齐、执行等主人令**(维持 round-1 Q7;冒烟欠账不自动滚进 W2)
+- **Q2 W2 范围重排 = 企微+钉钉+ntfy 三轻平台,微信移出单议**(事实核订修正:企微蓝本无群机器人 webhook 形态、钉钉纯 HTTP 仅静态自定义机器人 text、微信无官方出站 API)
+- **Q3 微信 = 可选桥接插件**(出站调本机 Hermes;整体桥接的否决不适用于单平台可选形态;无 Hermes 则灰卡披露,开源边界如实)
+- **Q4 任务切分 = 三平台打包一任务**(`messaging-w2-platforms`),微信桥接独立任务
+- 事实探查(背景代理,file:line 落 W2 任务档):四平台零目录发现;微信 iLink 冷发必须吃常驻轮询的 context_token(自实现已否决的硬依据);旧说「微信依赖 bot relay」不实(bot_relay 是桌面 bot 模式的文件中继,与微信无关)
 
 ## W1 执行结果(2026-10-03 收口)
 
@@ -99,12 +112,12 @@ W2/W3 不预建子任务,到波次开工时再建(避免空壳任务);本 PRD �
 
 ### W2 开工条件回填(grill Q7:等主人指令排期,不自动接力)
 
-- 引擎侧零障碍:`PLATFORMS` 注册表、`Channel` 协议三能力(`supports_targeting`/`parse_direct_ref`/`discover_directory`)、死信账本、`myia channels` CLI 均已就位;W2 平台照 feishu(主动列表发现)或 telegram(被动积累)范式各建子任务即可
-- weixin 依赖 bot relay 架构(本 PRD 波次表 W2 最重项),开工先 grill 架构再动工;wecom/dingtalk/ntfy 预计 httpx 直连官方 API 可走 feishu 范式
-- W2/W3 平台不预建任务,到波次开工时再建;本 PRD 波次表即登记锚点
+- 引擎侧零障碍:`PLATFORMS` 注册表、`Channel` 协议三能力(`supports_targeting`/`parse_direct_ref`/`discover_directory`)、死信账本、`myia channels` CLI 均已就位
+- **round-2 已立档并完成架构 grill**(原「weixin 开工先 grill 架构」条件已清):`10-03-messaging-w2-platforms`(企微/钉钉/ntfy 蓝本形态,三件套齐)+ `10-03-messaging-weixin-bridge`(可选桥接,iLink 事实定案);执行等主人令,最佳时机=真机冒烟清账后
+- 事实更正:微信依赖是 iLink context_token(非 bot relay);wecom/dingtalk 走 telegram 范式(无目录发现,别名+直达)而非 feishu 范式(仅飞书有列表 API)
 
 ## 非目标
 
 - 双向收发 / 入站消息处理 / 会话状态机(主人明确定向出站;将来单独立项)
-- 桥接或内嵌 Hermes gateway(已否决)
-- W2/W3 平台的任何实装(仅登记)
+- 整体内嵌 Hermes gateway(已否决);**单平台可选桥接仅微信一处**(round-2 Q3 批,其余平台不桥接)
+- W3 平台的任何实装(仅登记)
