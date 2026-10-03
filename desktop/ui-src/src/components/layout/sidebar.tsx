@@ -1,7 +1,6 @@
 import { Inbox, LayoutDashboard, Rss, Settings, Terminal } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
-import { MyiaMark, MyiaWordmark } from "@/components/myia-mark";
 import { cn } from "@/lib/utils";
 
 /** 主导航项(to 与 App.tsx 路由一一对应;end=true 表示精确匹配) */
@@ -13,21 +12,11 @@ const NAV_ITEMS = [
   { to: "/settings", label: "设置", icon: Settings, end: false },
 ] as const;
 
-/** 左侧导航:品牌头 + 五屏联动导航(NavLink 激活态由路由驱动)。 */
+/** 左侧导航:五屏联动导航(NavLink 激活态由路由驱动)。 */
 export function Sidebar() {
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
-        <MyiaMark className="size-7" />
-        <div className="flex flex-col">
-          <MyiaWordmark className="text-sm leading-tight" />
-          <span className="text-[10px] leading-tight text-muted-foreground">
-            AI 替主人看着世界
-          </span>
-        </div>
-      </div>
-
-      <nav className="flex flex-1 flex-col gap-0.5 px-2 py-2" aria-label="主导航">
+      <nav className="flex flex-1 flex-col gap-0.5 px-2 pt-4 pb-2" aria-label="主导航">
         {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}

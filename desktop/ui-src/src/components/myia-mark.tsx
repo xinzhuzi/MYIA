@@ -14,17 +14,3 @@ export function MyiaMark({ className }: { className?: string }) {
     />
   );
 }
-
-/** 品牌渐变字标(青→紫,取自 branding SVG 的 accent 渐变)。 */
-export function MyiaWordmark({ className }: { className?: string }) {
-  return (
-    <span
-      className={cn(
-        "bg-gradient-to-r from-brand-from to-brand-to bg-clip-text font-semibold tracking-wide text-transparent",
-        className,
-      )}
-    >
-      MYIA
-    </span>
-  );
-}
