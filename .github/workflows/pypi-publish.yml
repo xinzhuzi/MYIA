@@ -186,8 +186,9 @@ jobs:
 
           needs = {
               "myia_classifier": {
+                  # classifier 是平铺布局(非根包的 src 布局),sdist 内路径与 wheel 同形
                   "wheel": ["myia_classifier/data/keywords.json"],
-                  "sdist": ["src/myia_classifier/data/keywords.json"],
+                  "sdist": ["myia_classifier/data/keywords.json"],
               },
               "myia": {
                   "wheel": [
@@ -208,11 +209,15 @@ jobs:
               "sdist": lambda p: tarfile.open(p).getnames(),
           }
 
+          # 发行文件名前缀(PyPI 规范化连字符→下划线)≠ 模块名:发行名 1.1.1 起
+          # 已是 shishi/shishi-classifier,v0.0.1 E2E 实证按模块名 glob 四项全空
+          dist_prefix = {"myia_classifier": "shishi_classifier", "myia": "shishi"}
+
           failures = []
           for proj in projects:
               for kind, globpat in (
-                  ("wheel", f"dist/{proj}-*.whl"),
-                  ("sdist", f"dist/{proj}-*.tar.gz"),
+                  ("wheel", f"dist/{dist_prefix[proj]}-*.whl"),
+                  ("sdist", f"dist/{dist_prefix[proj]}-*.tar.gz"),
               ):
                   found = sorted(glob.glob(globpat))
                   if not found:
@@ -222,7 +227,7 @@ jobs:
                       names = openers[kind](path)
                       print(f"{path}: {len(names)} entries")
                       for needle in needs[proj][kind]:
-                          # wheel 条目不带顶层目录,sdist 带 myia[-_classifier]-x.y.z/ 前缀,统一按后缀匹配
+                          # wheel 条目不带顶层目录,sdist 带 <发行名>-x.y.z/ 前缀,统一按后缀匹配
                           ok = any(n == needle or n.endswith("/" + needle) for n in names)
                           print(f"  {'OK ' if ok else 'MISSING '}{needle}")
                           if not ok:
