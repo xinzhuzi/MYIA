@@ -116,3 +116,5 @@
 > lib/api/client.ts、screens/feed/feed-screen.tsx、screens/settings/settings-screen.tsx、
 > desktop/ui-src/src/App.tsx、tests/test_desktop_sidecar_protocol.py、
 > .trellis/spec/desktop/sidecar-protocol.md)
+
+> **2026-10-04 归档会话注记**:AC 框为交付会话遗留未逐勾,不作为未完成证据;交付与验收以既录证据为准——C1/C2/C3/C5/C7/C13 代码在位(dc1cf86+UI 半边);dwfrun-6adbfbd0 全量门禁 3037 绿;装机冒烟类 AC 见移交注记。装机/真机类冒烟项统一移交 `10-04-wrapup-checklist` 装机验收节。
