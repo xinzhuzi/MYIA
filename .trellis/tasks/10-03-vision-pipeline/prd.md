@@ -80,7 +80,7 @@
 8. ✅ 拆屏(拍板①整拆):`/image` 路由/侧栏/screens/image/ 清空,image.import/ocr/analyze/status 与两事件从协议测试删除,image.config.read/save 保留且 VisionForm 正常;tsc/vitest/pytest/cargo 四道全绿(app-headless 4/4 PASS + protocol-image-methods-probe.txt + gates-summary.txt)
 9. ✅ prompt 版本 bump 的缓存失效一次性:同条目第二跑命中新缓存(不再重复计费)(enrich-run2.json:enrich_cache_hit=8、mock 0 新请求)
 10. ✅ 基线不回归:pytest/vitest/tsc 以开工基线为准(第 0 步记录)(gates-summary.txt:波动 3 起全归因并行会话在途编辑)
-11. ⚠️ manual **官方示范生效**:ai-news 示范配置跑通抽图→OCR;golden/fixture 已同步(改官方插件声明面的既定教训)(ainews-run.json:装载+fetch 74+classify 35+push ok、抽图字段命中;当日页面 titled 卡片零封面→真网无 OCR 产物,环路径由本地 fixture 同代码路径全量证完见 AC2/3;golden 面 ai-news 相关 16 passed)
+11. ⚠️ manual **官方示范生效**:ai-news 示范配置跑通抽图→OCR;golden/fixture 已同步(改官方插件声明面的既定教训)(ainews-run.json:装载+fetch 74+classify 35+push ok、抽图字段命中;当日页面 titled 卡片零封面→真网无 OCR 产物,环路径由本地 fixture 同代码路径全量证完见 AC2/3;golden 面 ai-news 相关 16 passed)。**真网补验(2026-10-03 晚,主会话)**:换 xkcd 真网探针证全链落地——fetch→extract `img@src`→下载→OCR 真图文字→本地 VL 1069 字情报向 caption(`evidence/realnet-probe/`);顺带修掉两个真缺陷:①fake-ip 代理段 198.18.0.0/15 被 SSRF 卫兵误杀全部域名图(本机 Clash fake-ip 实证)②VL 每图 45s 超时误杀 describe 长输出且 TimeoutError str 为空致日志无信息(修 90s+日志带异常类型)。结构性结论:**列表源页面当下无内容图,日常真出图需「详情页取图」能力**(列表抓完追抓 top-N 条目详情页收图),另档另议。
 
 ## 已拍板决议(grill Round 1,2026-10-03,主人「按照你的推荐落实」)
 

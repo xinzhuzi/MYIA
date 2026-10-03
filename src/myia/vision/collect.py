@@ -96,8 +96,10 @@ MAX_REDIRECT_HOPS = 3
 OCR_CONCURRENCY = 4
 #: VL 并发上限(本地 GPU 单飞实测定调,拍板③)。
 VL_CONCURRENCY = 1
-#: VL 每图超时(秒;管线收紧——交互模式 180s 是裕量,不进管线)。
-VL_TIMEOUT_SECONDS = 45.0
+#: VL 每图超时(秒;管线收紧——交互模式 180s 是裕量,不进管线)。2026-10-03
+#: 真网实测 45s 误杀 describe 长输出(本地 GPU 30-60s 边缘,asyncio.TimeoutError
+#: 的 str 为空导致日志无信息),收紧到 90s;run 级护栏仍由 max_per_run 扛。
+VL_TIMEOUT_SECONDS = 90.0
 #: 多图 OCR 文本拼接分隔符。
 IMAGE_OCR_JOIN = "\n"
 
@@ -182,6 +184,12 @@ def _is_private_ip(ip_text: str) -> bool:
         mapped = ip.ipv4_mapped
         if mapped is not None:
             ip = mapped
+    # fake-ip 代理段(RFC 2544 基准 198.18.0.0/15)豁免:Clash/Surge 等 fake-ip
+    # 模式把一切域名 DNS 应答进该段,连接经系统代理回到真实目标,并非内网
+    # 直达;不豁免则代理环境下所有域名的图片全被误杀(2026-10-03 真网探针
+    # 实证:imgs.xkcd.com 解析 198.18.0.213 被 reason=ssrf 拒)。
+    if ip.version == 4 and ip in ipaddress.ip_network("198.18.0.0/15"):
+        return False
     return (
         ip.is_private
         or ip.is_loopback
@@ -549,7 +557,8 @@ async def process_item_images(
                             result = await _analyze()
                         except Exception as exc:  # noqa: BLE001 - VL 失败不重试
                             logger.warning(
-                                "VL 描述失败(vl_skipped_error,不重试) url=%s: %s", item.url, exc
+                                "VL 描述失败(vl_skipped_error,不重试) url=%s: %s: %s",
+                                item.url, type(exc).__name__, exc,
                             )
                             vl_failed = True
                             break

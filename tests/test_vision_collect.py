@@ -184,6 +184,23 @@ class TestDegradationMatrix:
         ))
         assert status == "none"
 
+    def test_fake_ip_proxy_range_allowed(self, monkeypatch):
+        """fake-ip 代理段(198.18.0.0/15)豁免:DNS 应答全进该段时照常下载+OCR。
+
+        回归钉:2026-10-03 真网探针实证,不豁免则 fake-ip 代理环境(Clash 等)
+        下所有域名的图片都被 reason=ssrf 误杀,自动识图全灭。
+        """
+        monkeypatch.setattr(collect, "_resolve_host", lambda host: ["198.18.0.213"])
+        fake_ocr(monkeypatch)
+        item = Item()
+        item.metadata["image"] = "https://cdn.example/pic.png"
+        client = serve({"/pic.png": png_bytes()})
+        status = run(collect.process_item_images(
+            item, images_cfg=self.cfg(), vision_cfg=VisionConfig(), client=client,
+        ))
+        assert status == "ok"
+        assert item.metadata.get("image_ocr")
+
     def test_ssrf_private_literal_loopback_rejected(self, monkeypatch):
         """127.0.0.1 直写主机同样拒(字面 IP 走同一条私网判定,public_dns 桩原样回)。"""
         fake_ocr(monkeypatch)

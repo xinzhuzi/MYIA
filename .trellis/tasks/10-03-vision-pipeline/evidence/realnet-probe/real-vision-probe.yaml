@@ -1,0 +1,43 @@
+id: real-vision-probe
+name: 真网识图探针
+schedule: "0 8,20 * * *"
+timezone: Asia/Shanghai
+sources:
+  - name: xkcd
+    engine: static_html
+    url: "https://xkcd.com/"
+    rate_limit:
+      qps: 0.5
+    retry: 1
+    extract:
+      type: item
+      fields:
+        title: "title"
+        url: "meta[property='og:url']@content"
+        image: "#comic img@src"
+watchlist:
+  keywords: [xkcd]
+  mute: []
+classify:
+  builtin: false
+  rules: []
+dedup:
+  key: "{url}"
+enrich:
+  enabled: false
+  model: glm-4-flash
+  scores: [value, relevance, credibility]
+  batch: 20
+  cache: true
+  budget_per_run: 50000
+push:
+  - channel: stdout
+storage:
+  retention: 90d
+  vacuum: monthly
+images:
+  enabled: true
+  max_images: 1
+  max_per_run: 2
+  min_bytes: 10240
+  vl: "local"
