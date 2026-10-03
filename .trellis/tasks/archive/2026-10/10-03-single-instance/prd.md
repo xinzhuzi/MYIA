@@ -37,3 +37,19 @@ myia-desktop dev 实例与 MYIA 装机包同屏并存,主人截图报障。
 - tauri dev 重启(kill 旧→起新)有毫秒级锁释放窗口,内核在进程死亡时同步放锁,
   实际竞态概率≈0;工作流 dev 循环若偶发秒退,重试即过(记给后续桌面验证流)。
 - 更新器 relaunch:旧进程先退出放锁,新进程正常接管,无死锁面。
+
+## 验收记录(2026-10-03,受主人委托代验)
+
+**verdict:accepted(归档)**。逐条对照(证据 = 已提交代码 + 本任务 evidence/acceptance-transcript.txt):
+
+| AC | 判定 | 证据 |
+|---|---|---|
+| 首启 open -g 静默持锁 | 过 | `desktop/src-tauri/src/main.rs:166-178` acquire_instance_lock:MYIA_HOME 显式 env > `~/Library/Application Support/MYIA` 下 `.instance.lock`,flock(LOCK_EX\|LOCK_NB);transcript 首启实测 |
+| open -n 秒退、既有实例激活亮窗(Reopen) | 过 | main.rs:186-194(拿不到锁→eprintln+孤儿 shell `sleep 0.5` 后 `open -b com.myia.app`,return 退出);Reopen 亮窗 main.rs:271-281;transcript 记首版竞态修复+复测(窗口 0→1、frontmost=MYIA) |
+| 直跑二进制二次启动打印「已有 MYIA 实例在跑」秒退 | 过 | main.rs:189 消息逐字吻合;transcript 实测 |
+| quit 后锁释放可再启 | 过 | mem::forget 持有(main.rs:187),内核随进程退出放锁;transcript 实测重启正常 |
+| cargo check 绿 / tauri build exit 0 / 重装 | 过(转录) | transcript;libc 0.2.189 已入 Cargo.lock;代验未重跑构建(证据手段限只读) |
+| sidecar 不受影响 | 过 | sidecar spawn 独立于锁路径(main.rs:211-221),myia-core 不经此锁 |
+
+cfg 全门控 macOS(main.rs:166/185,与「产物仅 app/dmg」一致);MYIA_HOME 沙箱=独立锁域
+(main.rs:169-171,特性记档)。未发现应修缺陷;无主人手动遗留项。
