@@ -20,8 +20,14 @@
 - [ ] 每条额度含快照日期与免责;营销型额度标明「用尽即止」类性质
 - [ ] 无凭据、无私有痕迹(仓库公开红线,循 domain/security-baseline.md)
 
+## 验收记录(2026-10-03,受主人委托代验)
+
+**verdict: rejected(一处应修「照做即失败」缺陷,修复后复审即可归档)** —— 通过面:docs/zh|en/zero-cost.md 双语交付,三段结构/快照日期(2026-10-03)/以官网为准免责/营销型额度性质标注齐备;getting-started.md 双语链入(zh:56,130;en:65-66,154);research.md 决策面三引用项全部升 ●(SiliconFlow 赠额核实为「公开渠道已无明文」、诚实保留 ○ 并在文档显式排除,处置正确);`tests/test_docs.py` 80 passed(代验实跑);无凭据、无私有痕迹。**缺陷(where+证据):docs/zh/zero-cost.md:68,77 与 docs/en/zero-cost.md:85,96 教 `keychain:shishi/image/api_key` + `shishi secret set shishi/image/api_key`,而 src/myia/secrets.py:69 `_SECRET_NAME_RE=^myia/…` 强制 canonical 命名空间且 set/get 双侧校验(secrets.py:203-218,238),代码无任何 `shishi/` 别名(src/myia+desktop/entry.py grep 零命中)——照做即失败(录入被拒、yaml 引用解析失败,云端看图通道接不通);桌面端真名为 `myia/image/api_key`(src/myia/vision/settings.py:49)。溯源:845f64a 原版正确写 `myia/image/api_key`,改名波 cb87302 全局替换误伤,c1fa1ee 只复原 schema.md 漏了本档两页。修复=4 行把钥匙串名改回 `myia/image/api_key`(CLI 名 `shishi` 保留不动)。
+
 ## Notes
 
 - 轻量任务,PRD-only;不涉及产品代码改动
 - 依赖:10-03-free-tier-supplier-map 的 research.md(活档案,引用时核)
 - 免费路径与信号分级的选型语境见 `.trellis/spec/domain/connector-selection.md`
+
+> 2026-10-03 复审:驳回项已修(4 处钥匙串名改回 myia/ 命名空间,文档口径与 secrets 校验器一致)
