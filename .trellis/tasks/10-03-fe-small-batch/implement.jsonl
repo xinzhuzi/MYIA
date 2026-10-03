@@ -1,0 +1,1 @@
+{"file": ".trellis/spec/desktop/sidecar-protocol.md", "reason": "本批唯一协议新增 feed.enrich(注册表 #43,PROTOCOL_VERSION 5→6)契约+错误码『单条精评』族落档;实现入口 desktop/entry.py:966 _m_feed_enrich,前端接线 desktop/ui-src/src/screens/{feed,logs}(G7 重跑/过滤/搜索、G8 三态、G9 批量、G12 沉淀),AC 实况与 leftovers 见 task.json 2026-10-04 收口段"}

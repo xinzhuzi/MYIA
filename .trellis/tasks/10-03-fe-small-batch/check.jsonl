@@ -1,0 +1,1 @@
+{"file": ".trellis/tasks/10-03-fe-small-batch/evidence/touch-interaction-notes.md", "reason": "质检依据:AC8 after-only 存证口径(2026-10-03 主人裁决,禁 stash)+9 PNG 拍前选择器门禁断言+三独立硬证据(watchlist 真落盘/enrich_not_configured 实回/run_id=5 dry 重跑)+P1/P2 对比度复算表(过线 5 处最小 4.73,旁核 3 处 <4.5 如实)+harness 复现命令;协议面核对另见 test_desktop_sidecar_protocol.py(pytest 105 绿)+vitest 全量 262+tsc 0 错"}
