@@ -163,6 +163,6 @@ Releases(`shishi_1.1.1_aarch64.dmg`;未做 Apple 公证,首开右键→打开,�
 仪表盘/信息流/源管理/日志/设置。
 
 如实说:CLI 目前源码安装(git clone + uv sync,uv workspace),PyPI 待手动发布
-流程;Windows 仅构建级验证,未做装机冒烟;CI 1300+ 测试无一条碰真实网络。
+流程;the Windows build did not ship in v1.1.1 (no Windows installer in Releases — macOS only for now);CI 1300+ tests never touch the real network.
 
 仓库 https://github.com/xinzhuzi/shishi ,求建议:你会先拿它盯什么?

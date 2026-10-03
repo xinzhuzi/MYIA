@@ -100,7 +100,7 @@ demo(GitHub 新星榜),第一次点「运行第一个插件」就出真数据;�
 
 - PyPI 还没发——`shishi` / `shishi-classifier` 都未上架,现在别
   `pip install`,CLI 安装只有源码 `uv sync` 一条路;
-- Windows 产物是构建级验证,没做装机冒烟,Windows 朋友暂时当没有;
+- Windows 构建这版没过(Release 里没有 Windows 包),Windows 朋友暂时当没有;
 - 桌面推送卡片里的反馈按钮还没做,排 v1.1.2 桌面对齐批次(反馈闭环 CLI
   现已可用);
 - 安装包未公证(上面说了,右键打开)。

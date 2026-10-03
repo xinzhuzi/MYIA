@@ -56,7 +56,7 @@ https://github.com/xinzhuzi/shishi
   - 「和 RSSHub / changedetection.io 区别?」→ README「市面空白:为什么是
     世事」对比表,直接引(表格在远端 main 已存在)。
   - 「有 Windows 吗?」→ 本版 Release 只有 macOS Apple Silicon 安装包;
-    Windows 产物是构建级验证,没做装机冒烟,不说「支持 Windows」。
+    Windows 构建这版没跑通(Release 里没有 Windows 包),不说「支持 Windows」。
   - 「pip install 行吗?」→ PyPI 待上架,现在请走 uv 源码路线。
   - 「桌面卡片里能标记有用/没用吗?」→ 卡片内按钮排在 v1.1.2 桌面对齐
     批次;反馈闭环现在 CLI 就能用。
