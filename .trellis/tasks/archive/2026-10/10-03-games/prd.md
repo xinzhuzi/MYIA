@@ -89,3 +89,7 @@ wf_crawl.py,金测集钉住,不扩表)以及 stocks(股票)/gpu-prices(显卡行
 - [ ] url_template 扩展:`tests/test_schema.py` + `tests/test_fetch_base.py`
       新用例绿;`.trellis/spec/domain/yaml-schema.md` 与文档锁定面同步
 - [ ] 全量 pytest 零失败(对照开工基线);ruff 对 HEAD 跟踪树零错
+
+## 验收记录(2026-10-03,受主人委托代验)
+
+**verdict: accepted** —— 六项全过:plugins/games.yaml 12 段显式声明、url_template 双源渲染在档(代验实读);`tests/test_plugins.py` 79 passed(代验实跑:OFFICIAL_PLUGINS 显式元组含 `"games"`(tests/test_plugins.py:39)、_SNIPPETS 录制样本 ("games","epic-free")/("games","steam-specials") 零外网钉提取形状、test_games_free_item_hits_rules_and_immediate_route 断言限免→immediate/普通折扣→digest);`tests/test_schema.py` 57 + `tests/test_fetch_base.py` 41 全绿(代验实跑,url_template 扩展用例);`.trellis/spec/domain/yaml-schema.md` 与 docs/zh|en/schema.md url_template 锁定面同步(zh/schema.md:116-122,375);ruff `src tests plugins desktop/entry.py` All checks passed(代验实跑);load-check 由电池同装载路径(load_category_file)覆盖 + evidence/live-run-lowfix-2026-10-03.json 真跑佐证(epic 24 / steam 18 条、0 hash URL)。全量 pytest 数字取自任务收口记录(journal:全量 1759 passed 零失败),代验按规未跑全量套件、任务自带三个测试文件全绿。
