@@ -141,7 +141,7 @@ from myia.push import (
     routes_from_config,
     send_immediate,
 )
-from myia.push.directory import REFRESH_STALE_SECONDS, ChannelDirectory
+from myia.push.directory import REFRESH_STALE_SECONDS, ChannelDirectory, ChannelEntry
 from myia.push.templates import (
     build_keyword_trends,
     build_trend_table,
@@ -2197,14 +2197,27 @@ class Pipeline:
         用户没配 TG 是正常态);轮询失败在循环内 log-and-continue。同 token
         并发轮询约束(409)见 :meth:`run_forever` docstring——本方法不判定
         其他进程是否也在轮询,跨进程互斥交由部署形态保证。
+
+        目录 sink(10-03-messaging-telegram D2):轮询看到的每个会话被动
+        merge 进 ``telegram`` 桶(Telegram Bot API 无「列出会话」能力,这是
+        目录条目的唯一来源);sink 旁路,抛错只记日志不中断轮询。
         """
         if not any(push.channel == "telegram" for push in self.config.push):
             return None
         try:
-            return TelegramFeedbackPoller()
+            return TelegramFeedbackPoller(on_chat=self._merge_telegram_chat)
         except TelegramFeedbackError as exc:
             logger.info("TG 反馈轮询未启用(bot 凭据不可解析): %s", exc)
             return None
+
+    def _merge_telegram_chat(self, entry: ChannelEntry) -> None:
+        """poller 目录 sink 的落点:单条观测 → 通道目录 ``telegram`` 桶。
+
+        CLI/server 单发形态不跑轮询(目录只靠手工别名 + 直达 id,合法态);
+        常驻/桌面形态经 feedback 轮询逐条积累。best-effort:merge 内部
+        原子落盘,失败退化内存态(directory 契约)。
+        """
+        self._channel_directory.merge_entries("telegram", [entry])
 
     async def _feedback_poll_loop(self, poller: TelegramFeedbackPoller) -> None:
         """Resident-mode background loop: poll getUpdates → ingest feedback.

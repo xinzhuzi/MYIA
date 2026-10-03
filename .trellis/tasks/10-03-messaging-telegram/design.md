@@ -10,14 +10,14 @@
 
 `TelegramFeedbackPoller`(push/telegram_feedback.py)增可选构造参数 `on_chat: Callable[[ChannelEntry], None] | None = None`;轮询循环里每条 update 的 effective chat 归一为 `ChannelEntry` 后回调:
 
-- group/supergroup:`chat.title` 为名,type=group
-- private:`chat.first_name [+ last_name]` 为名,type=dm;有 username 时记进 name 备注字段(ChannelEntry.name 保留 first_name,username 进不了现有字段就拼进 name——不扩 schema,实现时取简)
+- group/supergroup:`chat.title` 为名,type=group(supergroup 归一为 group,ENTRY_TYPES 无该形态)
+- private:`chat.first_name [+ last_name]` 为名,type=dm;有 username 时拼进 name 尾注(`名 (@user)`——ChannelEntry.name 保留人名,不扩 schema,实现时取简)
 
-回调由 poller 实例化处(desktop serve 路径)注入 `ChannelDirectory.merge("telegram", ...)`;CLI/server 形态不跑轮询,目录只靠手工别名 + 直达 id(合法态,不报错)。poller 现有解析/去重/错误路径零改动——sink 是旁路观察者,sink 抛错只记日志不中断轮询。
+回调由 poller 实例化处注入 `ChannelDirectory.merge_entries("telegram", …)`。【实现期定位注记】poller 唯一实例化点是 `pipeline._build_feedback_poller()`(run_forever 常驻模式——桌面 serve 与 CLI `--loop` 都走它;不存在独立的 desktop serve 实例化点);core 交付的 ChannelDirectory 只有整桶 `replace_platform`,被动逐条积累所需的增量合并以本任务新增的 `merge_entries` 承载(同 id 刷新 name/type/last_seen、新 id 追加、有变化才落盘)。CLI/server 单发形态不跑轮询,目录只靠手工别名 + 直达 id(合法态,不报错)。poller 现有解析/去重/错误路径零改动——sink 是旁路观察者,sink 抛错只记日志不中断轮询。
 
 ## D3:定向发送
 
-`supports_targeting = True`;`send()` 内 `context.target.chat_id` 优先、退回 legacy `_resolve_chat_id()`;4096 分段(split_message @ telegram.py:70-95)对每目标各自生效,逻辑零改动。
+`supports_targeting = True`;`send()` 内 `context.target.chat_id` 优先、退回 legacy `_resolve_chat_id()`;4096 分段(split_message,telegram.py:87-112)对每目标各自生效,逻辑零改动。
 
 ## D4:错误语义
 

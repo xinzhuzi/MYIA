@@ -8,6 +8,9 @@ Hermes-Agent,MIT;上游路径 ``~/.hermes/hermes-agent/gateway/channel_directory
 
 - 重建为**按平台桶整体替换**(:meth:`ChannelDirectory.replace_platform`)而
   非整体从零重建——MYIA 无常驻 gateway,发现按平台单独触发;
+- :meth:`ChannelDirectory.merge_entries` 被动增量合并(10-03-messaging-telegram
+  D2):无目录发现 API 的平台(如 Telegram)靠入站观测逐条积累,Hermes 的
+  等价物是入站消息回填目录;
 - ``last_seen`` 字段(Hermes 无):给桌面 UI「最后发现」列用;
 - 手工直编 ``channel_directory.json`` 不保证保留(Hermes 同款);别名文件
   ``channel_aliases.json`` 才是持久覆盖层,在 load 与 replace 双向生效
@@ -348,3 +351,52 @@ class ChannelDirectory:
         if counts:
             logger.info("目录刷新完成: %s", counts)
         return counts
+
+    def merge_entries(
+        self,
+        platform: str,
+        entries: Iterable[ChannelEntry],
+        *,
+        now: float | None = None,
+    ) -> int:
+        """被动合并增量条目(10-03-messaging-telegram D2;与 :meth:`replace_platform`
+        的整桶替换互补——Telegram 无目录发现 API,条目靠入站观测逐个积累)。
+
+        同 ``chat_id`` 用观测值刷新 ``name``/``type`` 并前移 ``last_seen``;
+        新 id 追加。别名覆盖在合并后重套(手工别名始终赢)。**有实际变化才
+        落盘**:空轮次/重复观测零写盘(getUpdates 带 offset 书签,大多数
+        轮次本就无新 update)。
+
+        Args:
+            platform: 平台桶名(如 ``telegram``)。
+            entries: 本轮观测到的条目(同 id 重复无妨,合并幂等)。
+            now: 时间源注入(测试钉死 ``last_seen``)。
+
+        Returns:
+            发生变化的条目数(新增 + 字段刷新;仅 ``last_seen`` 前移也计)。
+        """
+        stamp = now if now is not None else self._wall_clock()
+        bucket = self._platforms.setdefault(platform, [])
+        index = {entry.chat_id: entry for entry in bucket}
+        changed = 0
+        for entry in entries:
+            existing = index.get(entry.chat_id)
+            if existing is None:
+                entry.platform = platform
+                if entry.last_seen is None:
+                    entry.last_seen = stamp
+                bucket.append(entry)
+                index[entry.chat_id] = entry
+                changed += 1
+                continue
+            if (existing.name, existing.type) != (entry.name, entry.type):
+                existing.name = entry.name
+                existing.type = entry.type
+                changed += 1
+            if existing.last_seen != stamp:
+                existing.last_seen = stamp
+                changed += 1
+        if changed:
+            self._apply_aliases()
+            self.save()
+        return changed

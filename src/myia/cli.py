@@ -1955,11 +1955,18 @@ def _channels_refresh(args: argparse.Namespace) -> int:
     directory = ChannelDirectory(data_root)
     refreshed: dict[str, int] = {}
     failures: list[dict[str, str]] = []
+    passive: list[str] = []
     shims: dict[str, _PrecapturedAdapter] = {}
     for platform in requested:
         adapter = PLATFORMS[platform]()
+        discover = getattr(adapter, "discover_directory", None)
+        if not callable(discover):
+            # 被动目录平台(10-03-messaging-telegram:Bot API 无「列出会话」
+            # 能力):非失败——条目由 feedback 轮询入站观测积累 + 别名手工补录。
+            passive.append(platform)
+            continue
         try:
-            entries = asyncio.run(adapter.discover_directory())
+            entries = asyncio.run(discover())
         except Exception as exc:  # noqa: BLE001 - 单平台失败隔离:告警 + 保留旧桶
             failures.append({"platform": platform, "error": f"{type(exc).__name__}: {exc}"})
             continue
@@ -1972,6 +1979,7 @@ def _channels_refresh(args: argparse.Namespace) -> int:
         "action": "refresh",
         "data_root": str(data_root),
         "refreshed": refreshed,
+        "passive": passive,
         "failed": failures,
         "updated_at": directory.updated_at,
         "platforms": {
@@ -1990,6 +1998,11 @@ def _channels_refresh(args: argparse.Namespace) -> int:
     else:
         for platform, count in sorted(refreshed.items()):
             print(f"已刷新 {platform} 目录:发现 {count} 个可达对象(数据根 {data_root})")
+        for platform in passive:
+            print(
+                f"{platform} 为被动目录平台(无主动发现 API):目录由入站消息自动积累,"
+                "别名文件 channel_aliases.json 可手工补录"
+            )
         for failure in failures:
             print(
                 f"刷新失败(保留旧目录): {failure['platform']}: {failure['error']}",

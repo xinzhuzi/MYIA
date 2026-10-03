@@ -8,6 +8,14 @@ line, so a chunk boundary always falls between items and never cuts a tag
 mid-way (template output carries no parse_mode, so even a hard mid-line cut
 there is plain-text safe).
 
+目录寻址(10-03-messaging-telegram):``supports_targeting=True``,
+``context.target.chat_id`` 优先、退回 legacy ``env:TELEGRAM_CHAT_ID`` 引用;
+``parse_direct_ref`` 直达解析数字 chat_id / ``@username``(蓝本:Hermes
+``plugins/platforms/telegram/telegram_ids.py`` 的 id/username 双形态,
+NousResearch/Hermes-Agent,MIT——MYIA 按本档语义重写,不整块复制)。
+Telegram Bot API 无「列出会话」能力(蓝本事实轮核),目录条目唯一来源是
+被动积累:feedback 轮询的 ``on_chat`` sink 见 telegram_feedback.py。
+
 标题与飞书卡片共用 :func:`myia.push.feishu_card.card_title`,跨通道标题一致。
 With a user template the rendered text is sent **without** ``parse_mode``
 (user-controlled plain text; HTML-escaping it would corrupt their intent).
@@ -24,6 +32,7 @@ from __future__ import annotations
 
 import html
 import logging
+import re
 from typing import Any, Mapping, Sequence
 
 import httpx
@@ -37,15 +46,18 @@ from myia.push.base import (
     item_view,
 )
 from myia.push.feishu_card import card_title
+from myia.push.targets import RESOLVED_DIRECT, ChannelTarget
 from myia.push.templates import TemplateRenderError, TemplateRenderer
 from myia.schema import CredentialResolveError, resolve_credential
 
 __all__ = [
+    "CHAT_ID_RE",
     "DEFAULT_TARGET_ENV_REF",
     "DEFAULT_TOKEN_ENV_REF",
     "MAX_ITEM_LINE_LENGTH",
     "MESSAGE_LIMIT",
     "TELEGRAM_API_BASE",
+    "TELEGRAM_USERNAME_RE",
     "TelegramChannel",
     "build_message",
     "split_message",
@@ -65,6 +77,11 @@ MESSAGE_LIMIT = 4096
 #: splitting never has to cut inside HTML tags (a >4096-char title/URL would
 #: otherwise hard-split into invalid HTML and Telegram would reject the chunk).
 MAX_ITEM_LINE_LENGTH = 1024
+#: 直达数字 chat_id(私聊正数 / 群负数 / 频道 ``-100…`` 前缀,均为纯数字形态)。
+CHAT_ID_RE = re.compile(r"^-?\d+$")
+#: 公开 ``@username``(Hermes ``telegram_ids`` 同款宽度:5-32 位字母数字下划线,
+#: 容忍 4 位历史短名;**只对公开用户名有效**,私聊无公开用户名)。
+TELEGRAM_USERNAME_RE = re.compile(r"^@[A-Za-z0-9_]{4,32}$")
 
 
 def split_message(text: str, *, limit: int = MESSAGE_LIMIT) -> list[str]:
@@ -196,6 +213,10 @@ def build_message(items: Sequence[Any], context: SendContext) -> str:
 class TelegramChannel(TrendAwareChannel):
     """``telegram`` channel: one ``sendMessage`` per ≤4096-char chunk.
 
+    目录寻址(10-03-messaging-telegram):``context.target.chat_id`` 优先、
+    退回 legacy ``target``/``env:TELEGRAM_CHAT_ID`` 引用(不配 targets 的
+    旧配置行为逐字节不变);4096 分段对每目标各自生效。
+
     Args:
         target: chat id credential reference (``env:TELEGRAM_CHAT_ID`` style,
             resolved at send time); omitted → :data:`DEFAULT_TARGET_ENV_REF`.
@@ -218,9 +239,9 @@ class TelegramChannel(TrendAwareChannel):
     """
 
     name = "telegram"
-    #: 目录寻址能力缺省关(telegram 子任务 10-03-messaging-telegram 翻 True
-    #: 并实现 context.target 覆盖);显式声明保住 isinstance(Channel) 判定。
-    supports_targeting = False
+    #: 目录寻址已开(10-03-messaging-telegram):context.target 优先,legacy
+    #: target/env 兜底;协议判定见 base.Channel docstring。
+    supports_targeting = True
 
     def __init__(
         self,
@@ -242,15 +263,34 @@ class TelegramChannel(TrendAwareChannel):
     async def send(self, items: Sequence[Any], context: SendContext) -> None:
         """Send the item batch as one or more sequential ``sendMessage`` calls.
 
+        定向优先(``context.target.chat_id`` > legacy target 引用);
+        ``@username`` 形态目标在 API 报 chat 不存在时,错误文案附「私聊必须
+        用数字 chat_id」提示(design D1:@username 仅对公开用户名有效)。
+
         Raises:
             PushSendError: on any credential/transport/API failure (callers
                 isolate per channel; nothing is raised on success).
         """
         token = self._resolve_token()
-        chat_id = self._resolve_chat_id()
+        chat_id = (
+            context.target.chat_id
+            if context.target is not None
+            else self._resolve_chat_id()
+        )
         parts, parse_mode = self._compose(items, context)
         for text in parts:
-            await self._post_message(token, chat_id, text, parse_mode)
+            try:
+                await self._post_message(token, chat_id, text, parse_mode)
+            except PushSendError as exc:
+                if chat_id.startswith("@") and "not found" in str(exc).lower():
+                    # @username 只解析公开用户名;私聊/未公开群以此提示指路。
+                    # 原厂描述保留在文案里,死信分类(delivery)照常命中。
+                    raise PushSendError(
+                        exc.code,
+                        f"{exc};@username 仅对公开频道/群有效,"
+                        "私聊必须用数字 chat_id 定向(见 telegram:@username 约定)",
+                    ) from exc
+                raise
         logger.debug(
             "telegram 发送完成: slot=%s kind=%s count=%d parts=%d",
             context.slot,
@@ -329,3 +369,24 @@ class TelegramChannel(TrendAwareChannel):
                 f"telegram API 返回错误: error_code={error_code} description={description}",
             )
         return dict(data)
+
+    # ------------------------------------------------- 直达解析(design D1)
+
+    @classmethod
+    def parse_direct_ref(cls, ref: str) -> ChannelTarget | None:
+        """显式 id 直达:``<纯数字>``(含负号)与 ``@username`` 不经目录。
+
+        Hermes ``telegram_ids`` 同款双形态:数字 id(私聊正数 / 群负数 /
+        频道 ``-100…``)与公开 ``@username``(4-32 位字母数字下划线)直达;
+        其余(名称等)返回 None,调用方回落目录四路径解析。
+
+        **@username 仅对公开用户名(公开频道/群)有效**——私聊没有公开
+        用户名,必须用数字 chat_id;误用时发送期 API 报 chat not found,
+        错误文案会附该提示(:meth:`send`)。
+        """
+        value = ref.strip()
+        if CHAT_ID_RE.fullmatch(value) or TELEGRAM_USERNAME_RE.fullmatch(value):
+            return ChannelTarget(
+                platform="telegram", chat_id=value, resolved_from=RESOLVED_DIRECT
+            )
+        return None
