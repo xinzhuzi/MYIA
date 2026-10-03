@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -82,9 +83,11 @@ class CapturingStdout:
     """stdout 假体:验证 legacy 路径 context.target 恒为 None。"""
 
     name = "stdout"
+    instances: list["CapturingStdout"] = []
 
     def __init__(self, **kwargs: Any) -> None:
         self.calls: list[dict[str, Any]] = []
+        CapturingStdout.instances.append(self)
 
     async def send(self, items, context) -> None:
         self.calls.append({"items": list(items), "context": context})
@@ -143,8 +146,10 @@ def _run_pipeline(tmp_path: Path, config, titles: list[str]):
 @pytest.fixture(autouse=True)
 def _reset_fake():
     FakeFeishuTargeting.reset()
+    CapturingStdout.instances = []
     yield
     FakeFeishuTargeting.reset()
+    CapturingStdout.instances = []
 
 
 def _patch_feishu(monkeypatch, *, with_platform: bool = True):
@@ -363,6 +368,74 @@ class TestLazyDirectoryRefresh:
         assert FakeFeishuTargeting.discovery_count() == 0
         reports = result.pushes[0].reports
         assert reports and reports[0].error.startswith("[target_unresolved]")  # 目录空,解析失败
+
+
+class TestDigestPoolingSemantics:
+    """flush 留池判定:真失败留池(legacy 不变)/纯终态放弃/死信自愈重发。"""
+
+    def _aggregator(self, tmp_path, channel):
+        from myia.dedup import DedupRegistry
+        from myia.push import DigestAggregator
+
+        return DigestAggregator(
+            channels=[channel], registry=DedupRegistry(SQLiteStore(tmp_path / "d.db"))
+        )
+
+    def test_all_failed_stays_pooled_legacy(self, tmp_path):
+        from myia.push.base import PushSendError
+
+        class Failing:
+            name = "failing"
+            supports_targeting = True
+
+            def __init__(self) -> None:
+                self.calls = 0
+
+            async def send(self, items, context) -> None:
+                self.calls += 1
+                raise PushSendError("http_error", "网络抖动")
+
+        channel = Failing()
+        aggregator = self._aggregator(tmp_path, channel)
+        aggregator.add({"title": "t", "url": "https://x/1"}, dedup_key="k1")
+        directory = ChannelDirectory(tmp_path)
+
+        reports = asyncio.run(aggregator.flush(now=datetime(2026, 10, 3, 9), directory=directory))
+
+        assert all(not r.ok and not r.skipped for r in reports)
+        assert len(aggregator) == 1  # 留池重试(legacy 行为)
+
+    def test_all_terminal_skipped_drops_not_repools(self, tmp_path):
+        from myia.push import DeliveryLedger
+
+        ledger = DeliveryLedger(tmp_path)
+        ledger.mark_dead(platform="feishu", chat_id="oc_1", reason="forbidden: x")
+
+        class Healthy:
+            name = "healthy"
+            supports_targeting = True
+
+            def __init__(self) -> None:
+                self.calls = 0
+
+            async def send(self, items, context) -> None:
+                self.calls += 1
+
+        channel = Healthy()
+        aggregator = self._aggregator(tmp_path, channel)
+        aggregator.add({"title": "t", "url": "https://x/1"}, dedup_key="k1", targets=["feishu:群一"])
+        directory = ChannelDirectory(tmp_path)
+        directory.replace_platform(
+            "feishu", [ChannelEntry(platform="feishu", chat_id="oc_1", name="群一")], now=1.0
+        )
+
+        reports = asyncio.run(
+            aggregator.flush(now=datetime(2026, 10, 3, 9), directory=directory, ledger=ledger)
+        )
+
+        assert all(r.skipped for r in reports)  # dead 跳过 = 终态
+        assert len(aggregator) == 0  # 不留池:无限重试没有意义
+        assert channel.calls == 0
 
 
 class TestDeadLedgerWiring:

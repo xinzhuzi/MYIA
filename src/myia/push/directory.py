@@ -37,7 +37,6 @@ __all__ = [
     "ALIASES_FILENAME",
     "DIRECTORY_FILENAME",
     "REFRESH_STALE_SECONDS",
-    "DirectoryRefreshError",
     "ChannelEntry",
     "ChannelDirectory",
 ]
@@ -54,15 +53,6 @@ REFRESH_STALE_SECONDS = 300.0
 
 #: entry ``type`` 取值约定(与通道实现共享;对齐 Hermes 的 channel/dm/forum 语汇)。
 ENTRY_TYPES = ("group", "dm", "channel", "topic")
-
-
-class DirectoryRefreshError(RuntimeError):
-    """目录刷新失败(结构化;调用方退回旧目录,不阻塞推送)。"""
-
-    def __init__(self, platform: str, message: str) -> None:
-        super().__init__(f"平台 {platform} 目录刷新失败: {message}")
-        self.platform = platform
-        self.message = message
 
 
 @dataclass
