@@ -1,0 +1,1 @@
+{"file": ".trellis/spec/desktop/sidecar-protocol.md", "reason": "实例锁数据根循 sidecar 同规则(显式 env > Application Support/MYIA),sidecar 不经此锁;归档补记"}

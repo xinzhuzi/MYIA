@@ -1,0 +1,1 @@
+{"file": ".trellis/spec/domain/security-baseline.md", "reason": "缺陷 1 钥匙串更新修法红线:凭据只入钥匙链零明文(secrets.py 既有约定)"}

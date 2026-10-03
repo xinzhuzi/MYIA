@@ -1,0 +1,1 @@
+{"file": ".trellis/spec/desktop/sidecar-protocol.md", "reason": "桌面侧边界:不改 sidecar 协议、不改前端,静默启动只动 tauri.conf.json/main.rs;归档补记"}

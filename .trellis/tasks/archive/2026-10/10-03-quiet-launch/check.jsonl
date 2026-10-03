@@ -1,0 +1,1 @@
+{"file": ".trellis/spec/domain/os-etiquette.md", "reason": "冒烟验证纪律(open 不透传 shell env,须直跑二进制带 env;launchctl 收尾清场);归档补记"}
