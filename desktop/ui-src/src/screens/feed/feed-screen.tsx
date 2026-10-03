@@ -173,7 +173,7 @@ function FeedCard({
           type="button"
           className="min-w-0 truncate text-left text-sm font-medium text-foreground hover:text-primary"
           onClick={() => onMarkRead(item)}
-          title={item.url}
+          title={`点击标记已读:${item.title || item.url}`}
         >
           {item.title || item.url}
         </button>
@@ -731,7 +731,9 @@ export function FeedScreen() {
               </div>
             ))}
           </div>
-        ) : visible.length === 0 ? (
+        ) : !error && visible.length === 0 ? (
+          // !error 门(质检修):错误态与空态语义互斥——sidecar 不可用时不得
+          // 再诱导「运行第一个插件」(store 损坏下采集必失败),只留上方错误卡+重试。
           items.length === 0 && searchActive ? (
             <Card data-testid="feed-search-empty">
               <CardContent className="p-0">
@@ -806,7 +808,9 @@ export function FeedScreen() {
                 className="sticky top-0 z-10 -mx-6 flex items-center gap-2 bg-background/95 px-6 py-1.5 backdrop-blur-sm"
               >
                 <span className="text-2xs font-medium text-muted-foreground">{group.label}</span>
-                <span className="text-2xs text-muted-foreground/70">{group.items.length} 条</span>
+                {/* 计数用全强度 muted-foreground(质检修:/70 在 #0a0d16 上实测 3.68:1,
+                    /80 亦仅 4.44:1,均低于 WCAG AA 小字 4.5:1;全强度 6.37:1 达标) */}
+                <span className="text-2xs text-muted-foreground">{group.items.length} 条</span>
                 <span aria-hidden className="h-px flex-1 bg-border/70" />
               </div>
               <div className="flex flex-col gap-1.5">

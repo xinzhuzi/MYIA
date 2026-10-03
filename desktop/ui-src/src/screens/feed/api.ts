@@ -217,7 +217,7 @@ export function applyFeedFilter(items: FeedItem[], states: FeedStateMap, filter:
 }
 
 // ---------------------------------------------------------------------------
-// 展示辅助:精评分数徽标 / 相对时间
+// 展示辅助:精评分数徽标 / 相对时间 / 品类色(D4)/ 时间分组(D4)
 // ---------------------------------------------------------------------------
 
 /**
@@ -249,4 +249,81 @@ export function formatRelativeTime(iso: string | null, now: Date = new Date()): 
     `${then.getFullYear()}-${pad(then.getMonth() + 1)}-${pad(then.getDate())} ` +
     `${pad(then.getHours())}:${pad(then.getMinutes())}`
   );
+}
+
+// ---- D4(10-03-ui-deep-imitation):品类色 + 分组时间轴 ----
+
+/** 品类色板:品牌青/紫领衔的 8 色邻位环(暗面可读、饱和度同档;Linear label 式) */
+const CATEGORY_PALETTE = [
+  "#22d3ee", // 品牌青
+  "#8b5cf6", // 品牌紫
+  "#3dd68c", // ok 绿
+  "#f5b544", // warning 琥珀
+  "#60a5fa", // 蓝
+  "#f472b6", // 粉
+  "#2dd4bf", // 青绿
+  "#fb7185", // 玫红
+] as const;
+
+/** djb2 字符串散列(稳定无依赖:同品类恒同色,跨会话/跨端不变) */
+function hashString(text: string): number {
+  let hash = 5381;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = ((hash << 5) + hash + text.charCodeAt(index)) >>> 0;
+  }
+  return hash;
+}
+
+/**
+ * 品类色:卡片左侧品类色条与品类徽标同源取色;无品类 → null(不渲染色件)。
+ * 色值是 6 位 hex,透明度由消费侧拼 8 位 hex(hex+alpha)或 opacity 控制。
+ */
+export function categoryColor(category: string | null | undefined): string | null {
+  if (!category) return null;
+  return CATEGORY_PALETTE[hashString(category) % CATEGORY_PALETTE.length];
+}
+
+/** 时间分组桶 key(新→旧) */
+export type FeedGroupKey = "today" | "yesterday" | "week" | "earlier";
+
+export interface FeedGroup {
+  key: FeedGroupKey;
+  /** 分组头文案(中文界面) */
+  label: string;
+  items: FeedItem[];
+}
+
+const GROUP_LABELS: Record<FeedGroupKey, string> = {
+  today: "今天",
+  yesterday: "昨天",
+  week: "7 天内",
+  earlier: "更早",
+};
+
+const DAY_MS = 86_400_000;
+
+/**
+ * 分组时间轴(D4):按 first_seen 落 今天 / 昨天 / 7 天内 / 更早 四桶,
+ * 保持传入顺序(新→旧),空桶不出组;first_seen 缺失/无效归「更早」。
+ * `now` 注入以便测试(边界:今天 0 点、昨天 0 点、7 天窗)。
+ */
+export function groupFeedItems(items: FeedItem[], now: Date = new Date()): FeedGroup[] {
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const buckets: Record<FeedGroupKey, FeedItem[]> = { today: [], yesterday: [], week: [], earlier: [] };
+  for (const item of items) {
+    const seen = item.first_seen ? new Date(item.first_seen).getTime() : Number.NaN;
+    if (Number.isNaN(seen) || seen < startOfToday - 7 * DAY_MS) {
+      buckets.earlier.push(item);
+    } else if (seen >= startOfToday) {
+      buckets.today.push(item);
+    } else if (seen >= startOfToday - DAY_MS) {
+      buckets.yesterday.push(item);
+    } else {
+      buckets.week.push(item);
+    }
+  }
+  const order: FeedGroupKey[] = ["today", "yesterday", "week", "earlier"];
+  return order
+    .filter((key) => buckets[key].length > 0)
+    .map((key) => ({ key, label: GROUP_LABELS[key], items: buckets[key] }));
 }

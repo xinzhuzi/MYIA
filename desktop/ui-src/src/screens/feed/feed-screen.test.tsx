@@ -724,6 +724,10 @@ describe("FeedScreen", () => {
 
     const banner = await screen.findByTestId("feed-error");
     expect(banner.textContent).toContain("store_corrupt");
+    // 错误态与空态互斥(质检修):错误卡在场时不得再落入空态 CTA
+    // (store 损坏下「运行第一个插件」必失败,两卡叠加语义矛盾)
+    expect(screen.queryByTestId("feed-run-cta")).toBeNull();
+    expect(screen.queryByText("情报流还是空的")).toBeNull();
     fireEvent.click(within(banner).getByRole("button", { name: "重试" }));
     await screen.findByTestId("feed-item-1");
     expect(screen.queryByTestId("feed-error")).toBeNull();
