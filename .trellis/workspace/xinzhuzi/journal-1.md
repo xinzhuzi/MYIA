@@ -198,3 +198,4 @@
 - 关键重构:单文件编辑状态机抽成 use-yaml-file-editor 共享 hook(读→dirty→校验→保存 mtime 乐观锁→doctor 复核),屏与弹窗一份保存逻辑;error-box 同步抽出共用
 - 质检 8/8 过,顺手修 2 中:弹窗保存后源管理表自动刷新(onSaved→reload)、beforeunload 防丢稿从屏移入共享 hook(弹窗同享);登记 1 中 2 低(SPA 导航 dirty 守卫需 useBlocker 耦合拍板/遮罩拖选误关/焦点陷阱)进 prd Backlog
 - vitest 105/105(dialog 8 新增+sources 扩展)、tsc/build 绿;协议零改动;工作树并行波(protocol 1→2、myia→shishi 改名、main.rs UU 冲突)一律未碰
+- 提交披露:d359a3e 意外捎带 docs/demo 三件旧品牌素材删除(myia-demo.gif/mp4/srt)——并行 shishi 改名会话预暂存在共享 index,我 commit 收走了整个 index(家规漏了提交后 git reset 归位,已补);删除方向与其更名意图一致(shishi-demo.gif 已在盘),零数据丢失,归属注记在此;后续提交前先查 git diff --cached 非空即甄别
