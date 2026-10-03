@@ -76,8 +76,8 @@ MYIA 的插件系统(`myia-*`)是**数据源场景插件**(plugin.yaml 声明 mo
 
 > 勾选口径(2026-10-03 收尾核验):`[x]` = 已自动化验证且绿;`[ ]` = 存 ⏳ 人工项,行尾注明。
 
-- [ ] 1. dev 模式打开配置编辑屏:能看到品类 YAML 全文,**注释完整** ——机制已测✅(yaml.read 原文含注释 `tests/test_desktop_sidecar_protocol.py:977-982`;编辑器渲染原文 `yaml-editor-screen.test.tsx:263`);dev 模式 GUI 视觉 ⏳ 需人工冒烟
-- [ ] 2. 编辑 `schedule` 保存 → `doctor({yamls:[file]})` 识别新值;原文其余内容(含注释)逐字节不变 ——注释保真保存已测✅(`tests/test_desktop_sidecar_protocol.py:1255`;doctor 识别保存文件 `:1070-1071`;新增覆盖保存 `.bak`=旧原文含注释 `:1086-1111`);schedule 改值的 doctor 识别新值完整往返无单一专测,真机 diff ⏳ 需人工冒烟
+- [x] 1. dev 模式打开配置编辑屏:能看到品类 YAML 全文,**注释完整** ——机制已测✅(yaml.read 原文含注释 `tests/test_desktop_sidecar_protocol.py:977-982`;编辑器渲染原文 `yaml-editor-screen.test.tsx:263`);GUI 无头冒烟 2026-10-03 ✅(真实渲染 stocks.yaml 135/135 行覆盖 100%,中文注释/头文档注释可见,标题区完整路径;6 张截图独立视觉复核全过——证据本机 `.zcode/smoke/yaml-editor/`,git 忽略不入库)
+- [x] 2. 编辑 `schedule` 保存 → `doctor({yamls:[file]})` 识别新值;原文其余内容(含注释)逐字节不变 ——注释保真保存已测✅(`tests/test_desktop_sidecar_protocol.py:1255`;doctor 识别保存文件 `:1070-1071`;新增覆盖保存 `.bak`=旧原文含注释 `:1086-1111`);GUI 无头冒烟 2026-10-03 ✅(真实前端改 schedule → Meta+S →「doctor 复核通过:识别「股票情报」(1 源)」;实测 diff 恰 1 增 1 删仅 schedule 行、注释全为上下文未动、`.bak` 留底,快照 `.zcode/smoke/yaml-editor/git-diff-stocks.txt`。注:工作流脚本级 diff 复查为空,系并行会话 e2e 清场 `git checkout plugins/` 竞态还原所致——以司机实测快照 + pytest 双证为准)
 - [x] 3. 保存坏内容(语法错 / 未知字段 / 明文凭据)→ 结构化错误展示,目标文件零变更,`.bak` 不动 ——`tests/test_desktop_sidecar_protocol.py:1019-1047`(语法错结构化明细/零源 too_short/目标零变更/`.bak` SENTINEL 不动;未知字段经 validate `:1008`);明文凭据子场景无专测(low gap)
 - [x] 4. 路径穿越(`../` 逃逸、绝对路径、非 yaml 后缀)→ 结构化拒绝 ——`tests/test_desktop_sidecar_protocol.py:929-952`(`../` 穿越/目录外绝对路径/非 yaml 后缀/符号链接逃逸 → 结构化拒绝;stem 违例零写入)
 - [x] 5. `yaml.validate` 干跑不落盘(findings 如实返回)——`tests/test_desktop_sidecar_protocol.py:995-1011`(干跑后内容与 mtime 逐项不变)

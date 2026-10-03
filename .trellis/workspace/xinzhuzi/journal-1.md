@@ -115,6 +115,7 @@
 - 开工前主人四问:平台范围/要不要资讯/中英文源偏好/史低基线进不进首版
 - **深化(同日,主人令「深化与完善trellis任务文档」,commit 5bd149a,三件套齐达可 start)**:实跑探源定稿——Epic freeGamesPromotions ✅(zh-CN,12 元素,robots 404 无限制)、Steam featuredcategories specials ✅(discount_percent 直出,robots 不禁 /api/)、Reddit .json ❌(honest UA 回 HTML,剔除)、中文 L2 未探留 backlog;核订关键事实:①两源响应均无页面 URL(只有 slug/appid)= stocks 记录过的 schema 缺口 → D1 本任务内做 extract.url_template 微扩展(可选字段+二选一校验,向后兼容);②规则求值缺字段读 None 且含 None 运算整条跳过 → 两源同名归一化字段(final_price/discount_pct,两家单位同为分);③dedup 抑制是槽位作用域且 baseline metric key=dedup_key 优先 → dedup.key 必须稳定 {url}(带 {date} 断价格历史);④OFFICIAL_PLUGINS 是显式元组非 glob(PRD 初稿「自动全套」口径已修正;gpu-prices 不在元组=顺带观察);⑤watchlist 在 enrich 关闭时零降权;探源响应存任务 evidence/ 作 fixture 素材;PRD 四问全带推荐(Epic+Steam 起步/只做折扣限免/英文 API 先行/price 基线进 v1 msrp 不进);validate 绿,任务仍 backlog 未 start
 - **grill Round 1 收口(同日,grilling 技能一轮清前沿 7 问,主人「按照你的建议去做」=全按推荐,commit b0add6a)**:①平台=Epic+Steam 起步(GOG/Switch 拆后续先探查)②内容=v1 只做折扣/限免,upcoming 预告=v2 首项,资讯 backlog③源=英文官方 API 先行④基线=price 进 v1、msrp 不进⑤通道=feishu_card 单通道(tg 后续加挂)⑥限免每日 immediate 重推=接受(调稀改 cron)⑦D1 url_template 微扩展已批(D2 占位否决)⑧gpu-prices 补测试元组=独立待办⑨开工触发=大工作流 dwfrun-9808b474 收尾后主人下令(schema.py/test_plugins.py 热点路径防同树双线)。九条决议回写 prd「Grill 决议」节/design D1·D5·§5/implement 前置注记/task.json notes;决议编号统一 ①-⑨ 口径;标题去「资讯」对齐 v1 范围;validate 绿,无悬而未决项,任务达「可 start 等开工令」终态
+- **执行完毕(同日,主人经 /workflow 下令,动态工作流三跑收口,commit c227d57,任务转 review,未 push)**:落地 16 文件 650+ 行——extract.url_template 扩展(schema 校验三件:至少一占位/type=item 拒/占位-字段交叉 fail-fast)+fetch_base 提取出口渲染(复用 dedup 迷你模板,int 渲染成 str)+plugins/games.yaml(12 段+baseline,Epic/Steam 双源)+OFFICIAL_PLUGINS 加名+_SNIPPETS 双源录制 fixture+测试净增 66 条(1674→1740)+spec/六处文档锁定面同步+live-run 证据;门禁全绿(本任务范围零失败、ruff 零错、dry-run 0、真跑 Epic 12/Steam 10/immediate 2=本周真有免费游戏);独立质检 7 发现:2 medium 修(url_template 占位交叉校验进 _check_shape、空 url 真实语义=invalid_item 拒条目而非常规「链接差」——design R1 与文档锁定面全部改述)、1 medium 驳(stocks 红非本任务)、4 low 留档(hash-slug 可点性未验/expire 字段未提取/fixture 第二形状无断言/分转元无值级断言)。**工作流三跑教训**:①基线零红门禁在多会话工作树必假死——首跑即被 yaml-editor 线在途红(test_sources_write_backup)拦停,改为「外来红记录放行+终跑不得新增」口径(ci-gates 先例);②实现者上报 stocks.yaml schedule 0→30 无人认领漂移(mtime 11:07,全历史/任务档零出处,6 钉位皆 0)拖红 2 用例——按主人铁律未还原未提交改动,门禁精确豁免两节点,**待主人认领(连钉位一起改)或还原**;③AmendWorkflow 修门禁语义零成本(未决 ask 恰在缓存边界外,实现阶段全免重付)
 
 ## 2026-10-03 免费层供应商地图落档(task 10-03-free-tier-supplier-map,research→review)
 
@@ -166,3 +167,11 @@
 - 两大坑记档:①像素采样器 Y 翻转乌龙吞掉两轮——CGBitmapContext 缓冲行序与 SVG 坐标同向,(h-1-y) 反转是画蛇添足;眼睛上下对称测不出翻转,臂/缝恰好镜像互换造成"形状糊了"假象 ②复合命令里的 cd 被环境剥离(连跑五次才定位),git 一律 git -C 绝对路径
 
 - 主人验收图标 v3.1:「这次的看起来可以了」——10-03-rename-shishi 全部交付定稿(更名世事+眼后宇宙图标),任务维持 review 休止态
+
+## 2026-10-03 YAML 编辑器 GUI 无头冒烟收口(task 10-03-yaml-editor,验收 13/13 全勾)
+
+- 三轮环境缠斗后换道:①PyInstaller 共享缓存连续悬空(onnxruntime/cv2/numpy 三个不同 victim)→ 根因 = build-sidecar.sh `--clean` 先删共享缓存 × 并行会话同时在打包,互删互踩;核炸缓存冷构建一次通过后不再重打包,工作流改为 ping 现有二进制 ②主人明令禁止前台 GUI 自动化(osascript 抢焦点)→ 改无头方案:vite 真前端 + Playwright chromium + 自写 bridge.mjs(spawn 真实 sidecar serve,显式清空 MYIA_HOME 保持 dev 模式)+ addInitScript 注入 __TAURI_INTERNALS__ shim(invoke 约定与 client.ts 逐字段对齐)——真实 UI×真实二进制,零窗口零焦点
+- 冒烟 9/9:AC1(stocks.yaml 135/135 行覆盖 100%、中文注释可见、完整路径)、AC2(改 schedule→Meta+S→「doctor 复核通过」;实测 diff 恰 1 增 1 删、注释全为上下文、.bak 留底)、新建 my-smoke→sources 即时可见→删除往返;6 张截图独立视觉复核全过;顺带真实验证坏文件徽标(并行会话在途 games.yaml 显示「损坏 unknown_field」)
+- 工作流脚本级 diff 复查为空的归因:司机收工时 M plugins/stocks.yaml 在案(transcript.finalStatusPlugins),7 分钟后脚本复查已空 = 并行会话 e2e 清场 git checkout plugins/ 竞态还原;以司机实测快照(.zcode/smoke/yaml-editor/git-diff-stocks.txt)+ pytest 双证定案,不误判产品缺陷
+- 自我披露两笔:①脚本 verified[] 模板无条件写「仅 1 增 1 删」文案(真值是未过)——报告模板 bug,已按真值改写;②首版冒烟确实 osascript 抢了前台(旧跑 10:07-10:33 痕迹),主人叫停后已换无头并停旧跑
+- 验收 1-13 全勾;task 留 in_progress 等主人过目截图后 finish-work。工程债登记:打包缓存竞态(锁或独立 PYINSTALLER_CONFIG_DIR)与并行 e2e 清场互踩,建议归 release 工程/ci-gates 侧修
