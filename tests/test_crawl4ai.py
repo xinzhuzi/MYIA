@@ -24,7 +24,11 @@ Covers:
 - robots UA 一致性(2026-10-03 low-C):无源级 headers 的源,浏览器收到与
   robots 判定相同的基座默认 UA(robots 放行身份 = 实抓身份);
 - auto chain order (fake engines injected into ENGINE_REGISTRY): L2 失败 →
-  crawl4ai 成功且不再落 firecrawl;crawl4ai 依赖缺失按普通引擎失败继续降级。
+  crawl4ai 成功且不再落 firecrawl;crawl4ai 依赖缺失按普通引擎失败继续降级;
+- L2 零结果 L3 探测(10-04-crawl4ai-l3 拍板①,首遇终身一次):JS 壳页经探测
+  被 L3 接住(30s 探测短帽经 engine_options.timeout 注入)+ 二跑 hint-first
+  直达 L3;真空页/探测异常回滚空页语义不失败;指纹 skip、显式 engine 配置、
+  预算耗尽三者零探测。
 
 All I/O runs on httpx.MockTransport; all waiting is recorded by FakeClock.
 """
@@ -45,10 +49,10 @@ from urllib.parse import urlsplit
 import httpx
 import pytest
 
-from myia.engines import registry
-from myia.engines import crawl4ai as crawl4ai_module
-from myia.engines.crawl4ai import Crawl4AIEngine, load_crawl4ai
-from myia.engines.fetch_base import (
+from shishi.engines import registry
+from shishi.engines import crawl4ai as crawl4ai_module
+from shishi.engines.crawl4ai import Crawl4AIEngine, load_crawl4ai
+from shishi.engines.fetch_base import (
     DEFAULT_USER_AGENT,
     BaseEngine,
     EngineNotAvailableError,
@@ -56,7 +60,8 @@ from myia.engines.fetch_base import (
     RobotsDisallowedError,
     load_proxy_pools,
 )
-from myia.engines.firecrawl import FirecrawlEngine
+from shishi.engines.firecrawl import FirecrawlEngine
+from shishi.engines.static_html import StaticHTMLEngine
 
 from conftest import make_client, make_context, make_handler, make_source, run
 
@@ -723,30 +728,235 @@ def test_auto_chain_dependency_missing_degrades_to_firecrawl(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# 真实源 smoke(PRD 验收:JS 渲染源真实跑通 TapNow):可选依赖 + 真实网络,
+# L2 零结果 L3 探测(10-04-crawl4ai-l3):auto 链 static_html 真零结果的首遇源
+# 降级 crawl4ai 探测一次;出条落 L3,零/异常回滚空页语义。全部假模块回放,
+# 零真实浏览器。
+# ---------------------------------------------------------------------------
+
+#: static_html 拿到的 JS 空壳页:HTTP 200 但选择器零命中——正需要 L3 的页面。
+JS_SHELL_HTML = "<html><body><div id=\"app\"></div></body></html>"
+
+#: 探测短帽(拍板③):30s → crawl4ai page_timeout 毫秒面 30000。
+PROBE_PAGE_TIMEOUT_MS = 30_000
+
+
+def make_shell_handler(html: str = JS_SHELL_HTML):
+    """Site responder: any page returns 200 with the given (shell) HTML."""
+    return lambda request: httpx.Response(200, text=html)
+
+
+def test_auto_zero_result_probes_l3_and_catches_js_shell(monkeypatch, engine_store):
+    """首遇 JS 壳:L2 零条 → 不设 hint 不 return,continue 走 crawl4ai 探测 →
+    L3 出条落地且 hint=crawl4ai;探测 rung 以 30s 短帽构造(拍板③),预算
+    消耗一源(拍板②)。"""
+    fake = install_fake_crawl4ai(monkeypatch, [{"html": RENDERED_HTML}])
+    client = make_client(make_handler(make_shell_handler()))
+    source = make_source(engine="auto", url=SITE_URL, extract=LIST_EXTRACT)
+    context, _ = make_context(client, store=engine_store)
+
+    outcome = run(registry.fetch_source(source, context))
+
+    assert outcome.engine == "crawl4ai"
+    assert outcome.items == [
+        {"title": "JS 帖子一", "url": "https://js-heavy.example.com/t/1"},
+        {"title": "JS 帖子二", "url": "https://js-heavy.example.com/t/2"},
+    ]
+    assert [failure.error_type for failure in outcome.failures] == ["extract_unsupported"]
+    assert fake.core.calls, "探测必须真的驱动一次浏览器渲染"
+    assert fake.run_configs[0]["page_timeout"] == PROBE_PAGE_TIMEOUT_MS  # 30s 短帽注入
+    assert engine_store.get_engine_hint(SITE_URL) == "crawl4ai"
+    assert context.l3_probe_budget == 2  # 3 − 1
+
+
+def test_second_run_hint_first_goes_straight_to_l3(monkeypatch, engine_store):
+    """二跑:hint=crawl4ai 命中即直达 L3,static_html 零 HTTP 页面请求。"""
+    first = install_fake_crawl4ai(monkeypatch, [{"html": RENDERED_HTML}])
+    page_fetches = {"count": 0}
+
+    def responder(request: httpx.Request) -> httpx.Response:
+        if request.url.path != "/robots.txt":
+            page_fetches["count"] += 1
+        return httpx.Response(200, text=JS_SHELL_HTML)
+
+    client = make_client(make_handler(responder))
+    source = make_source(engine="auto", url=SITE_URL, extract=LIST_EXTRACT)
+    context, _ = make_context(client, store=engine_store)
+
+    assert run(registry.fetch_source(source, context)).engine == "crawl4ai"
+    del first  # 第一跑的回放已消费;换新回放观测第二跑
+
+    second = install_fake_crawl4ai(monkeypatch, [{"html": RENDERED_HTML}])
+    outcome = run(registry.fetch_source(source, context))
+
+    assert outcome.engine == "crawl4ai"
+    assert len(second.core.calls) == 1  # 直达 L3,一次渲染
+    assert page_fetches["count"] == 1  # 只有第一跑的 static_html 页面请求
+    assert engine_store.get_engine_hint(SITE_URL) == "crawl4ai"
+
+
+def test_true_empty_page_probe_rolls_back_to_l2_semantics(monkeypatch, engine_store):
+    """真空页:L3 探测也零条 → 回滚空页语义(items=[]/engine=static_html/
+    skip_reason=None,hint 锁回 static);第二跑指纹 skip,零浏览器开销。"""
+    fake = install_fake_crawl4ai(monkeypatch, [{"html": JS_SHELL_HTML}])  # L3 也渲染不出条
+    client = make_client(make_handler(make_shell_handler()))
+    source = make_source(engine="auto", url=SITE_URL, extract=LIST_EXTRACT)
+    context, _ = make_context(client, store=engine_store)
+
+    outcome = run(registry.fetch_source(source, context))
+
+    assert outcome.engine == "static_html"
+    assert outcome.items == []
+    assert outcome.skipped is False
+    assert outcome.skip_reason is None
+    assert [failure.error_type for failure in outcome.failures] == ["extract_unsupported"]
+    assert fake.core.calls, "探测发生过(一次性成本)"
+    assert engine_store.get_engine_hint(SITE_URL) == "static_html"
+    assert context.l3_probe_budget == 2
+    del fake
+
+    # 第二跑:页面未变 → 指纹 skip,不构造浏览器(hint 不变,AC「无重复开销」)
+    second = install_fake_crawl4ai(monkeypatch, [])
+    outcome2 = run(registry.fetch_source(source, context))
+    assert outcome2.engine == "static_html"
+    assert outcome2.skipped is True
+    assert outcome2.skip_reason
+    assert second.core.calls == [] and second.browser_configs == []
+    assert engine_store.get_engine_hint(SITE_URL) == "static_html"
+
+
+def test_fingerprint_skip_never_probes(monkeypatch, engine_store):
+    """指纹 skip(变更指纹未变)是真·无更新不是 JS 壳:零探测,不构造 crawl4ai。"""
+    fake = install_fake_crawl4ai(monkeypatch, [{"html": RENDERED_HTML}])
+    client = make_client(make_handler(make_shell_handler()))
+    source = make_source(engine="auto", url=SITE_URL, extract=LIST_EXTRACT)
+    # 预置变更指纹:引擎直抓一次把基线记进 store(不经 fetch_source,避免先触发探测)
+    seed_context, _ = make_context(client, store=engine_store)
+    run(StaticHTMLEngine(source, seed_context).fetch())
+
+    context, _ = make_context(client, store=engine_store)
+    outcome = run(registry.fetch_source(source, context))
+
+    assert outcome.engine == "static_html"
+    assert outcome.skipped is True
+    assert outcome.items == []
+    assert fake.core.calls == [] and fake.browser_configs == []  # 零探测零构造
+    assert context.l3_probe_budget == 3  # 预算未动
+    assert engine_store.get_engine_hint(SITE_URL) == "static_html"
+
+
+def test_explicit_engine_config_never_probes(monkeypatch, engine_store):
+    """显式 engine: static_html 尊重用户选择:零结果也不探测,按空页收。"""
+    fake = install_fake_crawl4ai(monkeypatch, [{"html": RENDERED_HTML}])
+    client = make_client(make_handler(make_shell_handler()))
+    source = make_source(engine="static_html", url=SITE_URL, extract=LIST_EXTRACT)
+    context, _ = make_context(client, store=engine_store)
+
+    outcome = run(registry.fetch_source(source, context))
+
+    assert outcome.engine == "static_html"
+    assert outcome.items == []
+    assert outcome.skipped is False
+    assert fake.core.calls == [] and fake.browser_configs == []
+    assert context.l3_probe_budget == 3
+    assert engine_store.get_engine_hint(SITE_URL) == "static_html"
+
+
+def test_probe_budget_exhausted_fourth_source_not_probed(monkeypatch, engine_store):
+    """预算 3/run(拍板②):前三个首遇零结果源各探一次,第四个不探测按空页收。"""
+    fake = install_fake_crawl4ai(
+        monkeypatch,
+        [{"html": JS_SHELL_HTML}, {"html": JS_SHELL_HTML}, {"html": JS_SHELL_HTML}],
+    )
+    client = make_client(make_handler(make_shell_handler()))
+    context, _ = make_context(client, store=engine_store)
+
+    outcomes = []
+    for index in range(4):
+        source = make_source(
+            engine="auto", url=f"https://js-heavy.example.com/hot?i={index}", extract=LIST_EXTRACT
+        )
+        outcomes.append(run(registry.fetch_source(source, context)))
+
+    assert context.l3_probe_budget == 0
+    assert len(fake.core.calls) == 3  # 第四个源零探测
+    for outcome in outcomes:
+        assert outcome.engine == "static_html"
+        assert outcome.items == []
+    assert [
+        engine_store.get_engine_hint(f"https://js-heavy.example.com/hot?i={index}")
+        for index in range(4)
+    ] == ["static_html", "static_html", "static_html", "static_html"]
+
+
+def test_l3_probe_exception_rolls_back_source_not_failed(monkeypatch, engine_store):
+    """L3 探测异常(dependency_missing——最常见:未装 extras)→ 回滚空页语义,
+    源不失败(outcome.engine 就位),失败记录保留作观测,hint 锁回 static。"""
+    monkeypatch.setitem(sys.modules, "crawl4ai", None)  # 强制依赖缺失分支
+    client = make_client(make_handler(make_shell_handler()))
+    source = make_source(engine="auto", url=SITE_URL, extract=LIST_EXTRACT)
+    context, _ = make_context(client, store=engine_store)
+
+    outcome = run(registry.fetch_source(source, context))
+
+    assert outcome.engine == "static_html"  # 探测失败绝不放大为源失败
+    assert outcome.items == []
+    assert [failure.error_type for failure in outcome.failures] == [
+        "extract_unsupported",
+        "dependency_missing",  # L3 失败记录保留
+    ]
+    assert any("pip install shishi[crawl4ai]" in failure.message for failure in outcome.failures)
+    assert engine_store.get_engine_hint(SITE_URL) == "static_html"
+    assert context.l3_probe_budget == 2
+
+
+# ---------------------------------------------------------------------------
+# 真实源 smoke(PRD 验收:JS 渲染源真实跑通):可选依赖 + 真实网络,
 # 默认跳过,本地装好 shishi[crawl4ai] 后设 MYIA_SMOKE_REAL=1 执行(仓库统一
 # opt-in 变量,与 test_scrapling.py / test_direct_api.py 同门禁)。
 # ---------------------------------------------------------------------------
+
+
+# smoke 目标默认值:aihot.news 文章页(拍板④,2026-10-04 实取的当日文章;
+# 文章会过期/下架——真跑者遇到 404 或空渲染时,用 MYIA_SMOKE_TARGET 覆写为
+# 任一当日文章 URL,根页 https://aihot.news/ 的卡片链接即 /items/<id>)。
+SMOKE_TARGET_DEFAULT = "https://aihot.news/items/bzodztryi4kvwm4kz9mrwb6nn"
 
 
 @pytest.mark.skipif(
     not os.environ.get("MYIA_SMOKE_REAL"),
     reason="真实源 smoke:仅本地安装 shishi[crawl4ai] 且设 MYIA_SMOKE_REAL=1 时执行,CI 不依赖",
 )
-def test_smoke_tapnow_js_render_auto_structures():
-    """PRD 验收入口:TapNow(https://app.tapnow.ai/)JS 渲染 → 自动结构化兜底非空。"""
+def test_smoke_real_js_article_renders_items_and_markdown():
+    """PRD 验收入口(10-04-crawl4ai-l3):真实 JS 渲染文章页 L3 全链真跑——
+    fetch 走完即 exit 0 语义;断言条目 >0、自动结构化 markdown 非空;
+    shishi.vision.collect 可导入(装了 vision extras)时附打同域图收集数
+    (看图线 JS 页路径联动,缺席软降级只跳过该组断言)。
+    目标覆写:MYIA_SMOKE_TARGET=<url>(默认 aihot 文章页,见上)。"""
+    target = os.environ.get("MYIA_SMOKE_TARGET") or SMOKE_TARGET_DEFAULT
 
     async def scenario():
         client = httpx.AsyncClient()
         try:
             context, _ = make_context(client)
-            engine = Crawl4AIEngine(make_source(engine="crawl4ai", url="https://app.tapnow.ai/"), context)
+            engine = Crawl4AIEngine(make_source(engine="crawl4ai", url=target), context)
             return await engine.fetch()
         finally:
             await client.aclose()
 
     items = run(scenario())
-    assert items and items[0]["content"]  # 渲染后的 markdown 载荷非空
+    assert items, "真实 JS 页应渲染出至少一条结构化条目"
+    content = items[0].get("content") or ""
+    assert content.strip(), "渲染后的 markdown 载荷非空"
+    try:
+        from shishi.vision.collect import markdown_image_urls
+    except ImportError:  # vision extras 未装:软降级,不阻塞 smoke
+        print(f"[smoke] shishi.vision.collect 不可导入,跳过同域图断言 markdown_len={len(content)}")
+    else:
+        images = markdown_image_urls(content, target)
+        print(
+            f"[smoke] target={target} items={len(items)} "
+            f"markdown_len={len(content)} same_domain_images={len(images)}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -771,7 +981,7 @@ def test_pool_proxy_is_passed_via_proxy_config(monkeypatch):
         )))
         return real_client(**kwargs)
 
-    monkeypatch.setattr("myia.engines.fetch_base.httpx.AsyncClient", factory)
+    monkeypatch.setattr("shishi.engines.fetch_base.httpx.AsyncClient", factory)
     client = make_client(make_handler(lambda r: httpx.Response(404, text="")))
     context, _ = make_context(client)
     context.proxy_pools = load_proxy_pools(
@@ -805,7 +1015,7 @@ def test_pool_proxy_falls_back_to_deprecated_proxy_kwarg_with_one_warning(monkey
     source = make_source(engine="crawl4ai", url=SITE_URL, extract=LIST_EXTRACT, proxy="pool:main")
     engine = Crawl4AIEngine(source, context)
 
-    with caplog.at_level(logging.WARNING, logger="myia.engines.crawl4ai"):
+    with caplog.at_level(logging.WARNING, logger="shishi.engines.crawl4ai"):
         run(engine.fetch())
         run(engine.fetch())  # 第二轮:回落路径复用,不再重复告警
 
