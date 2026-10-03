@@ -115,7 +115,7 @@ URL 键去重注册表 + 早/晚摘要槽位 —— 生产验证过的语义;同
 
 🔁 **反馈闭环自我调优**
 对推送标记有价值 / 无价值(CLI 现已可用;Telegram/飞书回调接收已就绪,
-桌面卡片内按钮随 v1.2 交付)—— 负反馈持续回写,调优盯盘权重与阈值。
+桌面卡片内按钮排 v1.1.2 桌面对齐批次交付)—— 负反馈持续回写,调优盯盘权重与阈值。
 
 </td>
 </tr>
@@ -128,7 +128,7 @@ URL 键去重注册表 + 早/晚摘要槽位 —— 生产验证过的语义;同
 
 ```bash
 git clone https://github.com/xinzhuzi/shishi
-cd 世事
+cd shishi
 uv sync                     # uv workspace(主口径):一并装好 shishi 与 shishi-classifier
 uv run shishi --version       # shishi 1.1.1
 ```
@@ -182,7 +182,7 @@ uv run shishi run plugins/demo-min.yaml                    # 正式跑;--loop �
 macOS(Apple Silicon)安装包随 GitHub Releases 发布:
 
 1. 从 [Releases](https://github.com/xinzhuzi/shishi/releases) 下载
-   `MYIA_1.1.1_aarch64.dmg`,把 世事 拖入「应用程序」;
+   `shishi_1.1.1_aarch64.dmg`,把 世事 拖入「应用程序」;
 2. 首次打开:**在「应用程序」里右键 世事 →「打开」→ 再点「打开」**
    (或双击被拦后到 系统设置 → 隐私与安全性 → 点「仍要打开」);
 3. 安装包未做 Apple 公证(公证需付费开发者账号)—— 代码完全开源可审计,
@@ -265,7 +265,7 @@ shishi doctor --json                        # 拿 findings;agent 自修后复查
 核心流水线已实现且有测试覆盖 —— 1300+ 测试跑在 CI 里,无一条碰真实网络。
 桌面端自 v1.1.1 起可日常使用(数据通路统一、官方插件随包、开箱 demo、
 签名更新通道);桌面卡片内反馈按钮、设置反馈开关、采集量趋势排下一批次
-(v1.1.2 桌面对齐,反馈闭环 CLI 现已可用);Windows 产物为构建级验证,未做装机冒烟。
+(v1.1.2 桌面对齐,反馈闭环 CLI 现已可用);Windows 构建这版未通过,Release 暂无 Windows 安装包(v1.1.2 计划补上)。
 
 | 里程碑 | 范围 | 状态 |
 |---|---|---|
@@ -424,7 +424,7 @@ daemon), retention + auto-VACUUM, in-process scheduling.
 
 ```bash
 git clone https://github.com/xinzhuzi/shishi
-cd 世事
+cd shishi
 uv sync                     # uv workspace (primary): installs shishi + shishi-classifier
 uv run shishi --version       # shishi 1.1.1
 ```
@@ -481,7 +481,7 @@ Full walk-through: [docs/en/getting-started.md](docs/en/getting-started.md).
 
 The macOS (Apple Silicon) installer ships via GitHub Releases:
 
-1. Download `MYIA_1.1.1_aarch64.dmg` from
+1. Download `shishi_1.1.1_aarch64.dmg` from
    [Releases](https://github.com/xinzhuzi/shishi/releases) and drag 世事 into
    Applications;
 2. On first launch: **right-click 世事 in Applications → Open → Open**
@@ -572,9 +572,9 @@ The core pipeline is implemented and tested — 1300+ tests run in CI, none of
 them touch the real network. The desktop app is ready for daily use as of
 v1.1.1 (unified data paths, bundled official plugins, an out-of-the-box demo,
 a signed update channel); in-card feedback buttons, the settings feedback
-toggle and collection trends are scheduled for v1.2 (the feedback loop already
-works via CLI); the Windows build is verified at build level only, not
-smoke-tested on install.
+toggle and collection trends are scheduled for the v1.1.2 desktop-parity
+batch (the feedback loop already works via CLI); the Windows build did not ship in v1.1.1 (no Windows
+installer in Releases yet; planned for the v1.1.2 batch).
 
 | Milestone | Scope | Status |
 |---|---|---|
