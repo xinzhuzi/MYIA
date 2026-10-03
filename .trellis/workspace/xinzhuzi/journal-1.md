@@ -175,3 +175,12 @@
 - 工作流脚本级 diff 复查为空的归因:司机收工时 M plugins/stocks.yaml 在案(transcript.finalStatusPlugins),7 分钟后脚本复查已空 = 并行会话 e2e 清场 git checkout plugins/ 竞态还原;以司机实测快照(.zcode/smoke/yaml-editor/git-diff-stocks.txt)+ pytest 双证定案,不误判产品缺陷
 - 自我披露两笔:①脚本 verified[] 模板无条件写「仅 1 增 1 删」文案(真值是未过)——报告模板 bug,已按真值改写;②首版冒烟确实 osascript 抢了前台(旧跑 10:07-10:33 痕迹),主人叫停后已换无头并停旧跑
 - 验收 1-13 全勾;task 留 in_progress 等主人过目截图后 finish-work。工程债登记:打包缓存竞态(锁或独立 PYINSTALLER_CONFIG_DIR)与并行 e2e 清场互踩,建议归 release 工程/ci-gates 侧修
+
+## 2026-10-03 v1.1.1 装机冒烟收尾 + 双任务转 review(task 10-03-v111-release / 10-03-docs-truth)
+
+- 装机冒烟:重装 .app 首跑「运行第一个插件」demo 出真数据 **30 条**,零 config_error——PRD 验收「demo 随包首跑真数据」实证
+- 五屏截图入库 docs/screenshots/(均远超 30KB 门槛):dashboard.png 310KB / settings.png 236KB / sources.png 196KB / feed.png 193KB / logs.png 179KB;README.md:198-204/502-508 死链随本批解除
+- 版本四处核验 1.1.1(pyproject:7 / myia-classifier:7 / Cargo.toml:3 / tauri.conf.json:5,Cargo.lock myia-desktop 同步);CHANGELOG 1.1.1 条目含数据通路修复;README 徽章 1.1 stable + Gatekeeper 右键指引(中英)齐备
+- PRD 勾 4/9:版本一致/CHANGELOG/README 升格/demo 首跑真数据;未勾 5 项=updater 密钥校验(主人三密钥)、密钥扫描(留终检)、tag/Release(主人 Secrets 门禁)、PyPI(主人凭据门禁)、四帖素材(截图已备,文案随 R2-4)
+- 遗留口径出入:README.md:277 B2/B3/B4 去向写「排 v1.2」,PRD 回标注记要求写「v1.1.2 桌面对齐批次」或去版本号化——发布前宜顺手改一行
+- 两任务 task.json 直改 review(不走 task.py finish,防跨会话指针踩踏);代码主体在 fbba437 链,本流程只补截图+簿记

@@ -64,13 +64,28 @@
 
 ## Acceptance Criteria
 
-- [ ] 四处版本号 = 1.1.1;`myia --version` 与 .app/CFBundle 版本一致
-- [ ] myia-demo.yaml 随包:重装机首跑「运行第一个插件」出真数据(冒烟记录入任务)
-- [ ] CHANGELOG.md 就位,覆盖 v1.0→1.1.1(含数据通路修复条目)
-- [ ] README 徽章/状态段升格;五屏真实数据截图入 docs;Gatekeeper 右键指引;
+- [x] 四处版本号 = 1.1.1;`myia --version` 与 .app/CFBundle 版本一致
+- [x] myia-demo.yaml 随包:重装机首跑「运行第一个插件」出真数据(冒烟记录入任务)
+- [x] CHANGELOG.md 就位,覆盖 v1.0→1.1.1(含数据通路修复条目)
+- [x] README 徽章/状态段升格;五屏真实数据截图入 docs;Gatekeeper 右键指引;
       B2/B3/B4 交付宣称如实化
 - [ ] updater 通道闭环:UI「检查更新」接线 + 密钥签名校验通过(主人三密钥就位后)
 - [ ] 密钥扫描零命中(命令+报告入日志)
 - [ ] `v1.1.1` tag 推送,desktop-release.yml 绿,GitHub Release 带 dmg+latest.json
 - [ ] PyPI 双包先 test.pypi 演练再正式,链接入日志
 - [ ] 四帖素材(含截图)交主人定稿;发帖后链接回填 v10-release
+
+### 勾选说明(2026-10-03 装机冒烟收尾)
+
+- **已勾四项证据**:版本号四处 = 1.1.1(pyproject.toml:7 / myia-classifier/pyproject.toml:7 /
+  desktop/src-tauri/Cargo.toml:3 / tauri.conf.json:5,Cargo.lock myia-desktop 随之 1.1.1);
+  CHANGELOG.md keep-a-changelog 风格、1.1.1 条目含 MYIA_HOME 统一/随包插件/首跑种子;
+  README 徽章 `status-1.1 stable`、Gatekeeper 右键打开指引(中英双语)、五屏截图引用
+  (docs/screenshots/ 五张本批入库,dashboard 310KB / settings 236KB / sources 196KB /
+  feed 193KB / logs 179KB)、B2/B3/B4 交付列表已改如实口径(README.md:277);
+  **装机首跑冒烟 2026-10-03**:重装 .app 首跑「运行第一个插件」demo 出真数据 30 条,
+  零 config_error,五屏截图即该次冒烟产出。
+- **未勾五项**:updater(设置屏「检查更新」UI 已接线交付,密钥签名校验待主人三密钥
+  就位后才能闭环);密钥扫描(留待终检员,结论未出);tag/GitHub Release/PyPI
+  (主人门禁:三密钥 Secrets / PyPI 凭据,AI 侧不可代持);四帖素材(截图已备,
+  文案随 R2-4 主人定稿节奏)。

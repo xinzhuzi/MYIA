@@ -3,7 +3,7 @@
   "name": "docs-truth",
   "title": "docs 照做即失败纠错批:docs pip 宣称修正 + env.example 键名对齐 + task.py finish 跨会话防护",
   "description": "一次小 PR 修正照做即失败级文档错误:docs 三页的 pip install -e . 宣称、docker/env.example 的 TG_*/OPENAI_API_KEY 键名,并给 task.py finish 加跨会话防护;README 侧与 A2 归 10-03-v111-release 不越界。",
-  "status": "in_progress",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -21,7 +21,7 @@
   "children": [],
   "parent": "10-03-grill-v112",
   "relatedFiles": [],
-  "notes": "2026-10-03 status 手动置 in_progress(不走 task.py start,规避会话指针踩踏;并行会话在途)。finish 防护手动演示(隔离 scratch repo /tmp/trellis-finish-demo,双会话 TRELLIS_CONTEXT_ID 模拟):无 --force 清他 session 指针 → 拒绝并打印 Source: session-fallback:claude_sessionA、exit 1、指针文件未动;--force → 清除 exit 0;本 session 自有指针 → 无需 --force 正常清、空态 exit 0 不变。py_compile 过。",
+  "notes": "2026-10-03 status 手动置 in_progress(不走 task.py start,规避会话指针踩踏;并行会话在途)。finish 防护手动演示(隔离 scratch repo /tmp/trellis-finish-demo,双会话 TRELLIS_CONTEXT_ID 模拟):无 --force 清他 session 指针 → 拒绝并打印 Source: session-fallback:claude_sessionA、exit 1、指针文件未动;--force → 清除 exit 0;本 session 自有指针 → 无需 --force 正常清、空态 exit 0 不变。py_compile 过。| 2026-10-03 收尾:status 直改 review(不走 task.py finish,防跨会话指针踩踏)。代码已提交 fbba437 链;装机冒烟+截图由本流程补齐;tag/PyPI 待主人。",
   "meta": {
     "priority": "P1"
   }
