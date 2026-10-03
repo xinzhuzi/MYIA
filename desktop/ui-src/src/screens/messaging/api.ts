@@ -17,16 +17,16 @@
  *                      **push = 该文件完整 push 数组**(全量替换;空数组=摘除
  *                      push 节);服务端文本手术保注释,校验失败零写入
  *
- * 惯例与 sources/image 屏一致:invoke 直连壳命令 `sidecar_request` +
+ * 惯例与 sources 屏一致:invoke 直连壳命令 `sidecar_request` +
  * asSidecarError 归一化(错误必得 code/path/message)。
  */
 import { invoke } from "@tauri-apps/api/core";
 
-import { SidecarRequestError } from "@/lib/api";
+import { api, SidecarRequestError } from "@/lib/api";
 import type { SidecarErrorShape } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
-// 错误归一化(与 sources/image 屏同规则;独立实现避免动共享层)
+// 错误归一化(与 sources 屏同规则;独立实现避免动共享层)
 // ---------------------------------------------------------------------------
 
 /** 任意抛出物 → SidecarRequestError(组件渲染 code/path/message 用)。 */
@@ -236,4 +236,17 @@ export function isDeadEntry(entry: ChannelEntry, dead: string[]): boolean {
 /** 该条目名是否来自手工别名(区分「发现名/手工命名」)。 */
 export function hasAlias(entry: ChannelEntry, aliases: AliasMap): boolean {
   return Boolean(aliases[entry.platform]?.[entry.chat_id]);
+}
+
+// ---------------------------------------------------------------------------
+// 平台总览数据(task 10-03-messaging-platforms R3:凭据探测,零新协议方法)
+// ---------------------------------------------------------------------------
+
+/**
+ * 钥匙链凭据名清单(既有 secret.list;平台卡「已连接/需要设置」派生的
+ * 凭据信号)。只有名字,值永不可读;调用方对失败降级为空名单
+ * (钥匙链不可用的主机上,平台状态回退到「目录非空」单一信号)。
+ */
+export async function listSecretNames(): Promise<string[]> {
+  return (await api.secretList()).names;
 }

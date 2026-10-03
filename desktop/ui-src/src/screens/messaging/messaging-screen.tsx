@@ -19,10 +19,12 @@ import {
   formatLastSeen,
   hasAlias,
   isDeadEntry,
+  listSecretNames,
   pushWrite,
   targetSpec,
 } from "./api";
 import type { ChannelEntry, ChannelsView, PushRuleEntry, PushRuleFile } from "./api";
+import { PlatformOverview } from "./platform-overview";
 
 interface LoadState {
   status: "loading" | "error" | "ready";
@@ -44,8 +46,12 @@ interface Notice {
 }
 
 /**
- * 消息(task 10-03-messaging-ui):通道目录 + 推送规则两区布局。
+ * 消息(task 10-03-messaging-ui):平台总览 + 通道目录 + 推送规则三区布局。
  *
+ * 最上区·平台总览(task 10-03-messaging-platforms):平台卡片网格 —— 已实装
+ * 平台带三态徽标(已连接/需要设置,前端派生:secret.list 凭据探测 +
+ * channels.list 目录信号)与可展开的出站凭据指南;W2/W3 未实装平台灰卡
+ * 「即将支持」;全部/已连接/未启用三档筛选。
  * 上区·通道目录:按平台分组(名称/类型/最后发现/死信徽标),每平台一个
  * 「刷新」按钮(触发 sidecar channels.refresh → discover_directory;失败
  * toast 结构化错误,旧目录不动),别名行内编辑写 channel_aliases.json 语义。
@@ -63,11 +69,19 @@ export function MessagingScreen() {
   const [drafts, setDrafts] = useState<Record<string, Record<number, string[]>>>({});
   const [savingFile, setSavingFile] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+  /** 钥匙链凭据名清单(平台总览凭据探测;加载失败降级为空名单)。 */
+  const [secretNames, setSecretNames] = useState<string[]>([]);
 
   const reload = useCallback(async () => {
     setState({ status: "loading", data: null, error: null });
     try {
-      const data = await channelsList();
+      const [data, names] = await Promise.all([
+        channelsList(),
+        // 凭据探测(secret.list)是平台卡的次要信号:钥匙链不可用时降级为
+        // 空名单,三态回退到「目录非空」单一证据,不挡整屏目录视图。
+        listSecretNames().catch(() => [] as string[]),
+      ]);
+      setSecretNames(names);
       setState({ status: "ready", data, error: null });
     } catch (error) {
       setState({ status: "error", data: null, error: asSidecarError(error) });
@@ -223,7 +237,7 @@ export function MessagingScreen() {
     <div className="flex flex-col gap-4 pb-6">
       <PageHeader
         title="消息"
-        description="通道目录浏览与别名命名;给推送规则挑选具体会话(保存写回品类 YAML)"
+        description="平台总览与接入态;通道目录浏览与别名命名;给推送规则挑选具体会话(保存写回品类 YAML)"
         actions={
           <>
             {data ? (
@@ -256,6 +270,13 @@ export function MessagingScreen() {
           {notice.text}
         </div>
       ) : null}
+
+      {/* ---------------- 最上区:平台总览(卡片网格 + 三态 + 筛选 + 凭据指南) ---------------- */}
+      <PlatformOverview
+        status={state.status}
+        directory={data?.platforms ?? {}}
+        secretNames={secretNames}
+      />
 
       {/* ---------------- 上区:通道目录(按平台分组) ---------------- */}
       <div className="px-6">

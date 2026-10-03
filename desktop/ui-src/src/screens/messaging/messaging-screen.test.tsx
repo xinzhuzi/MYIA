@@ -5,6 +5,10 @@
 // (平台分组/类型徽标/死信徽标/别名徽标)、别名行内编辑(调用 channels.alias
 // set/delete)、targets 多选产出 platform:名称 spec 与 push.write 全量保存、
 // 平台刷新按钮、空态(先配平台凭据指引)、断连态(结构化错误 + 重试)。
+// 平台总览(10-03-messaging-platforms):三态徽标(已连接/需要设置/即将支持,
+// secret.list 凭据探测 + channels.list 目录信号派生)、全部/已连接/未启用
+// 筛选、分平台出站凭据指南(feishu tenant token 手工换 / telegram BotFather
+// + userinfobot)、入站项零出现(扫码/允许的用户 ID/webhook secret 不渲染)。
 // 协议契约权威:desktop/entry.py `_m_channels_*` / `_m_push_write` +
 // 任务 10-03-messaging-ui design.md §D2。
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -16,6 +20,12 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: mocks.invoke }));
 
 import { MessagingScreen } from "./messaging-screen";
 import type { ChannelsView } from "./api";
+import {
+  buildPlatformCards,
+  deriveImplementedStatus,
+  matchSecretNames,
+  matchesFilter,
+} from "./platform-overview";
 
 const FILE = "plugins/messaging-demo.yaml";
 
@@ -97,6 +107,8 @@ type SidecarMap = Record<string, Handler>;
 
 function okSidecar() {
   const view = channelsViewFixture();
+  // secret.list 名单(平台总览凭据探测用;只有名字,值永不可读)
+  const secrets = { names: [] as string[] };
   const calls: { method: string; params: unknown }[] = [];
   const map: SidecarMap = {
     "channels.list": () => JSON.parse(JSON.stringify(view)) as unknown,
@@ -122,11 +134,12 @@ function okSidecar() {
       const { file, push } = params as { file: string; push: unknown[] };
       return { file, written: true as const, changed: true, push };
     },
+    "secret.list": () => ({ names: [...secrets.names] }),
   };
   const record = (method: string, params: unknown) => {
     calls.push({ method, params });
   };
-  return { map, view, calls, record };
+  return { map, view, secrets, calls, record };
 }
 
 /** 安装 mock sidecar:所有 invoke("sidecar_request") 走此分派;未知方法=结构化 404 */
@@ -358,5 +371,252 @@ describe("消息:空态与断连态", () => {
     await waitFor(() => {
       expect(mocks.invoke.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 平台总览(task 10-03-messaging-platforms R1-R4)
+// ---------------------------------------------------------------------------
+
+describe("消息:平台总览三态徽标", () => {
+  it("目录非空 = 已连接(带目录条数);W2/W3 灰卡 = 即将支持(标波次)", async () => {
+    const sidecar = okSidecar();
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+
+    const overview = await screen.findByTestId("platform-overview");
+    const feishu = within(overview).getByTestId("platform-card-feishu");
+    expect(within(feishu).getByText("已连接")).toBeTruthy();
+    expect(feishu.textContent).toContain("目录 2 个会话");
+    const telegram = within(overview).getByTestId("platform-card-telegram");
+    expect(within(telegram).getByText("已连接")).toBeTruthy();
+    expect(telegram.textContent).toContain("目录 1 个会话");
+
+    // 灰卡:badge 即将支持 + 波次说明;W2/W3 各抽查一张
+    const weixin = within(overview).getByTestId("platform-card-weixin");
+    expect(within(weixin).getByText("即将支持")).toBeTruthy();
+    expect(weixin.textContent).toContain("W2 波次排期中");
+    const slack = within(overview).getByTestId("platform-card-slack");
+    expect(within(slack).getByText("即将支持")).toBeTruthy();
+    expect(slack.textContent).toContain("W3 波次排期中");
+    // 灰卡不可展开凭据指南(未实装,无凭据可言)
+    expect(within(weixin).queryByRole("button")).toBeNull();
+  });
+
+  it("凭据缺失(目录空且钥匙链无命中)→ 需要设置", async () => {
+    const sidecar = okSidecar();
+    sidecar.view.platforms = {};
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+    const overview = await screen.findByTestId("platform-overview");
+    for (const id of ["feishu", "telegram"]) {
+      const card = within(overview).getByTestId(`platform-card-${id}`);
+      expect(within(card).getByText("需要设置")).toBeTruthy();
+      expect(card.textContent).toContain("目录为空");
+    }
+  });
+
+  it("钥匙链探测命中(secret.list:scope 或叶子名)→ 目录空也判已连接", async () => {
+    const sidecar = okSidecar();
+    sidecar.view.platforms = {};
+    sidecar.secrets.names = [
+      "myia/feishu/bot_token", // scope = 平台 id 命中
+      "myia/push/TELEGRAM_BOT_TOKEN", // 叶子名 = 凭据 key 命中
+      "myia/llm/api_key", // 无关凭据,不参与
+    ];
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+    const overview = await screen.findByTestId("platform-overview");
+    const feishu = within(overview).getByTestId("platform-card-feishu");
+    expect(within(feishu).getByText("已连接")).toBeTruthy();
+    expect(feishu.textContent).toContain("钥匙链已录 1 项");
+    expect(within(overview).getByTestId("platform-card-telegram").textContent).toContain(
+      "钥匙链已录 1 项",
+    );
+  });
+});
+
+describe("消息:平台总览筛选 tabs", () => {
+  it("全部(25)/已连接/未启用 正确分组;tab 文案带计数", async () => {
+    const sidecar = okSidecar();
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+    const overview = await screen.findByTestId("platform-overview");
+
+    // 缺省 = 全部:已实装 2 + 未实装 23 = 25 张卡
+    expect(within(overview).getByTestId("platform-filter-all").textContent).toBe("全部(25)");
+    expect(within(overview).getByTestId("platform-filter-connected").textContent).toBe("已连接(2)");
+    expect(within(overview).getByTestId("platform-filter-disabled").textContent).toBe("未启用(23)");
+    expect(within(overview).getByTestId("platform-card-weixin")).toBeTruthy();
+
+    // 已连接:只剩已实装且已连接的卡
+    fireEvent.click(within(overview).getByTestId("platform-filter-connected"));
+    expect(within(overview).getByTestId("platform-card-feishu")).toBeTruthy();
+    expect(within(overview).queryByTestId("platform-card-weixin")).toBeNull();
+
+    // 未启用:需要设置 + 即将支持(此处 fixture 全已连接 → 只剩灰卡)
+    fireEvent.click(within(overview).getByTestId("platform-filter-disabled"));
+    expect(within(overview).queryByTestId("platform-card-feishu")).toBeNull();
+    expect(within(overview).queryByTestId("platform-card-telegram")).toBeNull();
+    expect(within(overview).getByTestId("platform-card-weixin")).toBeTruthy();
+    expect(within(overview).getByTestId("platform-card-homeassistant")).toBeTruthy();
+  });
+
+  it("已实装但凭据缺失 → 归入「未启用」而非「已连接」", async () => {
+    const sidecar = okSidecar();
+    sidecar.view.platforms = {};
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+    const overview = await screen.findByTestId("platform-overview");
+    expect(within(overview).getByTestId("platform-filter-connected").textContent).toBe("已连接(0)");
+    expect(within(overview).getByTestId("platform-filter-disabled").textContent).toBe("未启用(25)");
+    fireEvent.click(within(overview).getByTestId("platform-filter-disabled"));
+    expect(within(overview).getByTestId("platform-card-feishu")).toBeTruthy();
+  });
+});
+
+describe("消息:分平台出站凭据指南", () => {
+  it("点开 feishu 卡 → tenant token 手工换取步骤 + curl 命令;再点收起", async () => {
+    const sidecar = okSidecar();
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+    const overview = await screen.findByTestId("platform-overview");
+    const card = within(overview).getByTestId("platform-card-feishu");
+
+    fireEvent.click(within(card).getByRole("button", { name: "飞书 凭据指南" }));
+    const guide = within(card).getByTestId("platform-guide-feishu");
+    expect(guide.textContent).toContain("FEISHU_BOT_TOKEN");
+    expect(guide.textContent).toContain("tenant_access_token");
+    expect(guide.textContent).toContain("im:message:send_as_bot");
+    expect(guide.textContent).toContain("curl -X POST https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal");
+
+    fireEvent.click(within(card).getByRole("button", { name: "飞书 凭据指南" }));
+    expect(within(card).queryByTestId("platform-guide-feishu")).toBeNull();
+  });
+
+  it("点开 telegram 卡 → @BotFather 建机器人 + @userinfobot 拿 chat_id + 两个凭据 key", async () => {
+    const sidecar = okSidecar();
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+    const overview = await screen.findByTestId("platform-overview");
+    const card = within(overview).getByTestId("platform-card-telegram");
+
+    fireEvent.click(within(card).getByRole("button", { name: "Telegram 凭据指南" }));
+    const guide = within(card).getByTestId("platform-guide-telegram");
+    expect(guide.textContent).toContain("TELEGRAM_BOT_TOKEN");
+    expect(guide.textContent).toContain("TELEGRAM_CHAT_ID");
+    expect(guide.textContent).toContain("@BotFather");
+    expect(guide.textContent).toContain("@userinfobot");
+  });
+
+  it("入站项零出现:整屏(两份指南先后展开后)不渲染扫码/允许的用户 ID/webhook secret", async () => {
+    const sidecar = okSidecar();
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+    const overview = await screen.findByTestId("platform-overview");
+    // 指南一次只开一张:先 feishu 后 telegram,两段展开态的整屏文本都收进来断言
+    const feishuCard = within(overview).getByTestId("platform-card-feishu");
+    fireEvent.click(within(feishuCard).getByRole("button", { name: "飞书 凭据指南" }));
+    await within(feishuCard).findByTestId("platform-guide-feishu");
+    const feishuOpenText = document.body.textContent ?? "";
+
+    const telegramCard = within(overview).getByTestId("platform-card-telegram");
+    fireEvent.click(within(telegramCard).getByRole("button", { name: "Telegram 凭据指南" }));
+    await within(telegramCard).findByTestId("platform-guide-telegram");
+    // 换开 telegram 后 feishu 指南收起(一次一张,与别名编辑同范式)
+    expect(within(feishuCard).queryByTestId("platform-guide-feishu")).toBeNull();
+    const telegramOpenText = document.body.textContent ?? "";
+
+    for (const text of [feishuOpenText, telegramOpenText]) {
+      expect(text).not.toMatch(/扫码/);
+      expect(text).not.toMatch(/允许的用户/);
+      expect(text).not.toMatch(/webhook\s*secret/i);
+    }
+  });
+});
+
+describe("消息:平台总览派生纯函数", () => {
+  it("matchSecretNames:scope=平台 id 或叶子名=凭据 key 命中;其余忽略", () => {
+    const names = [
+      "myia/feishu/bot_token",
+      "myia/push/FEISHU_BOT_TOKEN",
+      "myia/llm/api_key",
+      "feishu/裸名",
+      "myia/feishu", // 无 name 段
+    ];
+    expect(matchSecretNames("feishu", ["FEISHU_BOT_TOKEN"], names)).toEqual([
+      "myia/feishu/bot_token",
+      "myia/push/FEISHU_BOT_TOKEN",
+    ]);
+    expect(matchSecretNames("telegram", ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"], names)).toEqual([]);
+  });
+
+  it("deriveImplementedStatus:目录非空或钥匙链命中 = 已连接;双缺 = 需要设置", () => {
+    const bucket = [channelEntry("feishu", "oc_1", "群")];
+    expect(deriveImplementedStatus(bucket, [])).toBe("connected");
+    expect(deriveImplementedStatus([], ["myia/feishu/bot_token"])).toBe("connected");
+    expect(deriveImplementedStatus([], [])).toBe("needs_setup");
+  });
+
+  it("buildPlatformCards:2 已实装 + 23 未实装;灰卡无指南、id 唯一", () => {
+    const cards = buildPlatformCards({}, []);
+    expect(cards).toHaveLength(25);
+    expect(cards.filter((card) => card.status === "needs_setup")).toHaveLength(2);
+    expect(cards.filter((card) => card.status === "coming_soon")).toHaveLength(23);
+    expect(new Set(cards.map((card) => card.id)).size).toBe(25);
+    for (const card of cards.filter((c) => c.status === "coming_soon")) {
+      expect(card.guide).toBeNull();
+      expect(card.directoryCount).toBe(0);
+    }
+  });
+
+  it("matchesFilter:未启用 = 需要设置 + 即将支持;已连接只收 connected", () => {
+    const cards = buildPlatformCards(
+      { feishu: [channelEntry("feishu", "oc_1", "群")] },
+      ["myia/telegram/bot_token"],
+    );
+    const byId = Object.fromEntries(cards.map((card) => [card.id, card]));
+    expect(byId.feishu.status).toBe("connected"); // 目录非空
+    expect(byId.telegram.status).toBe("connected"); // 钥匙链命中
+    expect(matchesFilter(byId.feishu, "connected")).toBe(true);
+    expect(matchesFilter(byId.weixin, "connected")).toBe(false);
+    expect(matchesFilter(byId.feishu, "disabled")).toBe(false);
+    expect(matchesFilter(byId.weixin, "disabled")).toBe(true); // 即将支持 → 未启用
+    const emptyCards = buildPlatformCards({}, []);
+    const needsSetup = emptyCards.find((card) => card.status === "needs_setup")!;
+    expect(needsSetup).toBeTruthy();
+    expect(matchesFilter(needsSetup, "disabled")).toBe(true); // 需要设置 → 未启用
   });
 });
