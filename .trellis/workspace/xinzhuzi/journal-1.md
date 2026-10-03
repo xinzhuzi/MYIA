@@ -107,3 +107,17 @@
 - 门全绿:协议契约 pytest、全量 1620 passed/14 skipped、vitest 86、tsc/vite build;契约独立核对两条 medium(useBlocker 假路由、.bak 内容无专测)运行内修复闭环;余 low 主会话收口:幻影依赖 @codemirror/theme-one-dark 显式声明、四缺口用例独立成档 tests/test_yaml_editor_protocol_gaps.py(明文凭据双门/超长 stem/save 侧 1MiB;主协议测试文件是会话热点,他会在途 +17 行不混提交;跨文件导入循 conftest 裸模块新规)
 - 并行会话宽 add 把主体实现卷入 b4e2787(messaging/CI 批次),代码无损、归属混;本会话提交仅收尾件
 - 待人工:GUI 冒烟(tauri 窗口真文件往返/注释逐字节/新建后源管理即时可见);task 留 in_progress,冒烟过再 finish-work;根治任务 10-03-yaml-toggle-comments 独立未动
+
+## 2026-10-03 游戏情报品类插件立项(task 10-03-games,backlog)
+
+- 主人令「相关的游戏情报也要做」→ 全库探查:游戏零覆盖;情报覆盖=七大类+channel(builtin 表,忠实移植 wf_crawl.py 红线不扩)之外,stocks/gpu-prices 已立"七类外情报走品类插件"先例 → 游戏情报同路线 `plugins/games.yaml`
+- 当轮建任务(--no-start,大工作流 dwfrun-9808b474 在途且其 12 任务清单固定不含本档,不抢指针);PRD 落:来源候选(Epic 限免 JSON/Steam price_overview/Reddit .json/中文 L2,设计期核实)、classify.builtin=false+限免/折扣力度 rules、dedup 禁裸 {title}、限免 immediate/折扣 digest、史低 baseline 可选项;验收挂 test_plugins.py 参数化基线(新 yaml 自动全套)+ CI 零外网录制回放
+- 开工前主人四问:平台范围/要不要资讯/中英文源偏好/史低基线进不进首版
+
+## 2026-10-03 免费层供应商地图落档(task 10-03-free-tier-supplier-map,research→review)
+
+- 起因:主人问 free-for.dev 对本项目是否有帮助;首答「无工程增量」被判框架错(拿省钱账本量情报)——改用决策框架重评:它是 MYIA 的供应商采购目录+趋势信号+反情报,当场立项蒸馏
+- 交付 research.md:四决策面(push 通道/engines 抓取/vision+enrich 端点/项目运营)26 条候选,五要素齐(免费层快照/信号/自托管替代/适配度/核实状态),●=16 条本轮经 zread 核实(快照 2026-10-03),○=10 条写入用户文档前须二次核实;中文生态盲区显式补位(Bark/Server酱/GLM-4V-Flash/SiliconFlow,free-for.dev 西方中心不覆盖)
+- 反情报要点落档:Fly.io/X API 免费层翻车案例、free tier trap(结构性营销)、「云端连接器必须有免费路径」选型硬规则建议、OpenAI 兼容 base_url 是 MYIA 天然接口(vision/enrich 换 base_url 即接 OpenRouter :free 等)
+- 网络注意:本机 gh api/raw.githubusercontent 直连不通(gh search/zread 服务端通道正常,事实均双通道交叉核实);free-for.dev 无 LICENSE→只记要点与链接不搬运原文
+- 状态直改 review(并行工作流 dwfrun-9808b474 在途,循例不用 start/finish 抢指针);后续出口三条在 research.md 末尾(用户零成本接入指引/选型 spec 硬规则/push 扩展候选池)
