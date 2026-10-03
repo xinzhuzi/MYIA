@@ -7,3 +7,9 @@
 - 流水线:desktop-release.yml/UPDATER.md 产物名 MYIA.app.tar.gz→世事.app.tar.gz(9 处),release notes 前缀改世事;MYIA_SIDECAR_SKIP 等 env 名不动
 - 行为:open -g 静默(前台不变)、quit app 世事 正常、单实例锁同域仍生效(顺带清了一个从 target/bundle 拉起的漏网 stale 实例 36509);终态 1 实例静默在跑
 - 构建产物:世事.app 125.07MiB + 世事_1.1.1_aarch64.dmg 117.68MiB
+# v3.1 迭代转录(2026-10-03)
+- 主人反馈:形状>亮度;要现代宇宙气质
+- galaxy-only 数值:臂/缝对比 r150-300 全程 5.3-8.3x;缝 55-86;底 #030408-#0A0F1F;眼描边 438
+- 装机 icns=新生成(逐字节);killall Dock 已刷;终态 1 实例静默
+- 工程坑:采样器 Y 翻转假象两轮;复合命令 cd 被剥离改 git -C
+- 2026-10-03 主人验收:「这次的看起来可以了」——v3.1 定稿

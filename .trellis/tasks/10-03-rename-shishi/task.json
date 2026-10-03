@@ -3,7 +3,7 @@
   "name": "rename-shishi",
   "title": "定名「世事」:MYIA 更名 + 眼后宇宙图标",
   "description": "主人定案(2026-10-03):产品名 MYIA→世事,图标改为眼睛背后是宇宙。范围=桌面显示面:productName/窗口标题/Dock 名/html title/alt;图标 branding 唯一事实源重绘(SVG→rsvg→tauri icon 全尺寸)。内部标识符不动(com.myia.app/MYIA_HOME/myia-core/mainBinaryName=MYIA——数据根/锁域/updater 身份零迁移);repo 名/PyPI/CLI 名=主人后续拍板;desktop-release.yml 产物名同步世事.app.tar.gz",
-  "status": "in_progress",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -15,12 +15,12 @@
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
-  "commit": null,
+  "commit": "a20882b",
   "pr_url": null,
   "subtasks": [],
   "children": [],
   "parent": null,
   "relatedFiles": [],
-  "notes": "",
+  "notes": "2026-10-03 主人验收图标 v3.1 通过,定稿;repo/PyPI/CLI 名跟改=主人拍板项",
   "meta": {}
 }

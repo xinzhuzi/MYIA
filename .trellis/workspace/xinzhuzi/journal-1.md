@@ -150,3 +150,19 @@
 - 核实:6 家免费层政策(GLM/SiliconFlow/Groq/Mistral+OpenRouter),全部可核
 - 中文版:质检通过;英文版:已产出;终检:通过;密钥样式扫描:0 命中
 - 状态:review(直改 task.json,并行工作流在场不抢指针);supplier-map 归档触发条件达成
+
+## 2026-10-03 定名「世事」+ 眼后宇宙图标(task 10-03-rename-shishi,in_progress→review)
+
+- 主人定案:产品名 MYIA→世事;图标=眼睛背后是一个宇宙。范围=桌面显示面(productName/窗口标题/html title/UI 标 alt)+ branding 唯一事实源重绘 + 发布产物名;内部标识符(com.myia.app/MYIA_HOME/myia-core/mainBinaryName=MYIA)刻意不动——数据根/单实例锁域/updater 身份零迁移;repo/PyPI/CLI 名留主人拍板
+- 图标:Python 实算生成 SVG(对数旋臂 a=112/b=0.30/倾角-0.32,种子 42;零滤镜纯形状守 branding 规矩)→ rsvg 1024 → npx tauri icon 全尺寸。眼形轮廓/青→紫渐变/信号触点延续品牌;眼底透明化透出星系,瞳孔改黑洞芯+光子环+吸积弧+瞳中星。像素采样自检 7 点过(圆角透明/黑洞暗/核辉亮/臂带色/眼描边亮/触点紫/深空底);美学目验留主人
+- 验证:PlistBuddy CFBundleDisplayName/CFBundleName=世事、窗口名=世事、vitest 89/89、build 绿(世事.app 125.07MiB);装机换名(旧 MYIA.app 备份 /tmp/MYIA.app.bak-pre-shishi);open -g 静默、quit app 世事 正常;顺带清掉一个从 target/bundle 拉起的 stale MYIA 实例(曾持锁导致 open -b 激活错对象)
+- desktop-release.yml/UPDATER.md 产物名 9 处同步世事.app.tar.gz(release notes 前缀改世事);MYIA_SIDECAR_SKIP 等 env 名不动
+- 提交 a20882b(临时 index 管道,conf 里与并行改名 hunks 同 hunk 挤着——用 HEAD blob sed 出纯净视图再 diff 成补丁);共享 index 归位 reset
+
+## 2026-10-03 图标 v3.1:星系形状重塑(task 10-03-rename-shishi 迭代,commit 598130f)
+
+- 主人两轮反馈:「不是亮度,是形状」+「亮度不能太亮,要更符合现代宇宙」。v2 提亮方向作废,v3 重塑:双臂 269° 对数回旋(a=110,b=0.215,倾角-0.42)+窄臂收尖+椭圆核球;渲染三件套=暗尘盘垫底(压暗臂间)+尘带 0.40+细亮脊线 5px——低亮度下形状立住的正解;降饱和全项(muted 星云/核辉 r175/90 颗细星尘/3 个遥远小星系深场感)
+- 数值验收(galaxy-only 渲染):臂/缝对比全半径 5.3-8.3x,缝隙亮度 55-86,眼描边 438 仍是主角;装机 icns 逐字节核验,killall Dock 刷缓存
+- 两大坑记档:①像素采样器 Y 翻转乌龙吞掉两轮——CGBitmapContext 缓冲行序与 SVG 坐标同向,(h-1-y) 反转是画蛇添足;眼睛上下对称测不出翻转,臂/缝恰好镜像互换造成"形状糊了"假象 ②复合命令里的 cd 被环境剥离(连跑五次才定位),git 一律 git -C 绝对路径
+
+- 主人验收图标 v3.1:「这次的看起来可以了」——10-03-rename-shishi 全部交付定稿(更名世事+眼后宇宙图标),任务维持 review 休止态

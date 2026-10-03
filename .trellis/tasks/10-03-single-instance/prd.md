@@ -22,13 +22,15 @@ myia-desktop dev 实例与 MYIA 装机包同屏并存,主人截图报障。
 
 ## Acceptance Criteria
 
-- [ ] 首启 `open -g -a MYIA`:静默在跑(持锁)。
-- [ ] `open -n -a MYIA`(强制新实例):新进程秒退,既有实例被激活亮窗(Reopen 路径),
-      全程恰好一个 MYIA 应用进程。
-- [ ] 直跑二进制二次启动:第二个进程秒退。
-- [ ] `osascript quit` 后锁释放,可再次正常启动。
-- [ ] `cargo check` 绿;`npm run tauri build` exit 0;重装 /Applications。
-- [ ] sidecar(myia-core)不受影响:不经此锁,随应用生命周期。
+- [x] 首启 `open -g -a MYIA`:静默在跑(持锁),前台不变。
+- [x] `open -n -a MYIA`(强制新实例):新进程秒退,既有实例被激活亮窗(Reopen 路径),
+      全程恰好一个 MYIA 应用进程。首版当场 `open -b` 有 LaunchServices 竞态(激活到
+      将死的第二实例,实测窗口不亮),改孤儿 shell `sleep 0.5` 后激活,复测过
+      (窗口 0→1、frontmost=MYIA)。
+- [x] 直跑二进制二次启动:打印「已有 MYIA 实例在跑」秒退,仍 1 进程。
+- [x] `osascript quit` 后锁释放,可再次正常启动(sidecar ×2 随起,onefile 双进程正常)。
+- [x] `cargo check` 绿;`npm run tauri build` exit 0;重装 /Applications。
+- [x] sidecar(myia-core)不受影响:不经此锁,随应用生命周期。
 
 ## 已知取舍
 
