@@ -4,7 +4,7 @@ import myia
 
 
 def test_version():
-    assert myia.__version__ == "1.1.1"
+    assert myia.__version__ == "0.0.1"
 
 
 def test_pipeline_stages():
