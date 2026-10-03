@@ -136,7 +136,7 @@ sources:
   # baseMoney),限免结束时间拿不到;结束时间可挂 LootScraper GOG Atom
   # feed 做补充源,但那是第三方个人 feed,只当 backstop 不进本源(探查
   # 结论,gog-probe-summary.json)。参数形态坑实测:between-0-0 横线形 404
-  # "result window too too large";in:game:pack 冒号形静默清零——正确形是
+  # "result window is too large";in:game:pack 冒号形静默清零——正确形是
   # between:0,0 与 in:game,pack,别"顺手美化"。countryCode=US/CN 均实测
   # 匿名可用,此处取 US/USD(与证据主通道一致)。
   - name: gog-free
