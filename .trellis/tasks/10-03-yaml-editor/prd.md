@@ -74,19 +74,21 @@ MYIA 的插件系统(`myia-*`)是**数据源场景插件**(plugin.yaml 声明 mo
 
 ## Acceptance Criteria
 
-1. dev 模式打开配置编辑屏:能看到品类 YAML 全文,**注释完整**
-2. 编辑 `schedule` 保存 → `doctor({yamls:[file]})` 识别新值;原文其余内容(含注释)逐字节不变
-3. 保存坏内容(语法错 / 未知字段 / 明文凭据)→ 结构化错误展示,目标文件零变更,`.bak` 不动
-4. 路径穿越(`../` 逃逸、绝对路径、非 yaml 后缀)→ 结构化拒绝
-5. `yaml.validate` 干跑不落盘(findings 如实返回)
-6. **新建往返**:「新建」→ 编辑 → 保存 → `yaml.list`/`doctor` 识别新品类(六份官方件 + 1 不混);`.bak` 不误伤既有文件
-7. **重复 id 拒绝**:新建内容 id 与既有品类撞车 → `duplicate_category_id` 结构化错误,零写入
-8. **删除往返**:删除自建品类 → list/health 不再列;`.bak` 留底;连带 `.disabled.json` 一并清
-9. 基线不回归:**当期** pytest / vitest 基线全绿(新增另计;基线数字以开工时实测为准——并行 release 波可能已移动基线,勿死守 1397/40)
-10. 源管理行「编辑」→ 跳转配置编辑屏且预选该品类文件
-11. **启停止血**:点一次启停后,`.bak` 保有操作前的带注释原文(主文件仍被 safe_dump 重写——已知缺陷,根治在 `10-03-yaml-toggle-comments`)
-12. 保存成功后自动 doctor 复核有结果展示;「跑一次」dirty 时禁用,发起后可在日志屏查看运行
-13. `keychain:` 引用未录入 → warning 级 finding 展示且保存不被拦;`env:` 引用不做存在性对照
+> 勾选口径(2026-10-03 收尾核验):`[x]` = 已自动化验证且绿;`[ ]` = 存 ⏳ 人工项,行尾注明。
+
+- [ ] 1. dev 模式打开配置编辑屏:能看到品类 YAML 全文,**注释完整** ——机制已测✅(yaml.read 原文含注释 `tests/test_desktop_sidecar_protocol.py:977-982`;编辑器渲染原文 `yaml-editor-screen.test.tsx:263`);dev 模式 GUI 视觉 ⏳ 需人工冒烟
+- [ ] 2. 编辑 `schedule` 保存 → `doctor({yamls:[file]})` 识别新值;原文其余内容(含注释)逐字节不变 ——注释保真保存已测✅(`tests/test_desktop_sidecar_protocol.py:1255`;doctor 识别保存文件 `:1070-1071`;新增覆盖保存 `.bak`=旧原文含注释 `:1086-1111`);schedule 改值的 doctor 识别新值完整往返无单一专测,真机 diff ⏳ 需人工冒烟
+- [x] 3. 保存坏内容(语法错 / 未知字段 / 明文凭据)→ 结构化错误展示,目标文件零变更,`.bak` 不动 ——`tests/test_desktop_sidecar_protocol.py:1019-1047`(语法错结构化明细/零源 too_short/目标零变更/`.bak` SENTINEL 不动;未知字段经 validate `:1008`);明文凭据子场景无专测(low gap)
+- [x] 4. 路径穿越(`../` 逃逸、绝对路径、非 yaml 后缀)→ 结构化拒绝 ——`tests/test_desktop_sidecar_protocol.py:929-952`(`../` 穿越/目录外绝对路径/非 yaml 后缀/符号链接逃逸 → 结构化拒绝;stem 违例零写入)
+- [x] 5. `yaml.validate` 干跑不落盘(findings 如实返回)——`tests/test_desktop_sidecar_protocol.py:995-1011`(干跑后内容与 mtime 逐项不变)
+- [x] 6. **新建往返**:「新建」→ 编辑 → 保存 → `yaml.list`/`doctor` 识别新品类(六份官方件 + 1 不混);`.bak` 不误伤既有文件 ——`tests/test_desktop_sidecar_protocol.py:1050-1083`(null mtime 新建→created=true→list/doctor 识别;既有文件 `.bak` 不误伤)+ vitest 新建流 `yaml-editor-screen.test.tsx:491`
+- [x] 7. **重复 id 拒绝**:新建内容 id 与既有品类撞车 → `duplicate_category_id` 结构化错误,零写入 ——`tests/test_desktop_sidecar_protocol.py:1114-1128`(duplicate_category_id + data.conflicts + 零写入,改 id 后放行)
+- [x] 8. **删除往返**:删除自建品类 → list/health 不再列;`.bak` 留底;连带 `.disabled.json` 一并清 ——`tests/test_desktop_sidecar_protocol.py:1134` 起(list 不再列、`.bak`=删除前原文 `:1147`、连带 `.disabled.json` 清;`.bak` 不入列);health 未直测(同目录扫描蕴含)
+- [x] 9. 基线不回归:**当期** pytest / vitest 基线全绿(新增另计;基线数字以开工时实测为准——并行 release 波可能已移动基线,勿死守 1397/40)——2026-10-03 本轮全绿:`uv run --no-sync python -m pytest -q`(repo root)→ 1580 passed / 14 skipped / 0 failed(exit=0,上轮 messaging 失败已被并行任务修复);vitest 86/86;`npm run build` ✓(tsc 零错,仅 chunk 体积警告)
+- [x] 10. 源管理行「编辑」→ 跳转配置编辑屏且预选该品类文件 ——`sources.test.tsx:372-384`(行「编辑」链接 href=/yaml-editor?file=…)+ `yaml-editor-screen.test.tsx:281`(`?file=` 预选 + 完整路径展示)
+- [x] 11. **启停止血**:点一次启停后,`.bak` 保有操作前的带注释原文(主文件仍被 safe_dump 重写——已知缺陷,根治在 `10-03-yaml-toggle-comments`)——`tests/test_desktop_sidecar_protocol.py:1242-1251`(启停后 `.bak`=操作前带注释原文;主文件仍被 safe_dump 重写=止血不根治,符合预期)
+- [x] 12. 保存成功后自动 doctor 复核有结果展示;「跑一次」dirty 时禁用,发起后可在日志屏查看运行 ——vitest `yaml-editor-screen.test.tsx:418`(保存成功自动 doctor({yamls}) 调用+结果展示)、`:533`(跑一次 dirty 禁用+title 提示+发起后日志屏链接)
+- [x] 13. `keychain:` 引用未录入 → warning 级 finding 展示且保存不被拦;`env:` 引用不做存在性对照 ——`tests/test_desktop_sidecar_protocol.py:1170-1196`(keychain 未录入→warning 且 valid=true、保存放行且 warnings 带回、补录后消失;env 名字不出现在结果=不做对照)+ vitest `yaml-editor-screen.test.tsx:446`
 
 ## 决议记录(grill Round 1,2026-10-03;主人批复「按建议落实到任务文档」)
 

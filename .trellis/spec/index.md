@@ -10,6 +10,7 @@
 | [python/quality.md](./python/quality.md) | 测试约定(录制回放/夹具脱敏)、CI |
 | [domain/yaml-schema.md](./domain/yaml-schema.md) | 品类 YAML schema 硬规则 |
 | [domain/security-baseline.md](./domain/security-baseline.md) | 凭据与安全底线(铁律) |
+| [desktop/sidecar-protocol.md](./desktop/sidecar-protocol.md) | 桌面 sidecar 协议:方法注册表(23)与错误码(事实源 = entry.py `_HANDLERS`) |
 | [guides/](./guides/index.md) | 通用思维指南(复用/跨层) |
 | [guides/ai-dispatch-template.md](./guides/ai-dispatch-template.md) | AI 任务分发模板(v1.1 协议与顺序) |
 

@@ -1,5 +1,7 @@
 /**
- * MYIA 桌面 sidecar API client —— A 阶段协议(`desktop/entry.py`)的 TS 全量封装。
+ * MYIA 桌面 sidecar API client —— sidecar 协议(`desktop/entry.py`,23 方法)的共享封装:
+ * 类型面 `SidecarProtocol` 盖 16 方法(核心 + image.*),`api` 门面只封装核心 10 方法
+ * ——封装面 ≠ 协议面,分工见下方 api 对象头注释。
  *
  * 传输:壳命令 `sidecar_request`(src-tauri/src/main.rs);Rust 侧
  * Ok(Value) = 协议 result,Err(String) = 结构化错误对象 JSON 文本,
@@ -105,7 +107,11 @@ async function request<M extends SidecarMethod>(
 }
 
 /**
- * 协议全部方法的类型化门面(方法名与 entry.py `_HANDLERS` 一一对应)。
+ * 共享类型化门面 —— 只封装核心 10 方法(version … secret.list),非协议全量。
+ * 协议面(23 方法,单一事实源 = entry.py `_HANDLERS`,注册表见
+ * .trellis/spec/desktop/sidecar-protocol.md)的其余方法走屏私有封装:
+ * sources.write → screens/sources/api.ts、yaml.* → screens/yaml-editor/api.ts、
+ * image.* → screens/image/api.ts(惯例:invoke 直连 + asSidecarError 归一化)。
  * 铁律:secret.set 的 value 只经本通道写入系统钥匙链,任何日志/界面零回显。
  */
 export const api = {

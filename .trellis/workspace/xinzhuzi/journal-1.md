@@ -100,3 +100,10 @@
 - 偏离四条:①D4 删 myia.spec 跳过——git status 显 M,v111-desktop-paths 会话在途脏改且它正是重新生成该对象的会话,碰撞规避留其收尾;②ruff 配置落独立 ruff.toml 而非 PRD 的 pyproject [tool.ruff]+dev 组加 ruff——pyproject 被 v111 版本对齐在途改,缘由注明在 ruff.toml 文件头,CI/本地同款命令不变;③验收「push 上 ci.yml 真跑全绿」不在本批,多会话在途此刻推送会夹带未完成改动,归编排脚本合并后补绿 run;④普查档活清单回标 D1/D2/D4/D5 不在本批(本 journal 节即其中「记一笔」)
 - 提交人复核探针(2026-10-03,本机):`uvx ruff@0.16.10 check .` 全工作树 1 错——F821 于 tests/test_messaging_pipeline.py:169,该文件 ?? 未跟踪(他会话在途件,干净 CI 检出不存在,不拦门禁);对 HEAD 跟踪树(`git ls-files '*.py'` 130 文件同款命令)All checks passed exit 0。cargo check 未在本会话复跑(依赖本机 binaries/ 占位与网络拉依赖,PRD 起草期已双态实测,CI 首跑以真实日志为准)
 - 落库:单 commit A 仅白名单五路径(ci.yml/ruff.toml/conftest.py/UPDATER.md/任务目录)+ journal 本节选择性暂存(git apply --cached,文件其余在途内容不代提交);归档 task.py archive --skip-branch-validation 自动提交
+
+## 2026-10-03 YAML 配置编辑器落地(task 10-03-yaml-editor,implemented→待人工冒烟)
+
+- 主人令「做完它」推翻决议 1 排期,动态工作流(dwfrun-202c9176,七阶段六代理)施工:协议六方法(yaml.list/read/validate/template/save/delete:围栏+stem 正则+findings 分级+secret_unknown warning+新建 null-mtime 语义+跨文件 id 查重+delete 连带清暂存+两侧 newline='' 字节保真)+ sources.write 止血(.bak)+ 配置编辑屏(CodeMirror,useBlocker 数据路由守卫,Cmd+S/跑一次/自动 doctor 复核/空目录 CTA)+ 源管理「编辑」联动 + 协议 spec 落档(.trellis/spec/desktop/sidecar-protocol.md,23 方法注册表与错误码,C7 防腐)
+- 门全绿:协议契约 pytest、全量 1620 passed/14 skipped、vitest 86、tsc/vite build;契约独立核对两条 medium(useBlocker 假路由、.bak 内容无专测)运行内修复闭环;余 low 主会话收口:幻影依赖 @codemirror/theme-one-dark 显式声明、四缺口用例独立成档 tests/test_yaml_editor_protocol_gaps.py(明文凭据双门/超长 stem/save 侧 1MiB;主协议测试文件是会话热点,他会在途 +17 行不混提交;跨文件导入循 conftest 裸模块新规)
+- 并行会话宽 add 把主体实现卷入 b4e2787(messaging/CI 批次),代码无损、归属混;本会话提交仅收尾件
+- 待人工:GUI 冒烟(tauri 窗口真文件往返/注释逐字节/新建后源管理即时可见);task 留 in_progress,冒烟过再 finish-work;根治任务 10-03-yaml-toggle-comments 独立未动
