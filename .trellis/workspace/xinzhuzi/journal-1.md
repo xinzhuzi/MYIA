@@ -348,3 +348,30 @@
 - 门禁修 4 处最小增量:vision-models.test.tsx 跟进 vision-v2 的 repo_id→repo 有意更名(4 处 getByLabelText)/dashboard api.ts 补 TrendDay 再导出(对齐 client.ts:210 惯例)/sources-table v8.21.3 isResizingColumn(v9 字段名纠偏,语义等价)/sources.test 三处 querySelector null 收口(as HTMLElement,对齐 :688 惯例);vitest 20 文件 240 用例+tsc --noEmit 双绿
 - 终审 PASS(PIL 像素级 15 张 after 截图侧栏/内容/顶栏取色与 token 全一致+25 组色对实算+反 AI 审美 grep+全量读壳层 8 屏 9 基件):对标 Linear 暗色质感+Vercel Dashboard 数据密度落地约九成,teardown 出处注释佐证非 AI 默认态;残留 1 P1(源管理键盘排序死角+destructive 徽章 4.15)+5 P2(侧栏两处小字/日志错误行 4.43/设置 destructive 3.41/text-[11px] 漂移 30 处/feed 搜索框 ring-1)局部参数级,终审修判定无需修整,均入 leftovers 勿扩大
 - 收口动作:spec 产出 .trellis/spec/desktop/frontend-ui.md(token 体系+改 UI 必读+反 AI 审美红线+可达性约定)并挂 spec/index.md;task.json 直改 review(守则:不经 task.py finish);implement.jsonl 补执行引用一行;evidence 8 屏 before/after 全配对(feed 三态+settings 四分区+yaml-editor 子档均备)
+
+## 2026-10-04 fe-small-batch 收口(task 10-03-fe-small-batch,review;G7/G8/G9/G12 四件全落+P1/P2 实算闭,AC6/AC7 半闭如实入 leftovers)
+
+- 功能四件:G7 重跑(RunGroupHeader ghost 钮 rerunRun→client.ts:158 run.start 回放 yaml/dry/db,dry 重跑仍 dry;组头重构 div+button 兄弟免嵌套,既有 5 测断言未改全过)+品类/状态双 Select 过滤+日志搜索 <mark> 高亮(splitTextOnQuery 手写 indexOf 免正则元字符坑);G8 卡面三态接新协议方法 feed.enrich(#43,PROTOCOL_VERSION 5→6,缓存命中零 token+items 回填复核,协议测试 fake client 注入零外网);G9 全部标已读/未读(作用域=已加载条目,title 如实注明——本地态无法标未翻页条目,全库服务端批量属架构外未做);G12 yaml.list→appendWatchlistKeyword 四形态文本手术→yaml.save(mtime 乐观锁+跨文件 id 查重,改词不动 id;already_present 零写入);测试面 logs +5/协议 3 新 2 更(pytest 105)/vitest 全量 20 文件 262+tsc -b --force 0 错=质检实跑绿
+- 视觉:P1+P2①②③⑤ WCAG 公式实算全 ≥4.5 余量足(最小 4.73=#fdebec on #c53136;徽章 5.86/5.41;侧栏整值 6.46;错误行 bg-dead/10 4.67);排序迁原生 button 键盘可达(热区缩至列头内容盒,键盘优先的最小改动静默取舍);ring-1 覆写删归全局 :focus-visible;text-[11px] 干净件清 20 处(dashboard 6+settings 族 5 文件 14,含全仓唯一 text-[13px]→text-sm 同值)
+- AC8 按主人 2026-10-03 escalate 裁决 after-only 降级存证(禁 stash):evidence 9 PNG+touch-interaction-notes.md+harness 四件(seed/bridge/shim/shoot 可复跑);链路沙箱真 sidecar→Node 桥(FORCE_DRY=1 已披露)→vite dev→Playwright hasTouch 全 tap 无头;三硬证据=myia-demo.yaml 真落盘 watchlist『触屏存证词』/enrich_not_configured(reason=enrich_disabled)graceful 实回/run_id=5 dry 2.9s 真重跑;PNG 像素未目验(会话模型无图像输入)以拍前选择器断言+硬证据担保,严格 before/after+装机目验归主人冒烟
+- 半闭如实(全部入 task.json leftovers):四件套缺 CHANGELOG 末件(被并行流 shishi→myia-demo 更名行占用,按分诊预案待净补);vite build 归统一门禁未跑;AC6 终扫仍剩 11 处 text-[11px] 全在并行占用件(feed-screen:967/994+global-run/feedback-stats-card/trend-card/feed-card-feedback)留落 commit 后补扫;旁核三处 <4.5(logs 组头 hover 4.35/mark 落错误行 2.34/feed-card-feedback 4.44)数值入档未修(文件被占);GitNexus MYIA 索引失联 impact 未跑成(className 字面量+自包含新方法,三套测试兜底)
+- 收口动作:task.json 直改 review(守则:不经 task.py finish;notes 记 AC 勾选实况+leftovers 六项);implement/check.jsonl 各补一行引用;evidence 清点齐(9 PNG+说明档+harness 四件);不 push、不 vite build
+
+## 2026-10-03 按 trellis 做完全部任务(工作流)
+
+工作流 12 任务全数完成;收尾 settle(2026-10-04)由收尾代理执行:并行期残留甄别分组为 12 个提交全部落库(代码与档案 4c6aa46..eaddf56 + 本 journal 件),提交前四套验证实跑全绿(vision server 32 passed / vitest 全量 262/262 / pytest 全量 3037 passed 19 skipped / tsc -b 零输出;GitNexus detect-changes CLI 走通但索引挂旧仓名 shishi 且 stale,以测试兜底)。不 push(脚本统一做)。逐任务一行:
+
+- **messaging-core**|完成|2b54865..fa9aaf6(历史已入)|接手收口:核心引擎(directory/targets/delivery/schema/route/pipeline 接线)与附注 9 红测已修绿,test_messaging_pipeline 19/19;唯一残余红测 test_messaging_irc.py::test_join_403 属并行 w3-longtail 线,非本任务面
+- **messaging-feishu**|完成|b3c8084(历史已入)|盘点确认前序会话已完整交付(feishu_card.py 目录发现+定向发送、PLATFORMS 注册、channels CLI、三份测试 984 行)并归档,本轮零在途产物零改动;真机冒烟证据(「AI中转站合伙人群」定向)已在档
+- **messaging-telegram**|完成|2cf3c54(settle 补)|ed1276f 已全量交付归档;本轮第三跑复验 45/80/3034 全 EXIT=0+passive CLI 分支+三份冒烟 YAML 加载,runbook 归档路径修正;AC2 真机冒烟留主人(本机无 TELEGRAM_BOT_TOKEN)
+- **messaging-ui**|完成|2cf3c54(settle 补)|已交付档复验收口:基线 4be1325 在 HEAD 祖先链,附注三要求(三前置交付/push.write 范式/协议 v2+CHANGELOG)逐项核实,门禁复跑绿,零归属在途产物故不重写
+- **docs-truth**|完成|fbba437/bb57290/f1a696c(历史已入)|task.py+active_task.py finish 防护非在途——已由并行会话完整落地(防护+11 例回归锁+归档),本轮验收取口零改动
+- **v111-release**|完成|788d8e3(settle 补)|版本线已被主人令归零 0.0.1(v0.0.1 已首发)故不重 bump;接手 README/CHANGELOG/UPDATER 在途 diff 如实化收口:六处已作废「排 v1.1.2」口径更新+demo 插件 myia-demo 更名对齐
+- **yaml-editor**|完成|786d968(settle 补)|步骤 1-7 主体+步骤 8 尾巴五项全在位(六条 yaml.* 注册与 spec 注册表逐条对照一致);design §7 无头 GUI 冒烟证据落档,「跑一次→日志流」「仪表即时可见」两项未冒烟如实登记留主人
+- **image-input**|完成|4c6aa46(settle 补)|vision 七文件+设置屏 vision-form 已提交;本轮修唯一红门 test_dead_port(macOS 系统代理下死端口 502 误报 running→探测 trust_env=False),test_vision_models_server 32 passed;settle 侧实跑复验绿
+- **ci-gates**|完成|fbba437/dee8e24/b4e2787/845f64a(历史已入)|ruff.toml/ci.yml 已落库归档,本轮零改动纯复核:D1 /tmp 干净克隆三道关键验证全过
+- **v112-desktop-batch**|完成|3ac63af+55c7328(settle 补)|C2 respawn/run.cancel、C3 runs.list、C7 方案①、C1 复合游标、C5、C13 已实现(协议半边 dc1cf86);settle 补落 UI 半边七件 load-bearing 滞留件(top-bar/dashboard/feed-screen 的 import 在位)+design/implement/证据档;门禁 3037/105/262 全绿
+- **feed-ux**|完成|c5c0a55(settle 补)|六件套代码已在 769ebd1/1d255b7;settle 补落 jsonl 步骤4 遗件 client.test.ts(6 用例)+step9 复跑五门禁证据(vitest 262/262、tsc+vite build、协议 105、全量 3037、tauri build 131.88MiB 全 EXIT=0);装机目视冒烟留主线
+- **yaml-toggle-comments**|完成|-(零改动复核)|已于 2026-10-03 完成验收归档,工作树无本任务在途产物;现状复核五 AC 全绿(surgery 44 passed、sources_write 4 passed、全量基线 3037 passed)
+
+settle 侧另落:任务簿记三件(news-rss 置 review/shishi-everywhere 发布注记/v12-backlog 入池两项,eaddf56)与 .gitignore 技能副本防线(ff2389a)。残留处置后工作树全静;主人侧门禁(真机冒烟/GUI 目验/tag/PyPI/密钥/发帖/归档决策)见工作流返回清单。
