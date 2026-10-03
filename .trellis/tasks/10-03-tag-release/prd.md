@@ -101,7 +101,7 @@ Frontier 复核:八问彼此独立、答复未引出新分叉,grill 收口。
 ## 验收勾档(2026-10-03 执行完毕,dwfrun-cc671057 质检 + 主会话收口)
 
 - **AC1-AC7 passed**(独立质检员两轮实测:docker-publish 仅 push tags v* 零 dispatch / 单条 semver+flavor latest=auto / pypi 三处空输入分支 both·pypi·OIDC / 守卫先于 build 且中文报错+TAG 走 env / attach-release 仅 tag 事件单 job 提权 / runbook 全文改写含 jike 结论与 GHCR 全清节:268 / 四元组 Repository 已正名 shishi)。
-- **AC8 结构半 passed**(actionlint 3 文件 0 error + rg 违禁残留 0 + diff 范围核对 + 守卫抽出真跑:0.0.1 放行/9.9.9 拦/vfoo 拦);**E2E 半待主人**(推 v0.0.1 tag,清单在 implement.md Step 5)。
+- **AC8 结构半 passed**(actionlint 3 文件 0 error + rg 违禁残留 0 + diff 范围核对 + 守卫抽出真跑:0.0.1 放行/9.9.9 拦/vfoo 拦);**E2E 半:desktop+docker 通道实证过(资产/镜像 tag 核对),PyPI 通道待主人注册 pending publisher 后 Re-run 补齐**(2026-10-03 v0.0.1@783b4e24 三路实跑:Desktop run 37115937735 success·Release 资产恰 4 件·latest.json version=0.0.1 且 url 指向本 tag·Windows msi 为 continue-on-error 构建级验证不计成败;Docker run 37115937676 success·镜像 tag 恰 0.0.1+latest 无 v 前缀/sha 残留;PyPI run 37115937696 failure——verify 脚本发行名 glob 仍用旧 stem myia/myia_classifier 而 Build 实产 shishi*,4 glob 落空→publish/attach-release 双 skipped,pypi.org 双包 JSON API 404 证零误发;补齐路径=修 verify 发行名→注册 shishi/shishi-classifier 双 pending publisher→移动 tag 或 bump 新版重发,Re-run 沿用 tag commit 旧文件必重蹈)。**AC8 复选框维持未勾**(核对清单在 implement.md Step 5)。
 - 质检两发现流内修复:RELEASE.md:75「世事」→shishi、AC6 措辞四件套→五源。CHANGELOG 混线 hunk 按纪律不入笔,条目随在途文件走(质检已证条目落盘)。
 | 下一个 tag 预期 v1.1.2 | `docs/launch/jike-draft.md` 口径已按 1.1.2 定稿 |
 

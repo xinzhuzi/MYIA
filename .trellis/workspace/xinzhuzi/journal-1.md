@@ -279,3 +279,24 @@
 
 - 主令零冲突残余清单终审:10-03-hermes-messaging review 态归档 archive/2026-10(每目录两轮核脏零在途;prd 载五交付 commit fbba437/2b54865/b3c8084/ed1276f/4be1325 实核在库+双轮验收——首跑 1759 全绿、终跑 7 failed 全归并行在飞而 -k push 222 消息范围零失败;四子任务 core/feishu/telegram/hermes-look 已 completed);games-v2/v3 已净零动作(归档提交 cf2c68f/063d2f9 实核,task.json completed);归档摘链 3 活动子档 parent(platforms/w2-platforms/weixin-bridge,diff 仅此一字段随本笔入库);一笔 chore(task) 只含 .trellis,journal 以 hash-object 外科入库未收编并行 news-rss 块
 
+## 2026-10-03 发布模型立项 tag-release + 版本序列归零 0.0.1(task 10-03-tag-release,planning)
+
+- 主人纠偏「打包逻辑错误:以 tag 方式打包、GitHub 原生功能承载,而非很多个版本」→ 建档 10-03-tag-release 三件套:取证=Docker 在 main 每推必发 GHCR(当日 15+ run,sha tag 机制堆版本)是"很多个版本"直接来源、PyPI 纯 dispatch 从未跑、desktop-release 已 tag 触发不动;目标=一 tag 一次完整发布(桌面 Release+GHCR X.Y.Z/latest+PyPI 双包+wheels 附 Release 页),main 推送零发布物
+- 深化轮:metadata-action 官方 README 实证 flavor latest=auto 对 semver 自动 latest 且预发布不动(zread 无该仓走 raw 通道);抓出 push 事件 inputs 全空串会打红现有 case 的真缺陷(package 漏解析为 both);三改判(docker dispatch 移除/flavor auto/package 空输入补丁)
+- grill 八问全按推荐收口(Q8 另立 10-03-docker-build-check 已建档;Q4「保 1.1.1」后被决议 9 修订为全清)
+- **版本序列归零(决议 9,主人令「从 0.0.1 开始」)**:v1.1.1 tag/Release 三处删净(remote tag 0、Release 空实测);五版本源+依赖窗 >=0.0.1,<0.1+Cargo.lock+两测试字面量同落,归零后 11/11 绿;commit 9810139(根 pyproject 与 CHANGELOG 随在途文件走);1.x 的 CHANGELOG 节=作废序列历史记录
+- 留主三件(均已入档):①GHCR 存量全清(Packages→shishi→versions,token 无 packages 权限 403 实证;PRD 决议 9/AC7+implement Step4/5)②旧 1.1.1 桌面端「检查更新」404 且不自动降级→重装 0.0.1 dmg(PRD 决议 9 副作用注记+implement 排查表行)③uv sync 裸跑剪掉本机 extras(tqdm 等)已 --all-extras 还原——**本机恢复 venv 必带 --all-extras**(教训见本条)
+- 提交竞态两课:并行 stash -u 临时摘走未跟踪任务目录(pathspec 失配≠丢失,fd+stash list 核实后等 pop 还原再原子 add+commit 同链);暂存区混他线文件(skill/SKILL.md、schema.py 等)只 unstage 他人文件、不碰他人工作树
+
+## 2026-10-03 发布 tag 化执行收口(dwfrun-cc671057;10-03-tag-release+10-03-docker-build-check 双转 review)
+
+- 工作流四段 18.5 分钟:并行改造(docker/pypi 双 yml+ci.yml docker-build job)→runbook 改写→独立质检+脚本门禁(actionlint 3 文件 0 error/rg 违禁残留 0/守卫逻辑抽出真跑:0.0.1 放行·9.9.9 中文报错拦·vfoo 格式拦)→提交收口(被质检按纪律拦停,主会话接手)
+- 质检两轮抓三发现:RELEASE.md:75 四元组 Repository「世事」→shishi(会挡 v0.0.1 E2E 前置,流内已修)、PRD AC6 四件套→五源措辞(流内已修)、CHANGELOG 混线 hunk(提交期问题,质检拦停)——主会话收口:CHANGELOG 不入笔随在途文件走,两笔原子提交,双任务勾档转 review
+- 工作流教训:质检 pass 判定未豁免 owner=none 的提交期处置类发现,整流停在不该它停的提交步——后续此类发现应标「记录不阻断」,或脚本仅对 owner∈{workflows,docs,ci} 阻断
+
+## 2026-10-03 v0.0.1 tag 首发实跑收口(task 10-03-tag-release;desktop+docker 双绿,PyPI 通道待主人侧补齐)
+
+- 发布体检过门后推 tag v0.0.1(783b4e24)三路齐触发:**desktop+docker 双绿**——Release 资产恰 4 件(shishi_0.0.1_aarch64.dmg / shishi.app.tar.gz+sig / latest.json),latest.json version=0.0.1 且 darwin-aarch64 url 指向本 tag;GHCR 镜像 tag 恰 0.0.1+latest 两枚(digest sha256:d634dbf0),无 v 前缀/sha 残留;Windows msi job 按设计 continue-on-error(pyobjc 为 macOS-only 依赖在 Windows 构建红,不计入 run 成败)
+- **PyPI run 37115937696 红在 verify 步,非预期中的 OIDC 红**:守卫与 Build 均 success(实产 dist/shishi-0.0.1-* 与 shishi_classifier-0.0.1-* 四件),但 verify 脚本 projects 字典仍取旧发行名 stem——glob `dist/myia-*.whl` 等四条全落空,publish/attach-release 双 skipped(OIDC 类报错从未到达);根因=包更名 shishi 后发行名 stem 未随同步,模块目录 src/myia、myia_classifier 过渡保留非错;pypi.org 双包 JSON API 404 证零误发
+- 待主人四件:①修 pypi-publish.yml verify 脚本发行名 myia→shishi、myia_classifier→shishi_classifier(needs 内层模块路径 needle 不动,以实际 wheel namelist 复核)actionlint 后提交 main;②PyPI 注册双包 pending publisher 各一次(owner=xinzhuzi / repository=shishi / workflow_filename=pypi-publish.yml / environment=pypi,Repository 必须填 shishi 不是 MYIA);③重发不可 Re-run(沿用 tag commit 旧文件必重蹈 verify 红)——按 RELEASE.md runbook bump v0.0.2 重打 tag 更稳,不动已存在的 v0.0.1 Release/GHCR 产物;④publish 绿后核 attach-release 自动补挂 4 件 PyPI 资产凑齐 8 件、pypi.org 双包页 0.0.1,再 GHCR 包页清存量(删 1.1.1/v1.1.1/sha-*,保 0.0.1+latest)+旧 1.1.1 桌面端重装 0.0.1 dmg(updater 不自动降级)
+- 收口提交:8 份 docs/launch 发帖文案版本口径 1.1.x→0.0.1(3ecaba5);本段+PRD AC8 回写一笔入库(journal 本线两在途块随行,news-rss/dedup/shishi-everywhere 四段他线块仍留工作树归各自会话);CHANGELOG 按指令不碰,task.json 保持 review
