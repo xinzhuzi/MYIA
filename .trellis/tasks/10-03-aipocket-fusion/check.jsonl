@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/10-03-aipocket-fusion/prd.md", "reason": "验收标准 AC1-AC6 逐条核验,尤其 AC1(AGPL 零入仓 rg 核验)与 AC2(真跑验证不凭回放放行)"}
+{"file": ".trellis/tasks/10-03-aipocket-fusion/design.md", "reason": "契约面核验:plugin.yaml 字段合规(manifest.py)/CLI 退出码族/品类 YAML 叠加不破坏现有行为"}
+{"file": ".trellis/tasks/10-03-aipocket-fusion/implement.md", "reason": "每阶段出口判据与回滚点核对"}
+{"file": "docs/zh/schema.md", "reason": "品类 YAML 字段合法性对照(凭据引用/禁 {title}/fail-fast)"}
