@@ -240,6 +240,6 @@
 - 口径追批入 grill-v112:世事更名发布口径/密钥代执行/tag 由来,全记录
 - 剩余:PyPI(主人 PYPI_API_TOKEN+test.pypi 演练开关未实现)、四帖素材(截图已备)
 
-## 2026-10-03 E6 尾巴收口:4 归档/24 保留
+## 2026-10-03 E6 尾巴收口:4 归档/28 保留
 
-- messaging-core(交付 2b54865 在 main)、shared-build-races(e45e650,验收 3/3 实跑 EXIT=0)、v12-crawl4ai-l3(60022ff,验收 6/6、全量 1822 passed)、yaml-editor(c74eda0+cf0eb32,验收 14/14)四档目录 git status 干净,task.py archive 落 archive/2026-10/(均直落 main 无独立分支,--skip-branch-validation + --no-commit);其余 24 个活动档(games-v2/v3、shishi-everywhere、v12-backlog 在途改动及 games-wrap/vision-pipeline 等新立项)未收口,一律保留不动
+- messaging-core(交付 2b54865 在 main)、shared-build-races(e45e650,验收 3/3 实跑 EXIT=0)、v12-crawl4ai-l3(60022ff,验收 6/6、全量 1822 passed)、yaml-editor(c74eda0+cf0eb32,验收 14/14)四档目录 git status 干净,task.py archive 落 archive/2026-10/(均直落 main 无独立分支,--skip-branch-validation + --no-commit);其余 28 个活动档(games-v2/v3、shishi-everywhere、v12-backlog 在途改动及 games-wrap/vision-pipeline 等新立项)未收口,一律保留不动
