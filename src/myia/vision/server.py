@@ -105,10 +105,17 @@ def _probe(base_url: str, *, timeout: float = PROBE_TIMEOUT_SECONDS) -> tuple[bo
 
     running = 拿到 HTTP 应答(端口有进程在听);healthy = 200。连接拒绝/
     超时/DNS 失败 = ``(False, False)``。
+
+    ``trust_env=False``:探测目标恒为本地通道端点(缺省 127.0.0.1:8080),
+    必须直连——httpx 0.28.1 的 trust_env 除进程 env 外还会吃 macOS 系统代理
+    (urllib.getproxies → scutil;collect._client_egress_is_proxied 同源发现)。
+    经代理探死端口会拿到代理 502 应答,running 误报 True(2026-10-03 实证:
+    本机 clash 系统代理下 ``127.0.0.1:9`` → HTTP 502),「本地通道零出网」
+    边界也要求探测不经代理。
     """
     url = base_url.rstrip("/") + "/models"
     try:
-        response = httpx.Client(timeout=timeout).get(url)
+        response = httpx.Client(timeout=timeout, trust_env=False).get(url)
     except httpx.HTTPError:
         return (False, False)
     return (True, response.status_code == 200)
