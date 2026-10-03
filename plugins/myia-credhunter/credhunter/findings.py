@@ -1,6 +1,6 @@
 """凭证命中物 → MYIA 管线 items(items 形状 + Q9 掩码政策)。
 
-items 契约(对齐 :meth:`myia.pipeline.Item.from_extracted`):
+items 契约(对齐 :meth:`shishi.pipeline.Item.from_extracted`):
 - ``url`` 必填(命中位置的证据 URL,GitHub 泳道即命中项 html_url);
 - ``title``/``source``/``content`` 为管线已知键,其余字段全部落 metadata
   (对 dedup 模板/classify 规则/推送路由可见);

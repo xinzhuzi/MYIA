@@ -18,9 +18,9 @@ from types import SimpleNamespace
 
 import pytest
 
-import myia.vision.models as models
-import myia.vision.server as vserver
-from myia.vision.settings import VisionConfig, load_vision_config
+import shishi.vision.models as models
+import shishi.vision.server as vserver
+from shishi.vision.settings import VisionConfig, load_vision_config
 
 PNG_HEAD = b"\x89PNG\r\n\x1a\n"
 

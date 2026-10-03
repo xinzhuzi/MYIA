@@ -22,12 +22,12 @@ from typing import Any
 
 import pytest
 
-from myia.push import SendContext
-from myia.push.base import Channel, PushSendError, TrendAwareChannel
-from myia.push.delivery import classify_dead_error
-from myia.push.bluebubbles import BlueBubblesChannel
-from myia.push.directory import ChannelDirectory, ChannelEntry, DirectoryDiscoverUnsupported
-from myia.push.targets import RESOLVED_DIRECT, RESOLVED_DIRECTORY_NAME, ChannelTarget, resolve_target
+from shishi.push import SendContext
+from shishi.push.base import Channel, PushSendError, TrendAwareChannel
+from shishi.push.delivery import classify_dead_error
+from shishi.push.bluebubbles import BlueBubblesChannel
+from shishi.push.directory import ChannelDirectory, ChannelEntry, DirectoryDiscoverUnsupported
+from shishi.push.targets import RESOLVED_DIRECT, RESOLVED_DIRECTORY_NAME, ChannelTarget, resolve_target
 
 CONTEXT = SendContext(slot="am", date="2026-10-03", category="羊毛", kind="digest")
 
@@ -68,7 +68,7 @@ class TestExtrasShell:
         with pytest.raises(PushSendError) as excinfo:
             _run(channel.send([{"title": "t"}], CONTEXT))
         message = str(excinfo.value)
-        assert "pip install 'myia[bluebubbles]'" in message  # 安装命令(ocr.py 范式)
+        assert "pip install 'shishi[bluebubbles]'" in message  # 安装命令(ocr.py 范式)
         assert "bluebubbles.app" in message  # 服务端指引
 
     def test_dependency_error_is_not_dead_letter(self):

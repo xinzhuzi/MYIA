@@ -27,9 +27,9 @@ import httpx
 import pytest
 from conftest import run
 
-import myia.pipeline as pipeline_module
-from myia.cli import main as cli_main
-from myia.feedback import (
+import shishi.pipeline as pipeline_module
+from shishi.cli import main as cli_main
+from shishi.feedback import (
     FeedbackTuner,
     TuningPolicy,
     candidate_words,
@@ -40,22 +40,22 @@ from myia.feedback import (
     record_feedback,
     resolve_item_ref,
 )
-from myia.pipeline import Pipeline
-from myia.push import (
+from shishi.pipeline import Pipeline
+from shishi.push import (
     PollResult,
     TelegramCallback,
     TelegramFeedbackError,
     TelegramFeedbackPoller,
     parse_callback_data,
 )
-from myia.push.feishu_callback import (
+from shishi.push.feishu_callback import (
     FeishuCallbackConfig,
     FeishuCallbackConfigError,
     FeishuCallbackHandler,
     build_server,
 )
-from myia.schema import load_category
-from myia.store import (
+from shishi.schema import load_category
+from shishi.store import (
     FEEDBACK_CHANNEL_CLI,
     FEEDBACK_CHANNEL_TELEGRAM,
     SCHEMA_VERSION,
@@ -111,7 +111,7 @@ def make_enricher(score: float = 9.0):
 
     class ScoreAllEnricher:
         async def enrich(self, items, *, watchlist, store):  # noqa: ANN001, ARG002
-            from myia.enrich import EnrichOutcome
+            from shishi.enrich import EnrichOutcome
 
             for item in items:
                 dims = {"value": int(score), "relevance": int(score), "credibility": int(score)}
@@ -1294,7 +1294,7 @@ class TestFeedbackPollLoop:
             ]
         )
 
-        with caplog.at_level(logging.WARNING, logger="myia.pipeline"):
+        with caplog.at_level(logging.WARNING, logger="shishi.pipeline"):
             asyncio.run(self._drive(pipeline, poller, rounds=2))
 
         assert poller.offsets == [None, None]  # 失败轮不推进书签,下轮仍从头轮询
@@ -1314,7 +1314,7 @@ class TestFeedbackIdempotency:
     """同 (channel, external_id) 只记一次;CLI(NULL)行为不变。"""
 
     def test_same_tg_update_id_saved_once(self, store):
-        from myia.feedback import ingest_callbacks
+        from shishi.feedback import ingest_callbacks
 
         callback = {
             "channel": "telegram",
@@ -1330,7 +1330,7 @@ class TestFeedbackIdempotency:
         assert len(store.list_feedback()) == 1  # 表里只有一行
 
     def test_replayed_good_after_bad_is_distinct(self, store):
-        from myia.feedback import ingest_callbacks
+        from shishi.feedback import ingest_callbacks
 
         base = {"channel": "telegram", "dedup_key": "k-2"}
         ingest_callbacks(store, [{**base, "verdict": "bad", "external_id": "42"}])
@@ -1343,7 +1343,7 @@ class TestFeedbackIdempotency:
         assert verdicts == ["bad", "good"]  # list_feedback 倒序,只比集合
 
     def test_cli_rows_without_external_id_always_insert(self, store):
-        from myia.feedback import record_feedback
+        from shishi.feedback import record_feedback
 
         first = record_feedback(store, verdict="bad", channel="cli", dedup_key="k-3")
         second = record_feedback(store, verdict="bad", channel="cli", dedup_key="k-3")
@@ -1352,8 +1352,8 @@ class TestFeedbackIdempotency:
         assert len(store.list_feedback()) == 2  # NULL 不受唯一索引约束
 
     def test_tg_callback_carries_update_id_as_external_id(self, store):
-        from myia.feedback import ingest_callbacks
-        from myia.push.telegram_feedback import TelegramCallback
+        from shishi.feedback import ingest_callbacks
+        from shishi.push.telegram_feedback import TelegramCallback
 
         report = ingest_callbacks(
             store,
@@ -1369,7 +1369,7 @@ class TestFeedbackIdempotency:
     def test_feishu_event_id_extracted_and_deduped(self, store):
         import json
 
-        from myia.push.feishu_callback import FeishuCallbackConfig, FeishuCallbackHandler
+        from shishi.push.feishu_callback import FeishuCallbackConfig, FeishuCallbackHandler
 
         handler = FeishuCallbackHandler(
             FeishuCallbackConfig(enabled=True, token_ref="env:T"), token="secret-token"
@@ -1383,7 +1383,7 @@ class TestFeedbackIdempotency:
         response = handler.handle(headers={"X-Myia-Token": "secret-token"}, body=body)
 
         assert response.callbacks[0]["external_id"] == "evt-1"
-        from myia.feedback import ingest_callbacks
+        from shishi.feedback import ingest_callbacks
 
         first = ingest_callbacks(store, response.callbacks)
         second = ingest_callbacks(store, response.callbacks)  # 平台重试同一事件
@@ -1427,7 +1427,7 @@ class TestFeedbackV6Migration:
             rows = store.list_feedback()
             assert len(rows) == 1 and rows[0].verdict == "bad"  # 旧行零损失
             # 新列立即可用:同 (channel, external_id) 幂等,旧行(NULL)不受限
-            from myia.feedback import ingest_callbacks
+            from shishi.feedback import ingest_callbacks
 
             callback = {"channel": "telegram", "verdict": "bad", "dedup_key": "k-new",
                         "external_id": "1"}
@@ -1461,7 +1461,7 @@ class TestTuningReleaseCorrectness:
         """挤出 Top-N ≠ 已恢复:窗口内仍越线的活跃键不写释放行(权重保持)。"""
         from datetime import datetime, timezone
 
-        from myia.feedback import FeedbackTuner, TuningPolicy
+        from shishi.feedback import FeedbackTuner, TuningPolicy
 
         now = datetime(2026, 10, 2, tzinfo=timezone.utc)
         tuner = FeedbackTuner(TuningPolicy(min_bad_count=2, min_bad_ratio=0.5, top_n=3))
@@ -1489,7 +1489,7 @@ class TestTuningReleaseCorrectness:
         """释放行审计计数 = 窗口真实计数(曾固定伪造 bad_count=0/total=0)。"""
         from datetime import datetime, timezone, timedelta
 
-        from myia.feedback import FeedbackTuner, TuningPolicy
+        from shishi.feedback import FeedbackTuner, TuningPolicy
 
         day = timedelta(days=1)
         now = datetime(2026, 10, 2, tzinfo=timezone.utc)

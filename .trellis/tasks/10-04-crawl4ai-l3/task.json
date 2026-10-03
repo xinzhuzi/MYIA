@@ -1,9 +1,9 @@
 {
   "id": "crawl4ai-l3",
   "name": "crawl4ai-l3",
-  "title": "crawl4ai L3 实装:JS 渲染页采集档落地(shishi[crawl4ai] extras+录制回放测试)",
-  "description": "v1.2 池产品项(主人 2026-10-03 选定开工):L3 降级档从薄层变实装——真实 crawl4ai 引擎接入(JS 渲染页可抓,看图线 JS 页取图随之解锁),惰性依赖进 shishi[crawl4ai] extras,CI 零外网用录制回放测试;含上游核实(许可/接口形态/安装重量)与同域图收集兼容",
-  "status": "planning",
+  "title": "crawl4ai L3 收实:L2 零结果降级探测+真网 JS 源冒烟+文档补全",
+  "description": "L3 实装本体已被并行线完成并归档验收(建档探查反转);真剩余三件:①L2 零结果被 hint 锁死不降级 L3 的产品缺陷(JS 空壳页 auto 模式永远到不了 L3)→有界零结果探测 ②真网 JS 源冒烟从未实跑(MYIA_SMOKE_REAL 诚实边界)→aihot 文章页等真跑 ③engine_options.crawl4ai 键补进 zh/en schema 文档",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,

@@ -15,7 +15,7 @@
 (绝不落到下载一半才 ENOSPC)。
 
 依赖红线:``huggingface_hub`` 惰性 import(:func:`_import_hub`,extras
-``myia[vision]`` 已含)—— 本模块顶层 import 零重依赖,与 ocr/client 的
+``shishi[vision]`` 已含)—— 本模块顶层 import 零重依赖,与 ocr/client 的
 懒加载契约同门;未装 extras 时结构化 ``hf_unavailable`` 附安装命令。
 
 进度事件:``download_model(on_progress=...)`` 回调 ``(done_bytes,
@@ -58,7 +58,7 @@ __all__ = [
 ]
 
 #: 模型下载安装命令(未装 huggingface_hub 时的结构化提示)。
-INSTALL_COMMAND = "pip install 'myia[vision]'  # 或 uv add 'myia[vision]'"
+INSTALL_COMMAND = "pip install 'shishi[vision]'  # 或 uv add 'shishi[vision]'"
 
 #: v2 只收 mlx-community 系 MLX 格式权重(直下免 convert;其余命名空间的
 #: 仓库多为原始 HF 权重,对 mlx_vlm.server 不可用,结构化拒)。
@@ -100,7 +100,7 @@ class VisionModelError(ValueError):
 
 
 def _import_hub() -> Any:
-    """惰性加载 ``huggingface_hub``(extras myia[vision];缺装结构化报错)。"""
+    """惰性加载 ``huggingface_hub``(extras shishi[vision];缺装结构化报错)。"""
     try:
         return importlib.import_module("huggingface_hub")
     except ImportError as exc:

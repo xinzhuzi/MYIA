@@ -24,8 +24,8 @@ from typing import Any
 
 import pytest
 
-from myia.secrets import InMemoryKeychainBackend
-from myia.store import SQLiteStore
+from shishi.secrets import InMemoryKeychainBackend
+from shishi.store import SQLiteStore
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ENTRY_PATH = REPO_ROOT / "desktop" / "entry.py"
@@ -106,8 +106,8 @@ def _reset_sidecar_state(monkeypatch):
     backend = InMemoryKeychainBackend()
 
     def fake_delete_secret(name: str) -> None:
-        # 与 myia.secrets.delete_secret 同门:名字校验 → 存在性 → 删除
-        from myia.secrets import SecretError, validate_secret_name
+        # 与 shishi.secrets.delete_secret 同门:名字校验 → 存在性 → 删除
+        from shishi.secrets import SecretError, validate_secret_name
 
         validate_secret_name(name)
         if backend.get_password("myia", name) is None:
@@ -214,13 +214,13 @@ def wait_completed(out: io.StringIO, run_id: int, timeout: float = 60.0) -> dict
 
 
 def test_version_roundtrip():
-    """version:与 myia.__version__ 一致,携带协议版本。"""
-    import myia
+    """version:与 shishi.__version__ 一致,携带协议版本。"""
+    import shishi
 
     code, responses, events = rpc({"id": 1, "method": "version", "params": {}})
     assert code == 0
     assert events == []
-    assert responses == [{"id": 1, "result": {"name": "myia", "version": myia.__version__,
+    assert responses == [{"id": 1, "result": {"name": "shishi", "version": shishi.__version__,
                                               "protocol": entry.PROTOCOL_VERSION,
                                               "app_version": None}}]
 
@@ -393,7 +393,7 @@ def test_store_items_seeded_db_with_filters(tmp_path):
     store = SQLiteStore(str(db))
     from datetime import datetime, timezone
 
-    from myia.store.models import ItemRecord
+    from shishi.store.models import ItemRecord
     for index in range(3):
         store.save_item(ItemRecord(
             url=f"https://example.com/{index}", dedup_key=f"k{index}", title=f"条目{index}",
@@ -422,7 +422,7 @@ def test_store_items_projects_image_ocr_scalar(tmp_path):
     store = SQLiteStore(str(db))
     from datetime import datetime, timezone
 
-    from myia.store.models import ItemRecord
+    from shishi.store.models import ItemRecord
     store.save_item(ItemRecord(
         url="https://example.com/vision", dedup_key="ocr1", title="带图条目",
         first_seen=datetime(2026, 10, 2, tzinfo=timezone.utc),
@@ -486,7 +486,7 @@ def test_store_items_corrupt_db_structured_error(tmp_path):
 
 
 def test_secret_set_roundtrip_value_never_echoed():
-    """secret.set:写入走 myia.secrets(钥匙链),应答零回显值。"""
+    """secret.set:写入走 shishi.secrets(钥匙链),应答零回显值。"""
     fake = entry.set_secret
     code, responses, events = rpc({"id": 9, "method": "secret.set",
                                    "params": {"name": "myia/proto/token", "value": "super-secret-value"}})
@@ -603,7 +603,7 @@ plugin:
 def test_sources_write_disable_enable_roundtrip(tmp_path):
     """disable 摘出(enable 移回):myia 装载器同门复核 + sidecar 节保留 +
     暂存文件 lossless 往返 —— PRD「写回品类 YAML 并被 myia run 识别」。"""
-    from myia.schema import load_category_file
+    from shishi.schema import load_category_file
 
     yaml_path = Path(write_yaml(tmp_path, SOURCES_WRITE_YAML, "sources-demo.yaml"))
 
@@ -677,7 +677,7 @@ def test_sources_write_structured_refusals(tmp_path):
     )
     assert responses[0]["error"]["code"] == "last_source"
     # 拒绝 = 零写入(文件仍是「只剩 keep-me」的成功态,不是半态)
-    from myia.schema import load_category_file
+    from shishi.schema import load_category_file
 
     assert [source.name for source in load_category_file(yaml_path).sources] == ["keep-me"]
     assert yaml_path.read_text(encoding="utf-8") != before
@@ -740,8 +740,8 @@ def test_serve_context_plugin_dir_env_respected(tmp_path, monkeypatch):
 
 def test_serve_context_dev_fallback_unchanged(monkeypatch):
     """dev 回退:三项默认与 v1.1 CLI 常量逐字节一致(仓库内行为不回退)。"""
-    from myia.cli import DEFAULT_DB_PATH, DEFAULT_PLUGINS_DIR
-    from myia.plugins.installed import default_install_root
+    from shishi.cli import DEFAULT_DB_PATH, DEFAULT_PLUGINS_DIR
+    from shishi.plugins.installed import default_install_root
 
     monkeypatch.delattr(sys, "frozen", raising=False)
     ctx = entry._serve_context()
@@ -1131,7 +1131,7 @@ sources: []
 def test_yaml_save_new_file_roundtrip_and_not_found_fork(tmp_path, monkeypatch):
     """新建往返:null mtime + 不存在 = 创建(created=true、无 .bak)→ doctor/
     list 识别新品类,既有文件 .bak 不误伤;非 null mtime + 不存在 = file_not_found。"""
-    from myia.schema import load_category_file
+    from shishi.schema import load_category_file
 
     plugins = _editor_plugins(tmp_path, monkeypatch, ("demo.yaml", EDITOR_YAML))
     new_path = plugins / "fresh-pick.yaml"
@@ -1238,7 +1238,7 @@ def test_yaml_template_passes_load_category():
     """模板必过 load_category(schema 演进防腐锁);头注释指向 stocks.yaml。"""
     import yaml as yaml_module
 
-    from myia.schema import load_category
+    from shishi.schema import load_category
 
     code, responses, _ = rpc({"id": 1, "method": "yaml.template"})
     content = responses[0]["result"]["content"]
@@ -1580,7 +1580,7 @@ def test_channels_refresh_unknown_platform_structured(tmp_path, monkeypatch):
 
 def test_channels_refresh_discover_failure_keeps_old_bucket(tmp_path, monkeypatch):
     """refresh 发现失败(凭据缺失族):结构化 channel_refresh_failed,旧桶不动。"""
-    from myia.push.base import PushSendError
+    from shishi.push.base import PushSendError
 
     home = _messaging_home(tmp_path, monkeypatch, yaml_text=None)
     _write_directory(home, {"feishu": [
@@ -1591,7 +1591,7 @@ def test_channels_refresh_discover_failure_keeps_old_bucket(tmp_path, monkeypatc
         def discover_directory(self):
             raise PushSendError("credential_not_found", "飞书 bot 凭据未配置")
 
-    monkeypatch.setattr("myia.push.PLATFORMS", {"feishu": _BrokenAdapter})
+    monkeypatch.setattr("shishi.push.PLATFORMS", {"feishu": _BrokenAdapter})
     code, responses, _ = rpc(
         {"id": 1, "method": "channels.refresh", "params": {"platform": "feishu"}},
     )
@@ -1606,7 +1606,7 @@ def test_channels_refresh_discover_failure_keeps_old_bucket(tmp_path, monkeypatc
 
 def test_channels_refresh_merges_and_persists(tmp_path, monkeypatch):
     """refresh 正例:发现条目桶替换落盘,应答 merged=n + entries;updated_at 前移。"""
-    from myia.push.directory import ChannelEntry
+    from shishi.push.directory import ChannelEntry
 
     home = _messaging_home(tmp_path, monkeypatch, yaml_text=None)
 
@@ -1617,7 +1617,7 @@ def test_channels_refresh_merges_and_persists(tmp_path, monkeypatch):
                 ChannelEntry(platform="feishu", chat_id="oc_2", name="羊毛反馈群", type="group"),
             ]
 
-    monkeypatch.setattr("myia.push.PLATFORMS", {"feishu": _FakeAdapter})
+    monkeypatch.setattr("shishi.push.PLATFORMS", {"feishu": _FakeAdapter})
     code, responses, _ = rpc(
         {"id": 1, "method": "channels.refresh", "params": {"platform": "feishu"}},
     )
@@ -1637,14 +1637,14 @@ def test_channels_refresh_merges_and_persists(tmp_path, monkeypatch):
 def test_channels_refresh_no_discovery_platform_structured(tmp_path, monkeypatch):
     """W2 平台(ntfy/dingtalk/wecom)refresh:无自动发现 = discover_not_supported
     结构化说明(与 telegram 被动积累同族),不是 channel_refresh_failed;旧桶不动。"""
-    from myia.push import NtfyChannel
+    from shishi.push import NtfyChannel
 
     home = _messaging_home(tmp_path, monkeypatch, yaml_text=None)
     _write_directory(home, {"ntfy": [
         {"platform": "ntfy", "chat_id": "games", "name": "游戏台", "type": "channel",
          "thread_id": None, "last_seen": None}]})
 
-    monkeypatch.setattr("myia.push.PLATFORMS", {"ntfy": NtfyChannel})
+    monkeypatch.setattr("shishi.push.PLATFORMS", {"ntfy": NtfyChannel})
     code, responses, _ = rpc(
         {"id": 1, "method": "channels.refresh", "params": {"platform": "ntfy"}},
     )
@@ -1719,7 +1719,7 @@ def test_channels_alias_param_validation(tmp_path, monkeypatch):
 
 def test_push_write_full_replacement_roundtrip(tmp_path, monkeypatch):
     """push.write 正例:targets 全量替换落盘;注释/其他节逐字节保留;.bak 留底。"""
-    from myia.schema import load_category_file
+    from shishi.schema import load_category_file
 
     home = _messaging_home(tmp_path, monkeypatch)
     yaml_path = home / "plugins" / "messaging-demo.yaml"
@@ -1756,7 +1756,7 @@ def test_push_write_full_replacement_roundtrip(tmp_path, monkeypatch):
 
 def test_push_write_bad_targets_rejected_zero_write(tmp_path, monkeypatch):
     """push.write 拒写:坏 targets(跨平台前缀)→ category_invalid 且文件未变。"""
-    from myia.schema import load_category_file  # noqa: F401 — 门禁语义锚点
+    from shishi.schema import load_category_file  # noqa: F401 — 门禁语义锚点
 
     home = _messaging_home(tmp_path, monkeypatch)
     yaml_path = home / "plugins" / "messaging-demo.yaml"
@@ -1782,7 +1782,7 @@ def test_push_write_bad_targets_rejected_zero_write(tmp_path, monkeypatch):
 
 def test_push_write_empty_array_removes_section(tmp_path, monkeypatch):
     """push.write 空数组 = 摘除 push 节(品类允许无 push);再写回可复原。"""
-    from myia.schema import load_category_file
+    from shishi.schema import load_category_file
 
     home = _messaging_home(tmp_path, monkeypatch)
     yaml_path = home / "plugins" / "messaging-demo.yaml"
@@ -1845,7 +1845,7 @@ def test_push_write_fence_and_param_refusals(tmp_path, monkeypatch):
 
 def test_push_write_mid_file_block_and_template_roundtrip(tmp_path, monkeypatch):
     """push 块夹在文件中部(plugin: 节在后)同样可换;多行模板 literal 往返保真。"""
-    from myia.schema import load_category_file
+    from shishi.schema import load_category_file
 
     home = _messaging_home(
         tmp_path,
@@ -2037,7 +2037,7 @@ def test_store_items_same_timestamp_pagination_to_exhaustion(tmp_path):
     翻页推进直至取尽(sum == 7 且零重复);单 before 会整批跳过同刻条目(对照)。"""
     from datetime import datetime, timezone
 
-    from myia.store.models import ItemRecord
+    from shishi.store.models import ItemRecord
     db = tmp_path / "same.db"
     store = SQLiteStore(str(db))
     moment = datetime(2026, 10, 2, 8, 0, tzinfo=timezone.utc)
@@ -2080,7 +2080,7 @@ def test_store_items_query_like_nocase(tmp_path):
     """C1×G1 query:title/content/source 三列 NOCASE LIKE;% 通配按字面匹配。"""
     from datetime import datetime, timezone
 
-    from myia.store.models import ItemRecord
+    from shishi.store.models import ItemRecord
     db = tmp_path / "query.db"
     store = SQLiteStore(str(db))
     base = datetime(2026, 10, 2, tzinfo=timezone.utc)
@@ -2220,7 +2220,7 @@ def _seed_items_for_export(db, titles):
     """三个标题 + 类目/来源各异的可查询条目(新→旧入库)。"""
     from datetime import datetime, timezone
 
-    from myia.store.models import ItemRecord
+    from shishi.store.models import ItemRecord
     store = SQLiteStore(str(db))
     base = datetime(2026, 10, 3, tzinfo=timezone.utc)
     for index, (title, category, source) in enumerate(titles):
@@ -2354,7 +2354,7 @@ def test_push_test_sends_via_channel_with_target(monkeypatch):
             sent["items"] = list(items)
             sent["context"] = context
 
-    monkeypatch.setitem(entry.myia_push.CHANNELS, "feishu_card", FakeChannel)
+    monkeypatch.setitem(entry.shishi_push.CHANNELS, "feishu_card", FakeChannel)
     code, responses, _ = rpc(
         {"id": 1, "method": "push.test",
          "params": {"channel": "feishu_card", "target": "keychain:myia/feishu/chat_id"}},
@@ -2368,7 +2368,7 @@ def test_push_test_sends_via_channel_with_target(monkeypatch):
 
 # ---------------------------------------------------------------------------
 # feed.enrich(10-03-fe-small-batch G8,协议 v6 #43):单条情报卡 AI 摘要,
-# 骑 myia.enrich.LLMEnricher 同门管线(端点 env: 引用 + enrich_cache 复用)
+# 骑 shishi.enrich.LLMEnricher 同门管线(端点 env: 引用 + enrich_cache 复用)
 # ---------------------------------------------------------------------------
 
 
@@ -2417,7 +2417,7 @@ class _FakeCompletion:
         self.calls: list[str] = []
 
     async def complete(self, *, model: str, system: str, user: str):
-        from myia.enrich.client import CompletionResult
+        from shishi.enrich.client import CompletionResult
 
         self.calls.append(user)
         if self.fail:
@@ -2448,7 +2448,7 @@ def _seed_enrich_db(tmp_path: Path, *, category: str = "feed-enrich-demo") -> st
     """一条带 content 的种子条目(category 可指向不存在的品类测拒配)。"""
     from datetime import datetime, timezone
 
-    from myia.store.models import ItemRecord
+    from shishi.store.models import ItemRecord
 
     db = tmp_path / "enrich.db"
     store = SQLiteStore(str(db))
@@ -2965,7 +2965,7 @@ def test_image_server_ensure_paths(tmp_path, monkeypatch):
     探测统一桩死(dev 主机 8080 可能真跑着 mlx_vlm.server,测试绝不碰真网);
     ①走真 ensure 实现,②③走 entry 能力桩。
     """
-    import myia.vision.server as vision_server_module
+    import shishi.vision.server as vision_server_module
     monkeypatch.setattr(vision_server_module, "_probe",
                         lambda url, timeout=2.0: (False, False))
     home = _vision_home(tmp_path, monkeypatch)
@@ -3042,7 +3042,7 @@ def test_image_server_ensure_paths(tmp_path, monkeypatch):
 
 def test_image_server_ensure_single_flight_busy(tmp_path, monkeypatch):
     """ensure 单飞:慢路径进行中第二单结构化 ensure_busy(不排队不双起)。"""
-    import myia.vision.server as vision_server_module
+    import shishi.vision.server as vision_server_module
     monkeypatch.setattr(vision_server_module, "_probe",
                         lambda url, timeout=2.0: (False, False))
     _vision_home(tmp_path, monkeypatch)
@@ -3130,7 +3130,7 @@ def _seed_feedback_db(tmp_path: Path) -> str:
     """带一条目 + 一条既有 CLI 反馈的种子库(mark 往返的对照面)。"""
     from datetime import datetime, timezone
 
-    from myia.store.models import FEEDBACK_CHANNEL_CLI, FeedbackRecord, ItemRecord
+    from shishi.store.models import FEEDBACK_CHANNEL_CLI, FeedbackRecord, ItemRecord
 
     db = tmp_path / "feedback.db"
     store = SQLiteStore(str(db))
@@ -3215,7 +3215,7 @@ def test_store_trend_daily_counts_utc(tmp_path):
     """store.trend:items 按 first_seen UTC 逐日计数(旧→新);category 过滤 + 钳制。"""
     from datetime import datetime, timedelta, timezone
 
-    from myia.store.models import ItemRecord
+    from shishi.store.models import ItemRecord
 
     db = tmp_path / "trend.db"
     store = SQLiteStore(str(db))

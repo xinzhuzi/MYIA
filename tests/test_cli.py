@@ -1,4 +1,4 @@
-"""Tests for myia.cli — exit-code contract, --json/--dry-run/--loop, stubs.
+"""Tests for shishi.cli — exit-code contract, --json/--dry-run/--loop, stubs.
 
 Covers PRD 10-01-v01-cli-basic acceptance criteria:
 
@@ -21,11 +21,11 @@ from typing import Any
 
 import pytest
 
-import myia
-import myia.cli as cli_module
-from myia.cli import EXIT_CONFIG_ERROR, EXIT_OK, EXIT_PARTIAL, build_parser, main
-from myia.pipeline import ChannelPushReport, RunResult, StageReport
-from myia.schema import load_category
+import shishi
+import shishi.cli as cli_module
+from shishi.cli import EXIT_CONFIG_ERROR, EXIT_OK, EXIT_PARTIAL, build_parser, main
+from shishi.pipeline import ChannelPushReport, RunResult, StageReport
+from shishi.schema import load_category
 
 VALID_YAML = """
 id: demo
@@ -237,7 +237,7 @@ def test_run_maps_status_to_exit_code(fake_pipeline, capsys, status, expected):
 
 def test_exit_code_constants_are_pinned():
     """退出码常量即 CLI 契约,不可漂移。"""
-    from myia.cli import EXIT_FETCH_ALL_FAILED
+    from shishi.cli import EXIT_FETCH_ALL_FAILED
 
     assert (EXIT_OK, EXIT_CONFIG_ERROR, EXIT_FETCH_ALL_FAILED, EXIT_PARTIAL) == (0, 1, 2, 3)
 
@@ -349,7 +349,7 @@ def test_version_flag(capsys):
     assert excinfo.value.code == 0
     # 与 cli.py --version 同源断言(版本序列归零 10-03-tag-release 决议 9 后
     # 不再硬编码版本号,升版免改本测)
-    assert f"shishi {myia.__version__}" in capsys.readouterr().out
+    assert f"shishi {shishi.__version__}" in capsys.readouterr().out
 
 
 def test_help_documents_run_and_exit_codes(capsys):

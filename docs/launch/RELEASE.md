@@ -32,7 +32,7 @@ wheel 里就直接失败,到不了 PyPI)。TestPyPI 演练走手动 dispatch,与
 |---|---|---|
 | 1 | `pyproject.toml`(根) | `version` + 依赖窗 `shishi-classifier>=X.Y.Z,<下一档` |
 | 2 | `myia-classifier/pyproject.toml` | `version` |
-| 3 | `src/myia/__init__.py` | `__version__` |
+| 3 | `src/shishi/__init__.py` | `__version__` |
 | 4 | `desktop/src-tauri/tauri.conf.json` | `version` |
 | 5 | `desktop/src-tauri/Cargo.toml`(+ `Cargo.lock`) | `version`(lock 随下一次桌面构建同步) |
 

@@ -26,9 +26,9 @@ from typing import Any, Callable  # noqa: E402
 import httpx  # noqa: E402
 import pytest  # noqa: E402
 
-from myia.engines.fetch_base import FetchContext  # noqa: E402
-from myia.schema import SourceConfig  # noqa: E402
-from myia.store import SQLiteStore  # noqa: E402
+from shishi.engines.fetch_base import FetchContext  # noqa: E402
+from shishi.schema import SourceConfig  # noqa: E402
+from shishi.store import SQLiteStore  # noqa: E402
 
 
 def run(coro: Any) -> Any:
@@ -69,7 +69,7 @@ def make_raw_source(**overrides: Any) -> SourceConfig:
     schema.ENGINES (fixed — it validates now), so keep using :func:`make_source`
     for everything that the schema accepts, including firecrawl.
     """
-    from myia.schema import RateLimitConfig
+    from shishi.schema import RateLimitConfig
 
     fields: dict[str, Any] = {
         "name": "demo",
@@ -124,7 +124,7 @@ def make_context(
     clock = clock or FakeClock()
     limiters = None
     if silent_limiter:
-        from myia.engines.fetch_base import HostLimiterRegistry
+        from shishi.engines.fetch_base import HostLimiterRegistry
 
         limiters = HostLimiterRegistry(clock=clock.time, sleeper=silent_sleep)
     context = FetchContext(

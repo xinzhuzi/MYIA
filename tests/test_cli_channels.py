@@ -15,8 +15,8 @@ from pathlib import Path
 import httpx
 import pytest
 
-from myia.cli import main
-from myia.push import FeishuCardChannel, PLATFORMS
+from shishi.cli import main
+from shishi.push import FeishuCardChannel, PLATFORMS
 
 
 def _chats_body(items: list[dict], *, has_more: bool = False) -> dict:
@@ -48,7 +48,7 @@ def mock_feishu(monkeypatch, tmp_path):
             kwargs["client"] = httpx.AsyncClient(transport=httpx.MockTransport(holder["handler"]))
             super().__init__(**kwargs)
 
-    import myia.cli as cli_module
+    import shishi.cli as cli_module
 
     monkeypatch.setattr(cli_module, "PLATFORMS", {"feishu": _MockedFeishu})
     return holder
@@ -174,7 +174,7 @@ class TestChannelsRefreshNoDiscovery:
 
     @pytest.mark.parametrize("platform", ["ntfy", "dingtalk", "wecom"])
     def test_no_discovery_platform_reports_and_exits_zero(self, tmp_path, monkeypatch, capsys, platform):
-        from myia.push import DingTalkChannel, NtfyChannel, WecomChannel
+        from shishi.push import DingTalkChannel, NtfyChannel, WecomChannel
 
         adapters = {
             "ntfy": NtfyChannel,
@@ -182,7 +182,7 @@ class TestChannelsRefreshNoDiscovery:
             "wecom": WecomChannel,
         }
         monkeypatch.setattr(
-            "myia.cli.PLATFORMS", {"feishu": FeishuCardChannel, platform: adapters[platform]}
+            "shishi.cli.PLATFORMS", {"feishu": FeishuCardChannel, platform: adapters[platform]}
         )
         # 预置旧桶(别名占位):refresh 不得清掉它。
         (tmp_path / "channel_directory.json").write_text(
@@ -208,9 +208,9 @@ class TestChannelsRefreshNoDiscovery:
         assert [e["chat_id"] for e in payload["platforms"][platform]] == ["legacy-1"]
 
     def test_no_discovery_human_output_prints_explanation(self, tmp_path, monkeypatch, capsys):
-        from myia.push import NtfyChannel
+        from shishi.push import NtfyChannel
 
-        monkeypatch.setattr("myia.cli.PLATFORMS", {"ntfy": NtfyChannel})
+        monkeypatch.setattr("shishi.cli.PLATFORMS", {"ntfy": NtfyChannel})
 
         code, out, err = _run_cli(["channels", "refresh", "ntfy"], capsys, monkeypatch, tmp_path)
 
@@ -220,10 +220,10 @@ class TestChannelsRefreshNoDiscovery:
 
     def test_mixed_refresh_separates_passive_and_no_discovery(self, tmp_path, monkeypatch, capsys):
         """被动积累(telegram)与无自动发现(ntfy)分桶上报,互不混淆。"""
-        from myia.push import NtfyChannel, TelegramChannel
+        from shishi.push import NtfyChannel, TelegramChannel
 
         monkeypatch.setattr(
-            "myia.cli.PLATFORMS", {"telegram": TelegramChannel, "ntfy": NtfyChannel}
+            "shishi.cli.PLATFORMS", {"telegram": TelegramChannel, "ntfy": NtfyChannel}
         )
         code, out, err = _run_cli(["channels", "refresh", "--json"], capsys, monkeypatch, tmp_path)
         assert code == 0, err

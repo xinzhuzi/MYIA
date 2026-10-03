@@ -18,9 +18,9 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
-from myia.engines.fetch_base import FetchError, classify_exception
-from myia.engines.firecrawl import FirecrawlEngine
-from myia.schema import RateLimitConfig, SourceConfig
+from shishi.engines.fetch_base import FetchError, classify_exception
+from shishi.engines.firecrawl import FirecrawlEngine
+from shishi.schema import RateLimitConfig, SourceConfig
 
 from conftest import make_client, make_context, make_handler, make_source, run
 
@@ -155,7 +155,7 @@ def test_keychain_api_key_with_noncanonical_name_raises():
     context, _ = make_context(client)
     engine = FirecrawlEngine(source, context)
 
-    from myia.schema import CredentialResolveError
+    from shishi.schema import CredentialResolveError
 
     with pytest.raises(CredentialResolveError) as excinfo:
         run(engine.fetch())
@@ -275,7 +275,7 @@ def test_ready_log_shows_reference_not_resolved_endpoint(monkeypatch, caplog):
     context, _ = make_context(client)
     engine = FirecrawlEngine(source, context)
 
-    with caplog.at_level(logging.INFO, logger="myia.engines.firecrawl"):
+    with caplog.at_level(logging.INFO, logger="shishi.engines.firecrawl"):
         run(engine.fetch())
     messages = [record.getMessage() for record in caplog.records]
     assert all("secret.firecrawl.internal" not in message for message in messages)
@@ -292,7 +292,7 @@ def test_ready_log_default_shows_builtin_constant(caplog):
     context, _ = make_context(client)
     engine = FirecrawlEngine(scrape_source(), context)
 
-    with caplog.at_level(logging.INFO, logger="myia.engines.firecrawl"):
+    with caplog.at_level(logging.INFO, logger="shishi.engines.firecrawl"):
         run(engine.fetch())
     ready = [
         record.getMessage() for record in caplog.records if "后端就绪" in record.getMessage()
@@ -316,7 +316,7 @@ def test_retry_warning_masks_resolved_endpoint(monkeypatch, caplog):
     context, _ = make_context(client)
     engine = FirecrawlEngine(source, context)
 
-    with caplog.at_level(logging.WARNING, logger="myia.engines.fetch_base"), pytest.raises(
+    with caplog.at_level(logging.WARNING, logger="shishi.engines.fetch_base"), pytest.raises(
         FetchError
     ) as excinfo:
         run(engine.fetch())

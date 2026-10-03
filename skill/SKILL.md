@@ -45,7 +45,7 @@ stderr(整份 stdout 恒可 `json.load`)。退出码:`0` 成功 / `1` 配置或�
    AM/PM 槽位管「发没发过」(防重发),两层正交。
 7. **YAML 必须 UTF-8**;顶层必须是映射;重复键拒载。
 
-## 2. 插件规范速查(12 节 schema,与 `src/myia/schema.py` 逐字段一致)
+## 2. 插件规范速查(12 节 schema,与 `src/shishi/schema.py` 逐字段一致)
 
 「12 节」计数:根节 11 个字段 + `push[].route` 单独算一节。字段/缺省值由
 `tests/test_skill_doc.py` 对照 pydantic 模型逐项校验。

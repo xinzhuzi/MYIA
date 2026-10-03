@@ -1,4 +1,4 @@
-# PyPI Publish — shishi-classifier / shishi 双包发行(1.1.1 起发行名随世事更名;模块名 myia/myia_classifier 过渡保留,模块改名后同步此处校验)(PRD 10-01-v10-classifier-pypi)。
+# PyPI Publish — shishi-classifier / shishi 双包发行(1.1.1 起发行名随世事更名;根包模块名 2026-10-04 已同步改名 src/shishi,classifier 模块名 myia_classifier 过渡保留)(PRD 10-01-v10-classifier-pypi)。
 # tag 驱动发布(10-03-tag-release):推 v* tag 即正式发布;手动 dispatch 保留为演练通道。
 # 与 CI/Docker 发布刻意分离:CI 管测试,Docker 管镜像,本文件管 PyPI。
 #
@@ -192,14 +192,14 @@ jobs:
               },
               "myia": {
                   "wheel": [
-                      "myia/enrich/data/prompt.json",
-                      "myia/enrich/data/dedupe_prompt.json",
-                      "myia/classify/__init__.py",
+                      "shishi/enrich/data/prompt.json",
+                      "shishi/enrich/data/dedupe_prompt.json",
+                      "shishi/classify/__init__.py",
                   ],
                   "sdist": [
-                      "src/myia/enrich/data/prompt.json",
-                      "src/myia/enrich/data/dedupe_prompt.json",
-                      "src/myia/classify/__init__.py",
+                      "src/shishi/enrich/data/prompt.json",
+                      "src/shishi/enrich/data/dedupe_prompt.json",
+                      "src/shishi/classify/__init__.py",
                   ],
               },
           }

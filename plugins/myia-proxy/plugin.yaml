@@ -7,7 +7,7 @@
 # 可选路径:compose 在仓库 docker/plugins/myia-proxy/;已部署实例按 remote
 # 模式填 endpoint。
 #
-# 市场插件包 = 一个目录:plugin.yaml(manifest,规范见 src/myia/plugins/manifest.py)
+# 市场插件包 = 一个目录:plugin.yaml(manifest,规范见 src/shishi/plugins/manifest.py)
 # + README + adapter.py(MYIA 侧适配器)。核心仓库只装声明与文档,装不上
 # 不拦核心流水线(铁律)。
 id: myia-proxy

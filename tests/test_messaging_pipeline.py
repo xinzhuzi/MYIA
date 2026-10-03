@@ -17,15 +17,15 @@ from typing import Any
 import httpx
 import pytest
 
-import myia.pipeline as pipeline_module
-import myia.push as push_module
+import shishi.pipeline as pipeline_module
+import shishi.push as push_module
 from conftest import FakeClock
-from myia.pipeline import Pipeline
-from myia.push.base import PushSendError
-from myia.push.directory import ChannelDirectory, ChannelEntry
-from myia.push.weixin import DEFAULT_BRIDGE_TIMEOUT_SECONDS, WeixinChannel
-from myia.schema import load_category
-from myia.store import SQLiteStore
+from shishi.pipeline import Pipeline
+from shishi.push.base import PushSendError
+from shishi.push.directory import ChannelDirectory, ChannelEntry
+from shishi.push.weixin import DEFAULT_BRIDGE_TIMEOUT_SECONDS, WeixinChannel
+from shishi.schema import load_category
+from shishi.store import SQLiteStore
 
 TIMEZONE = "Asia/Shanghai"
 
@@ -379,15 +379,15 @@ class TestDigestPoolingSemantics:
     """flush 留池判定:真失败留池(legacy 不变)/纯终态放弃/死信自愈重发。"""
 
     def _aggregator(self, tmp_path, channel):
-        from myia.dedup import DedupRegistry
-        from myia.push import DigestAggregator
+        from shishi.dedup import DedupRegistry
+        from shishi.push import DigestAggregator
 
         return DigestAggregator(
             channels=[channel], registry=DedupRegistry(SQLiteStore(tmp_path / "d.db"))
         )
 
     def test_all_failed_stays_pooled_legacy(self, tmp_path):
-        from myia.push.base import PushSendError
+        from shishi.push.base import PushSendError
 
         class Failing:
             name = "failing"
@@ -411,7 +411,7 @@ class TestDigestPoolingSemantics:
         assert len(aggregator) == 1  # 留池重试(legacy 行为)
 
     def test_all_terminal_skipped_drops_not_repools(self, tmp_path):
-        from myia.push import DeliveryLedger
+        from shishi.push import DeliveryLedger
 
         ledger = DeliveryLedger(tmp_path)
         ledger.mark_dead(platform="feishu", chat_id="oc_1", reason="forbidden: x")
@@ -591,7 +591,7 @@ class TestW2PipelineWiring:
         try:
             import logging
 
-            with caplog.at_level(logging.DEBUG, logger="myia.push.directory"):
+            with caplog.at_level(logging.DEBUG, logger="shishi.push.directory"):
                 asyncio.run(pipeline._refresh_directory_if_stale())
             # 无自动发现是 debug 级说明,不是 warning 失败
             assert not any("目录刷新失败" in r.message for r in caplog.records)

@@ -270,7 +270,7 @@ export function isRowError(row: LogRow): boolean {
   return ERROR_PATTERN.test(row.text);
 }
 
-/** 结构化日志级别段(python logging 行「… INFO myia.pipeline: …」同款) */
+/** 结构化日志级别段(python logging 行「… INFO shishi.pipeline: …」同款) */
 const LEVEL_WARN = /(?:^|\s)(?:WARNING|WARN)\b/;
 const LEVEL_INFO = /(?:^|\s)(?:INFO|DEBUG)\b/i;
 

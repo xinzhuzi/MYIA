@@ -35,7 +35,7 @@ class EnrichConfigError(ValueError):
             keychain is not yet supported),
             ``invalid_base_url`` (resolved endpoint is not an http(s) URL),
             ``dependency_missing`` (the optional ``openai`` package, extras
-            ``myia[llm]``, is not installed — raised at the first LLM call,
+            ``shishi[llm]``, is not installed — raised at the first LLM call,
             the import is lazy, never at startup),
             ``prompt_invalid`` (the external prompt data file is malformed).
         details: structured context (field path / reference name), consumed

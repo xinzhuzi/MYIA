@@ -6,9 +6,9 @@
 # changedetection.io instance — zero docker). A plugin that cannot be
 # installed never blocks the core pipeline (iron law).
 #
-# The `plugin:` declaration is modeled by myia.schema since v0.3
+# The `plugin:` declaration is modeled by shishi.schema since v0.3
 # (CategoryPluginConfig, validated by load_category and attached to
-# CategoryConfig.plugin; see src/myia/plugins for the market side).
+# CategoryConfig.plugin; see src/shishi/plugins for the market side).
 id: monitor
 name: 变更监控
 schedule: "*/15 * * * *"

@@ -21,7 +21,7 @@ transport + 注入 Pacer)、零真实凭据(fixture 均为人工合成脱敏键,
 4. **路径解析**:``MYIA_HOME`` 环境变量优先、cwd 兜底;适配器
    ``run_credcheck_keystore`` 缺省路径与结构化错误面。
 
-测试纪律:全部模块经 ``myia.cli._import_plugin_adapter`` 加载(compile+
+测试纪律:全部模块经 ``shishi.cli._import_plugin_adapter`` 加载(compile+
 exec,与宿主同款);registry 用 adapter.specs 的真实数据文件(25 规格)。
 """
 
@@ -39,7 +39,7 @@ from typing import Any, Callable
 import httpx
 import pytest
 
-from myia.cli import _import_plugin_adapter
+from shishi.cli import _import_plugin_adapter
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PLUGINS_DIR = REPO_ROOT / "plugins"

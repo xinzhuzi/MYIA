@@ -1,6 +1,6 @@
 """MYIA 桌面 sidecar 入口:双模式。
 
-模式一(直通,默认):: ``entry.py run <yaml> --json …`` 原样转发 :func:`myia.cli.main`,
+模式一(直通,默认):: ``entry.py run <yaml> --json …`` 原样转发 :func:`shishi.cli.main`,
 退出码 0/1/2/3 契约由 CLI 层保证(PyInstaller 打包路径与 v02 spike 完全兼容)。
 
 模式二(RPC 服务):: ``entry.py serve`` 进入行分隔 JSON-RPC 子集(Tauri 壳的常驻
@@ -135,7 +135,7 @@ push.test          (通道 send(items, context))    合成单条测试条目真�
 
 - ``run.start`` params:``yaml``(必填)、``dry``(bool,缺省 false)、``db``、
   ``config``(全局 pools YAML)。同一时刻只允许一个 run(``run_busy`` 结构化拒绝);
-  子进程 = 冻结包自启(直通模式)/ dev 下 ``python -m myia.cli``,退出码
+  子进程 = 冻结包自启(直通模式)/ dev 下 ``python -m shishi.cli``,退出码
   0/1/2/3 由 CLI 原样带回,随 ``completed`` 事件透传(退出码语义保留)。
 - ``run.cancel`` params:``run_id``(缺省 = 当前活跃 run);应答
   ``{run_id, cancelled, state}``;未知 id/无活跃 run = ``run_not_found``,
@@ -172,10 +172,10 @@ push.test          (通道 send(items, context))    合成单条测试条目真�
 - ``feed.enrich`` params(G8,10-03-fe-small-batch):``item``(items.id 或
   dedup_key/URL,解析口径同 ``feedback.mark``)、``db?``;应答
   ``{item_id, model, scores, score, cached}`` —— 单条现跑
-  :class:`~myia.enrich.LLMEnricher`(端点 = 条目所属品类 YAML ``enrich:``
+  :class:`~shishi.enrich.LLMEnricher`(端点 = 条目所属品类 YAML ``enrich:``
   节,``base_url``/``api_key`` 走 ``env:``/``keychain:`` 引用解析;分数原路
   回填 items 表 + enrich_cache 缓存语义复用,缓存命中零 token;async
-  :meth:`~myia.enrich.LLMEnricher.enrich` 在 handler 内 ``asyncio.run``
+  :meth:`~shishi.enrich.LLMEnricher.enrich` 在 handler 内 ``asyncio.run``
   同步应答,整段挂 ``EnrichSettings.timeout_seconds`` 超时帽)。品类未启用
   enrich / 端点引用缺失 / 品类 YAML 不在 plugins 目录 =
   ``enrich_not_configured``(graceful,data.reason 三分);超时 =
@@ -185,7 +185,7 @@ push.test          (通道 send(items, context))    合成单条测试条目真�
 - ``schedule.preview`` params:``file``(围栏同 yaml.*/sources.test)、``count``
   (缺省 5,钳制 [1,20]);应答 ``{file, schedule, timezone, runs[]}``,品类装不上 =
   ``source_file_unreadable``,纯计算零副作用。
-- ``push.test`` params:``channel``(∈ myia.push.CHANNELS)、``target?``
+- ``push.test`` params:``channel``(∈ shishi.push.CHANNELS)、``target?``
   (凭据引用)、``template?``;应答 ``{ok: true, channel, preview?}``(preview 仅
   stdout 通道);失败沿用通道 PushSendError code 原文直传。
 - ``run.status`` / ``logs.tail`` params:``run_id``(可省)/ ``lines``(tail 上限)。
@@ -204,7 +204,7 @@ push.test          (通道 send(items, context))    合成单条测试条目真�
   sidecar 是 UI 直连读写通道,不设围栏 = 桌面端任意文件读写原语。
 - ``image.config.*`` 两方法(10-03-vision-pipeline 拆四留二:看图交互屏整拆,
   ``image.import/ocr/analyze/status`` 四方法与 ``image.progress/completed`` 两
-  事件已删;配置入口保留——设置屏 VisionForm 依赖;能力实现在 ``myia.vision``
+  事件已删;配置入口保留——设置屏 VisionForm 依赖;能力实现在 ``shishi.vision``
   包,与 vision.yaml 机制不动):``image.config.read`` / ``image.config.save``
   读写 ``<home>/vision.yaml``(MYIA_HOME 第一个全局配置文件;云端 api_key 只收
   ``keychain:`` 引用,同门校验失败零写入)。业务错误码:``image_config_invalid``。
@@ -232,10 +232,10 @@ push.test          (通道 send(items, context))    合成单条测试条目真�
   ``server_start_failed`` 以事件 error 收口,日志落
   ``<home>/vision-server.log``,>5MB 打开前轮转);``image.files.purge
   {days}`` → ``{deleted, bytes_freed}``。模型与 server 能力实现在
-  ``myia.vision.models`` / ``myia.vision.server``(重依赖惰性,
-  huggingface-hub 在 extras ``myia[vision]``)。
+  ``shishi.vision.models`` / ``shishi.vision.server``(重依赖惰性,
+  huggingface-hub 在 extras ``shishi[vision]``)。
 
-铁律:凭据只进系统钥匙链(``secret.set`` 薄包装 myia.secrets,值不落日志/协议流);
+铁律:凭据只进系统钥匙链(``secret.set`` 薄包装 shishi.secrets,值不落日志/协议流);
 桌面零 Docker;任何插件装不上不拦核心(doctor/list 只产 findings)。
 
 serve 上下文路径解析(v1.1.1 统一,优先级):显式 params > ``MYIA_HOME`` env
@@ -272,22 +272,22 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping, NamedTuple
 
-import myia
+import shishi
 import yaml
-from myia import push as myia_push
-from myia.cli import DEFAULT_DB_PATH, DEFAULT_PLUGINS_DIR, main as cli_main
-from myia.enrich import EnrichConfigError, EnrichSettings, LLMEnricher
-from myia.feedback import (
+from shishi import push as shishi_push
+from shishi.cli import DEFAULT_DB_PATH, DEFAULT_PLUGINS_DIR, main as cli_main
+from shishi.enrich import EnrichConfigError, EnrichSettings, LLMEnricher
+from shishi.feedback import (
     FeedbackTuner,
     TuningPolicy,
     load_active_tuning,
     record_feedback,
     resolve_item_ref,
 )
-from myia.plugins.installed import INSTALL_ROOT_ENV, default_install_root
-from myia.push import ChannelDirectory, DeliveryLedger, DirectoryDiscoverUnsupported, PushSendError
-from myia.push.weixin import probe_bridge
-from myia.schema import (
+from shishi.plugins.installed import INSTALL_ROOT_ENV, default_install_root
+from shishi.push import ChannelDirectory, DeliveryLedger, DirectoryDiscoverUnsupported, PushSendError
+from shishi.push.weixin import probe_bridge
+from shishi.schema import (
     CATEGORY_ID_RE,
     CHANNEL_PLATFORMS,
     CategoryConfig,
@@ -299,23 +299,23 @@ from myia.schema import (
     load_category,
     load_category_file,
 )
-from myia.secrets import SecretError, delete_secret, list_secrets, set_secret
-from myia.store import FEEDBACK_CHANNEL_DESKTOP, SQLiteStore, StoreSchemaError
-from myia.vision import (
+from shishi.secrets import SecretError, delete_secret, list_secrets, set_secret
+from shishi.store import FEEDBACK_CHANNEL_DESKTOP, SQLiteStore, StoreSchemaError
+from shishi.vision import (
     VISION_FILE_NAME,
     VisionConfig,
     VisionConfigError,
     load_vision_config,
     save_vision_config,
 )
-from myia.vision.models import (
+from shishi.vision.models import (
     VisionModelError,
     activate_model as vision_activate_model,
     delete_model as vision_delete_model,
     download_model as vision_download_model,
     list_models as vision_list_models,
 )
-from myia.vision.server import (
+from shishi.vision.server import (
     SERVER_LOG_NAME,
     VisionServerError,
     ensure_vision_server,
@@ -609,8 +609,8 @@ def _m_version(params: dict[str, Any]) -> dict[str, Any]:
     null(如实,不虚构)。
     """
     return {
-        "name": "myia",
-        "version": myia.__version__,
+        "name": "shishi",
+        "version": shishi.__version__,
         "protocol": PROTOCOL_VERSION,
         "app_version": os.environ.get("MYIA_APP_VERSION") or None,
     }
@@ -794,7 +794,7 @@ def _m_store_items(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def _m_secret_set(params: dict[str, Any]) -> dict[str, Any]:
-    """薄包装 myia.secrets.set_secret:凭据只入系统钥匙链;值零回显零落日志。"""
+    """薄包装 shishi.secrets.set_secret:凭据只入系统钥匙链;值零回显零落日志。"""
     name, value = params.get("name"), params.get("value")
     if not isinstance(name, str) or not name:
         raise ProtocolError("invalid_params", "缺少凭据名 name(myia/<scope>/<name>)", path="params.name")
@@ -808,7 +808,7 @@ def _m_secret_set(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def _m_secret_list(params: dict[str, Any]) -> dict[str, Any]:
-    """薄包装 myia.secrets.list_secrets:只有名字,值永不可读。"""
+    """薄包装 shishi.secrets.list_secrets:只有名字,值永不可读。"""
     try:
         names = list_secrets()
     except SecretError as exc:
@@ -817,7 +817,7 @@ def _m_secret_list(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def _m_secret_delete(params: dict[str, Any]) -> dict[str, Any]:
-    """薄包装 myia.secrets.delete_secret:误存凭据的 UI 清除口(C5)。
+    """薄包装 shishi.secrets.delete_secret:误存凭据的 UI 清除口(C5)。
 
     凭据只有名字无值,无回显问题;重复删除第二次 ``secret_not_found``
     (幂等性归调用方,与 CLI 同门)。
@@ -973,7 +973,7 @@ def _m_feed_enrich(params: dict[str, Any]) -> dict[str, Any]:
     / :class:`LLMEnricher` 构造期解析(无内置端点、无默认 key,grill Q6,
     与 ``myia run`` 同门);enrich_cache 缓存语义复用((url, model,
     scores_key) 命中零 token),分数经 :meth:`LLMEnricher.enrich` 原路
-    回填 items 表 + 缓存表。async :meth:`~myia.enrich.LLMEnricher.enrich`
+    回填 items 表 + 缓存表。async :meth:`~shishi.enrich.LLMEnricher.enrich`
     在 handler 内 ``asyncio.run`` 同步应答,整段挂
     ``EnrichSettings.timeout_seconds`` 超时帽(单条单批,内层还有同值
     的 per-completion wait_for,外层兜缓存读写/渲染的全程)。
@@ -984,7 +984,7 @@ def _m_feed_enrich(params: dict[str, Any]) -> dict[str, Any]:
     ``category_yaml_not_found``)/ ``enrich_timeout`` / ``enrich_failed``
     (预算耗尽或批次失败条目未获分,degrade_reason + failures 入 data);
     :class:`EnrichConfigError` 的 code 原文透传(``credential_unresolved``
-    / ``invalid_base_url`` 等,追源头去 ``src/myia/enrich/``)。
+    / ``invalid_base_url`` 等,追源头去 ``src/shishi/enrich/``)。
     """
     item_ref = params.get("item")
     if isinstance(item_ref, bool) or item_ref is None or item_ref == "":
@@ -2079,7 +2079,7 @@ def _m_schedule_preview(params: dict[str, Any]) -> dict[str, Any]:
     品类无排程(schedule 空串)明示 ``schedule: null`` + ``runs: []``,
     不是错误(design §1)。``count`` 缺省 5,钳制 [1, 20]。
     """
-    from myia.pipeline import build_cron_trigger
+    from shishi.pipeline import build_cron_trigger
 
     resolved, _ctx = _fence_yaml_path(params.get("file"))
     count = params.get("count", 5)
@@ -2276,7 +2276,7 @@ _PROGRESS_PATTERNS: tuple[tuple[re.Pattern[str], str, tuple[str, ...]], ...] = (
 
 
 def _self_command(argv_tail: list[str]) -> tuple[list[str], dict[str, str]]:
-    """构造 run 子进程命令:冻结包自启(直通模式)/ dev 下 ``python -m myia.cli``。
+    """构造 run 子进程命令:冻结包自启(直通模式)/ dev 下 ``python -m shishi.cli``。
 
     dev 下子进程未必装了 myia(conftest 靠 sys.path 注入 src/),以
     PYTHONPATH 指到 <repo>/src 保证可复现;冻结模式 PyInstaller 包自带全部模块。
@@ -2286,7 +2286,7 @@ def _self_command(argv_tail: list[str]) -> tuple[list[str], dict[str, str]]:
         return [sys.executable, *argv_tail], env
     src = Path(__file__).resolve().parent.parent / "src"
     env["PYTHONPATH"] = str(src) + os.pathsep + env.get("PYTHONPATH", "")
-    return [sys.executable, "-m", "myia.cli", *argv_tail], env
+    return [sys.executable, "-m", "shishi.cli", *argv_tail], env
 
 
 def _emit_progress(run_id: int, line: str) -> None:
@@ -2522,7 +2522,7 @@ def _m_runs_list(params: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # 方法:feedback.mark / feedback.list / feedback.stats
 # (B2,10-03-v112-desktop-parity:桌面反馈入口;与 CLI ``myia feedback`` 同门
-# 直调 myia.feedback —— channel="desktop" 落库,CLI ``feedback list`` 无过滤
+# 直调 shishi.feedback —— channel="desktop" 落库,CLI ``feedback list`` 无过滤
 # 即见同一条目,往返一致;载荷键逐一对齐 cli.py `_feedback_row_dict` / stats 报文)
 # ---------------------------------------------------------------------------
 
@@ -2711,7 +2711,7 @@ def _m_logs_tail(params: dict[str, Any]) -> dict[str, Any]:
 # (看图配置协议;10-03-vision-pipeline 拆四留二:image.import/ocr/analyze/
 #  status 四方法、image.progress/completed 两事件与 _image_analyze_worker
 #  已整拆——看图能力并入情报管线;配置读写是设置屏 VisionForm 的依赖故留。
-#  能力实现在 myia.vision 包:settings=vision.yaml 同门校验,引擎层不动)
+#  能力实现在 shishi.vision 包:settings=vision.yaml 同门校验,引擎层不动)
 # ---------------------------------------------------------------------------
 
 
@@ -2756,8 +2756,8 @@ def _m_image_config_save(params: dict[str, Any]) -> dict[str, Any]:
 
 # ---------------------------------------------------------------------------
 # 方法:image.models.list / download / delete / activate + image.server.status
-#       / image.server.ensure(10-03-vision-v2;能力实现 myia.vision.models /
-#       myia.vision.server,契约与前端 TS 侧同形状冻结)
+#       / image.server.ensure(10-03-vision-v2;能力实现 shishi.vision.models /
+#       shishi.vision.server,契约与前端 TS 侧同形状冻结)
 # ---------------------------------------------------------------------------
 
 #: 模型下载单飞(桌面一次一个大模型;并发下载只会互相抢带宽与磁盘)。
@@ -2989,7 +2989,7 @@ def _image_server_ensure_worker(job_id: int, config: VisionConfig, log_path: Pat
 # 不出,给 CLI 面一个按 mtime 清 <数据根>/images 超龄文件的口;UI 不做)
 # ---------------------------------------------------------------------------
 
-#: 落图目录名(与管线侧 myia.vision.collect.PERSIST_DIR_NAME 同名同位:
+#: 落图目录名(与管线侧 shishi.vision.collect.PERSIST_DIR_NAME 同名同位:
 #: 数据根 ``images/``,home 模式 = <home>/images)。
 IMAGE_FILES_DIR_NAME = "images"
 
@@ -3028,8 +3028,8 @@ def _m_image_files_purge(params: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # 方法:channels.list / channels.refresh / channels.alias / push.write
 # (消息屏协议,task 10-03-messaging-ui;契约钉死于任务档 design.md §D2,
-#  TS 侧 ui-src/screens/messaging/api.ts 注释互指;能力实现在 myia.push 包:
-#  directory=通道目录+别名覆盖、delivery=死信账本;push 校验门=myia.schema)
+#  TS 侧 ui-src/screens/messaging/api.ts 注释互指;能力实现在 shishi.push 包:
+#  directory=通道目录+别名覆盖、delivery=死信账本;push 校验门=shishi.schema)
 # ---------------------------------------------------------------------------
 
 #: 单别名长度上限(防误贴长文本;发现名不受此限,只限手工别名)。
@@ -3046,7 +3046,7 @@ def _push_rules_view(ctx: ServeContext) -> list[dict[str, Any]]:
 
     每文件 ``{file, category_id, category_name, parse_ok, error, entries}``;
     entries 每条 ``{index, channel, platform, targets, has_template,
-    route_count, raw}``。platform 取 :data:`myia.schema.CHANNEL_PLATFORMS`
+    route_count, raw}``。platform 取 :data:`shishi.schema.CHANNEL_PLATFORMS`
     (webhook/stdout 不支持目录寻址 → None,UI 不给这类条目出 targets
     选择器)。**raw 是该条目的最小无损形态**(push.write 全量替换的写回
     base:UI 改 targets 后整文件提交)—— None 字段与 webhook 专属的
@@ -3155,7 +3155,7 @@ def _m_channels_list(params: dict[str, Any]) -> dict[str, Any]:
 def _m_channels_refresh(params: dict[str, Any]) -> dict[str, Any]:
     """单平台目录发现 → 桶替换 + 持久化;失败结构化上抛,旧桶不动。
 
-    与 pipeline 懒刷(:func:`myia.pipeline` run 前节流刷新)同一发现
+    与 pipeline 懒刷(:func:`shishi.pipeline` run 前节流刷新)同一发现
     通道类、同一合并语义;差别只在错误处理 —— 推送路径吞错继续,UI 路径
     必须把凭据缺失/网络失败如实带回给用户。发现凭据 = 通道类缺省 env
     引用(``env:FEISHU_BOT_TOKEN`` 族;push 条目无 token 字段,run 时同源)。
@@ -3167,13 +3167,13 @@ def _m_channels_refresh(params: dict[str, Any]) -> dict[str, Any]:
             "invalid_params", "缺少平台名 platform(如 feishu)", path="params.platform"
         )
     platform = platform_raw.strip()
-    platform_cls = myia_push.PLATFORMS.get(platform)
+    platform_cls = shishi_push.PLATFORMS.get(platform)
     if platform_cls is None:
         raise ProtocolError(
             "unknown_platform",
-            f"未知平台 {platform!r}(已注册: {sorted(myia_push.PLATFORMS)})",
+            f"未知平台 {platform!r}(已注册: {sorted(shishi_push.PLATFORMS)})",
             path="params.platform",
-            data={"allowed": sorted(myia_push.PLATFORMS)},
+            data={"allowed": sorted(shishi_push.PLATFORMS)},
         )
     if not callable(getattr(platform_cls, "discover_directory", None)):
         raise ProtocolError(
@@ -3267,7 +3267,7 @@ def _m_channels_alias(params: dict[str, Any]) -> dict[str, Any]:
 def _m_bridge_status(params: dict[str, Any]) -> dict[str, Any]:
     """微信桥接探测(#28,10-03-messaging-weixin-bridge design D4)。
 
-    result = :func:`myia.push.weixin.probe_bridge` 全量(BridgeStatus 七键:
+    result = :func:`shishi.push.weixin.probe_bridge` 全量(BridgeStatus 七键:
     available/reason/fix_hint/bin_found/weixin_configured/gateway_alive/
     bin_path)。纯文件系统存在性探测(永不读 Hermes 私有文件内容),
     无凭据、无出网、无入站;bin 路径取品类 YAML 首个 weixin 条目的
@@ -3503,7 +3503,7 @@ def _m_push_write(params: dict[str, Any]) -> dict[str, Any]:
 def _m_push_test(params: dict[str, Any]) -> dict[str, Any]:
     """合成单条测试条目走既有通道 ``send(items, context)`` —— **真发消息**。
 
-    ``channel`` ∈ :data:`myia.push.CHANNELS`(通道名与品类 YAML ``push[]``
+    ``channel`` ∈ :data:`shishi.push.CHANNELS`(通道名与品类 YAML ``push[]``
     同一注册表);``target`` 可选 ``env:``/``keychain:`` 凭据引用(设置屏
     表单的 scope/secretName 组合出 ``keychain:myia/<scope>/<name>``),
     缺省走通道默认 env 引用链 —— 凭据缺失/发送失败沿用通道既有结构化
@@ -3514,10 +3514,10 @@ def _m_push_test(params: dict[str, Any]) -> dict[str, Any]:
     的 ``--json`` 模式 ``out`` 注入先例),协议流零污染。
     """
     channel_name = params.get("channel")
-    if not isinstance(channel_name, str) or channel_name not in myia_push.CHANNELS:
+    if not isinstance(channel_name, str) or channel_name not in shishi_push.CHANNELS:
         raise ProtocolError(
             "invalid_params",
-            f"channel 必须是 {sorted(myia_push.CHANNELS)} 之一",
+            f"channel 必须是 {sorted(shishi_push.CHANNELS)} 之一",
             path="params.channel",
         )
     target = params.get("target")
@@ -3539,7 +3539,7 @@ def _m_push_test(params: dict[str, Any]) -> dict[str, Any]:
         # serve 模式 stdout = 协议流:卡片行入内存缓冲,应答 preview 回显
         preview_io = io.StringIO()
         kwargs["out"] = preview_io
-    channel = myia_push.CHANNELS[channel_name](**kwargs)
+    channel = shishi_push.CHANNELS[channel_name](**kwargs)
 
     now = datetime.now()
     item = {
@@ -3549,7 +3549,7 @@ def _m_push_test(params: dict[str, Any]) -> dict[str, Any]:
         "source": "myia",
         "category": None,
     }
-    context = myia_push.SendContext(
+    context = shishi_push.SendContext(
         slot="am" if now.hour < 12 else "pm",
         date=now.strftime("%Y-%m-%d"),
         category=None,
@@ -3681,5 +3681,5 @@ def serve(stdin: Any | None = None, stdout: Any | None = None) -> int:
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "serve":
         sys.exit(serve())
-    # 直通模式:退出码 0/1/2/3 契约由 myia.cli.main 原样保证(v02 spike 兼容)。
+    # 直通模式:退出码 0/1/2/3 契约由 shishi.cli.main 原样保证(v02 spike 兼容)。
     sys.exit(cli_main())

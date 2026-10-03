@@ -8,8 +8,8 @@ from PyInstaller.utils.hooks import collect_all
 _REPO_ROOT = os.path.dirname(SPECPATH)
 datas = [(os.path.join(_REPO_ROOT, 'myia-classifier', 'myia_classifier', 'data', 'keywords.json'), 'myia_classifier/data')]
 binaries = []
-hiddenimports = ['myia.secrets']
-hiddenimports += collect_submodules('myia')
+hiddenimports = ['shishi.secrets']
+hiddenimports += collect_submodules('shishi')
 tmp_ret = collect_all('ocrmac')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('rapidocr_onnxruntime')

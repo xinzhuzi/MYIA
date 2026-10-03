@@ -5,7 +5,7 @@
 > plugins — every section has clear semantics and a default. The condensed
 > agent-facing version of this page is the Agent Skill
 > [`skill/SKILL.md`](../skill/SKILL.md); the two documents cross-reference
-> each other and are locked to `src/myia/schema.py` field-for-field by
+> each other and are locked to `src/shishi/schema.py` field-for-field by
 > `tests/test_skill_doc.py`, so they cannot drift apart.
 
 ## Schema sections

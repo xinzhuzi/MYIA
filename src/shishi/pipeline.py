@@ -163,7 +163,7 @@ from shishi.store import (
 )
 # 图片处理环(10-03-vision-pipeline,fetch 尾部):vision 包重依赖全惰性
 # (ocrmac/rapidocr/openai 都在首次调用时才 import),这里顶层 import 不破
-# 「核心流水线零重依赖」红线——未装 myia[vision] 的环境 OCR 走 ocr_failed 降级。
+# 「核心流水线零重依赖」红线——未装 shishi[vision] 的环境 OCR 走 ocr_failed 降级。
 from shishi.vision.collect import (
     DOWNLOAD_TIMEOUT_SECONDS as IMAGE_DOWNLOAD_TIMEOUT_SECONDS,
     PERSIST_DIR_NAME,

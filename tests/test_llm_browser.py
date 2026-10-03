@@ -51,16 +51,16 @@ from conftest import (
     run,
 )
 
-from myia.engines import llm_browser as llm_browser_module
-from myia.engines import registry
-from myia.engines.fetch_base import (
+from shishi.engines import llm_browser as llm_browser_module
+from shishi.engines import registry
+from shishi.engines.fetch_base import (
     BaseEngine,
     FetchError,
     RobotsDisallowedError,
     classify_exception,
     load_proxy_pools,
 )
-from myia.engines.llm_browser import (
+from shishi.engines.llm_browser import (
     DEFAULT_BUDGET_PER_RUN,
     DEFAULT_GOAL,
     DEFAULT_MAX_CALLS_PER_RUN,
@@ -73,8 +73,8 @@ from myia.engines.llm_browser import (
     normalize_skyvern_output,
     observed_usage,
 )
-from myia.engines.registry import auto_degrade, fetch_source, resolve_engine
-from myia.secrets import SECRET_SERVICE, InMemoryKeychainBackend
+from shishi.engines.registry import auto_degrade, fetch_source, resolve_engine
+from shishi.secrets import SECRET_SERVICE, InMemoryKeychainBackend
 
 TARGET_URL = "https://form.example/wizard"
 CREATE_PATH = "/v1/run/tasks"
@@ -301,7 +301,7 @@ def test_resolved_endpoint_from_options_ref_never_reaches_logs(monkeypatch, capl
     engine, _, _ = make_llm_parts(
         fake=fake, engine_options={"llm_browser": {"endpoint": "env:MYIA_SKYVERN_URL"}}
     )
-    with caplog.at_level(logging.INFO, logger="myia.engines.llm_browser"):
+    with caplog.at_level(logging.INFO, logger="shishi.engines.llm_browser"):
         run(engine.fetch())
     assert fake.create_calls  # 修复只改日志形态,fetch 行为照常
     messages = [record.getMessage() for record in caplog.records]
@@ -316,7 +316,7 @@ def test_resolved_endpoint_from_env_fallback_never_reaches_logs(monkeypatch, cap
     monkeypatch.setenv("MYIA_SKYVERN_URL", "https://fallback.skyvern.internal:7777")
     fake = FakeSkyvern()
     engine, _, _ = make_llm_parts(fake=fake)
-    with caplog.at_level(logging.INFO, logger="myia.engines.llm_browser"):
+    with caplog.at_level(logging.INFO, logger="shishi.engines.llm_browser"):
         run(engine.fetch())
     messages = [record.getMessage() for record in caplog.records]
     assert all("fallback.skyvern.internal" not in message for message in messages)
@@ -328,7 +328,7 @@ def test_endpoint_log_default_shows_builtin_constant(caplog):
     """无任何配置:日志记内置缺省端点(公开常量,非凭据解析值)."""
     fake = FakeSkyvern()
     engine, _, _ = make_llm_parts(fake=fake)
-    with caplog.at_level(logging.INFO, logger="myia.engines.llm_browser"):
+    with caplog.at_level(logging.INFO, logger="shishi.engines.llm_browser"):
         run(engine.fetch())
     ready = [
         record.getMessage()
@@ -615,7 +615,7 @@ def test_retry_warning_masks_resolved_endpoint(monkeypatch, caplog):
         retry=1,
         engine_options={"llm_browser": {"endpoint": "env:MYIA_SKYVERN_URL"}},
     )
-    with caplog.at_level(logging.WARNING, logger="myia.engines.fetch_base"), pytest.raises(
+    with caplog.at_level(logging.WARNING, logger="shishi.engines.fetch_base"), pytest.raises(
         FetchError
     ) as excinfo:
         run(engine.fetch())
@@ -811,14 +811,14 @@ def test_pool_proxy_untranslatable_is_logged_not_silent(monkeypatch, caplog):
         kwargs.setdefault("transport", httpx.MockTransport(make_handler(fake.handler)))
         return real_client(**kwargs)
 
-    monkeypatch.setattr("myia.engines.fetch_base.httpx.AsyncClient", pool_client_factory)
+    monkeypatch.setattr("shishi.engines.fetch_base.httpx.AsyncClient", pool_client_factory)
     client = make_client(make_handler(lambda r: httpx.Response(404, text="")))
     context, _ = make_context(client)
     context.proxy_pools = load_proxy_pools({"pools": {"main": "http://proxy.example.com:8080"}})
     engine = LLMBrowserEngine(
         make_source(engine="llm_browser", url=TARGET_URL, retry=0, proxy="pool:main"), context
     )
-    with caplog.at_level(logging.WARNING, logger="myia.engines.llm_browser"):
+    with caplog.at_level(logging.WARNING, logger="shishi.engines.llm_browser"):
         items = run(engine.fetch())
     assert isinstance(items, list)
     assert any("无法透传 skyvern" in record.message for record in caplog.records)

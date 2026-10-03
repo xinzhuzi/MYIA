@@ -1,7 +1,7 @@
 """Official plugin YAMLs validated end-to-end (PRD 10-01-v01-plugins-official).
 
 The rewritten plugins are the schema's acceptance sample: every file
-must load through :func:`myia.schema.load_category_file` (which forbids
+must load through :func:`shishi.schema.load_category_file` (which forbids
 unknown fields and plaintext credentials by construction), declare all twelve
 sections explicitly, keep the two-tier push route (immediate + digest), and
 render its push template against representative items. Extraction configs are
@@ -42,14 +42,14 @@ import httpx
 import pytest
 import yaml
 
-from myia.classify import rules_from_config
-from myia.engines.fetch_base import extract_html, extract_json, extract_rss
-from myia.pipeline import Pipeline
-from myia.push.base import SendContext
-from myia.push.route import resolve_route, routes_from_config
-from myia.push.templates import TemplateRenderer, item_metric_key
-from myia import secrets as secrets_store
-from myia.schema import (
+from shishi.classify import rules_from_config
+from shishi.engines.fetch_base import extract_html, extract_json, extract_rss
+from shishi.pipeline import Pipeline
+from shishi.push.base import SendContext
+from shishi.push.route import resolve_route, routes_from_config
+from shishi.push.templates import TemplateRenderer, item_metric_key
+from shishi import secrets as secrets_store
+from shishi.schema import (
     ClassifyConfig,
     EnrichConfig,
     LoadError,
@@ -57,8 +57,8 @@ from myia.schema import (
     load_category,
     load_category_file,
 )
-from myia.secrets import InMemoryKeychainBackend
-from myia.store import SQLiteStore
+from shishi.secrets import InMemoryKeychainBackend
+from shishi.store import SQLiteStore
 
 PLUGINS_DIR = Path(__file__).resolve().parents[1] / "plugins"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -303,7 +303,7 @@ def test_games_telegram_push_entry_mounted_per_v1_decision5():
     """v1 决议⑤(wrap 落地):telegram 加挂 = 第二个 push 条目,同款两级路由
     (when 逐字与 feishu 条目一致,含 GOG 限免双保险析取),模板走精简纯文本
     变体——telegram 用户模板契约是渲染文本不带 parse_mode 直发
-    (src/myia/push/telegram.py _compose),markdown 链接语法会原样露出。
+    (src/shishi/push/telegram.py _compose),markdown 链接语法会原样露出。
     chat id 走 env:TELEGRAM_CHAT_ID;bot token 走渠道缺省
     env:TELEGRAM_BOT_TOKEN(DEFAULT_TOKEN_ENV_REF,无需声明)。"""
     config = _load("games")

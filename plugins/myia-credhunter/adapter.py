@@ -95,7 +95,7 @@ _MODULES_DIR = _ADAPTER_DIR / "credhunter"
 def _load_module(name: str) -> types.ModuleType:
     """compile+exec 加载一个 ``credhunter/<name>.py`` 子模块(零 __pycache__)。
 
-    与宿主 ``myia.cli._import_plugin_adapter`` 同一手法与同一理由:不走
+    与宿主 ``shishi.cli._import_plugin_adapter`` 同一手法与同一理由:不走
     importlib 的 SourceFileLoader(会在插件目录写字节码垃圾,污染插件包
     形状)。差异点:子模块**登记进 ``sys.modules``** —— 模块内 dataclass
     的字符串注解解析会按 ``cls.__module__`` 反查 sys.modules,不登记会在

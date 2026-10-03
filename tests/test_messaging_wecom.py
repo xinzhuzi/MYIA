@@ -26,12 +26,12 @@ from typing import Any
 import httpx
 import pytest
 
-from myia.push import SendContext, WecomChannel
-from myia.push.base import PushSendError
-from myia.push.delivery import classify_dead_error
-from myia.push.directory import ChannelDirectory, DirectoryDiscoverUnsupported
-from myia.push.targets import RESOLVED_DIRECT, ChannelTarget, resolve_target
-from myia.push.wecom import MAX_CONTENT_BYTES, split_utf8_chunks
+from shishi.push import SendContext, WecomChannel
+from shishi.push.base import PushSendError
+from shishi.push.delivery import classify_dead_error
+from shishi.push.directory import ChannelDirectory, DirectoryDiscoverUnsupported
+from shishi.push.targets import RESOLVED_DIRECT, ChannelTarget, resolve_target
+from shishi.push.wecom import MAX_CONTENT_BYTES, split_utf8_chunks
 
 CONTEXT = SendContext(slot="am", date="2026-10-03", category="羊毛", kind="digest")
 NOW = 1_762_000_000.0

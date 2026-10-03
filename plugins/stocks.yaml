@@ -5,7 +5,7 @@
 # reference. Load-check any plugin with:
 #   myia run plugins/stocks.yaml --dry-run --json
 #
-# Section guide (schema order, src/myia/schema.py):
+# Section guide (schema order, src/shishi/schema.py):
 #   id/name      category identity; id is [a-z0-9][a-z0-9_-]{0,63}
 #   schedule     5-field cron; timezone defaults to the system zone
 #   sources[]    what to fetch: engine / url template / extract / politeness

@@ -27,18 +27,18 @@ import sys
 import httpx
 import pytest
 
-from myia.engines import registry
-from myia.engines.fetch_base import (
+from shishi.engines import registry
+from shishi.engines.fetch_base import (
     BaseEngine,
     EngineNotAvailableError,
     FetchError,
     load_proxy_pools,
 )
-from myia.engines.registry import FetchOutcome, auto_degrade, fetch_source, resolve_engine
-from myia.engines.direct_api import DirectAPIEngine
-from myia.engines.static_html import StaticHTMLEngine
-from myia.engines.firecrawl import FirecrawlEngine
-from myia.schema import SourceConfig
+from shishi.engines.registry import FetchOutcome, auto_degrade, fetch_source, resolve_engine
+from shishi.engines.direct_api import DirectAPIEngine
+from shishi.engines.static_html import StaticHTMLEngine
+from shishi.engines.firecrawl import FirecrawlEngine
+from shishi.schema import SourceConfig
 
 from conftest import make_client, make_context, make_handler, make_raw_source, make_source, run
 
@@ -351,7 +351,7 @@ def test_auto_scroll_source_degrades_past_l2_to_scrapling(monkeypatch, engine_st
 
 def _ok_scrapling_factory():
     """滚动页假 L4 工厂:证明链真的降级到了 scrapling 而非 L2 单页假成功。"""
-    from myia.engines.scrapling import ScraplingEngine
+    from shishi.engines.scrapling import ScraplingEngine
 
     class FakeScrollScrapling(ScraplingEngine):
         async def _fetch_impl(self) -> list[dict]:
@@ -454,7 +454,7 @@ def test_proxy_failure_aborts_chain_and_keeps_hint(monkeypatch, engine_store):
         kwargs.setdefault("transport", httpx.MockTransport(handler))
         return real_client(**kwargs)
 
-    monkeypatch.setattr("myia.engines.fetch_base.httpx.AsyncClient", pool_client_factory)
+    monkeypatch.setattr("shishi.engines.fetch_base.httpx.AsyncClient", pool_client_factory)
 
     source = make_source(engine="auto", url=SITE_URL, extract=LIST_EXTRACT, retry=0, proxy="pool:main")
     outcome = run(fetch_source(source, context))

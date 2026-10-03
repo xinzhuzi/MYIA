@@ -22,9 +22,9 @@ from typing import Any
 import httpx
 import pytest
 
-from myia.dedup import DedupRegistry
-from myia.push import telegram as _module
-from myia.push import (
+from shishi.dedup import DedupRegistry
+from shishi.push import telegram as _module
+from shishi.push import (
     CHANNELS,
     PLATFORMS,
     Channel,
@@ -36,9 +36,9 @@ from myia.push import (
     route,
     send_immediate,
 )
-from myia.push.telegram import MESSAGE_LIMIT, build_message, split_message
-from myia.push.webhook import build_payload
-from myia.store import SQLiteStore
+from shishi.push.telegram import MESSAGE_LIMIT, build_message, split_message
+from shishi.push.webhook import build_payload
+from shishi.store import SQLiteStore
 
 # Fixed +08:00 offset: deterministic slot math regardless of machine TZ.
 TIMEZONE = timezone(timedelta(hours=8))
@@ -539,7 +539,7 @@ def test_new_channels_conform_to_channel_protocol_and_registry():
 # ---------------------------------------------------------------------------
 
 #: W3 长尾 22 家通道名(组一 Slack 系 8 + 组二 Matrix 系 8 + 组三长尾壳 6);
-#: 与 myia.push._W3_LONGTAIL_CHANNELS、schema._W3_LONGTAIL 一一对应。
+#: 与 shishi.push._W3_LONGTAIL_CHANNELS、schema._W3_LONGTAIL 一一对应。
 W3_LONGTAIL_NAMES = (
     "slack",
     "discord",
@@ -587,7 +587,7 @@ class TestW3LongtailRegistry:
         # 通道计数如实:8 既有 + 22 长尾 = 30 通道;28 家支持目录寻址
         # (webhook/stdout 不支持;feishu_card 通道名经 schema 的
         # CHANNEL_PLATFORMS 映射到平台名 feishu,其余 29+27 家平台名 = 通道名)。
-        from myia.schema import CHANNEL_PLATFORMS
+        from shishi.schema import CHANNEL_PLATFORMS
 
         assert len(CHANNELS) == 30
         assert len(PLATFORMS) == 28

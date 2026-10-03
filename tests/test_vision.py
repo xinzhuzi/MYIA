@@ -1,4 +1,4 @@
-"""src/myia/vision 单测(10-03-image-input):ocr / client / settings。
+"""src/shishi/vision 单测(10-03-image-input):ocr / client / settings。
 
 引擎与 AsyncOpenAI 全 mock(ocrmac / rapidocr_onnxruntime / openai 在 CI 与
 dev 环境均未安装 —— extras 未开):假引擎模块注入 ``sys.modules``,假
@@ -16,9 +16,9 @@ from typing import Any
 import pytest
 from conftest import run
 
-from myia.schema import CredentialResolveError
-from myia.secrets import InMemoryKeychainBackend
-from myia.vision import (
+from shishi.schema import CredentialResolveError
+from shishi.secrets import InMemoryKeychainBackend
+from shishi.vision import (
     VisionClient,
     VisionConfig,
     VisionConfigError,
@@ -27,9 +27,9 @@ from myia.vision import (
     resolve_cloud_api_key,
     save_vision_config,
 )
-from myia.vision import client as vision_client
-from myia.vision import ocr as vision_ocr
-from myia.vision.ocr import OCRError, OcrLine, run_ocr
+from shishi.vision import client as vision_client
+from shishi.vision import ocr as vision_ocr
+from shishi.vision.ocr import OCRError, OcrLine, run_ocr
 
 # 魔数即可:嗅探/引擎/客户端全 mock,无任何组件真解析图片内容。
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"vision-fixture-body"
@@ -247,7 +247,7 @@ class TestOcr:
         with pytest.raises(OCRError) as excinfo:
             run_ocr(png_file, "vision")
         assert excinfo.value.code == "dependency_missing"
-        assert "myia[vision]" in str(excinfo.value)
+        assert "shishi[vision]" in str(excinfo.value)
 
     def test_vision_engine_failure_wrapped(self, monkeypatch, png_file):
         self._install_ocrmac(monkeypatch, [], {}, recognize_error=RuntimeError("boom"))
@@ -397,4 +397,4 @@ class TestVisionClient:
         with pytest.raises(VisionConfigError) as excinfo:
             run(client.analyze(image_path=png_file, prompt="p"))
         assert excinfo.value.code == "dependency_missing"
-        assert "myia[vision]" in str(excinfo.value)
+        assert "shishi[vision]" in str(excinfo.value)

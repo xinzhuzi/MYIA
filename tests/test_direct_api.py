@@ -16,8 +16,8 @@ import os
 import httpx
 import pytest
 
-from myia.engines.direct_api import DirectAPIEngine
-from myia.engines.fetch_base import FetchError, extract_json
+from shishi.engines.direct_api import DirectAPIEngine
+from shishi.engines.fetch_base import FetchError, extract_json
 
 from conftest import make_client, make_context, make_handler, make_source, run
 
@@ -205,7 +205,7 @@ def test_key_pool_env_missing_is_structured(monkeypatch):
     )
     client = make_client(make_handler(lambda r: httpx.Response(200, json=api_payload())))
     context, _ = make_context(client)
-    from myia.schema import CredentialResolveError
+    from shishi.schema import CredentialResolveError
 
     with pytest.raises(CredentialResolveError) as excinfo:
         DirectAPIEngine(source, context)
@@ -411,7 +411,7 @@ def test_fetch_with_css_extract_degrades_via_structured_error():
     reason="真实源 smoke:Yahoo chart API(L1)产出结构化条目(设 MYIA_SMOKE_REAL=1 本地执行)",
 )
 def test_smoke_yahoo_chart_api_l1():
-    from myia.engines.fetch_base import FetchContext
+    from shishi.engines.fetch_base import FetchContext
 
     async def scenario():
         client = httpx.AsyncClient(timeout=30.0)
@@ -435,8 +435,8 @@ def test_smoke_yahoo_chart_api_l1():
     reason="真实源 smoke:aihot.news(L2)产出结构化条目(设 MYIA_SMOKE_REAL=1 本地执行)",
 )
 def test_smoke_aihot_news_l2():
-    from myia.engines.static_html import StaticHTMLEngine
-    from myia.engines.fetch_base import FetchContext
+    from shishi.engines.static_html import StaticHTMLEngine
+    from shishi.engines.fetch_base import FetchContext
 
     async def scenario():
         client = httpx.AsyncClient(timeout=30.0)

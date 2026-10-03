@@ -24,12 +24,12 @@ from typing import Any
 import httpx
 import pytest
 
-from myia.push import SendContext
-from myia.push.base import PushSendError
-from myia.push.delivery import classify_dead_error
-from myia.push.directory import ChannelDirectory, ChannelEntry, DirectoryDiscoverUnsupported
-from myia.push.mattermost import MattermostChannel
-from myia.push.targets import RESOLVED_DIRECT, RESOLVED_DIRECTORY_PREFIX, ChannelTarget, resolve_target
+from shishi.push import SendContext
+from shishi.push.base import PushSendError
+from shishi.push.delivery import classify_dead_error
+from shishi.push.directory import ChannelDirectory, ChannelEntry, DirectoryDiscoverUnsupported
+from shishi.push.mattermost import MattermostChannel
+from shishi.push.targets import RESOLVED_DIRECT, RESOLVED_DIRECTORY_PREFIX, ChannelTarget, resolve_target
 
 CONTEXT = SendContext(slot="am", date="2026-10-03", category="羊毛", kind="digest")
 CHANNEL_ID = "qzcdqfqsppycymfm7ochaprnwr"  # 26 位小写字母数字(蓝本 id 形态)

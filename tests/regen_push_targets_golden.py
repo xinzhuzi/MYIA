@@ -31,7 +31,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
-from myia.schema import load_category_file  # noqa: E402
+from shishi.schema import load_category_file  # noqa: E402
 
 GOLDEN_DIR = REPO / "tests" / "fixtures" / "push_targets_golden"
 GOLDEN_JSON = REPO / "tests" / "fixtures" / "push_targets_golden_before.json"

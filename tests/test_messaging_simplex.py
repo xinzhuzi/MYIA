@@ -24,13 +24,13 @@ from typing import Any
 
 import pytest
 
-import myia.push.simplex as simplex_module
-from myia.push import SendContext
-from myia.push.base import PushSendError
-from myia.push.delivery import classify_dead_error
-from myia.push.directory import ChannelDirectory, DirectoryDiscoverUnsupported
-from myia.push.simplex import SimplexChannel, send_command_text
-from myia.push.targets import RESOLVED_DIRECT, RESOLVED_DIRECTORY_NAME, ChannelTarget, resolve_target
+import shishi.push.simplex as simplex_module
+from shishi.push import SendContext
+from shishi.push.base import PushSendError
+from shishi.push.delivery import classify_dead_error
+from shishi.push.directory import ChannelDirectory, DirectoryDiscoverUnsupported
+from shishi.push.simplex import SimplexChannel, send_command_text
+from shishi.push.targets import RESOLVED_DIRECT, RESOLVED_DIRECTORY_NAME, ChannelTarget, resolve_target
 
 CONTEXT = SendContext(slot="am", date="2026-10-03", category="羊毛", kind="digest")
 
@@ -247,7 +247,7 @@ class TestErrorPaths:
         with pytest.raises(PushSendError) as excinfo:
             _run(channel.send([{"title": "t"}], CONTEXT))
         assert excinfo.value.code == "dependency_missing"
-        assert "myia[simplex]" in str(excinfo.value)  # 安装命令附文案
+        assert "shishi[simplex]" in str(excinfo.value)  # 安装命令附文案
         assert "simplex-chat 守护进程" in str(excinfo.value)
 
     def test_dependency_gate_direct_call(self, monkeypatch):
@@ -335,7 +335,7 @@ class TestDirectoryDiscovery:
 
 
 def _entry(chat_id: str, name: str):
-    from myia.push.directory import ChannelEntry
+    from shishi.push.directory import ChannelEntry
 
     return ChannelEntry(platform="simplex", chat_id=chat_id, name=name, type="group")
 
@@ -383,6 +383,6 @@ class TestAddressing:
 
 
 def _dm_entry(chat_id: str, name: str):
-    from myia.push.directory import ChannelEntry
+    from shishi.push.directory import ChannelEntry
 
     return ChannelEntry(platform="simplex", chat_id=chat_id, name=name, type="dm")

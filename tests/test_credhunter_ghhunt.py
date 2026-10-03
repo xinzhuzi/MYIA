@@ -258,7 +258,7 @@ class TestSpecValues:
 
     def test_sibling_modules_shared_with_adapter(self):
         """后加载的 ghhunt 经 canonical 名复用适配器的兄弟模块对象(生产接线顺序)。"""
-        from myia.cli import _import_plugin_adapter
+        from shishi.cli import _import_plugin_adapter
 
         adapter = _import_plugin_adapter(PLUGINS_DIR, "myia-credhunter")
         # 适配器先加载四子模块;随后 compile+exec 加载的 ghhunt 自举时复用之

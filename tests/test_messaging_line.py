@@ -22,11 +22,11 @@ from typing import Any
 import httpx
 import pytest
 
-from myia.push.base import PushSendError, SendContext
-from myia.push.delivery import classify_dead_error
-from myia.push.directory import ChannelDirectory, DirectoryDiscoverUnsupported
-from myia.push.line import LINE_MAX_BUBBLES, MESSAGE_LIMIT, LineChannel, split_bubbles
-from myia.push.targets import (
+from shishi.push.base import PushSendError, SendContext
+from shishi.push.delivery import classify_dead_error
+from shishi.push.directory import ChannelDirectory, DirectoryDiscoverUnsupported
+from shishi.push.line import LINE_MAX_BUBBLES, MESSAGE_LIMIT, LineChannel, split_bubbles
+from shishi.push.targets import (
     RESOLVED_DIRECT,
     RESOLVED_DIRECTORY_NAME,
     ChannelTarget,
@@ -191,7 +191,7 @@ class TestAddressing:
         assert (target.platform, target.chat_id) == ("line", USER_ID)
 
     def test_resolve_via_directory_name(self, tmp_path):
-        from myia.push.directory import ChannelEntry
+        from shishi.push.directory import ChannelEntry
 
         directory = ChannelDirectory(tmp_path)
         directory.merge_entries(

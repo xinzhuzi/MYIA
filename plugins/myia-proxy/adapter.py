@@ -26,7 +26,7 @@ endpoint,见本插件 README)。
 - ``fetch_failed``     全部源抓取失败(采集失败 → CLI 退 2)
 - ``no_alive_proxy``   抓到候选但测活零可用(采集失败 → CLI 退 2)
 
-失败码 → CLI 退出码的映射归 CLI 所有(``myia.cli.PROXY_FETCH_FAILURE_CODES``,
+失败码 → CLI 退出码的映射归 CLI 所有(``shishi.cli.PROXY_FETCH_FAILURE_CODES``,
 spec python/error-handling 的退出码契约);适配器只负责如实上报 code。
 
 铁律(security-baseline):适配器任何失败只影响 ``myia proxy`` 自身,

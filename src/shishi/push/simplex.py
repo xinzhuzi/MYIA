@@ -14,7 +14,7 @@ WS 帧 ``{"corrId": …, "cmd": "<命令>"}``、应答按 corrId 关联
   (``/contacts``/``/groups``,蓝本事实),照 feishu_card
   ``discover_directory`` 范式实装(本批唯一的发现实装)。
 - **依赖门(ocr.py 范式)**:WS 客户端库 ``websockets`` 是可选依赖(extras
-  ``myia[simplex]``),惰性 import——缺装时发送/发现抛
+  ``shishi[simplex]``),惰性 import——缺装时发送/发现抛
   ``dependency_missing`` 结构化错误并附安装命令,核心依赖红线不破;
   另需本机 ``simplex-chat`` 守护进程(``simplex-chat -p 5225`` 类服务模式)。
 - **分段**:守护进程对超长文本无硬限,蓝本按 8000 字符 sanity 切块
@@ -67,10 +67,10 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-#: WS 客户端库(extras ``myia[simplex]``;缺装 → dependency_missing)。
+#: WS 客户端库(extras ``shishi[simplex]``;缺装 → dependency_missing)。
 CLIENT_PACKAGE = "websockets"
 INSTALL_COMMAND = (
-    "pip install 'myia[simplex]'  # 或 uv add 'myia[simplex]';"
+    "pip install 'shishi[simplex]'  # 或 uv add 'shishi[simplex]';"
     "并需本机 simplex-chat 守护进程(服务模式,WS API)"
 )
 #: 守护进程 WS 地址引用(本机服务模式缺省端口,蓝本同款)。

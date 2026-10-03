@@ -35,13 +35,13 @@ from typing import Any
 import httpx
 import pytest
 
-from myia import schema
-from myia.cli import main
-from myia.engines.credhunter import import_credhunter_adapter
-from myia.engines.fetch_base import FetchContext
-from myia.engines.registry import AUTO_CHAIN, ENGINE_REGISTRY, auto_degrade, fetch_source
-from myia.schema import load_category
-from myia.store import SQLiteStore
+from shishi import schema
+from shishi.cli import main
+from shishi.engines.credhunter import import_credhunter_adapter
+from shishi.engines.fetch_base import FetchContext
+from shishi.engines.registry import AUTO_CHAIN, ENGINE_REGISTRY, auto_degrade, fetch_source
+from shishi.schema import load_category
+from shishi.store import SQLiteStore
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -235,7 +235,7 @@ class TestCredhuntLane:
         """github_tokens 配了引用但钥匙串没写 = 无可用 token(空态 + warning
         留痕),不是源失败——与 exposure lane 的降级口径一致(AC6)。零真实
         钥匙串:注入内存后端(未写该键)。"""
-        from myia.secrets import InMemoryKeychainBackend
+        from shishi.secrets import InMemoryKeychainBackend
 
         config = load_category(
             _category_data(
@@ -272,7 +272,7 @@ class TestCredhuntLane:
     ):
         """token 池语义(ghhunt.md §2):坏一个引用不废整池——解析失败的
         引用留 warning 后跳过,可解析的照常参与,引擎继续猎取而非空态。"""
-        from myia.secrets import InMemoryKeychainBackend
+        from shishi.secrets import InMemoryKeychainBackend
 
         backend = InMemoryKeychainBackend()
         backend.set_password("myia", "myia/credhunter/github-token", "gh-synthetic-token")
@@ -329,7 +329,7 @@ class TestExposureLane:
         """PRD P3 口径:引用配置了但钥匙串没写 = 源级结构化降级(显式空态
         + 可见 skip),不是源失败——配置错误由 warning 日志与 doctor 文案
         呈现,不静默也不拦品类。零真实钥匙串:注入内存后端(未写该键)。"""
-        from myia.secrets import InMemoryKeychainBackend
+        from shishi.secrets import InMemoryKeychainBackend
 
         config = load_category(
             _category_data(

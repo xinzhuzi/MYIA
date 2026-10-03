@@ -45,7 +45,7 @@ export interface VersionParams {}
 
 export interface VersionResult {
   name: string;
-  /** myia.__version__ */
+  /** shishi.__version__ */
   version: string;
   /** 协议版本(PROTOCOL_VERSION,当前 3) */
   protocol: number;
@@ -418,7 +418,7 @@ export interface StoreItemsParams {
   limit?: number;
 }
 
-/** OCR 逐行结果(myia.vision.ocr OcrLine 投影;conf 0-1,两引擎刻度不可互比) */
+/** OCR 逐行结果(shishi.vision.ocr OcrLine 投影;conf 0-1,两引擎刻度不可互比) */
 export interface ImageOcrLine {
   text: string;
   conf: number;
@@ -482,7 +482,7 @@ export interface FeedExportResult {
 }
 
 // feed.enrich(G8,10-03-fe-small-batch:单条情报卡 AI 摘要/精评,骑既有 enrich
-// 管线 myia.enrich.LLMEnricher 现跑;与 entry.py `_m_feed_enrich` 互指)
+// 管线 shishi.enrich.LLMEnricher 现跑;与 entry.py `_m_feed_enrich` 互指)
 export interface FeedEnrichParams {
   /** 条目引用:items.id(int)或 dedup_key/URL(str);同 resolve_item_ref
    *  (feedback.mark 口径) */
@@ -605,7 +605,7 @@ export interface TestCompletedEvent {
 
 // ---------------------------------------------------------------------------
 // feedback.*(B2,10-03-v112-desktop-parity:桌面反馈入口;与 CLI myia feedback
-// 同门直调 myia.feedback —— channel="desktop" 落库,CLI list 无过滤即见,
+// 同门直调 shishi.feedback —— channel="desktop" 落库,CLI list 无过滤即见,
 // 往返一致;载荷键逐一对齐 cli.py `_feedback_row_dict` / stats 报文)
 // ---------------------------------------------------------------------------
 
@@ -955,7 +955,7 @@ export interface ImageModelsProgressEvent {
 }
 
 /** 模型下载终态事件:ok=false 时 error = 结构化 code(disk_insufficient /
- *  hf_unavailable / 网络失败族等;见 myia.vision.models 错误码表)。 */
+ *  hf_unavailable / 网络失败族等;见 shishi.vision.models 错误码表)。 */
 export interface ImageModelsCompletedEvent {
   type: "image.models.completed";
   job_id: number;
@@ -966,7 +966,7 @@ export interface ImageModelsCompletedEvent {
 
 /** 本地 server ensure 终态事件(entry.py `_image_server_ensure_worker`;
  *  image.server.ensure 慢路径应答后的收口)。ok=true 时 status =
- * status+{started} 全量;ok=false 时 error = myia.vision.server 错误族
+ * status+{started} 全量;ok=false 时 error = shishi.vision.server 错误族
  * code(no_local_model / spawn_failed / server_start_failed 等)。 */
 export interface ImageServerCompletedEvent {
   type: "image.server.completed";

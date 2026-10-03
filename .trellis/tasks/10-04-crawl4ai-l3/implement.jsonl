@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/python/index.md", "reason": "核心依赖红线(crawl4ai 已在 extras)、惰性导入惯例、新模块/行为登记约定"}
+{"file": ".trellis/spec/guides/index.md", "reason": "Cross-Layer Thinking Guide:改引擎链语义+文档双件,层联动"}
+{"file": ".trellis/spec/domain/yaml-schema.md", "reason": "engine_options 文档补全须与品类 YAML 12 节硬规则同门;engine 键现状(schema.md:85)"}
+{"file": ".trellis/spec/python/error-handling.md", "reason": "探测失败回滚的结构化错误语义与既有 EngineFailure 契约对齐"}
+{"file": ".trellis/tasks/archive/2026-10/10-03-v12-crawl4ai-l3/prd.md", "reason": "前档权威:L3 实装验收面与真跑诚实边界(:91-93),本任务承接其未竟项,勿重做已完成件"}

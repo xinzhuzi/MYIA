@@ -24,12 +24,12 @@ from typing import Any
 
 import pytest
 
-import myia.push.irc as irc_module
-from myia.push import SendContext
-from myia.push.base import PushSendError
-from myia.push.delivery import classify_dead_error
-from myia.push.directory import ChannelDirectory, ChannelEntry, DirectoryDiscoverUnsupported
-from myia.push.irc import (
+import shishi.push.irc as irc_module
+from shishi.push import SendContext
+from shishi.push.base import PushSendError
+from shishi.push.delivery import classify_dead_error
+from shishi.push.directory import ChannelDirectory, ChannelEntry, DirectoryDiscoverUnsupported
+from shishi.push.irc import (
     IrcChannel,
     chunk_paragraph,
     parse_irc_line,
@@ -37,7 +37,7 @@ from myia.push.irc import (
     strip_control_chars,
     strip_markdown,
 )
-from myia.push.targets import RESOLVED_DIRECT, RESOLVED_DIRECTORY_NAME, ChannelTarget, resolve_target
+from shishi.push.targets import RESOLVED_DIRECT, RESOLVED_DIRECTORY_NAME, ChannelTarget, resolve_target
 
 CONTEXT = SendContext(slot="am", date="2026-10-03", category="羊毛", kind="digest")
 

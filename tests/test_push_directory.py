@@ -1,4 +1,4 @@
-"""Tests for myia.push.directory — 通道目录(蓝本移植自 Hermes channel_directory).
+"""Tests for shishi.push.directory — 通道目录(蓝本移植自 Hermes channel_directory).
 
 覆盖任务 10-03-messaging-core 步骤 1:空态 / 别名覆盖(load 与 replace 双向)/
 重建后别名仍在(Hermes 回归点)/ 损坏 JSON 容错 / tmp+rename 原子写 /
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from myia.push.directory import (
+from shishi.push.directory import (
     ALIASES_FILENAME,
     DIRECTORY_FILENAME,
     ChannelDirectory,
@@ -178,7 +178,7 @@ class TestAtomicWrite:
         target = data_root / DIRECTORY_FILENAME
         old_bytes = target.read_bytes()
 
-        import myia.push.directory as directory_module
+        import shishi.push.directory as directory_module
 
         def exploding_write(*args, **kwargs):
             raise OSError("disk full")

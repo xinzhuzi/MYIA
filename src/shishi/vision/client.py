@@ -39,7 +39,7 @@ __all__ = [
     "VisionResult",
 ]
 
-INSTALL_COMMAND = "pip install 'myia[vision]'  # 或 uv add 'myia[vision]'"
+INSTALL_COMMAND = "pip install 'shishi[vision]'  # 或 uv add 'shishi[vision]'"
 #: VL 输入长边上限(超过先 sips 等比压缩再 base64)。
 MAX_LONG_EDGE = 2048
 #: 本地通道占位 key:OpenAI SDK 构造要求非空 api_key;占位后以 default_headers 剥离鉴权头。

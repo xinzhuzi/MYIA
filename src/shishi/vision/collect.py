@@ -66,7 +66,7 @@ png/jpg/webp/gif 魔法字节白名单;流式 10MB 截断。图文件落条目�
 处理完即弃,绝不持久化。
 
 依赖红线:OCR/VL 重依赖全部惰性(ocrmac / rapidocr-onnxruntime / openai,
-extras ``myia[vision]``)——本模块 import 零重依赖,未装 extras 时 OCR 走
+extras ``shishi[vision]``)——本模块 import 零重依赖,未装 extras 时 OCR 走
 ``ocr_failed`` 降级,不炸管线。VL 通道与端点配置复用 ``vision.yaml``
 (:class:`shishi.vision.settings.VisionConfig`);token 用量经
 ``BudgetTracker.can_spend/spend``(与 enrich/aggregate 同一共享池,token

@@ -28,10 +28,10 @@ from pathlib import Path
 
 import pytest
 
-from myia.classify import rules_from_config
-from myia.push.route import resolve_route, routes_from_config
-from myia.push.base import SendContext
-from myia.push.templates import (
+from shishi.classify import rules_from_config
+from shishi.push.route import resolve_route, routes_from_config
+from shishi.push.base import SendContext
+from shishi.push.templates import (
     KeywordTrend,
     MetricComparison,
     TemplateRenderer,
@@ -44,7 +44,7 @@ from myia.push.templates import (
     record_item_metrics,
     record_keyword_mentions,
 )
-from myia.schema import (
+from shishi.schema import (
     BASELINE_WINDOWS,
     BaselineConfig,
     CategoryConfig,
@@ -52,7 +52,7 @@ from myia.schema import (
     load_category,
     load_category_file,
 )
-from myia.store import (
+from shishi.store import (
     SCHEMA_VERSION,
     ItemRecord,
     SQLiteStore,
@@ -785,14 +785,14 @@ def test_pipeline_run_feeds_trend_context_into_rendered_card(tmp_path, monkeypat
     """
     import io
 
-    from myia.pipeline import Pipeline
+    from shishi.pipeline import Pipeline
     from conftest import FakeClock  # noqa: F401  (make_pipeline 语义);裸 pytest 下 tests/ 由 prepend 模式入 sys.path
 
     # 1) 配置:直接构造 CategoryConfig 并手工挂 baseline sidecar(与
     #    load_category 挂载语义一致),含 watchlist 关键词与 MSRP 对照。
     from datetime import datetime, timezone
 
-    from myia.schema import load_category
+    from shishi.schema import load_category
 
     config = load_category(
         {
@@ -890,7 +890,7 @@ def asyncio_run(coro):
 def test_cleanup_respects_declared_window_over_short_retention(db_store):
     """retention: 3d + windows: [week]:metric_history 保 15 天(2×7+1),
     不再被 2×retention=6 天清空 —— 周中后段的 vs 上周不再结构性失效。"""
-    from myia.schema import load_category
+    from shishi.schema import load_category
 
     config = load_category(
         {
@@ -910,7 +910,7 @@ def test_cleanup_respects_declared_window_over_short_retention(db_store):
             "baseline": {"enabled": True, "fields": ["price"], "windows": ["week"]},
         }
     )
-    from myia.pipeline import Pipeline
+    from shishi.pipeline import Pipeline
 
     pipeline = Pipeline(config, store=db_store)
     metrics_days = pipeline._metrics_retention_days(3)
@@ -934,7 +934,7 @@ def test_cleanup_respects_declared_window_over_short_retention(db_store):
 def test_baseline_fields_typo_rejected_at_load_time():
     """baseline.fields 拼错(prce)装载即拒:静默零快照的漂移在加载期可检出
     (与 dedup.key 占位符校验同一 fail-fast 先例)。"""
-    from myia.schema import load_category
+    from shishi.schema import load_category
 
     data = {
         "id": "typo",
@@ -959,7 +959,7 @@ def test_baseline_fields_typo_rejected_at_load_time():
 def test_official_gpu_prices_plugin_baseline_fields_resolve():
     """官方插件是趋势基线的旗舰样例:其 baseline.fields 必须真的可由源产出
     (抽取层已把 '¥19800' 类文本规整为数值,见 test_fetch_base 数值规整)。"""
-    from myia.schema import load_category_file
+    from shishi.schema import load_category_file
 
     config = load_category_file(GPU_PRICES)
     assert config.baseline is not None and config.baseline.enabled

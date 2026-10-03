@@ -18,9 +18,9 @@ from dataclasses import replace
 import httpx
 import pytest
 
-from myia.push import FeishuCardChannel, PushSendError, SendContext
-from myia.push.directory import ChannelDirectory, ChannelEntry
-from myia.push.targets import ChannelTarget, resolve_target
+from shishi.push import FeishuCardChannel, PushSendError, SendContext
+from shishi.push.directory import ChannelDirectory, ChannelEntry
+from shishi.push.targets import ChannelTarget, resolve_target
 
 
 def _capture_client(capture: dict) -> httpx.AsyncClient:

@@ -29,12 +29,12 @@ from typing import Any
 import httpx
 import pytest
 
-import myia.vision.collect as collect
-from myia.enrich.scoring import BudgetTracker
-from myia.schema import ImagesConfig, load_category
-from myia.vision.client import VisionResult
-from myia.vision.ocr import OcrLine
-from myia.vision.settings import VisionConfig
+import shishi.vision.collect as collect
+from shishi.enrich.scoring import BudgetTracker
+from shishi.schema import ImagesConfig, load_category
+from shishi.vision.client import VisionResult
+from shishi.vision.ocr import OcrLine
+from shishi.vision.settings import VisionConfig
 
 PUBLIC_IPS = ["93.184.216.34"]
 PNG_HEAD = b"\x89PNG\r\n\x1a\n"
@@ -281,7 +281,7 @@ class TestDegradationMatrix:
         assert status == "none"
 
     def test_ocr_engine_failure_marks_ocr_failed(self, monkeypatch):
-        from myia.vision.ocr import OCRError
+        from shishi.vision.ocr import OCRError
 
         fake_ocr(monkeypatch, error=OCRError("dependency_missing", "ocrmac 未安装"))
         item = Item()
@@ -556,7 +556,7 @@ class TestVlCloudChannel:
 
     def test_cloud_explicit_ref_resolve_failure_degrades(self, monkeypatch):
         """显式引用解析失败(配置坏了)→ 降级只 OCR,不静默回落、不阻管线。"""
-        from myia.schema import CredentialResolveError
+        from shishi.schema import CredentialResolveError
 
         fake_ocr(monkeypatch)
 
@@ -673,8 +673,8 @@ class TestPipelineHook:
         return httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=False)
 
     def test_fetch_tail_ring_products_reach_item_metadata(self, monkeypatch, tmp_path):
-        from myia.pipeline import Pipeline
-        from myia.store import SQLiteStore
+        from shishi.pipeline import Pipeline
+        from shishi.store import SQLiteStore
 
         fake_ocr(monkeypatch)
         client = self._client()
@@ -692,8 +692,8 @@ class TestPipelineHook:
         assert items[0].metadata.get("image_status") == "ok"
 
     def test_category_without_images_section_is_zero_impact(self, monkeypatch, tmp_path):
-        from myia.pipeline import Pipeline
-        from myia.store import SQLiteStore
+        from shishi.pipeline import Pipeline
+        from shishi.store import SQLiteStore
 
         fake_ocr(monkeypatch)  # 若环误进,OCR 桩会写 image_ocr —— 断言它没有
         client = self._client()
@@ -973,7 +973,7 @@ class TestDetailFetch:
         不再被静默关闭。"""
         item = Item(url="https://example.com/t/1")
         client = serve({"/t/1": '<img src="/a.png">'})
-        with caplog.at_level(logging.WARNING, logger="myia.vision.collect"):
+        with caplog.at_level(logging.WARNING, logger="shishi.vision.collect"):
             status = run(collect.detail_fetch_images(
                 item,
                 images_cfg=self.cfg(detail_fetch=False),
@@ -1006,7 +1006,7 @@ class TestDetailFetch:
     def test_detail_request_headers_assembly_shapes(self, monkeypatch):
         """装配面:空头补引擎缺省 UA;自定义 UA 原样;env: 凭据引用真解析;
         凭据解析失败裸头降级(只告警不抛)。"""
-        from myia.engines.fetch_base import DEFAULT_USER_AGENT
+        from shishi.engines.fetch_base import DEFAULT_USER_AGENT
 
         assert collect.detail_request_headers(None) == {"User-Agent": DEFAULT_USER_AGENT}
         assert collect.detail_request_headers({"User-Agent": "UA/1"}) == {"User-Agent": "UA/1"}
@@ -1168,10 +1168,10 @@ images:
     def test_pool_source_ring_and_detail_ride_pool_client(self, monkeypatch, tmp_path):
         """管线环级:pool 源条目的 detail 追抓与识图环都骑该池共享代理 client,
         proxy_url 传抵 collect 层;direct 源条目走环的共享 client、零 proxy。"""
-        import myia.pipeline as pipeline_module
-        from myia.engines.fetch_base import DEFAULT_USER_AGENT, ProxyPools
-        from myia.pipeline import Item, Pipeline
-        from myia.store import SQLiteStore
+        import shishi.pipeline as pipeline_module
+        from shishi.engines.fetch_base import DEFAULT_USER_AGENT, ProxyPools
+        from shishi.pipeline import Item, Pipeline
+        from shishi.store import SQLiteStore
 
         config = load_category(_yaml_to_dict(self.CATEGORY_POOL_SOURCE))
         store = SQLiteStore(tmp_path / "pool.db")
@@ -1364,8 +1364,8 @@ class TestPipelineDetailHook:
     def test_detail_chain_end_to_end(self, monkeypatch, tmp_path):
         """AC2/AC3 fixture 版:无图列表 → 条目一经 detail 链出 image_ocr;
         失败页 detail_status 落标记且条目照常入库;配额截断第三条零进入。"""
-        from myia.pipeline import Pipeline
-        from myia.store import SQLiteStore
+        from shishi.pipeline import Pipeline
+        from shishi.store import SQLiteStore
 
         fake_ocr(monkeypatch)
         monkeypatch.setattr(collect, "DETAIL_FETCH_INTERVAL_SECONDS", 0.0)
@@ -1402,8 +1402,8 @@ class TestPipelineDetailHook:
         """复查②管线级:源 ``headers`` 配的 UA 随 detail 追抓请求出网(引擎链
         同一装配语义),不再是裸 httpx 默认 UA;列表抓取同 UA(既有引擎语义),
         图片下载不在本契约面(不注入源头)。"""
-        from myia.pipeline import Pipeline
-        from myia.store import SQLiteStore
+        from shishi.pipeline import Pipeline
+        from shishi.store import SQLiteStore
 
         fake_ocr(monkeypatch)
         monkeypatch.setattr(collect, "DETAIL_FETCH_INTERVAL_SECONDS", 0.0)
@@ -1533,7 +1533,7 @@ class TestPersistImages:
         item = Item()
         item.metadata["image"] = "https://example.com/pic.png"
         client = serve({"/pic.png": png_bytes()})
-        with caplog.at_level(logging.WARNING, logger="myia.vision.collect"):
+        with caplog.at_level(logging.WARNING, logger="shishi.vision.collect"):
             status = run(collect.process_item_images(
                 item, images_cfg=self.cfg(persist=True), vision_cfg=VisionConfig(),
                 client=client, images_dir=None,

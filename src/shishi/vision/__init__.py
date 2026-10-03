@@ -5,7 +5,7 @@
 实现名,两层不冲突,勿再发明第三种前缀。
 
 全部重依赖惰性 import(ocrmac / rapidocr-onnxruntime / openai,extras
-``myia[vision]``)—— 核心流水线零重依赖红线不破;未装 extras 时结构化报错
+``shishi[vision]``)—— 核心流水线零重依赖红线不破;未装 extras 时结构化报错
 并附安装命令。测试注入假引擎模块与假 AsyncOpenAI,零外网。
 """
 

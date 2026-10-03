@@ -10,7 +10,7 @@
 
 - ``send()`` 立即抛 ``PushSendError("dependency_missing", …)`` 并附安装
   命令(vision/ocr.py ``dependency_missing`` 同款范式):装 extras
-  (``myia[signal]``,集成步在 pyproject 定义) + 部署 signal-cli 守护进程;
+  (``shishi[signal]``,集成步在 pyproject 定义) + 部署 signal-cli 守护进程;
   依赖门先于凭据解析(装不出的通道没有解析凭据的意义);
 - 寻址面照常接线,extras 落地即可用:``supports_targeting=True``、
   ``context.target`` 优先 / legacy ``target`` 引用、直达解析 ``+手机号``
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 #: extras 安装命令(集成步在 pyproject 定义 ``signal`` extras 组)+ 守护进程指引。
 INSTALL_COMMAND = (
-    "pip install 'myia[signal]'  # 或 uv add 'myia[signal]';"
+    "pip install 'shishi[signal]'  # 或 uv add 'shishi[signal]';"
     "并需部署 signal-cli 守护进程(signal-cli daemon --http 模式,"
     "https://github.com/AsamK/signal-cli)"
 )

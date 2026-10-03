@@ -45,7 +45,7 @@ function healthOf(pluginIds: { id: string | null; name: string | null }[]): Heal
 }
 
 beforeEach(() => {
-  mocks.version.mockResolvedValue({ name: "myia", version: "1.1.1", protocol: 3 });
+  mocks.version.mockResolvedValue({ name: "shishi", version: "1.1.1", protocol: 3 });
   mocks.listen.mockResolvedValue(() => undefined);
   mocks.invoke.mockResolvedValue({ restarted: true });
   // Radix Select 高亮滚动 jsdom 未实现,补 stub(真实浏览器原生)

@@ -27,22 +27,22 @@ import httpx
 import pytest
 import yaml
 
-import myia.cli as cli_module
-from myia.cli import EXIT_CONFIG_ERROR, EXIT_OK, main
-from myia.pipeline import ChannelPushReport, RunResult, StageReport
-from myia.plugins import (
+import shishi.cli as cli_module
+from shishi.cli import EXIT_CONFIG_ERROR, EXIT_OK, main
+from shishi.pipeline import ChannelPushReport, RunResult, StageReport
+from shishi.plugins import (
     PluginStoreError,
     VersionRange,
     VersionSpecError,
     check_category_plugin,
     check_remote_modes,
 )
-from myia.plugins.installed import InstalledPluginStore, PluginFinding
-from myia.plugins.manifest import load_manifest, load_manifest_file
-from myia.schema import LoadError, load_category, load_category_file
-from myia.secrets import InMemoryKeychainBackend
-from myia.secrets import reset_backend as reset_keychain_backend
-from myia.secrets import set_backend as set_keychain_backend
+from shishi.plugins.installed import InstalledPluginStore, PluginFinding
+from shishi.plugins.manifest import load_manifest, load_manifest_file
+from shishi.schema import LoadError, load_category, load_category_file
+from shishi.secrets import InMemoryKeychainBackend
+from shishi.secrets import reset_backend as reset_keychain_backend
+from shishi.secrets import set_backend as set_keychain_backend
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 

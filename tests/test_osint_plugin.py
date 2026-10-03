@@ -30,7 +30,7 @@ from typing import Any
 
 import pytest
 
-from myia.cli import (
+from shishi.cli import (
     EXIT_CONFIG_ERROR,
     EXIT_FETCH_ALL_FAILED,
     EXIT_OK,
@@ -38,9 +38,9 @@ from myia.cli import (
     _import_osint_adapter,
     main,
 )
-from myia.pipeline import Pipeline
-from myia.plugins.manifest import load_manifest, load_manifest_file
-from myia.schema import LoadError, load_category_file
+from shishi.pipeline import Pipeline
+from shishi.plugins.manifest import load_manifest, load_manifest_file
+from shishi.schema import LoadError, load_category_file
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PLUGINS_DIR = REPO_ROOT / "plugins"

@@ -18,15 +18,15 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from myia.push import PushSendError, SendContext, TelegramChannel, send_immediate
-from myia.push.base import ItemImages, clip_text, item_images
-from myia.push.feishu_card import (
+from shishi.push import PushSendError, SendContext, TelegramChannel, send_immediate
+from shishi.push.base import ItemImages, clip_text, item_images
+from shishi.push.feishu_card import (
     CAPTION_EXCERPT_CHARS,
     IMAGES_API_URL,
     FeishuCardChannel,
     build_card,
 )
-from myia.push.telegram import CAPTION_LIMIT, build_photo_caption
+from shishi.push.telegram import CAPTION_LIMIT, build_photo_caption
 
 TIMEZONE = timezone(timedelta(hours=8))
 DIGEST_CONTEXT = SendContext(slot="am", date="2026-10-03", category="羊毛", kind="digest")

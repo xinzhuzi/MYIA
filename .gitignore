@@ -24,8 +24,9 @@ myia.db
 *.db-shm
 data/
 # 例外:随包分发的程序数据(prompt/关键词表)不是抓取数据,必须入库与进 wheel
-!src/myia/classify/data/
-!src/myia/enrich/data/
+# (classify 词表已随 10-01-v10-classifier-pypi 拆去 myia-classifier 包,例外同步删;
+#  模块改名后路径须跟 src/shishi,否则 hatchling 按 gitignore 吞数据文件进不了 wheel)
+!src/shishi/enrich/data/
 !myia-classifier/myia_classifier/data/
 # credhunter 指纹库数据(20 发现查询包 + 25 验证规格)同上:程序数据非抓取
 # 产物,fresh clone/CI 缺它即三 lane 启动全坏(10-03-aipocket-fusion R3)。

@@ -1,4 +1,4 @@
-"""Tests for myia.push.delivery — 定向派发 + 死信账本(蓝本移植自 Hermes
+"""Tests for shishi.push.delivery — 定向派发 + 死信账本(蓝本移植自 Hermes
 gateway/delivery.py + dead_targets.py + platforms/base.py 分类表)。
 
 覆盖任务 10-03-messaging-core 步骤 5:fake 通道注入派发循环、空 specs 短路、
@@ -15,16 +15,16 @@ from pathlib import Path
 
 import pytest
 
-from myia.push.base import PushSendError, SendContext
-from myia.push.delivery import (
+from shishi.push.base import PushSendError, SendContext
+from shishi.push.delivery import (
     LEDGER_FILENAME,
     DeliveryLedger,
     classify_dead_error,
     is_chat_level_not_found,
     send_batch_to_targets,
 )
-from myia.push.directory import ChannelDirectory, ChannelEntry
-from myia.push.targets import ChannelTarget
+from shishi.push.directory import ChannelDirectory, ChannelEntry
+from shishi.push.targets import ChannelTarget
 
 
 class FakeTargetingChannel:
@@ -509,7 +509,7 @@ class TestSendBatchToTargets:
         ledger.mark_dead(platform="fake", chat_id="c1", reason="forbidden: x")
         channel = FakeTargetingChannel()
 
-        with caplog.at_level(logging.INFO, logger="myia.push.delivery"):
+        with caplog.at_level(logging.INFO, logger="shishi.push.delivery"):
             reports = _run(
                 send_batch_to_targets(
                     [{"title": "t"}],

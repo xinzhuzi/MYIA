@@ -20,12 +20,12 @@ from typing import Any
 
 import pytest
 
-from myia.push import SendContext
-from myia.push.base import Channel, PushSendError, TrendAwareChannel
-from myia.push.delivery import classify_dead_error
-from myia.push.directory import ChannelDirectory, DirectoryDiscoverUnsupported
-from myia.push.signal import INSTALL_COMMAND, SignalChannel
-from myia.push.targets import RESOLVED_DIRECT, RESOLVED_DIRECTORY_NAME, ChannelTarget, resolve_target
+from shishi.push import SendContext
+from shishi.push.base import Channel, PushSendError, TrendAwareChannel
+from shishi.push.delivery import classify_dead_error
+from shishi.push.directory import ChannelDirectory, DirectoryDiscoverUnsupported
+from shishi.push.signal import INSTALL_COMMAND, SignalChannel
+from shishi.push.targets import RESOLVED_DIRECT, RESOLVED_DIRECTORY_NAME, ChannelTarget, resolve_target
 
 CONTEXT = SendContext(slot="am", date="2026-10-03", category="羊毛", kind="digest")
 
@@ -62,7 +62,7 @@ class TestExtrasShell:
         with pytest.raises(PushSendError) as excinfo:
             _run(channel.send([{"title": "t"}], CONTEXT))
         message = str(excinfo.value)
-        assert "pip install 'myia[signal]'" in message  # 安装命令(vision/ocr.py 范式)
+        assert "pip install 'shishi[signal]'" in message  # 安装命令(vision/ocr.py 范式)
         assert "signal-cli" in message  # 守护进程指引
 
     def test_dependency_error_is_not_dead_letter(self):
@@ -114,7 +114,7 @@ class TestAddressing:
         assert (target.chat_id, target.resolved_from) == ("+8613800138000", RESOLVED_DIRECT)
 
     def test_resolve_via_directory_name(self, tmp_path):
-        from myia.push.directory import ChannelEntry
+        from shishi.push.directory import ChannelEntry
 
         directory = ChannelDirectory(tmp_path)
         directory.replace_platform(

@@ -23,11 +23,11 @@ from typing import Any
 import httpx
 import pytest
 
-from myia.push.base import PushSendError, SendContext
-from myia.push.delivery import classify_dead_error
-from myia.push.directory import ChannelDirectory, DirectoryDiscoverUnsupported
-from myia.push.google_chat import MESSAGE_LIMIT, GoogleChatChannel
-from myia.push.targets import (
+from shishi.push.base import PushSendError, SendContext
+from shishi.push.delivery import classify_dead_error
+from shishi.push.directory import ChannelDirectory, DirectoryDiscoverUnsupported
+from shishi.push.google_chat import MESSAGE_LIMIT, GoogleChatChannel
+from shishi.push.targets import (
     RESOLVED_DIRECT,
     RESOLVED_DIRECTORY_NAME,
     ChannelTarget,
@@ -187,7 +187,7 @@ class TestAddressing:
 
     def test_resolve_via_directory_name(self, tmp_path):
         """别名登记:人类名 → chat_id(完整 webhook URL)。"""
-        from myia.push.directory import ChannelEntry
+        from shishi.push.directory import ChannelEntry
 
         directory = ChannelDirectory(tmp_path)
         directory.merge_entries(

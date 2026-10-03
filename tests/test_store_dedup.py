@@ -15,8 +15,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from myia.dedup import DedupRegistry
-from myia.store import (
+from shishi.dedup import DedupRegistry
+from shishi.store import (
     PUSH_SLOTS,
     SLOT_AM,
     SLOT_PM,

@@ -23,12 +23,12 @@ from typing import Any
 import httpx
 import pytest
 
-from myia.push import SendContext
-from myia.push.base import PushSendError
-from myia.push.delivery import classify_dead_error
-from myia.push.directory import ChannelDirectory, DirectoryDiscoverUnsupported
-from myia.push.matrix import MatrixChannel
-from myia.push.targets import RESOLVED_DIRECT, RESOLVED_DIRECTORY_PREFIX, ChannelTarget, resolve_target
+from shishi.push import SendContext
+from shishi.push.base import PushSendError
+from shishi.push.delivery import classify_dead_error
+from shishi.push.directory import ChannelDirectory, DirectoryDiscoverUnsupported
+from shishi.push.matrix import MatrixChannel
+from shishi.push.targets import RESOLVED_DIRECT, RESOLVED_DIRECTORY_PREFIX, ChannelTarget, resolve_target
 
 CONTEXT = SendContext(slot="am", date="2026-10-03", category="羊毛", kind="digest")
 ROOM_ID = "!AbCdEf123:matrix.example.com"
@@ -237,7 +237,7 @@ class TestAddressing:
 
 
 def _entry(chat_id: str, name: str):
-    from myia.push.directory import ChannelEntry
+    from shishi.push.directory import ChannelEntry
 
     return ChannelEntry(platform="matrix", chat_id=chat_id, name=name, type="group")
 

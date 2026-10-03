@@ -10,7 +10,7 @@ extras 并结构化报错,不进核心」,本模块是**extras 壳**:
 
 - ``send()`` 立即抛 ``PushSendError("dependency_missing", …)`` 并附安装
   命令(vision/ocr.py ``dependency_missing`` 同款范式):装 extras
-  (``myia[bluebubbles]``,集成步在 pyproject 定义)+ 部署 BlueBubbles
+  (``shishi[bluebubbles]``,集成步在 pyproject 定义)+ 部署 BlueBubbles
   服务端;依赖门先于凭据解析(装不出的通道没有解析凭据的意义);
 - 寻址面照常接线,extras 落地即可用:``supports_targeting=True``、
   ``context.target`` 优先 / legacy ``target`` 引用、直达解析
@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 #: extras 安装命令(集成步在 pyproject 定义 ``bluebubbles`` extras 组)+
 #: 服务端指引。
 INSTALL_COMMAND = (
-    "pip install 'myia[bluebubbles]'  # 或 uv add 'myia[bluebubbles]';"
+    "pip install 'shishi[bluebubbles]'  # 或 uv add 'shishi[bluebubbles]';"
     "并需部署 BlueBubbles 服务端(https://bluebubbles.app,常驻 macOS)"
 )
 #: legacy target 引用(chat GUID 或手机号;群/邮箱走目录别名登记)。

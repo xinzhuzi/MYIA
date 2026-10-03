@@ -11,7 +11,7 @@
 # (不入 git、不外发,items 一律前 8 后 4 掩码)。
 #
 # 市场插件包 = 一个目录:plugin.yaml(manifest 规范见
-# src/myia/plugins/manifest.py)+ README + adapter.py(进程内适配器,
+# src/shishi/plugins/manifest.py)+ README + adapter.py(进程内适配器,
 # 供应商指纹库为插件内数据文件,加供应商=加数据不改码)。
 # 核心仓库只装声明与文档,装不上不拦核心流水线(铁律)。
 id: myia-credhunter

@@ -1,4 +1,4 @@
-"""Tests for myia.enrich — LLM 精评:批量 / 缓存 / 预算护栏 / mute 降权.
+"""Tests for shishi.enrich — LLM 精评:批量 / 缓存 / 预算护栏 / mute 降权.
 
 Covers PRD 10-01-v02-enrich-llm acceptance criteria, all on **mock LLM**
 (零真实网络、零真实 key):
@@ -32,7 +32,7 @@ import httpx
 import pytest
 from conftest import run
 
-from myia.enrich import (
+from shishi.enrich import (
     IMAGE_CAPTION_SNIPPET_CHARS,
     IMAGE_OCR_SNIPPET_CHARS,
     EnrichConfigError,
@@ -40,18 +40,18 @@ from myia.enrich import (
     EnrichSettings,
     LLMEnricher,
 )
-from myia.enrich.client import CompletionResult
-from myia.enrich.prompt import load_prompt
-from myia.enrich.scoring import (
+from shishi.enrich.client import CompletionResult
+from shishi.enrich.prompt import load_prompt
+from shishi.enrich.scoring import (
     BudgetTracker,
     ScoreParseError,
     composite_score,
     mute_hit,
     parse_score_payload,
 )
-from myia.pipeline import Pipeline
-from myia.schema import EnrichConfig, WatchlistConfig, load_category
-from myia.store import SCHEMA_VERSION, SQLiteStore
+from shishi.pipeline import Pipeline
+from shishi.schema import EnrichConfig, WatchlistConfig, load_category
+from shishi.store import SCHEMA_VERSION, SQLiteStore
 
 BASE_URL = "https://llm.test.local/v1"
 API_KEY = "test-key-not-real"
@@ -204,13 +204,13 @@ class TestEndpointSettings:
         # sys.modules 注入 None → import 必然 ImportError(不依赖环境是否装了 openai);
         # openai 在首次 complete() 时才被惰性加载(核心零重依赖)。
         monkeypatch.setitem(__import__("sys").modules, "openai", None)
-        from myia.enrich.client import OpenAICompatClient
+        from shishi.enrich.client import OpenAICompatClient
 
         client = OpenAICompatClient(BASE_URL, API_KEY)
         with pytest.raises(EnrichConfigError) as excinfo:
             run(client.complete(model="m", system="s", user="u"))
         assert excinfo.value.code == "dependency_missing"
-        assert "myia[llm]" in str(excinfo.value)
+        assert "shishi[llm]" in str(excinfo.value)
 
     def test_enricher_constructs_without_openai(self, endpoint_env):
         # 懒加载契约(v1.1 low #16):缺依赖不是构造期失败——无注入 client
@@ -445,7 +445,7 @@ class TestLLMEnricher:
         ]
         client.responses = [score_response([entries[0]]), score_response([entries[1]])]
 
-        with caplog.at_level(logging.WARNING, logger="myia.enrich"):
+        with caplog.at_level(logging.WARNING, logger="shishi.enrich"):
             outcome = run(enricher.enrich(items, watchlist=WatchlistConfig(), store=store))
 
         assert outcome.degraded is True
@@ -519,7 +519,7 @@ class TestLLMEnricher:
         assert items[0].scores is None
 
     def test_enrich_backfills_store_cache_and_items_table(self, store):
-        from myia.store import ItemRecord
+        from shishi.store import ItemRecord
 
         # 为 items 表准备两行(dedup 阶段的持久化形态)
         for url in self.URLS:
@@ -614,7 +614,7 @@ class TestStoreEnrichCache:
         assert store.get_enrich_cache("https://b", "m", "k") is not None
 
     def test_update_item_scores_backfills_items_table(self, store):
-        from myia.store import ItemRecord
+        from shishi.store import ItemRecord
 
         item_id = store.save_item(ItemRecord(url="https://a", dedup_key="k1", title="t"))
         assert store.update_item_scores("k1", {"value": 8, "score": 8.0}) is True
@@ -876,7 +876,7 @@ class TestEnrichWiring:
         """回归:缓存命中也必须回填 items 表——dated dedup key 轮换/断点续跑
         会产生新插入的行,只回内存会让该行 scores 恒 NULL(PRD「score 回填
         items 表」在官方推荐 dated key 配置下确定性落空)。"""
-        from myia.store import ItemRecord
+        from shishi.store import ItemRecord
 
         url = self.URLS[0]
         store.save_item(ItemRecord(url=url, dedup_key="key-first", title="t"))
@@ -1011,7 +1011,7 @@ class TestRenderBatchImageFields:
         from pathlib import Path
 
         data = _json.loads(
-            (Path(__file__).resolve().parents[1] / "src" / "myia" / "enrich" / "data" / "prompt.json")
+            (Path(__file__).resolve().parents[1] / "src" / "shishi" / "enrich" / "data" / "prompt.json")
             .read_text(encoding="utf-8")
         )
         assert data["version"] == 2, "图析键进 payload 必须伴随 version bump(缓存指纹)"

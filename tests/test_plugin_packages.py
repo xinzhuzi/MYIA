@@ -3,7 +3,7 @@
 接入线增 myia-credhunter).
 
 七个 ``plugins/<id>/`` 目录是市场插件包:每包含 ``plugin.yaml``(manifest,
-规范见 :mod:`myia.plugins.manifest`)+ README + 桌面路径声明。三条被钉住的
+规范见 :mod:`shishi.plugins.manifest`)+ README + 桌面路径声明。三条被钉住的
 契约:
 
 1. 各件 manifest 全部过真实校验入口 :func:`load_manifest_file`:id==目录名、
@@ -33,15 +33,15 @@ import httpx
 import pytest
 import yaml
 
-from myia import __version__ as myia_version
-from myia.pipeline import Pipeline
-from myia.plugins import VersionRange, check_category_plugin, check_remote_modes
-from myia.plugins.installed import InstalledPluginStore
-from myia.plugins.manifest import load_manifest_file
-from myia.schema import load_category_file
-from myia.secrets import InMemoryKeychainBackend
-from myia.secrets import reset_backend as reset_keychain_backend
-from myia.secrets import set_backend as set_keychain_backend
+from shishi import __version__ as shishi_version
+from shishi.pipeline import Pipeline
+from shishi.plugins import VersionRange, check_category_plugin, check_remote_modes
+from shishi.plugins.installed import InstalledPluginStore
+from shishi.plugins.manifest import load_manifest_file
+from shishi.schema import load_category_file
+from shishi.secrets import InMemoryKeychainBackend
+from shishi.secrets import reset_backend as reset_keychain_backend
+from shishi.secrets import set_backend as set_keychain_backend
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PLUGINS_DIR = REPO_ROOT / "plugins"
@@ -98,7 +98,7 @@ class TestPackageManifests:
     def test_version_matrix_declares_compatible_myia_range(self, package: str):
         """每件都声明兼容 myia 的版本范围,且当前版本落在其中。"""
         manifest = load_package(package)
-        assert VersionRange(manifest.compatible).contains(myia_version)
+        assert VersionRange(manifest.compatible).contains(shishi_version)
 
     @pytest.mark.parametrize("package", OFFICIAL_PACKAGES)
     def test_requires_stays_inside_closed_vocabulary(self, package: str):

@@ -24,7 +24,7 @@
 - ``photon_export_missing`` / ``photon_export_invalid``
                        退出 0 但 JSON 导出缺失/不可解析(采集失败)
 
-失败码 → CLI 退出码的映射归 CLI 所有(``myia.cli.OSINT_FETCH_FAILURE_CODES``,
+失败码 → CLI 退出码的映射归 CLI 所有(``shishi.cli.OSINT_FETCH_FAILURE_CODES``,
 spec python/error-handling 的退出码契约);适配器只负责如实上报 code。
 
 铁律(security-baseline):适配器任何失败只影响 ``myia osint`` 自身,

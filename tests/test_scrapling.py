@@ -40,15 +40,15 @@ import httpx
 import pytest
 from selectolax.parser import HTMLParser
 
-from myia.engines import registry
-from myia.engines.fetch_base import (
+from shishi.engines import registry
+from shishi.engines.fetch_base import (
     BaseEngine,
     EngineNotAvailableError,
     FetchError,
     RobotsDisallowedError,
     load_proxy_pools,
 )
-from myia.engines.scrapling import (
+from shishi.engines.scrapling import (
     SCROLL_TO_BOTTOM_JS,
     ScraplingEngine,
     load_scrapling,
@@ -497,7 +497,7 @@ def test_pool_proxy_is_passed_to_fetch_kwargs(monkeypatch):
         )
         return real_client(**kwargs)
 
-    monkeypatch.setattr("myia.engines.fetch_base.httpx.AsyncClient", factory)
+    monkeypatch.setattr("shishi.engines.fetch_base.httpx.AsyncClient", factory)
     client = make_client(make_handler(lambda r: httpx.Response(404, text="")))
     context, _ = make_context(client)
     context.proxy_pools = load_proxy_pools({"pools": {"main": "http://proxy.example.com:8080"}})

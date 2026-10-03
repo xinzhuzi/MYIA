@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 import httpx
 import pytest
 
-from myia.engines.fetch_base import (
+from shishi.engines.fetch_base import (
     ChangeDetector,
     ChangeVerdict,
     HostLimiterRegistry,
@@ -34,8 +34,8 @@ from myia.engines.fetch_base import (
     resolve_headers,
     resolve_proxy,
 )
-from myia.schema import CredentialResolveError, RateLimitConfig
-from myia.engines.direct_api import DirectAPIEngine
+from shishi.schema import CredentialResolveError, RateLimitConfig
+from shishi.engines.direct_api import DirectAPIEngine
 
 from conftest import make_client, make_context, make_handler, make_source, run
 
@@ -479,8 +479,8 @@ def test_content_hash_raw_bytes_when_no_text():
 
 def test_extract_json_renders_url_template_from_item_fields():
     """字段齐 → URL 拼对;int 字段(steam_id 形态)渲染成字符串。"""
-    from myia.engines.fetch_base import extract_json
-    from myia.schema import ExtractConfig
+    from shishi.engines.fetch_base import extract_json
+    from shishi.schema import ExtractConfig
 
     data = {"apps": [
         {"name": "The Outlast Trials", "id": 1593500, "final_price": 1360},
@@ -508,8 +508,8 @@ def test_extract_json_missing_placeholder_field_yields_empty_url():
     不抛其余条目照常;该空 url 条目随后在管线 fetch 阶段被记 invalid_item
     丢弃(不带坏链接入库——design R1 修正口径)。注意与装载期交叉校验的
     分工:字段名拼错在 schema 装载期即拒,到不了这里。"""
-    from myia.engines.fetch_base import extract_json
-    from myia.schema import ExtractConfig
+    from shishi.engines.fetch_base import extract_json
+    from shishi.schema import ExtractConfig
 
     data = {"elements": [
         {"title": "无 slug 条目"},  # urlSlug 为 None 的元素(实测 Epic 形态)
@@ -532,8 +532,8 @@ def test_extract_json_missing_placeholder_field_yields_empty_url():
 
 def test_extract_json_url_field_value_wins_over_template():
     """都有 = url 字段值胜出,模板静默不用(schema/implement 步骤 1 同款定死)。"""
-    from myia.engines.fetch_base import extract_json
-    from myia.schema import ExtractConfig
+    from shishi.engines.fetch_base import extract_json
+    from shishi.schema import ExtractConfig
 
     data = {"apps": [{"name": "以 symbol 为稳定键的 API", "symbol": "NVDA"}]}
     extract = ExtractConfig(
@@ -547,8 +547,8 @@ def test_extract_json_url_field_value_wins_over_template():
 
 def test_extract_html_renders_url_template_for_list_type():
     """list 提取同样走模板出口:href 不可得的列表页用 slug 字段构 URL。"""
-    from myia.engines.fetch_base import extract_html
-    from myia.schema import ExtractConfig
+    from shishi.engines.fetch_base import extract_html
+    from shishi.schema import ExtractConfig
 
     html = (
         "<html><body>"
@@ -584,8 +584,8 @@ def test_extract_rss_maps_whitelisted_entry_attributes():
     """fixture=机核 gcores RSS 实录裁剪(2026-10-03 探查取证);fields 值=entry
     属性白名单逐条映射:键=归一字段名(url←link),值原样直出(CDATA summary
     保留 HTML 原文——feedparser 不剥 CDATA,模板消费方自担)。"""
-    from myia.engines.fetch_base import extract_rss
-    from myia.schema import ExtractConfig
+    from shishi.engines.fetch_base import extract_rss
+    from shishi.schema import ExtractConfig
 
     extract = ExtractConfig(
         type="rss",
@@ -610,8 +610,8 @@ def test_extract_rss_maps_whitelisted_entry_attributes():
 def test_extract_rss_omits_missing_attributes_per_entry():
     """条目缺某属性 → 该字段逐条省略、其余字段照常(逐条目语义,同 json_path;
     区别于装载期的属性名拼错校验——那是 schema 的活,到不了这里)。"""
-    from myia.engines.fetch_base import extract_rss
-    from myia.schema import ExtractConfig
+    from shishi.engines.fetch_base import extract_rss
+    from shishi.schema import ExtractConfig
 
     feed = (
         "<rss version='2.0'><channel>"
@@ -635,11 +635,11 @@ def test_extract_rss_bozo_malformed_feed_tolerated(caplog):
     前几条可用条目);条目为空 → 空列表,不抛——失败形态交给管线失败记录。"""
     import logging
 
-    from myia.engines.fetch_base import extract_rss
-    from myia.schema import ExtractConfig
+    from shishi.engines.fetch_base import extract_rss
+    from shishi.schema import ExtractConfig
 
     extract = ExtractConfig(type="rss", fields={"title": "title", "url": "link"})
-    with caplog.at_level(logging.WARNING, logger="myia.engines.fetch_base"):
+    with caplog.at_level(logging.WARNING, logger="shishi.engines.fetch_base"):
         items = extract_rss("<rss version='2.0'><channel><title>truncated", extract)
     assert items == []
     assert any("bozo" in record.message for record in caplog.records)
@@ -661,7 +661,7 @@ def test_extract_rss_bozo_malformed_feed_tolerated(caplog):
 
 @pytest.mark.skip(reason="真实源 smoke:对 linux.do 一类站点按 qps=0.5 抓 3 页无封禁(手动取消 skip 运行)")
 def test_smoke_real_source_politeness_three_pages():
-    from myia.engines.fetch_base import DEFAULT_USER_AGENT, FetchContext
+    from shishi.engines.fetch_base import DEFAULT_USER_AGENT, FetchContext
 
     async def scenario():
         client = httpx.AsyncClient(timeout=30.0, headers={"User-Agent": DEFAULT_USER_AGENT})
@@ -694,12 +694,12 @@ def test_scroll_mode_rejected_by_non_l4_engines_with_zero_network():
 
     镜像先例:L4/L5 对 json_path 的拒绝(scrapling.py/stealth_browser.py)。
     """
-    from myia.engines.crawl4ai import Crawl4AIEngine
-    from myia.engines.firecrawl import FirecrawlEngine
-    from myia.engines.llm_browser import LLMBrowserEngine
-    from myia.engines.scrapling import ScraplingEngine
-    from myia.engines.static_html import StaticHTMLEngine
-    from myia.engines.stealth_browser import StealthBrowserEngine
+    from shishi.engines.crawl4ai import Crawl4AIEngine
+    from shishi.engines.firecrawl import FirecrawlEngine
+    from shishi.engines.llm_browser import LLMBrowserEngine
+    from shishi.engines.scrapling import ScraplingEngine
+    from shishi.engines.static_html import StaticHTMLEngine
+    from shishi.engines.stealth_browser import StealthBrowserEngine
 
     def handler(request: httpx.Request) -> httpx.Response:  # 任何请求即失败
         raise AssertionError("scroll 拒绝必须发生在任何网络 I/O 之前")
@@ -743,8 +743,8 @@ def test_extract_html_coerces_numeric_looking_text_only():
     record_item_metrics 写 0 行、price >= 10000 路由 TypeError 被吞成
     conservative_default —— 数值语义字段必须在抽取层规整。
     """
-    from myia.engines.fetch_base import extract_html
-    from myia.schema import ExtractConfig
+    from shishi.engines.fetch_base import extract_html
+    from shishi.schema import ExtractConfig
 
     html = (
         "<html><body>"
@@ -770,11 +770,11 @@ def test_coerced_string_price_feeds_metrics_and_route(tmp_path):
     """端到端取数形态:抽取 str 价格 → 规整数值 → 基线快照落行、阈值路由命中。"""
     import sqlite3  # noqa: F401
 
-    from myia.engines.fetch_base import extract_html
-    from myia.push.route import resolve_route
-    from myia.push.templates import record_item_metrics
-    from myia.schema import ExtractConfig
-    from myia.store import SQLiteStore
+    from shishi.engines.fetch_base import extract_html
+    from shishi.push.route import resolve_route
+    from shishi.push.templates import record_item_metrics
+    from shishi.schema import ExtractConfig
+    from shishi.store import SQLiteStore
 
     html = (
         "<html><body><div class='item'>"
@@ -795,7 +795,7 @@ def test_coerced_string_price_feeds_metrics_and_route(tmp_path):
     )
     assert written == 1  # 此前字符串价格写 0 行
 
-    from myia.push.route import routes_from_config
+    from shishi.push.route import routes_from_config
 
     decision = resolve_route(
         {**item, "score": None},

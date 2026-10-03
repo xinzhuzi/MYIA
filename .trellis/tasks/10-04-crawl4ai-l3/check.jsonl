@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/python/index.md", "reason": "门禁口径:基线数字核对、extras 合规(零新依赖)"}
+{"file": ".trellis/spec/domain/yaml-schema.md", "reason": "文档补全与 schema 硬规则一致性(engine_options 命名空间/禁明文凭据)"}
+{"file": ".trellis/spec/python/error-handling.md", "reason": "核对探测回滚路径:失败不放大为源失败,结构化记录保留观测性"}

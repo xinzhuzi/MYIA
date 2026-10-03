@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from myia.schema import CHANNEL_PLATFORMS, LoadError, load_category
+from shishi.schema import CHANNEL_PLATFORMS, LoadError, load_category
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 GOLDEN = FIXTURES / "push_targets_golden_before.json"
@@ -266,7 +266,7 @@ class TestGoldenRegression:
 
             uv run --no-sync python tests/regen_push_targets_golden.py
         """
-        from myia.schema import load_category_file
+        from shishi.schema import load_category_file
 
         golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
         assert golden, "黄金文件为空:基线生成失败"
@@ -404,7 +404,7 @@ class TestWeixinBridgeChannels:
     """weixin:Literal 收录、weixin: 前缀 targets 合法、hermes_bin 宿主守门。"""
 
     def test_push_channel_vocabulary_accepts_weixin(self):
-        from myia.schema import PUSH_CHANNELS
+        from shishi.schema import PUSH_CHANNELS
 
         assert "weixin" in PUSH_CHANNELS
         assert "weixin" in CHANNEL_PLATFORMS
@@ -463,7 +463,7 @@ class TestWeixinBridgeChannels:
 # W3 长尾 22 家(10-03-messaging-w3-longtail):词表 + targets 校验 + 同平台约束
 # ---------------------------------------------------------------------------
 
-#: W3 长尾 22 家通道名;与 myia.push._W3_LONGTAIL_CHANNELS、schema._W3_LONGTAIL
+#: W3 长尾 22 家通道名;与 shishi.push._W3_LONGTAIL_CHANNELS、schema._W3_LONGTAIL
 #: 一一对应(集成面注册表专测在 tests/test_push_channels.py)。
 W3_LONGTAIL_NAMES = (
     "slack",
@@ -522,7 +522,7 @@ class TestW3LongtailSchema:
     """22 家:入 PUSH_CHANNELS 词表、CHANNEL_PLATFORMS 全行、targets 全量加载。"""
 
     def test_push_channel_vocabulary_contains_all_w3(self):
-        from myia.schema import PUSH_CHANNELS
+        from shishi.schema import PUSH_CHANNELS
 
         assert set(W3_LONGTAIL_NAMES) <= set(PUSH_CHANNELS)
         assert len(PUSH_CHANNELS) == 30  # 8 既有 + 22 长尾,计数如实

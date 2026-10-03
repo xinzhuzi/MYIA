@@ -91,10 +91,10 @@ const tailFixture = {
   lines: [
     { seq: 1, ts: "t1", run_id: 2, stream: "stdout" as const, line: "fetch https://example.com" },
     // INFO 级 stderr 行(本仓采集管线日志全走 stderr):正常运行日志,不染警示色
-    { seq: 2, ts: "t2", run_id: 2, stream: "stderr" as const, line: "2026-10-02 12:00:00,001 INFO myia.pipeline: 运行开始 category=tech run_id=2 sources=1" },
+    { seq: 2, ts: "t2", run_id: 2, stream: "stderr" as const, line: "2026-10-02 12:00:00,001 INFO shishi.pipeline: 运行开始 category=tech run_id=2 sources=1" },
     { seq: 3, ts: "t3", run_id: 2, stream: "stderr" as const, line: "ERROR source fetch failed: timeout" },
     { seq: 4, ts: "t4", run_id: 2, stream: "stderr" as const, line: "2026-10-02 12:00:01,002 WARNING 源限速 backoff 2s" },
-    { seq: 5, ts: "t5", run_id: 2, stream: "stderr" as const, line: "2026-10-02 12:00:02,003 INFO myia.pipeline: 采集步骤完成 sources=1 items=5 source_failures=0" },
+    { seq: 5, ts: "t5", run_id: 2, stream: "stderr" as const, line: "2026-10-02 12:00:02,003 INFO shishi.pipeline: 采集步骤完成 sources=1 items=5 source_failures=0" },
   ],
   total: 5,
   truncated: false,

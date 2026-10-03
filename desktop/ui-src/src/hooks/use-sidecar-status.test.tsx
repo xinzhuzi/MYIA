@@ -59,7 +59,7 @@ afterEach(() => {
 describe("useSidecarStatus(C2:探测+拉起+壳事件)", () => {
   it("探测成功 → online(不调拉起)", async () => {
     installListen();
-    mocks.version.mockResolvedValue({ name: "myia", version: "1.1.1", protocol: 2 });
+    mocks.version.mockResolvedValue({ name: "shishi", version: "1.1.1", protocol: 2 });
 
     const { result } = renderHook(() => useSidecarStatus());
     await waitFor(() => expect(result.current.status).toBe("online"));
@@ -82,7 +82,7 @@ describe("useSidecarStatus(C2:探测+拉起+壳事件)", () => {
     installListen();
     mocks.version
       .mockRejectedValueOnce(transportError("sidecar_terminated"))
-      .mockResolvedValueOnce({ name: "myia", version: "1.1.1", protocol: 2 });
+      .mockResolvedValueOnce({ name: "shishi", version: "1.1.1", protocol: 2 });
 
     const { result } = renderHook(() => useSidecarStatus());
     await waitFor(() => expect(result.current.status).toBe("online"));
@@ -92,7 +92,7 @@ describe("useSidecarStatus(C2:探测+拉起+壳事件)", () => {
 
   it("壳事件:respawning → 重拉中;dead → dead 态(可手动拉起);online → 触发重探测", async () => {
     const events = installListen();
-    mocks.version.mockResolvedValue({ name: "myia", version: "1.1.1", protocol: 2 });
+    mocks.version.mockResolvedValue({ name: "shishi", version: "1.1.1", protocol: 2 });
     const { result } = renderHook(() => useSidecarStatus());
     await waitFor(() => expect(result.current.status).toBe("online"));
 

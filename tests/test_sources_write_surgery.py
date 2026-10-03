@@ -132,7 +132,7 @@ def test_disable_enable_roundtrip_byte_identical(tmp_path, name):
         "disabled": [name],
     }
     # 写回后仍是 myia 可装载品类(往返一致 = doctor 同门)
-    from myia.schema import load_category_file
+    from shishi.schema import load_category_file
 
     assert [s.name for s in load_category_file(path).sources] != []
 
@@ -291,7 +291,7 @@ def test_stale_gap_falls_back_to_predecessor_anchor(tmp_path):
     )
     result = toggle(path, enable=["b"])
     assert result["written"] is True
-    from myia.schema import load_category_file
+    from shishi.schema import load_category_file
 
     assert [s.name for s in load_category_file(path).sources] == ["a", "b"]
 
@@ -414,7 +414,7 @@ def test_mid_entry_col0_comment_travels_with_last_entry(tmp_path):
     """末条目正文中段的列 0 注释随条目整段搬运:停用中间态干净(b 的字段
     不残留并入 a,仍取默认 retry),启用逐字节还原;紧贴块界的真分节注释
     形态(缩进前瞻无续行)由上一组用例守住。"""
-    from myia.schema import load_category_file
+    from shishi.schema import load_category_file
 
     path = write_yaml(tmp_path, MID_ENTRY_COL0_COMMENT_YAML, "mid_comment.yaml")
     before = path.read_bytes()
@@ -673,7 +673,7 @@ def test_legacy_stash_without_meta_falls_back_to_append(tmp_path):
     )
     result = toggle(path, enable=["legacy"])
     assert result["enabled"] == ["alpha", "beta", "gamma", "legacy"]
-    from myia.schema import load_category_file
+    from shishi.schema import load_category_file
 
     assert [s.name for s in load_category_file(path).sources][-1] == "legacy"
     # 追加在块尾(parked 占位之前、watchlist 之前)

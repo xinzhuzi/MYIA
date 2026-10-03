@@ -25,17 +25,17 @@ from typing import Any
 import httpx
 import pytest
 
-from myia import cli as cli_module
-from myia import secrets as secrets_store
-from myia.cli import (
+from shishi import cli as cli_module
+from shishi import secrets as secrets_store
+from shishi.cli import (
     EXIT_CONFIG_ERROR,
     EXIT_FETCH_ALL_FAILED,
     EXIT_OK,
     EXIT_PARTIAL,
     main,
 )
-from myia.secrets import InMemoryKeychainBackend
-from myia.store import SQLiteStore
+from shishi.secrets import InMemoryKeychainBackend
+from shishi.store import SQLiteStore
 
 VALID_YAML = """
 id: demo
@@ -542,7 +542,7 @@ class TestDoctor:
         """代理连通性:--config 提供 pools 声明时逐池探测(exit_ip/延迟可见,凭据打码)。"""
         monkeypatch.setenv("MYIA_T_PROXY_USER", "alice")
         monkeypatch.setenv("MYIA_T_PROXY_PASS", "hunter2")
-        pools_file = tmp_path / "myia.yaml"
+        pools_file = tmp_path / "shishi.yaml"
         pools_file.write_text(
             "pools:\n  main: \"http://env:MYIA_T_PROXY_USER:env:MYIA_T_PROXY_PASS@proxy.example.test:8080\"\n",
             encoding="utf-8",
@@ -570,7 +570,7 @@ class TestDoctor:
 
     def test_proxy_unreachable_is_warning(self, tmp_path, capsys, monkeypatch):
         """代理不通:warning 级 finding(代理挂 ≠ 源死)。"""
-        pools_file = tmp_path / "myia.yaml"
+        pools_file = tmp_path / "shishi.yaml"
         pools_file.write_text("pools:\n  main: \"http://proxy.example.test:8080\"\n", encoding="utf-8")
 
         def responder(request: httpx.Request) -> httpx.Response:

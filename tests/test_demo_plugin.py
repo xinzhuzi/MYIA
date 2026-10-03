@@ -9,7 +9,7 @@ demo 件是装机首跑「运行第一个插件」的数据来源(README 五屏�
 
 from pathlib import Path
 
-from myia.schema import load_category_file
+from shishi.schema import load_category_file
 
 PLUGINS_DIR = Path(__file__).resolve().parents[1] / "plugins"
 DEMO_YAML = PLUGINS_DIR / "myia-demo.yaml"

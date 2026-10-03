@@ -1,9 +1,9 @@
 # MYIA server image — same core as the desktop/CLI form, packaged for 24/7
 # self-hosting. Build context is the repository root:
 #
-#   docker build -t myia:local .
+#   docker build -t shishi:local .
 #
-# Runtime entrypoint is the `myia` CLI; docker-compose overrides the command
+# Runtime entrypoint is the `shishi` CLI; docker-compose overrides the command
 # with `run <plugin.yaml> --loop` (see docker/docker-compose.yml).
 #
 # Build strategy: multi-stage with uv. The builder resolves the exact locked
@@ -13,7 +13,7 @@
 # runtime via environment variables referenced by plugin YAMLs (env:VAR).
 
 # ---------------------------------------------------------------------------
-# Stage 1: builder — resolve locked deps + install the myia package
+# Stage 1: builder — resolve locked deps + install the shishi package
 # ---------------------------------------------------------------------------
 FROM python:3.11-slim AS builder
 
@@ -45,7 +45,7 @@ COPY myia-classifier ./myia-classifier
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev
 
-# Full sync installs the myia package itself (editable by default; the source
+# Full sync installs the shishi package itself (editable by default; the source
 # ships alongside the venv so that is fine in the final image too).
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
@@ -83,6 +83,6 @@ LABEL org.opencontainers.image.title="MYIA" \
       org.opencontainers.image.licenses="MIT"
 
 # `docker run <image>` prints the version; the real workload is
-# `myia run <yaml> --loop`, set by docker-compose (or by hand).
-ENTRYPOINT ["myia"]
+# `shishi run <yaml> --loop`, set by docker-compose (or by hand).
+ENTRYPOINT ["shishi"]
 CMD ["--version"]

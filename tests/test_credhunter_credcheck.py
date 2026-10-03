@@ -30,7 +30,7 @@ from typing import Any
 
 import pytest
 
-from myia.cli import _import_plugin_adapter
+from shishi.cli import _import_plugin_adapter
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PLUGINS_DIR = REPO_ROOT / "plugins"

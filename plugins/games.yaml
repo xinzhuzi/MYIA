@@ -306,7 +306,7 @@ push:
   # telegram 加挂(wrap 落地 v1 决议⑤「单通道起步,telegram 后续加挂 =
   # YAML 再加一个 push 条目,不动结构」):同款两级路由(when 逐字与 feishu
   # 条目一致,含 GOG 限免双保险析取);模板走精简纯文本变体——telegram
-  # 用户模板契约是渲染文本**不带 parse_mode 直发**(src/myia/push/
+  # 用户模板契约是渲染文本**不带 parse_mode 直发**(src/shishi/push/
   # telegram.py _compose),markdown 链接语法会原样露出,故标题后直跟裸
   # URL,价格/折扣徽标与 feishu 模板同口径。chat id 走
   # env:TELEGRAM_CHAT_ID;bot token 走渠道缺省 env:TELEGRAM_BOT_TOKEN

@@ -14,8 +14,8 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from myia.engines.fetch_base import FetchError
-from myia.engines.static_html import StaticHTMLEngine
+from shishi.engines.fetch_base import FetchError
+from shishi.engines.static_html import StaticHTMLEngine
 
 from conftest import make_client, make_context, make_handler, make_source, run
 

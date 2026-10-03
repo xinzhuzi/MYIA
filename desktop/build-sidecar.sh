@@ -77,24 +77,24 @@ PYBIN="$VENV/bin/python"
 [[ -x "$PYBIN" ]] || PYBIN="$VENV/Scripts/python.exe"
 # 依赖解析必须走 uv 的 workspace 语义:pip 无法解析 myia-classifier(workspace
 # 成员,不在 PyPI);借 UV_PROJECT_ENVIRONMENT 把锁定的依赖集(含 workspace
-# 成员、可编辑安装的 myia 本体)装进隔离 venv,不动项目 .venv。
+# 成员、可编辑安装的 shishi 本体)装进隔离 venv,不动项目 .venv。
 # --extra vision:看图双引擎(ocrmac + rapidocr-onnxruntime,task 10-03-image-input
 # AC10 装包冒烟;核心依赖不动,extras 走 uv.lock 冻结集)
 UV_PROJECT_ENVIRONMENT="$VENV" uv sync --frozen --no-dev --extra vision --project "$ROOT_DIR" --quiet
 uv pip install --python "$PYBIN" --quiet "pyinstaller>=6.10"
-# --hidden-import myia.secrets:src/myia/schema.py 的 `from myia import secrets`
+# --hidden-import shishi.secrets:src/shishi/schema.py 的 `from shishi import secrets`
 # 与 stdlib secrets 同名,PyInstaller modulegraph 会解析到 stdlib 而漏收
-# myia/secrets.py(2026-10-01 spike 实测),须显式点名。
-# --collect-submodules myia:registry/push/classify 按字符串名动态 import 引擎
+# shishi/secrets.py(2026-10-01 spike 实测),须显式点名。
+# --collect-submodules shishi:registry/push/classify 按字符串名动态 import 引擎
 # 与通道模块,静态分析看不见,须整体收编(spike 实测:漏收时报
-# No module named 'myia.engines.static_html',采集全失败退出码 2)。
+# No module named 'shishi.engines.static_html',采集全失败退出码 2)。
 # --add-data keywords.json:myia_classifier/builtin.py 的 DEFAULT_TABLE_PATH 以
 # __file__ 定位 data/keywords.json,onefile 冻结包只收代码不收包内数据文件,
 # 缺失即 classify(builtin: true)构造期 config_error「分类关键词表加载失败」
 # (2026-10-03 真机冒烟实测)。落位 _MEIPASS/myia_classifier/data/,与冻结后
 # __file__ 同基(--add-data 目标分隔符 POSIX ':' / Windows ';')。
 # --collect-all ocrmac / rapidocr_onnxruntime:vision 双引擎经 importlib 惰性
-# import(同 myia 引擎的动态 import 问题),静态分析看不见;rapidocr 的内置
+# import(同 shishi 引擎的动态 import 问题),静态分析看不见;rapidocr 的内置
 # onnx 模型是包内数据文件,须连带采集(task 10-03-image-input AC10)。
 # --collect-all openai:VisionClient 同为 importlib 惰性 import(10-03 装机
 # 冒烟:漏收时运行期 image_provider_error「vision 依赖 openai 未安装」)。
@@ -118,7 +118,7 @@ PYINST="$VENV/bin/pyinstaller"
 # PyInstaller 以 CLI 旗标生成 spec 时会把 entry.py/add-data 回写成本机绝对
 # 路径,tauri build → beforeBuildCommand 每跑一次就把手维 spec 冲回绝对路径
 # (dc178e1/c97c897 相对化两次落地两次被冲,实锤)。手维 spec 与下方旗标集
-# 等价(collect_submodules myia + myia.secrets + collect_all×3 + keywords.json
+# 等价(collect_submodules shishi + shishi.secrets + collect_all×3 + keywords.json
 # + onefile + name);增删依赖改 spec 本体,勿走重生成路径回退相对化。
 SPEC="$SPIKE_DIR/myia-core.spec"
 if [[ -f "$SPEC" ]]; then
@@ -126,8 +126,8 @@ if [[ -f "$SPEC" ]]; then
     --distpath "$DIST" --workpath "$SPIKE_DIR/build-pyi" "$SPEC"
 else
   "$PYINST" --onefile --name myia-core --clean --noconfirm \
-    --hidden-import myia.secrets \
-    --collect-submodules myia \
+    --hidden-import shishi.secrets \
+    --collect-submodules shishi \
     --collect-all ocrmac \
     --collect-all rapidocr_onnxruntime \
     --collect-all openai \

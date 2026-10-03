@@ -1,7 +1,7 @@
 """Standalone-package contract for myia-classifier (task 10-01-v10-classifier-pypi).
 
 The classifier ships as its own zero-dependency distribution (PyPI name
-``myia-classifier``, import name ``myia_classifier``); ``myia.classify`` is
+``myia-classifier``, import name ``myia_classifier``); ``shishi.classify`` is
 only a compatibility shim re-exporting its API. These tests pin the
 standalone surface from the *installed* distribution: direct import and
 classification, packaged keyword data, distribution metadata, zero runtime
@@ -46,8 +46,8 @@ def test_distribution_declares_zero_runtime_dependencies():
 
 
 def test_myia_classify_shim_reexports_standalone_objects():
-    import myia.classify as shim
-    import myia.classify.custom as shim_custom
+    import shishi.classify as shim
+    import shishi.classify.custom as shim_custom
     import myia_classifier.custom as real_custom
 
     assert shim.classify_item is myia_classifier.classify_item

@@ -32,15 +32,15 @@ import httpx
 import pytest
 from conftest import FakeClock
 
-import myia.pipeline as pipeline_module
-from myia.dedup import DedupRegistry
-from myia.pipeline import (
+import shishi.pipeline as pipeline_module
+from shishi.dedup import DedupRegistry
+from shishi.pipeline import (
     RESUME_CHECKPOINT_STAGES,
     Item,
     Pipeline,
 )
-from myia.schema import StorageConfig, load_category
-from myia.store import (
+from shishi.schema import StorageConfig, load_category
+from shishi.store import (
     RUN_STATUS_FAILED,
     RUN_STATUS_SUCCESS,
     SCHEMA_VERSION,
@@ -581,7 +581,7 @@ def test_resume_after_kill_skips_completed_stages(tmp_path, monkeypatch, caplog)
     handler = make_handler(counter, list_payload([("不该被抓取", "https://api.demo.local/x")]))
     config = make_config()
     pipeline = make_pipeline(config, handler=handler, store=store)
-    with caplog.at_level(logging.INFO, logger="myia.pipeline"):
+    with caplog.at_level(logging.INFO, logger="shishi.pipeline"):
         result = asyncio.run(pipeline.run())
 
     assert result.resumed_from_run_id == crash_run
@@ -705,7 +705,7 @@ def test_corrupt_checkpoint_falls_back_to_fresh_run(tmp_path, monkeypatch, caplo
     counter = {"n": 0}
     handler = make_handler(counter, list_payload([("免费送 NAS 券", "https://api.demo.local/a")]))
     pipeline = make_pipeline(make_config(), handler=handler, store=store)
-    with caplog.at_level(logging.WARNING, logger="myia.pipeline"):
+    with caplog.at_level(logging.WARNING, logger="shishi.pipeline"):
         result = asyncio.run(pipeline.run())
     assert result.resumed_from_run_id is None
     assert counter["n"] == 1

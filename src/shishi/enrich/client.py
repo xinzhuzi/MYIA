@@ -1,6 +1,6 @@
 """Thin async client over any OpenAI-compatible ``chat.completions`` endpoint.
 
-The ``openai`` package is an *optional* dependency (extras ``myia[llm]``) and
+The ``openai`` package is an *optional* dependency (extras ``shishi[llm]``) and
 is imported lazily at first use — never at module import — so the core
 pipeline stays zero-heavy-dependency (same pattern as
 ``shishi.engines.crawl4ai.load_crawl4ai``). Tests inject a fake object with the
@@ -26,7 +26,7 @@ __all__ = ["INSTALL_COMMAND", "CompletionResult", "OpenAICompatClient"]
 
 logger = logging.getLogger(__name__)
 
-INSTALL_COMMAND = "pip install 'myia[llm]'  # 或 uv add 'myia[llm]'"
+INSTALL_COMMAND = "pip install 'shishi[llm]'  # 或 uv add 'shishi[llm]'"
 
 
 @dataclass(frozen=True)

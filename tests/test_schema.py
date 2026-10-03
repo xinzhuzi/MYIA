@@ -1,6 +1,6 @@
-"""Tests for myia.schema — 12-section category YAML models and loading.
+"""Tests for shishi.schema — 12-section category YAML models and loading.
 
-Mirrors src/myia/schema.py. Covers the PRD (10-01-v01-yaml-schema) acceptance
+Mirrors src/shishi/schema.py. Covers the PRD (10-01-v01-yaml-schema) acceptance
 criteria: the stocks.yaml showcase loads with correct section semantics,
 plaintext credentials / illegal cron / unknown fields are refused, every
 section's defaults are asserted, and load errors are structured
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from myia.schema import (
+from shishi.schema import (
     CategoryConfig,
     CredentialResolveError,
     LoadError,

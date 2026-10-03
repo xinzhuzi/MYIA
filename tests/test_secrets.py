@@ -22,15 +22,15 @@ from typing import Any
 
 import pytest
 
-from myia import secrets as secrets_store
-from myia.engines.fetch_base import BaseEngine, FetchContext, resolve_headers
-from myia.schema import (
+from shishi import secrets as secrets_store
+from shishi.engines.fetch_base import BaseEngine, FetchContext, resolve_headers
+from shishi.schema import (
     CredentialResolveError,
     LoadError,
     load_category,
     resolve_credential,
 )
-from myia.secrets import (
+from shishi.secrets import (
     INDEX_ACCOUNT,
     SECRET_SERVICE,
     InMemoryKeychainBackend,
@@ -258,7 +258,7 @@ class TestSecretCrud:
                 super().delete_password(service, username)
 
         acl_like = AclDeniedReadBackend()
-        with caplog.at_level(logging.WARNING, logger="myia.secrets"):
+        with caplog.at_level(logging.WARNING, logger="shishi.secrets"):
             with pytest.raises(SecretError) as excinfo:
                 set_secret(CANONICAL_NAME, "v", backend=acl_like)
         assert excinfo.value.code == "keychain_operation_failed"

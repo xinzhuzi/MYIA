@@ -9,7 +9,7 @@
 # Zero-plaintext-credential rule (spec domain/security-baseline): this file
 # contains no credential values. All secrets enter through docker/.env
 # (git-ignored) and reach the pipeline as plain environment variables, which
-# plugin YAMLs reference via `env:VAR` (resolved by src/myia/schema.py at
+# plugin YAMLs reference via `env:VAR` (resolved by src/shishi/schema.py at
 # run time; a missing variable fails fast with a structured env_var_missing
 # error and exit code 1).
 
@@ -37,7 +37,7 @@ services:
       # TZ is the container system zone. Plugins that declare
       # schedule.timezone are unaffected; TZ governs the fallback when a
       # plugin omits timezone and the AM/PM push-slot boundary (local 12:00,
-      # src/myia/dedup.py) when that slot logic resolves against the system
+      # src/shishi/dedup.py) when that slot logic resolves against the system
       # zone.
       TZ: ${TZ:-Asia/Shanghai}
     # Credential injection: every FEISHU_* / TG_* / LLM key / source cookie

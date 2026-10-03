@@ -3,7 +3,7 @@
 本目录收纳**社区场景件的发行文件**(manifest + 文档 [+ 适配器] 的插件包),
 核心仓库只托管这些声明性文件,**不托管插件实现** —— 重依赖与代码全部留在
 作者自己的仓库(与官方六件 `plugins/myia-*/` 同一套市场规范,manifest 校验
-见 `src/myia/plugins/manifest.py`)。
+见 `src/shishi/plugins/manifest.py`)。
 
 v1.1 起插件层桌面优先:**源码/进程内能力优先,零 docker**;本地部署
 compose 一律不放插件目录(官方六件的部署文件集中在仓库 `docker/plugins/`)。

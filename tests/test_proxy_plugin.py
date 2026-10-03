@@ -30,7 +30,7 @@ from typing import Any
 import httpx
 import pytest
 
-from myia.cli import (
+from shishi.cli import (
     EXIT_CONFIG_ERROR,
     EXIT_FETCH_ALL_FAILED,
     EXIT_OK,
@@ -38,9 +38,9 @@ from myia.cli import (
     _import_plugin_adapter,
     main,
 )
-from myia.pipeline import Pipeline
-from myia.plugins.manifest import load_manifest_file
-from myia.schema import load_category_file
+from shishi.pipeline import Pipeline
+from shishi.plugins.manifest import load_manifest_file
+from shishi.schema import load_category_file
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PLUGINS_DIR = REPO_ROOT / "plugins"

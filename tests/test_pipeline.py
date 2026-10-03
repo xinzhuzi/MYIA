@@ -1,4 +1,4 @@
-"""Tests for myia.pipeline — orchestration, isolation, timeout/retry, scheduler.
+"""Tests for shishi.pipeline — orchestration, isolation, timeout/retry, scheduler.
 
 Covers PRD 10-01-v01-pipeline-orchestrator acceptance criteria:
 
@@ -30,9 +30,9 @@ import httpx
 import pytest
 from apscheduler.triggers.cron import CronTrigger
 
-import myia.pipeline as pipeline_module
+import shishi.pipeline as pipeline_module
 from conftest import FakeClock
-from myia.pipeline import (
+from shishi.pipeline import (
     EXECUTED_STAGES,
     STAGES,
     ChannelPushReport,
@@ -44,8 +44,8 @@ from myia.pipeline import (
     StageReport,
     build_cron_trigger,
 )
-from myia.schema import load_category
-from myia.store import SQLiteStore
+from shishi.schema import load_category
+from shishi.store import SQLiteStore
 
 TIMEZONE = "Asia/Shanghai"
 
@@ -148,7 +148,7 @@ class FlakyOnceChannel(RecordingChannel):
     async def send(self, items, context) -> None:
         self.attempts += 1
         if self.attempts == 1:
-            from myia.push import PushSendError
+            from shishi.push import PushSendError
 
             raise PushSendError("http_error", "模拟瞬时网络故障")
         await super().send(items, context)
@@ -784,10 +784,10 @@ def test_build_channel_wires_target_and_template_for_telegram_and_webhook():
     store = SQLiteStore(":memory:")
     pipeline, _ = make_pipeline(make_config(), handler=make_handler({}), store=store)
 
-    from myia.push import CHANNELS
-    from myia.push.telegram import TelegramChannel
-    from myia.push.webhook import WebhookChannel
-    from myia.schema import PushConfig
+    from shishi.push import CHANNELS
+    from shishi.push.telegram import TelegramChannel
+    from shishi.push.webhook import WebhookChannel
+    from shishi.schema import PushConfig
 
     assert set(CHANNELS) >= {"telegram", "webhook"}
 

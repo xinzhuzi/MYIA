@@ -1,4 +1,4 @@
-"""Tests for myia.push — routing, digest aggregation, feishu/stdout channels.
+"""Tests for shishi.push — routing, digest aggregation, feishu/stdout channels.
 
 Covers PRD 10-01-v01-push-feishu-route acceptance criteria: route 三分支 /
 大类缺省映射 / 未命中保守缺省 / 模板快照(Jinja2 版 stocks 示例)/ digest
@@ -24,9 +24,9 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from myia.classify import ALL_CATEGORIES
-from myia.dedup import DedupRegistry
-from myia.push import (
+from shishi.classify import ALL_CATEGORIES
+from shishi.dedup import DedupRegistry
+from shishi.push import (
     CATEGORY_DEFAULT_ROUTES,
     CHANNELS,
     Channel,
@@ -49,8 +49,8 @@ from myia.push import (
     routes_from_config,
     send_immediate,
 )
-from myia.schema import load_category_file
-from myia.store import SLOT_AM, SLOT_PM, SQLiteStore
+from shishi.schema import load_category_file
+from shishi.store import SLOT_AM, SLOT_PM, SQLiteStore
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "stocks.yaml"
 
@@ -727,7 +727,7 @@ def test_channel_send_failures_are_structured_reports(channel, monkeypatch):
     转成结构化失败报告(不裸抛)。回归背景:v0.1 壳无 ``name`` 且 ``send(items)``
     签名错误,schema 合法的 ``push: [{channel: telegram}]`` 会在 _send_via 里
     裸抛 AttributeError,而不是承诺过的结构化失败。"""
-    from myia.push.digest import _send_via
+    from shishi.push.digest import _send_via
 
     # 固定"凭据未配置"前提,不依赖宿主机环境变量
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
