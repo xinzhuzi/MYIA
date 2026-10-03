@@ -3,7 +3,8 @@
 ## 需求源
 
 `10-03-ui-feature-census` 普查(2026-10-03)grill Round 1 Q1 主人批复「按推荐立项」。
-范围、划界、排期均按批复执行;**复杂任务,start 前补 design.md + implement.md**。
+范围、划界、排期均按批复执行;**复杂任务三件套已补齐(design.md + implement.md,
+2026-10-03),达「可 start」状态;排期仍等 v1.1.1 tag**。
 
 ## 范围(六项)
 
@@ -31,12 +32,12 @@
   v112-batch 线不受本批挤占)。
 - 批内顺序:G2/C8(轻,零~小协议)→ G4(run 通道现成)→ G1/G3(协议扩展,与 C1 合参)。
 
-## 设计期事实(2026-10-03 实查,写进 design 时勿再摸底)
+## 设计期事实(2026-10-03 实查,定形于 design.md §0,以 design 为准)
 
-- 桌面能力现状:仅 `tauri-plugin-shell`(Rust 侧 spawn sidecar);capabilities =
-  `core:default` + `updater:default` + `process:allow-restart`。
-  **无 fs / dialog / opener 的 JS 权限**——G2 打开原文与 G3 导出文件保存的通道
-  (tauri-plugin-opener / dialog+sidecar 写文件 / 其他)是 design.md 必答项。
+- capabilities = `core:default` + `updater:default` + `process:allow-restart` +
+  **`dialog:default`(看图屏已加,保存对话框可用)**;webview 零 shell 执行授权(v1.1 评审姿势)。
+  G2 打开原文需新增 **scoped `shell:allow-open`(仅 https?://)+ JS 壳包**;
+  G3 导出 = `dialog.save()` 选路径 + sidecar 直写(不经 webview)。
 - 情报流本地态(已读/星标/稍后读)在 localStorage;搜索若要覆盖已读历史,
   走 sidecar 查询而非本地过滤(本地只有已加载页)。
 
