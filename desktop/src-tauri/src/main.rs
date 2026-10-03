@@ -204,6 +204,10 @@ fn main() {
                     tauri::async_runtime::spawn(async move {
                         tokio::time::sleep(Duration::from_millis(1500)).await;
                         let _ = win.eval(&script);
+                        // 亮窗必须等 run loop 转起:setup 期 show() 的 orderFront 会被
+                        // visible:false 的初始排序覆盖(实测 2026-10-03);Reopen 路径
+                        // 能亮正是事件循环起来之后。同样仅冒烟 env 存在时触达。
+                        let _ = win.show();
                     });
                 }
             }
