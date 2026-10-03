@@ -47,12 +47,17 @@ W2/W3 不预建子任务,到波次开工时再建(避免空壳任务);本 PRD �
 
 ## 跨子验收(父任务收口)
 
-- [ ] 端到端:一条 YAML 规则 `when: category in ['freebie']` + `targets: ["feishu:AI中转站合伙人群"]`,run 后该群收到卡片;同规则去掉 targets 行为与现网完全一致(向后兼容)。
-- [ ] 目录:真机飞书适配器自动发现的群含「AI中转站合伙人群」;私聊经别名登记后可达(飞书列表 API 不返回私聊,grill Q5 定案);别名改动后按名推送命中。
-- [ ] 死信:`forbidden`/chat 级 `not_found` 单次即标 dead、跳过+结构化日志;成功一次自愈(grill Q3 定案,Hermes 原味错误分类制)。
-- [ ] 真机冒烟对象(grill Q6 定案):飞书「AI中转站合伙人群」+ Telegram 主人与机器人的私聊。
-- [ ] 全量测试绿:push 层新旧单测 + 桌面协议测试不回归。
-- [ ] W1 收口后回填 W2 开工条件;W2 不自动接力,等主人指令排期(grill Q7 定案)。
+- [ ] **[manual]** 端到端:一条 YAML 规则 `when: category in ['freebie']` + `targets: ["feishu:AI中转站合伙人群"]`,run 后该群收到卡片;同规则去掉 targets 行为与现网完全一致(向后兼容)。
+  - 向后兼容半项已自动核对(2026-10-03 收口真跑):`tests/test_push_schema_targets.py::TestGoldenRegression::test_legacy_yaml_load_byte_identical_to_before` + `tests/test_messaging_pipeline.py::TestLegacyPathUnchanged::test_no_targets_sends_without_target_context` 绿;「该群收到卡片」须真机 run,未验
+- [ ] **[manual]** 目录:真机飞书适配器自动发现的群含「AI中转站合伙人群」;私聊经别名登记后可达(飞书列表 API 不返回私聊,grill Q5 定案);别名改动后按名推送命中。
+  - 机制半项已单测覆盖:`tests/test_push_directory.py::TestAliasOverlay`(别名重建后仍生效、未发现 id 占位)+ `tests/test_push_targets.py::TestDirectoryResolution`(按名/唯一前缀命中);「真机发现含该群」须真机 refresh,未验
+- [x] 死信:`forbidden`/chat 级 `not_found` 单次即标 dead、跳过+结构化日志;成功一次自愈(grill Q3 定案,Hermes 原味错误分类制)。
+  - 证据(2026-10-03 收口真跑):`tests/test_push_delivery.py::TestSendBatchToTargets` 的 `test_forbidden_marks_dead_after_single_failure_no_threshold` / `test_chat_level_not_found_marks_dead_thread_level_does_not` / `test_dead_skip_logs_structured_info_no_alert_card` / `test_success_heals_dead_mark` / `test_transient_failure_never_marks_dead`,管线落账 `tests/test_messaging_pipeline.py::TestDeadLedgerWiring::test_forbidden_via_pipeline_lands_in_ledger_file`;commit 2b54865(core 主体随 fbba437 批量入库,见 W1 执行结果)
+- [ ] **[manual]** 真机冒烟对象(grill Q6 定案):飞书「AI中转站合伙人群」+ Telegram 主人与机器人的私聊。未验,须主人真机执行(清单见 W1 执行结果·遗留)
+- [x] 全量测试绿:push 层新旧单测 + 桌面协议测试不回归。
+  - 证据(2026-10-03 收口两次真跑,混合工作树含并行会话在飞改动):首跑(世事改名入树前)`python -m pytest tests/ -q` → **1759 passed / 14 skipped 全绿**,`-k push` → 221 passed,`tests/test_desktop_sidecar_protocol.py` → 85 passed,desktop/ui-src `npm test` → 97 passed(含 messaging-screen 8 项);终跑(并行 cb87302「世事/shishi 改名」与 docs 批次入树后)→ 7 failed / 1764 passed / 14 skipped,**7 失败全部归属并行在飞会话**(4 = CLI/协议测试仍断言 `myia 1.1.1`/`MYIA run:` 而 cb87302 已改 `shishi 1.1.1`/`世事 run:`;3 = test_docs 文档重构在飞),消息平台范围零失败(`-k push` → 222 passed;消息九测试文件 200 passed;sidecar 84/85,唯一失败即上述品牌改名契约测试,与四端点无关;desktop/ui-src `npm test` → 105 passed)
+- [x] W1 收口后回填 W2 开工条件;W2 不自动接力,等主人指令排期(grill Q7 定案)。
+  - 证据:W2 开工条件已回填至下方「W1 执行结果」节;`.trellis/tasks/` 无任何 W2 平台任务目录(`ls | grep -E "weixin|wecom|dingtalk|ntfy|slack|discord"` = 0,2026-10-03 收口核)
 
 ## Grill 决议记录(2026-10-03,round 1 终,无第二轮)
 
@@ -66,6 +71,37 @@ W2/W3 不预建子任务,到波次开工时再建(避免空壳任务);本 PRD �
 - **Q8 UI = 完整写回**:新增 `push.write` sidecar 端点(照 `sources.write` 范式),选择器直写 YAML
 
 事实核订两轮(MYIA 侧:装配点/凭据/协议/CLI/工具链;Hermes 侧:解析顺序/死信语义/目录发现/别名机制),证据与偏离注记已落各子任务档案。
+
+## W1 执行结果(2026-10-03 收口)
+
+### 交付 commit(四个子任务全部实现入库)
+
+| 子任务 | commit | 交付 |
+|---|---|---|
+| messaging-core | **fbba437**(主体:directory.py/targets.py/delivery.py/schema `targets`/管线接线+五个测试文件随批量提交先行入库)+ **2b54865**(core 专属收口:directory.py 修剪 + test_messaging_pipeline.py 管线接线测试) | 平台无关引擎:通道目录/对象解析/定向投递/死信账本 + `PLATFORMS` 注册表 + schema `targets` 字段(同平台约束);上游对照表见 core 子任务 prd.md |
+| messaging-feishu | **b3c8084** | 目录发现(im/v1/chats 翻页、429 退避、401 结构化错误)+ 定向发送(`SendContext.target` 优先、receive_id_type 适配)+ CLI `myia channels refresh/list` + 测试×3(test_feishu_discovery / test_feishu_targeting / test_cli_channels) |
+| messaging-telegram | **ed1276f** | 被动目录(poller `on_chat` sink → `ChannelDirectory.merge_entries` 增量积累)+ 定向发送 + CLI passive 分支(refresh 缺省全平台时无发现 API 的 telegram 归 passive 上报,非失败)+ test_messaging_telegram |
+| messaging-ui | **4be1325** | 第 6 屏「消息」(平台分组目录/别名行内编辑/死信徽标 + 规则挑对象)+ sidecar 四端点(channels.list / channels.refresh / channels.alias、push.write 照 sources.write 文本手术范式)+ spec/desktop/sidecar-protocol.md 镜像同步 |
+
+注:messaging-core 主体代码随 fbba437「P0 desktop data-path fix…parallel v1.1.2 feature batch」批量提交先行入库(该 commit 混载多任务),2b54865 为其专属定案 commit——考据边界如实记档。
+
+### 收口核验(2026-10-03,集成会话真跑)
+
+- 首跑(世事改名入树前):`python -m pytest tests/ -q` → **1759 passed / 14 skipped 全绿**;`-k push` → 221 passed;`tests/test_desktop_sidecar_protocol.py` → 85 passed;desktop/ui-src `npm test` → **97 passed**(11 文件,含 messaging-screen 8 项)
+- 终跑(并行 cb87302 改名/docs 批次入树后):全量 7 failed / 1764 passed / 14 skipped——7 失败逐条归属:2× test_cli.py + 1× sidecar `test_oneshot_passthrough_preserves_cli_contract`(cb87302 把 CLI 改名 shishi/世事,测试仍断言 myia/MYIA 前缀)+ 3× test_docs.py(docs/en/schema.md、docs/zh/schema.md、docs/demo/README.md 文档重构在飞)+ 1× test_skill_install.py(AGENTS.md/skill 路径在飞);**消息平台范围零失败**(`-k push` 222 passed;消息九测试文件 200 passed);desktop/ui-src `npm test` → **105 passed**(messaging-screen 在内,UI 侧无失败)
+- 收口期间并行会话持续提交(845f64a/da390fc/cb87302 落地);golden 回归测试自 845f64a 起以「纯增字段容忍」断言形态入库(容忍他任务缺省为空的新增键,取值漂移仍失败)
+
+### 遗留
+
+- **真机冒烟全部未做**(manual 门禁,主人亲手):①飞书 `myia channels refresh feishu` 真目录含「AI中转站合伙人群」;②私聊 oc_9a79… 别名登记后可达;③Telegram 给机器人发消息 → `myia channels list` 出现该私聊;④端到端 `targets: ["feishu:AI中转站合伙人群"]` run 真机收卡 + 同配置去 targets 回归旧行为;⑤消息屏 Tauri dev 真数据(feishu 3 会话对照集 + TG 会话)浏览/别名/勾选保存
+- 四个子任务 task.json 状态字段仍为 planning(仓库惯例:并行会话在场直改 task.json;本收口不触碰 task.json,状态翻转与归档留主人)
+- 飞书话题(thread)定向发送:目录先记 thread_id,发送侧未实装(feishu 子任务明记非目标,等真实需求再开)
+
+### W2 开工条件回填(grill Q7:等主人指令排期,不自动接力)
+
+- 引擎侧零障碍:`PLATFORMS` 注册表、`Channel` 协议三能力(`supports_targeting`/`parse_direct_ref`/`discover_directory`)、死信账本、`myia channels` CLI 均已就位;W2 平台照 feishu(主动列表发现)或 telegram(被动积累)范式各建子任务即可
+- weixin 依赖 bot relay 架构(本 PRD 波次表 W2 最重项),开工先 grill 架构再动工;wecom/dingtalk/ntfy 预计 httpx 直连官方 API 可走 feishu 范式
+- W2/W3 平台不预建任务,到波次开工时再建;本 PRD 波次表即登记锚点
 
 ## 非目标
 

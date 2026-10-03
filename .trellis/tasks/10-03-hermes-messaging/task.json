@@ -3,7 +3,7 @@
   "name": "hermes-messaging",
   "title": "消息平台总纲:Hermes 全平台定向推送移植",
   "description": "把 Hermes 消息平台(通道目录+定向投递)源码移植进 MYIA:定向出站推送,每条规则可指定具体推送对象;Hermes 有的平台全量分波次迁移,父任务持有全量清单与跨子验收",
-  "status": "planning",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,

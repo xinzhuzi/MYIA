@@ -26,12 +26,21 @@ engines/        六层引擎:fetch_base(公共底座)+ registry(降级编排)+ L
 classify/       builtin(七大类+双信号,数据与代码分离)/ custom(YAML 规则)
 dedup.py store/ SQLite + 去重注册表 + 变更基线;接口可插拔(PG 留位)
 enrich/         LLM 精评(批量/缓存/预算护栏)
-push/           通道(feishu_card/telegram/webhook/stdout)+ 阈值分级路由
+push/           通道(feishu_card/telegram/webhook/stdout)+ 阈值分级路由 + 消息平台层(directory/targets/delivery:通道目录+对象解析+定向投递)
 vision/         看图:双引擎 OCR(ocrmac+rapidocr-onnxruntime)+ OpenAI 兼容 VisionClient + vision.yaml 配置(extras myia[vision],惰性 import)
 ```
 
 - 现有文件多为薄壳:任务是**填充**而非新建;新模块先在对应 PRD 登记
 - plugins/*.yaml 是 schema 的端到端测试:发现 schema 缺口先回改 schema,不许插件私加字段
+
+## 消息平台层(2026-10-03 定案,task 10-03-hermes-messaging)
+
+- **蓝本移植,不 vendor 原文**:源自 Hermes(NousResearch/Hermes-Agent,MIT)gateway 的通道目录/对象解析/定向投递逐文件重写为 MYIA 风格,模块 docstring 标注上游文件路径与 MIT 归属,上游对照表登记在各子任务档;不整块拷贝原文、不引 git 子模块。各平台一律 httpx 直连官方 API,不引平台 SDK(核心 6 依赖红线不动);接不上官方 API 的平台进 extras 并结构化报错
+- **通道目录**(`push/directory.py`):`ChannelEntry(platform, chat_id, name, type, thread_id, last_seen)`;数据根下 `channel_directory.json`(tmp+rename 原子写)+ `channel_aliases.json` 别名覆盖层(load 与重建双向生效,重建后别名仍在——Hermes 同款回归点);重建为按平台桶整体替换,被动平台(Telegram 无列表 API)靠 `merge_entries` 增量积累;手工直编目录文件不保证保留,别名文件才是持久覆盖层;损坏/不可写退化为内存态,绝不阻塞推送
+- **对象解析**(`push/targets.py`):spec 形态 `platform:名称或id`,解析顺序 = 显式 id/@username 直达(平台 `parse_direct_ref` 钩子,不经目录)→ 目录精确 id → 精确名(大小写不敏感)→ 唯一前缀(多义即未命中);别名是目录改名层,不是独立解析层级;未命中抛 `TargetResolveError` 内嵌候选列表(MYIA 增量,上游靠交互式 list);纯字符串/前缀匹配,无任何 eval
+- **定向投递 + 死信**(`push/delivery.py`):按解析后对象逐一发送(immediate 单条 / digest 每(通道×对象)一卡),单对象失败不阻断同批;死信为错误分类制(Hermes 原味):`forbidden` 与 chat 级 `not_found` 单次硬失败即标 dead,瞬态错误(超时/网络/限流)不标;dead 期间跳过并记结构化日志(不发告警卡);投递成功一次即自愈;无阈值、无配置口
+- **schema 同平台约束**:`push[].targets` / `push[].route[].targets` 元素平台前缀须与条目通道一致(内置字面映射 `feishu_card→feishu`、`telegram→telegram`),不一致在配置加载期即拒;跨平台 = 写多条 push 条目;targets 在场时 legacy `target` 可省;不配 targets = 现行为零迁移(golden 回测逐字节等价)
+- **注册与刷新**:平台适配器挂现有 `Channel` 协议(`supports_targeting` / `parse_direct_ref` / `discover_directory`),`PLATFORMS` dict 注册表与 `CHANNELS` 并排(feishu/telegram 已接入);刷新三层 = run 前节流懒刷(>5 分钟且有已注册平台才发现,失败退回旧目录+告警)+ CLI `myia channels refresh/list` + 桌面按钮;无发现 API 的被动平台归 passive 上报(退出码 0),非失败
 
 ## 桌面发行数据根(v1.1.1 定案,task 10-03-v111-desktop-paths)
 
