@@ -2,6 +2,11 @@
 
 > 主人在前台干活,自动化操作严禁抢焦点。适用于一切代理/工作流/主会话命令。
 
+## 工作区共享礼仪(多会话并行,10-03-shared-build-races 定案)
+
+6. **清场禁全目录还原**:严禁 `git checkout -- <目录>/` 式清场(会吞掉并行会话在途改动,实锤:yaml-editor 冒烟 diff 被并行 e2e 还原);只还原**自己创建/修改的显式文件清单**
+7. **共享构建缓存隔离**:任何调用 PyInstaller 的脚本必须先导出检出内私有 `PYINSTALLER_CONFIG_DIR`(build-sidecar.sh 已内置);新脚本照抄该行
+
 ## 规则
 
 1. **禁前台切换**:严禁 `open -a <App>`(默认激活)、`osascript ... activate`、任何置前/切换窗口的命令

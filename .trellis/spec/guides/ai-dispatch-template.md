@@ -25,6 +25,10 @@
 - 严禁任何抢前台命令(open -a 默认激活、osascript activate、全屏截图);拉起 App 一律 open -g / --hide 或不拉起;验证用 pgrep/二进制直跑/文件实查;截图只许目标 App 窗口级,拿不到就写「需主人自验」;装机/覆盖安装后不自动拉起,报告路径与命令让主人自己点开
 - 全壳冒烟(启动整个世事/MYIA 壳)必须 MYIA_HOME=<沙箱目录> 走独立锁域,禁止裸拉,pgrep -x MYIA 未运行也不免沙箱;env 送 GUI 壳严禁 `MYIA_HOME=x open -a` 前缀写法(对 open 无效,静默不沙箱)——有效通道:dev 前缀 / 直跑二进制配前缀 / open --env / launchctl setenv,走 launchctl 则收尾必 launchctl unsetenv 清场(必做项,unsetenv 单列冒烟步骤一步)
 
+## 工作区共享纪律
+
+- 清场只还原自己动过的显式文件,禁 git checkout -- 全目录(会吞并行会话在途改动);PyInstaller 一律私有 PYINSTALLER_CONFIG_DIR(见 spec/domain/os-etiquette.md)
+
 ## 每任务执行协议(铁律)
 1. 动手前:完整读该任务 prd.md + implement.jsonl 列的上下文文件
 2. 实现:遵守 .trellis/spec/(结构化错误/退出码/公开红线/系统礼仪 os-etiquette)

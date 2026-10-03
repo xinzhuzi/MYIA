@@ -32,7 +32,7 @@ src/
 ├── components/
 │   ├── layout/      app-layout / sidebar(五屏导航)/ top-bar(品类+状态)/ page-header
 │   ├── ui/          shadcn 惯例组件(button/card/badge/select/separator/skeleton)
-│   ├── myia-mark.tsx  品牌标(事实源:../branding/myia-icon.svg → public/ 拷贝)
+│   ├── myia-mark.tsx  品牌标(事实源:../branding/shishi-icon.svg → public/ 拷贝)
 │   └── empty-state.tsx 统一空态(品牌图标+渐变光晕+中文文案)
 ├── routes/          五屏:dashboard / feed / sources / logs / settings(骨架空路由)
 ├── App.tsx          路由表(HashRouter;/ = 仪表盘)

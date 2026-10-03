@@ -101,6 +101,10 @@ uv pip install --python "$PYBIN" --quiet "pyinstaller>=6.10"
 DATA_SEP=":"
 [[ "$HOST_OS" == "windows" ]] && DATA_SEP=";"
 mkdir -p "$DIST" "$BIN_DIR"
+# 多会话共享机构建竞态治理(10-03-shared-build-races):PyInstaller 默认缓存
+# ~/Library/Application Support/pyinstaller 是全机共享的,--clean 会整删——
+# 并行会话同时打包互删缓存实锤三次。导出检出内私有 CONFIG_DIR 隔离。
+export PYINSTALLER_CONFIG_DIR="$SPIKE_DIR/.pyinstaller-cache"
 PYINST="$VENV/bin/pyinstaller"
 [[ -x "$PYINST" ]] || PYINST="$VENV/Scripts/pyinstaller.exe"
 # 命名:sidecar 叫 myia-core 而非 myia——主程序 mainBinaryName=MYIA,macOS APFS
