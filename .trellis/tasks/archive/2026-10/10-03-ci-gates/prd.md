@@ -95,7 +95,10 @@ fbba437/dee8e24/b4e2787/845f64a 落库;本补记只补证据与遗留项,零代�
   vision-pipeline 会话工作区在途(test 文件已改)。**红在 test job,两道
   新门禁在全部红 run 上依旧 ✓**——非 ci-gates 缺陷,归属他线收口。
 - **D3 双跑双绿**(2026-10-03,本机):`uv run pytest -q` 与
-  `uv run python -m pytest -q` 结果见下方勾选行;ci.yml test job 用
+  `uv run python -m pytest -q` 各 **1836 passed / 14 skipped / exit 0** 双绿
+  (首对跑法曾现 crawl4ai×3/×1 瞬态红——当时并行会话正在改树,复跑两法
+  连续全绿,单跑该文件 33/33 绿,判干扰型非跑法语义;两法全程零收集错/
+  零 conftest 导入错,718d56c 语义在两法下等价);ci.yml test job 用
   `python -m pytest` 风格一致;README/docs 零 pytest 跑法字样,无口径漂移面。
 - **mypy 评估(实跑)**:`uv run --with mypy --no-sync mypy src/myia
   --ignore-missing-imports` = **45 errors / 12 files / 58 checked**(exit 1);

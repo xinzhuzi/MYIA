@@ -26,7 +26,8 @@ games 品类加第三源 `cheapshark`:GOG/Humble/Fanatical 三家店的**付费
 4. **字段单位与路由**:美元独立命名 `sale_price`/`savings_pct`(字符串,
    规则 `float(savings_pct) >= 50` 用白名单函数),**不归一 `final_price`、
    不进 baseline**(人民币分基线不容美元元);**路由零改动**——CS 全落
-   digest(immediate 仍只属限免;跳楼价在 digest 里按 savings 排序自然置顶)。
+   digest(immediate 仍只属限免;digest 无 items 排序,顺序=源到达序,CS 条目
+   落日报尾部)。
 5. **URL 用 `.com` 域**:`https://www.cheapshark.com/redirect?dealID={deal_id}`
    (实测 200;`.net` 域本机两次 SSL 拒连,网络路径问题记档不纠缠)。
 6. **zol 连通性与 smzdm 不搭车**:zol 属 gpu-prices 线独立议题;smzdm
@@ -74,3 +75,20 @@ games 品类加第三源 `cheapshark`:GOG/Humble/Fanatical 三家店的**付费
 - [ ] scoped `tests/test_plugins.py` 绿;全量本任务范围零失败
       (外来红口径同 v2:逐条归属)
 - [ ] 真跑三店条目 > 0(evidence 落档)
+
+## 验收记录(2026-10-03,受主人委托代验)
+
+**结论:accepted**(六条 AC 全部对上仓库实况;复选框维持原状,证据如下)。
+
+Acceptance Criteria 逐条(行号/命令均为本日实况):
+
+1. **dry-run 退出码 0** ✅:`uv run --no-sync shishi run plugins/games.yaml --dry-run --json` → exit 0,`status: success`(shishi = myia.cli:main,pyproject.toml:41);cheapshark 源当日 fetch ok。
+2. **`_SNIPPETS` 加 `(games, cheapshark)`** ✅:`tests/test_plugins.py:682-713`,两元素裁自 `evidence/cs-multi.json`——Unclaimed World 的 dealID `hV1uGbDuy%2F…%3D` 与 evidence 逐字节一致(python 比对实证)、savings `97.057092` 即 96%+ 命中形;非命中形 savings `"45.0"` 系唯一人为调整(注释明示三店 top-60 无 sub-50 实录可裁,循 gpu-prices zol 合成先例)。第二形状错位防护:`expect_second`(:708-712)+ 断言环(:790-799)。
+3. **golden 同步再生成并绿** ✅:基件 `tests/fixtures/push_targets_golden_before.json` games 源数=4(cheapshark 在列:storeID=7,11,15 / `$[*]` 前缀 / `.com` redirect 模板 / respect_robots false);同步落 commit `f768e4e`(feat(games): CheapShark 多店折扣第三源……+golden 同步);`uv run --no-sync python -m pytest tests/test_push_schema_targets.py -q` → **23 passed**(本次实跑)。
+4. **合成 CS 条目断言** ✅:`test_games_cheapshark_deal_hits_rule_and_stays_digest`(`test_plugins.py:340-374`):`float(savings_pct) >= 50` 命中含 `>=50` 边界(50.0 命中/49.999 不命中)、Epic/Steam 缺字段让路、双通道 resolve_route 落 digest 不 immediate;源形状由 `test_games_cheapshark_source_declares_three_stores_top_array_prefix`(:268-288)钉住($[*] 前缀、robots override 非缺省漂移)。
+5. **scoped 绿 / 全量本任务范围零失败** ✅:`uv run --no-sync python -m pytest tests/test_plugins.py -q` → **86 passed, 6 skipped**(6 skip = MYIA_SMOKE_REAL 真实源 smoke 默认跳),exit 0(本次实跑);全量口径=批次收尾存档 1822 passed/14 skipped/0 failed(时点在 f768e4e 之后,见 games-v2 执行记录),本次代验按 scoped 实跑、未复跑全量。
+6. **真跑三店条目 > 0** ✅:`evidence/live-run-v3-2026-10-03.json`(dry_run: false,cheapshark item_count 20,fetch/classify/dedup/analyze/push 全 ok、failures 空)+ `evidence/cs-three-stores.json`(20 条)。当日店分布 storeID ∈ {11,15}(Humble/Fanatical),GOG 店(7)当日无 top-Savings 折扣条目——如实注记,不影响「条目>0」成立。
+
+决议符合性抽查:respect_robots: false 附 deliberate override 注释+回退条件(`plugins/games.yaml:121-125`);美元字段 sale_price/savings_pct 不进 final_price/baseline(测试 `test_plugins.py:188` 钉住 `baseline.fields == ["final_price"]`);路由零改动(immediate 仅限免析取)。
+
+处置:accepted → 执行 archive(set-branch main)。
