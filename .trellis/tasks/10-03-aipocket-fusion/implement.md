@@ -72,10 +72,12 @@
 
 ## P4 残留清单(2026-10-03 交付后,质检核实 7 条;主人过目后逐项收)
 
+- [ ] **【新·价值链缺口,重于 low】全文密钥通道缺位(2026-10-03 主人问「没有其他问题吗」后自查发现)**:findings「全文永不入 item」对 Q9 模板红线是对的(引擎路径无安全通道:from_extracted 额外字段全进 metadata、item_view 把 metadata 合进模板上下文),但全文被直接丢弃——猎→存→验断链,credcheck 无从取原文。**定案=插件侧 keystore**(指纹→全文 JSON,MYIA_HOME 数据域,chmod 600,核心零接触);已派实现代理在途,落地后勾掉。
+- [ ] **发现3(线权)→已代收(2026-10-03 主会话)**:myia-credentials compatible 矩阵收编提交(HEAD 树 test_plugin_packages 版本矩阵复绿,95 passed;归因 tag-release 线,main 保绿纪律优先)。
 - [x] **发现4(low)已修(2026-10-03 主会话)**:credentials.yaml push feishu_card→stdout(Q9)+golden 同步(channel/target 两处)。
 - [x] **发现5(low)已对齐口径(2026-10-03 主会话)**:adapter.py/cli.py/README 三处改为「--apikey 显式传键;读库→回填列 fast-follow(store/* 被并行线持有)」——**回填通路本体仍未实现**,补齐时按 integration-facts §2 通路与 Q7/Q8 分层限速。
 - [x] **发现6(low)已修(2026-10-03 主会话)**:ghhunt.py docstring 重复短语删除。
 - [x] **发现(低,规格文档)已加注(2026-10-03 主会话)**:credcheck.md 头部加「本地化注记」——上游字面值仅指语义,断言以实现值为准。
-- [ ] **发现3(线权)**:plugins/myia-credentials/plugin.yaml compatible('>=0.1,<2.0'→'0.0.1 矩阵')工作树已修但属 tag-release 线领地不代收——提交树该行仍旧,依赖 tag-release 线版本落定后同批收。
 - [ ] **发现7(提交卫生,主人裁决)**:ca613ee 混入 weixin 通道文档行(skill/SKILL.md,疑 messaging W2 在途内容被收编);未推送,可 rebase 拆分——是否重写历史归主人。
 - [ ] **主人侧三项**:myia secret set myia/credhunter/github-token(credhunt 真跑 ≥1 finding,AC2)/活 key 显式 --balance(余额矩阵验证)/myia/credhunter/{fofa,shodan}-key(曝面真跑)。
+- [~] **dedup {url} 语义(判可接受,注记)**:credentials.yaml 类目级 `{url}` 对 credhunt 产物=按命中位置去重(同键多处=多条);发现层另有 `{provider}-{指纹}` 建议键(findings.dedup_key)未启用——同键多位置各留证据符合情报语义,推送走 digest 分桶可容忍;若主人嫌吵再改键位。
