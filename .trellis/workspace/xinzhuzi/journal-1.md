@@ -92,3 +92,11 @@
 - 复核意见四条全吸收:①②回标不待开工——stub task.json 标 superseded→v112-desktop-parity、v12-backlog 第 4 项移交注记、v111-release 改口注记(README 文案改指 v1.1.2 批次,防 v1.1.1 发布时写成过期事实)均随建档 commit 完成;③ci-gates D4 证据改 build-sidecar.sh:99-104(pyinstaller `--specpath`,SPIKE_DIR 定义在 15 行,顺修草案 --specpass 笔误);④D3 验收改浮动基线口径(普查时点 1397/14,期间 v111-release/yaml-editor 移动总数,零失败为准)
 - 落盘按现势增补(晚于草案的新拍板):C8/C9 已按 ui-feature-census grill Q1 划归 10-03-feed-ux——v112 正式档表格标注划出、验收不含,并记 C1×G1/G3 协议合参(PROTOCOL_VERSION 统一 +1);v112-desktop-parity 挂 grill-v112 子任务与执行树对齐
 - journal 仍压着 yaml-editor 两行与 sidebar-brand-trim/ui-feature-census 两节未随行(其他会话内容,照旧不代提交);desktop/tests/.trellis/scripts 在途改动(Q8 防护施工中)一律未碰
+
+## 2026-10-03 CI 门禁补全(task 10-03-ci-gates,implemented→归档;提交人落库)
+
+- 基线(PRD 起草期实测,本机+/tmp 干净克隆):fresh clone 裸 `cargo check` 必红——tauri-build build.rs 校验 externalBin 而 binaries/ 被 gitignore(.gitignore:67),造空占位后全绿;ruff 0.16.10 默认集 498 错(I001×68/UP017×60/F401×47),最小集 E9/F63/F7/F82 0 错零改动即可绿
+- 门禁落地:ci.yml 增两 job——`rust-check`(占位 externalBin → `cargo check --locked`,working-directory desktop/src-tauri)与 `ruff`(`uvx ruff@0.16.10 check .` 锁版本);D3 防回归注记进 tests/conftest.py docstring(测试一律 `from conftest import`,勿改回 `from tests.conftest import`——裸 pytest 假红,修复史 718d56c);D5 取 PRD 两选项中的文档提示路线:desktop/UPDATER.md 补「`tauri dev` 前先 bash build-sidecar.sh」本地开发提示,不动 tauri.conf.json
+- 偏离四条:①D4 删 myia.spec 跳过——git status 显 M,v111-desktop-paths 会话在途脏改且它正是重新生成该对象的会话,碰撞规避留其收尾;②ruff 配置落独立 ruff.toml 而非 PRD 的 pyproject [tool.ruff]+dev 组加 ruff——pyproject 被 v111 版本对齐在途改,缘由注明在 ruff.toml 文件头,CI/本地同款命令不变;③验收「push 上 ci.yml 真跑全绿」不在本批,多会话在途此刻推送会夹带未完成改动,归编排脚本合并后补绿 run;④普查档活清单回标 D1/D2/D4/D5 不在本批(本 journal 节即其中「记一笔」)
+- 提交人复核探针(2026-10-03,本机):`uvx ruff@0.16.10 check .` 全工作树 1 错——F821 于 tests/test_messaging_pipeline.py:169,该文件 ?? 未跟踪(他会话在途件,干净 CI 检出不存在,不拦门禁);对 HEAD 跟踪树(`git ls-files '*.py'` 130 文件同款命令)All checks passed exit 0。cargo check 未在本会话复跑(依赖本机 binaries/ 占位与网络拉依赖,PRD 起草期已双态实测,CI 首跑以真实日志为准)
+- 落库:单 commit A 仅白名单五路径(ci.yml/ruff.toml/conftest.py/UPDATER.md/任务目录)+ journal 本节选择性暂存(git apply --cached,文件其余在途内容不代提交);归档 task.py archive --skip-branch-validation 自动提交
