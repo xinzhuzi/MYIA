@@ -1,0 +1,168 @@
+# plugins/ai-news.yaml — AI news digest: aggregator hot feed + AI forums.
+#
+# Section semantics are documented once, fully, in plugins/stocks.yaml (the
+# schema showcase). This file adds the patterns that file does not show:
+# a firecrawl-backend source, Discourse list extraction with pagination,
+# and a login-walled placeholder source.
+
+id: ai-news
+name: AI资讯
+
+# 08:00 and 20:00 local — one card per slot; the AM/PM registry (local-noon
+# boundary) keeps a digest item from being re-sent inside the same slot.
+schedule: "0 8,20 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  # aihot.news — AI industry hot-feed aggregator. NOTE on engine choice:
+  # the schema's engine vocabulary has no "firecrawl" literal yet (recorded
+  # gap), so the firecrawl backend is reached through "auto": the v0.1 chain
+  # is L1 direct_api -> L2 static_html -> firecrawl, and once firecrawl (or
+  # any engine) succeeds the choice is persisted as an engine hint in SQLite
+  # (never written back into this YAML). Today the root feed happens to be
+  # server-rendered, so L2 usually wins; if the site moves to full JS
+  # rendering the chain degrades to firecrawl — configure the backend via
+  # MYIA_FIRECRAWL_URL / MYIA_FIRECRAWL_API_KEY (or the commented
+  # engine_options below) BEFORE relying on that path.
+  - name: aihot
+    engine: auto
+    url: "https://aihot.news/"    # root page = today's curated feed (~20 items)
+    method: GET
+    headers:
+      User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    extract:                      # verified against the 2026-10 SSR markup
+      type: list
+      item: "article[data-item-id]"   # cards without a title anchor are
+                                      # skipped automatically (zero-hit records)
+      fields:
+        title: "h3"                 # headline text
+        url: "h3 a@href"            # /items/<id>, resolved against the page URL
+        image: "img@src"            # card cover image, urljoin'ed against the
+                                    # page URL; lands in metadata["image"] for
+                                    # the images: ring below (cards without a
+                                    # cover simply omit the field)
+    rate_limit:
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true          # robots allows content pages (only /api/,
+                                    # /admin/ and retired paths are blocked)
+    proxy: direct
+    retry: 3
+    # engine_options.firecrawl:            # backend knobs (all optional, all
+    #   endpoint: env:MYIA_FIRECRAWL_URL   # credential refs — plaintext refused)
+    #   api_key: env:MYIA_FIRECRAWL_API_KEY
+
+  # CocoLoop — Discourse community (AI/agent sections). L2 static_html over
+  # the standard Discourse topic list; template pagination walks /latest.
+  - name: cocoloop
+    engine: static_html
+    url: "https://www.cocoloop.cn/latest?page={page}"
+    method: GET
+    headers:
+      User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    pagination:                   # template mode: {page} in the URL is mandatory
+      mode: template
+      max_pages: 2                # walk stops early on unchanged/empty pages
+    extract:                      # standard Discourse list markup
+      type: list
+      item: "tr.topic-list-item"
+      fields:
+        title: "a.raw-topic-link"
+        url: "a.raw-topic-link@href"   # already absolute on this site
+    rate_limit:
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true          # robots allows /latest; blocks /u/, /my/,
+                                    # *.json and admin paths
+    proxy: direct
+    retry: 3
+    # 详情页取图(10-03-detail-images):本源列表页只有头像/emoji,条目元数据
+    # 常无图可进 images: 环;开此开关后 fetch 尾部对无图条目追抓其详情页
+    # (帖页服务端渲染,静态可抓),同域 <img> 收进 metadata.images 喂同一
+    # OCR 环。礼貌上限:每 run 至多 detail_max_items(缺省 10)条、串行、
+    # 每请求间隔 ≥1s、单页超时 10s;品类级缺省 false,仅本源示范。
+    images_detail_fetch: true
+
+  # linux.do — placeholder for a login-walled Discourse source. stealth_browser
+  # (L5) is implemented and sits at the auto chain's tail carrying login state:
+  # it needs an invisible_playwright_mcp service (engine_options.stealth_browser);
+  # without it the leg fails with mcp_server_missing and the chain keeps degrading.
+  # - name: linuxdo
+  #   engine: auto                  # L5 stealth_browser handles the login wall
+  #   url: "https://linux.do/latest"
+  #   extract:
+  #     type: list
+  #     item: "tr.topic-list-item"
+  #     fields:
+  #       title: "a.raw-topic-link"
+  #       url: "a.raw-topic-link@href"
+  #   headers:
+  #     Cookie: env:LINUXDO_COOKIE  # login state via env reference only
+
+watchlist:
+  keywords: [LLM, Agent, 开源模型, AI芯片, 大模型, 多模态]
+  mute: [广告, 招聘]
+
+classify:                       # AI 资讯 is one of the seven builtin categories
+  builtin: true                 # keyword pre-filter; unmatched titles drop
+  rules: []                     # (visible skip: classify_unmatched)
+
+dedup:
+  key: "{url}"                  # default semantics, spelled out for clarity
+
+enrich:
+  enabled: true                 # 10-03-vision-daily A2:第二层漏斗实开;端点凭据
+                                # 双引用(schema 铁律:base_url/api_key 只收
+                                # env:/keychain: 引用,明文拒载 — grill Q6)
+  model: glm-4-flash
+  scores: [value, relevance, credibility]
+  batch: 10                   # 10-03-vision-daily 实测:glm-4-flash 单批 20 条
+                              # 评分 completion >60s 超时上限(enrich 层批级降级);
+                              # 10 条留足余量,mini-batch(≤2 条)~6s 实证
+  cache: true
+  budget_per_run: 50000
+  base_url: env:MYIA_LLM_BASE_URL   # 智谱 PAAS v4:export MYIA_LLM_BASE_URL=\
+                                # https://open.bigmodel.cn/api/paas/v4
+                                # (docs/zh/zero-cost.md §enrich、docker/env.example
+                                # 同名条目;容器走 docker/.env,CLI 走 shell 导出)
+  api_key: keychain:myia/image/api_key   # 既有 GLM key(与 vision.yaml cloud 同链;
+                                # myia secret set myia/image/api_key 录入)
+
+push:
+  - channel: feishu_card
+    target: env:FEISHU_CHAT_ID  # bot token comes from env:FEISHU_BOT_TOKEN
+    route:
+      - when: "score >= 9"      # v0.2 slot: only breakout news (scored) pushes now
+        mode: immediate
+      - when: "category in ['freebie', 'proxy-node', 'buying-agent']"   # v0.1:
+        mode: immediate         # give-aways inside AI communities go out now
+      - when: "category == 'ai-news'"   # v0.1: the daily digest bucket
+        mode: digest
+    template: |
+      **AI 资讯 · {{ date }}**
+      {% for item in items %}
+      - [{{ item.title }}]({{ item.url }})
+      {% endfor %}
+
+storage:
+  retention: 90d
+  vacuum: monthly
+
+# 图片处理环(10-03-vision-pipeline,sidecar 节):fetch 尾部对条目配图
+# (aihot 卡片封面)做本地 OCR,产物进 metadata.image_ocr / image_status,
+# 随 enrich 精评与推送模板即刻可读。失败只写降级标记,绝不阻断采集。
+images:
+  enabled: true        # OCR + 本地 VL caption(10-03-vision-daily A1:vl 实配 local)
+  max_images: 3        # 每条上限;超出静默截断
+  max_per_run: 30      # 每 run 硬闸(VL 时长的护栏;~30s/图,两槽合计 30 张封顶)
+  min_bytes: 10240     # <10KB 视为图标/追踪像素跳过
+  vl: local            # 视觉描述(情报向 caption,进 metadata.image_caption):
+                       # 通道走 vision.yaml 的 local 节(设置屏「看图」录入本地
+                       # 模型路径)。本地服务启动指引(mlx-vlm 示例):
+                       #   uvx --from mlx-vlm mlx_vlm.server --model <模型目录> \
+                       #     --host 127.0.0.1 --port 8080
+                       # 服务死/超时自动降级只 OCR 不崩(已验);并发 1、45s/图
+                       # 超时降级;token 计入 enrich 预算池。
+  # ocr_engine: vision # vision | rapidocr;缺省按 vision.yaml 的 ocr.engine_default

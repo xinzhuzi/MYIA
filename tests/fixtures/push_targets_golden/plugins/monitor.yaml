@@ -1,0 +1,64 @@
+# plugins/monitor.yaml — web-change monitoring via an optional changedetection.io instance.
+#
+# v1.1 plugin slim-down: the built-in change fingerprint + the L1-L4 degrade
+# chain cover the desktop scenario with zero plugins; the `plugin:` node below
+# is an OPT-IN remote integration (point at an already-deployed
+# changedetection.io instance — zero docker). A plugin that cannot be
+# installed never blocks the core pipeline (iron law).
+#
+# The `plugin:` declaration is modeled by myia.schema since v0.3
+# (CategoryPluginConfig, validated by load_category and attached to
+# CategoryConfig.plugin; see src/myia/plugins for the market side).
+id: monitor
+name: 变更监控
+schedule: "*/15 * * * *"
+timezone: Asia/Shanghai
+
+plugin:                             # scenario plugin declaration (remote opt-in, v1.1)
+  id: myia-monitor
+  requires: []
+  modes:
+    remote:
+      endpoint: https://my-monitor.example.com   # your changedetection.io instance
+      token: keychain:myia/monitor/token            # myia secret set myia/monitor/token
+
+sources:
+  - name: changedetection-watches
+    engine: direct_api            # REST API of the changedetection.io service
+    url: "https://my-monitor.example.com/api/v1/watch"   # MANUALLY kept in sync with plugin.modes.remote.endpoint above (no auto-resolve mechanism: two places to edit)
+    method: GET
+    headers:
+      # 钥匙链凭据引用,规范名空间 myia/<scope>/<name>(写入:
+      # myia secret set myia/monitor/token)
+      X-Api-Key: "keychain:myia/monitor/token"
+    extract:
+      type: json_path
+      fields:
+        title: "$[*].label"
+        url: "$[*].url"
+        time: "$[*].last_changed"
+    rate_limit:
+      qps: 0.5
+      backoff: exponential
+      respect_robots: true
+    proxy: direct
+    retry: 3
+
+dedup:
+  key: "{url}"
+
+push:
+  - channel: feishu_card
+    target: env:FEISHU_CHAT_ID
+    route:
+      - when: "score >= 8"
+        mode: immediate           # a detected change is urgent by default
+      - when: "score >= 5"
+        mode: digest
+      - when: "score < 5"
+        mode: archive
+    template: |
+      **页面变更 · {{ date }}**
+      {% for item in items %}
+      - [{{ item.title }}]({{ item.url }})
+      {% endfor %}

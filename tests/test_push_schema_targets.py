@@ -2,7 +2,7 @@
 
 覆盖:格式校验(空串拒/去重/元素形态)、同平台约束(通道级与规则级)、
 不支持寻址通道拒配、targets 在场时 target 可省、旧 YAML 黄金回归
-(改动前 7 个已跟踪夹具的加载结果逐字节等价)。
+(黄金集夹具的冻结副本加载结果与黄金 JSON 的 push 子树等价)。
 """
 
 from __future__ import annotations
@@ -16,6 +16,10 @@ from myia.schema import CHANNEL_PLATFORMS, LoadError, load_category
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 GOLDEN = FIXTURES / "push_targets_golden_before.json"
+# 冻结副本根(10-03-golden-frozen-snapshots):黄金回归只读这里,不读活库
+# plugins/*.yaml。副本按黄金 JSON 的键(仓库根相对路径)镜像落位,故
+# plugins/stocks.yaml 与 tests/fixtures/stocks.yaml 的重名天然消解。
+GOLDEN_DIR = FIXTURES / "push_targets_golden"
 
 
 def _minimal_data() -> dict:
@@ -236,25 +240,58 @@ class TestMissingTargetRelaxation:
 
 class TestGoldenRegression:
     def test_legacy_yaml_load_byte_identical_to_before(self):
-        """黄金回归:改动前捕获的 7 个已跟踪夹具,push 子树逐字段等价。
+        """黄金回归:黄金集夹具的**冻结副本**,push 子树逐字段等价。
 
-        承诺边界(2026-10-03 两起并行踩踏后收窄):本任务的 schema 改动只碰
-        PushConfig/RouteRuleConfig,黄金基线只对 ``push`` 子树做逐字段断言
-        (targets 剥离后零漂移)。其余节(extract/fields/images 等)是并行
-        任务的合法演化面——games 的 url_template、vision 的 image: img@src
-        都曾把全模型快照对比打红,那不是本层的承诺,不再拦。
+        冻结基线(10-03-golden-frozen-snapshots 治本):比对对象从活体
+        ``plugins/*.yaml`` 换成 ``tests/fixtures/push_targets_golden/`` 下
+        的只读副本——多会话仓库里,任何会话给自己品类 yaml 加 push
+        条目/字段都是合法演进,但活体参与比对就会把本测试打红(2026-10-03
+        一天两次:games 的 url_template、vision 的 image: img@src/games
+        push 扩列)。冻结后活库演进与本测试彻底解耦,别的任务也不再需要
+        顺手"golden 同步"。
+
+        承诺边界(同日收窄,commit 2e7e252):只对 ``push`` 子树做逐字段
+        断言(targets 剥离后零漂移);其余节是各任务的合法演化面,不拦。
+        additive 空键(None/[]/{})容忍保持——那是 schema 层新增字段的
+        合法形态,取值漂移、字段丢失、非空新增键仍然失败。
+
+        升级路径(显式,绝不静默跟随活库)::冻结版与活版漂移过大、经
+        评审决定重立基线时::
+
+            uv run --no-sync python tests/regen_push_targets_golden.py --refreeze
+
+        同源自检(不动冻结副本,输出须与仓库内 JSON 逐字节一致)::
+
+            uv run --no-sync python tests/regen_push_targets_golden.py
         """
         from myia.schema import load_category_file
 
         golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
         assert golden, "黄金文件为空:基线生成失败"
         for name, expected in golden.items():
-            cfg = load_category_file(Path(name))
+            cfg = load_category_file(GOLDEN_DIR / name)
             actual = cfg.model_dump(mode="json")
             _strip_additive_targets(actual)
             _assert_additive_equivalent(
                 actual.get("push", []), expected.get("push", []), f"{name}.push"
             )
+
+    def test_frozen_copies_match_golden_manifest(self):
+        """冻结完整性:黄金 JSON 的键与冻结目录内 *.yaml 一一对应。
+
+        黄金集的进出只允许经 ``tests/regen_push_targets_golden.py`` 的
+        MANIFEST 显式声明——副本缺失会让黄金回归直接红(load_category_file
+        抛错),多余的孤儿副本在这里拦住,防止清单与目录悄悄失配。
+        """
+        frozen = sorted(
+            p.relative_to(GOLDEN_DIR).as_posix() for p in GOLDEN_DIR.rglob("*.yaml")
+        )
+        golden_keys = sorted(json.loads(GOLDEN.read_text(encoding="utf-8")))
+        assert frozen == golden_keys, (
+            "冻结副本与黄金清单失配:"
+            f" 仅在目录={set(frozen) - set(golden_keys)},"
+            f" 仅在清单={set(golden_keys) - set(frozen)}"
+        )
 
 
 def _assert_additive_equivalent(actual, expected, path: str) -> None:

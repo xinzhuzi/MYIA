@@ -8,12 +8,12 @@
    "key": "{url}"
   },
   "enrich": {
-   "api_key": null,
-   "base_url": null,
-   "batch": 20,
+   "api_key": "keychain:myia/image/api_key",
+   "base_url": "env:MYIA_LLM_BASE_URL",
+   "batch": 10,
    "budget_per_run": 50000,
    "cache": true,
-   "enabled": false,
+   "enabled": true,
    "model": "glm-4-flash",
    "scores": [
     "value",
@@ -26,6 +26,8 @@
   "push": [
    {
     "channel": "feishu_card",
+    "dingtalk_secret": null,
+    "ntfy_token": null,
     "retries": 2,
     "retry_backoff_seconds": 1.0,
     "route": [
@@ -44,7 +46,11 @@
     ],
     "target": "env:FEISHU_CHAT_ID",
     "template": "**AI 资讯 · {{ date }}**\n{% for item in items %}\n- [{{ item.title }}]({{ item.url }})\n{% endfor %}\n",
-    "timeout": 10.0
+    "timeout": 10.0,
+    "wecom_agentid": null,
+    "wecom_corpid": null,
+    "wecom_corpsecret": null,
+    "weixin_hermes_bin": null
    }
   ],
   "schedule": "0 8,20 * * *",
@@ -53,11 +59,13 @@
     "engine": "auto",
     "extract": {
      "fields": {
+      "image": "img@src",
       "title": "h3",
       "url": "h3 a@href"
      },
      "item": "article[data-item-id]",
-     "type": "list"
+     "type": "list",
+     "url_template": null
     },
     "headers": {
      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
@@ -84,7 +92,8 @@
       "url": "a.raw-topic-link@href"
      },
      "item": "tr.topic-list-item",
-     "type": "list"
+     "type": "list",
+     "url_template": null
     },
     "headers": {
      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
@@ -156,6 +165,8 @@
   "push": [
    {
     "channel": "stdout",
+    "dingtalk_secret": null,
+    "ntfy_token": null,
     "retries": 2,
     "retry_backoff_seconds": 1.0,
     "route": [
@@ -172,12 +183,44 @@
       "when": "score < 5"
      }
     ],
+    "target": null,
     "template": "**新凭证情报 · {{ date }}**\n{% for item in items %}\n- {{ item.title }} ({{ item.url }})\n{% endfor %}\n",
-    "timeout": 10.0
+    "timeout": 10.0,
+    "wecom_agentid": null,
+    "wecom_corpid": null,
+    "wecom_corpsecret": null,
+    "weixin_hermes_bin": null
    }
   ],
   "schedule": "0 */2 * * *",
   "sources": [
+   {
+    "engine": "credhunter",
+    "engine_options": {
+     "credhunter": {
+      "checkpoint_file": ".myia/credhunter/credentials-checkpoint.json",
+      "github_tokens": [
+       "keychain:myia/credhunter/github-token"
+      ],
+      "lane": "credhunt"
+     }
+    },
+    "extract": null,
+    "headers": {},
+    "method": "GET",
+    "name": "credhunter-native",
+    "pagination": null,
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 0.0,
+     "qps": 0.5,
+     "respect_robots": true
+    },
+    "retry": 0,
+    "url": "https://api.github.com"
+   },
    {
     "engine": "direct_api",
     "extract": {
@@ -187,7 +230,8 @@
       "url": "$[*].source_url"
      },
      "item": null,
-     "type": "json_path"
+     "type": "json_path",
+     "url_template": null
     },
     "headers": {
      "Authorization": "Bearer keychain:myia/credentials/token"
@@ -269,6 +313,8 @@
   "push": [
    {
     "channel": "feishu_card",
+    "dingtalk_secret": null,
+    "ntfy_token": null,
     "retries": 2,
     "retry_backoff_seconds": 1.0,
     "route": [
@@ -283,10 +329,16 @@
     ],
     "target": "env:FEISHU_CHAT_ID",
     "template": "**游戏情报 · {{ date }}**\n{% for item in items %}\n- [{{ item.title }}]({{ item.url }}) {% if item.price_text is defined %}{{ item.price_text }}{% elif item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}\n{% endfor %}\n",
-    "timeout": 10.0
+    "timeout": 10.0,
+    "wecom_agentid": null,
+    "wecom_corpid": null,
+    "wecom_corpsecret": null,
+    "weixin_hermes_bin": null
    },
    {
     "channel": "telegram",
+    "dingtalk_secret": null,
+    "ntfy_token": null,
     "retries": 2,
     "retry_backoff_seconds": 1.0,
     "route": [
@@ -301,7 +353,11 @@
     ],
     "target": "env:TELEGRAM_CHAT_ID",
     "template": "游戏情报 · {{ date }}\n{% for item in items %}\n- {{ item.title }} {{ item.url }} {% if item.price_text is defined %}{{ item.price_text }}{% elif item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}\n{% endfor %}\n",
-    "timeout": 10.0
+    "timeout": 10.0,
+    "wecom_agentid": null,
+    "wecom_corpid": null,
+    "wecom_corpsecret": null,
+    "weixin_hermes_bin": null
    }
   ],
   "schedule": "0 11 * * *",
@@ -494,6 +550,8 @@
   "push": [
    {
     "channel": "feishu_card",
+    "dingtalk_secret": null,
+    "ntfy_token": null,
     "retries": 2,
     "retry_backoff_seconds": 1.0,
     "route": [
@@ -508,7 +566,11 @@
     ],
     "target": "env:FEISHU_CHAT_ID",
     "template": "**显卡行情 · {{ date }}**\n{% for item in items %}\n- [{{ item.title }}]({{ item.url }}) ¥{{ item.price }} {{ vs_msrp(item) }} {{ vs_yesterday(item, 'price') }} {{ vs_last_week(item, 'price') }}\n{% endfor %}\n{% if keyword_trends %}\n**关键词提及周环比**:{% for t in keyword_trends %}{{ t.word }} {{ t.count }} 条({{ t.change_text }}) {% endfor %}\n{% endif %}\n",
-    "timeout": 10.0
+    "timeout": 10.0,
+    "wecom_agentid": null,
+    "wecom_corpid": null,
+    "wecom_corpsecret": null,
+    "weixin_hermes_bin": null
    }
   ],
   "schedule": "0 10 * * *",
@@ -591,6 +653,8 @@
   "push": [
    {
     "channel": "feishu_card",
+    "dingtalk_secret": null,
+    "ntfy_token": null,
     "retries": 2,
     "retry_backoff_seconds": 1.0,
     "route": [
@@ -609,7 +673,11 @@
     ],
     "target": "env:FEISHU_CHAT_ID",
     "template": "**页面变更 · {{ date }}**\n{% for item in items %}\n- [{{ item.title }}]({{ item.url }})\n{% endfor %}\n",
-    "timeout": 10.0
+    "timeout": 10.0,
+    "wecom_agentid": null,
+    "wecom_corpid": null,
+    "wecom_corpsecret": null,
+    "weixin_hermes_bin": null
    }
   ],
   "schedule": "*/15 * * * *",
@@ -623,7 +691,8 @@
       "url": "$[*].url"
      },
      "item": null,
-     "type": "json_path"
+     "type": "json_path",
+     "url_template": null
     },
     "headers": {
      "X-Api-Key": "keychain:myia/monitor/token"
@@ -699,7 +768,8 @@
     "timeout": 10.0,
     "wecom_agentid": null,
     "wecom_corpid": null,
-    "wecom_corpsecret": null
+    "wecom_corpsecret": null,
+    "weixin_hermes_bin": null
    },
    {
     "channel": "telegram",
@@ -722,7 +792,8 @@
     "timeout": 10.0,
     "wecom_agentid": null,
     "wecom_corpid": null,
-    "wecom_corpsecret": null
+    "wecom_corpsecret": null,
+    "weixin_hermes_bin": null
    }
   ],
   "schedule": "0 11 * * *",
@@ -806,6 +877,8 @@
   "push": [
    {
     "channel": "feishu_card",
+    "dingtalk_secret": null,
+    "ntfy_token": null,
     "retries": 2,
     "retry_backoff_seconds": 1.0,
     "route": [
@@ -824,7 +897,11 @@
     ],
     "target": "env:FEISHU_CHAT_ID",
     "template": "**股票情报 · {{ date }}**\n{% for item in items %}\n- {{ item.symbol }} {{ item.change_pct }}% 现价 {{ item.price }} {{ item.currency }}\n{% endfor %}\n",
-    "timeout": 10.0
+    "timeout": 10.0,
+    "wecom_agentid": null,
+    "wecom_corpid": null,
+    "wecom_corpsecret": null,
+    "weixin_hermes_bin": null
    }
   ],
   "schedule": "0 9,15 * * 1-5",
@@ -841,7 +918,8 @@
       "url": "$.chart.result[0].meta.symbol"
      },
      "item": null,
-     "type": "json_path"
+     "type": "json_path",
+     "url_template": null
     },
     "headers": {
      "Accept": "application/json"
@@ -915,6 +993,8 @@
   "push": [
    {
     "channel": "feishu_card",
+    "dingtalk_secret": null,
+    "ntfy_token": null,
     "retries": 2,
     "retry_backoff_seconds": 1.0,
     "route": [
@@ -933,7 +1013,11 @@
     ],
     "target": "env:FEISHU_CHAT_ID",
     "template": "**羊毛速报 · {{ date }}**\n{% for item in items %}\n- [{{ item.title }}]({{ item.url }})\n{% endfor %}\n",
-    "timeout": 10.0
+    "timeout": 10.0,
+    "wecom_agentid": null,
+    "wecom_corpid": null,
+    "wecom_corpsecret": null,
+    "weixin_hermes_bin": null
    }
   ],
   "schedule": "0 8,20 * * *",
@@ -946,7 +1030,8 @@
       "url": "a.post-title@href"
      },
      "item": "div.post-body",
-     "type": "list"
+     "type": "list",
+     "url_template": null
     },
     "headers": {
      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
@@ -973,7 +1058,8 @@
       "url": "@href"
      },
      "item": "a.min-w-0[href^=\"/posts/\"]",
-     "type": "list"
+     "type": "list",
+     "url_template": null
     },
     "headers": {
      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
@@ -1000,7 +1086,8 @@
       "url": "a.raw-topic-link@href"
      },
      "item": "tr.topic-list-item",
-     "type": "list"
+     "type": "list",
+     "url_template": null
     },
     "headers": {
      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
@@ -1031,7 +1118,8 @@
       "url": "a.raw-topic-link@href"
      },
      "item": "tr.topic-list-item",
-     "type": "list"
+     "type": "list",
+     "url_template": null
     },
     "headers": {
      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
@@ -1062,7 +1150,8 @@
       "url": "a.post-title@href"
      },
      "item": "div.post-body",
-     "type": "list"
+     "type": "list",
+     "url_template": null
     },
     "headers": {
      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
@@ -1135,6 +1224,8 @@
   "push": [
    {
     "channel": "feishu_card",
+    "dingtalk_secret": null,
+    "ntfy_token": null,
     "retries": 2,
     "retry_backoff_seconds": 1.0,
     "route": [
@@ -1153,7 +1244,11 @@
     ],
     "target": "env:FEISHU_CHAT_ID",
     "template": "**股票异动 · {{ date }}**\n{% for item in items %}\n{{ item.symbol }} {{ item.change_pct }}% 现价 {{ item.price }}\n{% endfor %}\n",
-    "timeout": 10.0
+    "timeout": 10.0,
+    "wecom_agentid": null,
+    "wecom_corpid": null,
+    "wecom_corpsecret": null,
+    "weixin_hermes_bin": null
    }
   ],
   "schedule": "0 9,15 * * 1-5",
@@ -1168,7 +1263,8 @@
       "url": "a.title@href"
      },
      "item": "div.topic-list tr",
-     "type": "list"
+     "type": "list",
+     "url_template": null
     },
     "headers": {
      "Cookie": "keychain:linuxsb_cookie",

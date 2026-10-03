@@ -1,1 +1,7 @@
 {"file": ".trellis/spec/python/index.md", "reason": "MYIA Python 红线"}
+{"file": "tests/regen_push_targets_golden.py", "reason": "新建:黄金基线唯一显式再生成入口(--refreeze 活库重冻结 / 无参同源自检);MANIFEST 九份显式清单,不自动扫活库;首跑 --refreeze 建冻结副本+重算 JSON,复跑 diff 逐字节一致(幂等已证)"}
+{"file": "tests/fixtures/push_targets_golden/", "reason": "新建冻结副本 9 份(镜像黄金 JSON 键:plugins/ 八份 + tests/fixtures/stocks.yaml;PRD 七份已长成九份,全量冻结;镜像相对路径解两 stocks 重名)。冻结时点 dc1cf86、plugins 工作树净"}
+{"file": "tests/fixtures/push_targets_golden_before.json", "reason": "经生成器重算:+122/-26 全为 schema additive 空键与非 push 合法演进(上次同步 7b8fbad 后的 credhunter/vision/enrich),push 子树零取值漂移;从此与冻结副本同源可复现"}
+{"file": "tests/test_push_schema_targets.py", "reason": "TestGoldenRegression 改读 GOLDEN_DIR/键 冻结副本(原 Path(name) 读活库、且 cwd 相对);docstring 留档再生成命令与升级路径;新增 test_frozen_copies_match_golden_manifest 钉黄金键集↔冻结目录一一对应;断言形态(push 子树+additive 容忍+targets 剥离)原样保持"}
+{"file": ".trellis/tasks/10-03-golden-frozen-snapshots/evidence/gates.md", "reason": "门禁实录:定向 97 绿 exit0 / 黄金回归 34 绿 exit0 / 全量 2563 绿 19 skip exit0(dc1cf86 基线 2562,+1=新增完整性测试)/ ruff check 零错;反证一活体变异绿、反证二冻结取值漂移红(取值漂移 AssertionError 原文在档),均已还原"}
+{"file": ".trellis/tasks/10-03-golden-frozen-snapshots/evidence/freeze-manifest.md", "reason": "冻结清单+同源复现三步证明+解耦机制说明;<原名>平铺在双 stocks 撞名,镜像黄金键相对路径为无歧义推广(决策记档)"}

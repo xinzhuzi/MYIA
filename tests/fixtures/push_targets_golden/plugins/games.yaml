@@ -1,0 +1,330 @@
+# plugins/games.yaml — official plugin: game deal intelligence (折扣/限免)
+# over four public official APIs — Epic weekly freebies + Steam daily
+# specials + CheapShark multi-store deals(v3, task 10-03-games-v3;source
+# evidence 2026-10-03 in .trellis/tasks/10-03-games{,-v3}/evidence/)+ GOG
+# catalog 限免通道(wrap, task 10-03-games-wrap;探查证据在其 evidence/
+# gog-probe-*,summary 在 gog-probe-summary.json)。
+# Same 12-section shape as stocks/gpu-prices with every section explained
+# inline ("AI writes the YAML" reference duty). Load-check any plugin with:
+#   myia run plugins/games.yaml --dry-run --json
+
+id: games
+name: 游戏情报
+
+# 每日 11:00(AM 槽)一跑:Epic 喜加一周四刷新、Steam 特惠每日轮换,每日
+# 一跑全覆盖。dedup 见 is_seen 全期拦截(10-03-games-dedup-fix 勘误:槽位
+# 抑制只管 should_send 推送层,入库层见过即永拒)——同 url 同价只推一次,
+# 价格变化(含正式免费日)才是再推信号;嫌吵调稀 cron(如 0 11 * * 4,6)是
+# 排程旋钮,不动结构。
+schedule: "0 11 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  # Epic 每周限免官方 JSON(zh-CN 标题直出;robots.txt 404 = 无限制)。
+  # 响应元素没有可点的页面 URL(url 恒 None,只有 urlSlug)——这正是
+  # stocks.yaml 注释记录过的 schema 缺口,由 extract.url_template(D1,
+  # 10-03-games)收口:提取出口用 {url_slug} 渲染条目 URL。
+  - name: epic-free
+    engine: direct_api          # L1 JSON API;零成本最快路径
+    url: "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=zh-CN&country=CN&allowCountries=CN"
+    method: GET
+    headers:                    # 无凭据头;honest MYIA UA 用引擎缺省
+      Accept: "application/json"   # (stocks 的 Yahoo 教训:别伪装浏览器头)
+    extract:                    # json_path:字段全部走同一 elements[*] 前缀,
+      type: json_path           # 逐元素提取,缺字段省略不错位(无促销元素
+                                # 自然没有 discount_pct)
+      # 条目 URL = 商店页 + slug;占位符在装载期与 fields 交叉校验(拼错即
+      # 拒载)。url_slug 取 catalogNs.mappings 的 pageSlug 而非顶层 urlSlug:
+      # 实测 12 条中 4 条 urlSlug 是 32 位 hash(不可读也可能不可点),而
+      # mappings.pageSlug 12/12 全覆盖且就是官方商店 slug 形态。偶发
+      # mappings 空的元素 url 渲染为空串,该条目被管线按 invalid_item 记
+      # 失败后丢弃——不带坏链接入库(design R1 修正口径,v1 接受该损失面:
+      # 损失的是那一条情报,不是数据质量)
+      url_template: "https://store.epicgames.com/zh-CN/p/{url_slug}"
+      fields:
+        title: "$.data.Catalog.searchStore.elements[*].title"                                # zh-CN 直出
+        url_slug: "$.data.Catalog.searchStore.elements[*].catalogNs.mappings[0].pageSlug"    # 构 URL 用(见上:hash urlSlug 形态由此消解)
+        final_price: "$.data.Catalog.searchStore.elements[*].price.totalPrice.discountPrice"     # 分(decimals=2);限免=0
+        original_price: "$.data.Catalog.searchStore.elements[*].price.totalPrice.originalPrice"  # 分
+        price_text: "$.data.Catalog.searchStore.elements[*].price.totalPrice.fmtPrice.discountPrice"  # "¥60.00" 直出,免换算
+        discount_pct: "$.data.Catalog.searchStore.elements[*].promotions.promotionalOffers[0].promotionalOffers[0].discountSetting.discountPercentage"  # 仅当前促销存在;缺=无促销
+        upcoming_pct: "$.data.Catalog.searchStore.elements[*].promotions.upcomingPromotionalOffers[0].promotionalOffers[0].discountSetting.discountPercentage"  # 下周促销 %;=100 即「下周免费」(缺=无预告;10-03-games-v2 决议②字段融合)
+        upcoming_start: "$.data.Catalog.searchStore.elements[*].promotions.upcomingPromotionalOffers[0].promotionalOffers[0].startDate"  # ISO UTC;模板切 [:10] 即生效日(北京时间当晚 23:00,同日)
+    # 无 pagination:单请求全量返回(不需要 {page} 翻页)
+    rate_limit:                 # 礼貌档(同 stocks)
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true      # Epic robots.txt 404(无限制),缺省即允许
+    proxy: direct
+    retry: 3
+
+  # Steam 每日特惠官方接口(featuredcategories 的 specials 即特惠区,
+  # discount_percent 直出;store.steampowered.com robots 不禁 /api/)。
+  # 响应只有数字 id 没有页面 URL —— 同样走 url_template(D1)。
+  - name: steam-specials
+    engine: direct_api
+    url: "https://store.steampowered.com/api/featuredcategories?cc=cn"
+    method: GET
+    headers:
+      Accept: "application/json"
+    extract:
+      type: json_path
+      url_template: "https://store.steampowered.com/app/{steam_id}"  # int 渲染成 str
+      fields:
+        title: "$.specials.items[*].name"            # 游戏名
+        steam_id: "$.specials.items[*].id"           # int;构 URL 用
+        final_price: "$.specials.items[*].final_price"      # 分(样本 1360=¥13.60)
+        original_price: "$.specials.items[*].original_price"  # 分
+        discount_pct: "$.specials.items[*].discount_percent"  # int 直出(样本 90)
+        expire: "$.specials.items[*].discount_expiration"     # unix 秒;入库供后续 UI/排序(沙箱无日期格式化,模板不显示)
+    rate_limit:
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true
+    proxy: direct
+    retry: 3
+
+  # CheapShark 多店折扣聚合官方 API(v3,task 10-03-games-v3):一个稳定公共
+  # 接口盖 GOG(storeID=7)/Humble(11)/Fanatical(15)三店的**付费折扣**——
+  # 与 Steam featured 源零重叠(Steam 店 storeID=1 不在集合),小众 key 店
+  # 噪音(Aldorlea 类 96% off 刷屏)由白名单天然排除。限免仍归 Epic 官方源:
+  # CS 实测无 0 元 deal(evidence/cs-free.json 空集),它不是限免通道。
+  # **响应是顶层数组**:字段前缀 $[*]——与 Epic/Steam 的嵌套 elements[*]/
+  # items[*] 前缀不同,extract_json 的「同前缀逐元素提取」同样适用(缺字段
+  # 逐元素省略,不错位)。美元字段**独立命名不归一**(v3 决议④):人民币分
+  # 基线不容美元元,sale_price/savings_pct 不进 final_price/baseline。
+  - name: cheapshark
+    engine: direct_api          # L1 JSON API;零成本最快路径
+    url: "https://www.cheapshark.com/api/1.0/deals?storeID=7,11,15&sortBy=Savings&pageSize=20"
+    method: GET
+    headers:                    # 无凭据头;honest MYIA UA 用引擎缺省——CS 实测
+      Accept: "application/json"   # 拒 generic UA,MYIA/0.1 描述性 UA 放行
+    extract:
+      type: json_path           # 顶层数组:全部字段同一 $[*] 前缀,逐元素提取
+      # 条目 URL = .com 域 redirect + dealID(决议⑤:.net 域本机两次 SSL 拒连
+      # 记档不纠缠)。dealID **已 URL-encoded**(%2F/%2B/%3D),直接拼链接、
+      # 不要再编码——占位符在装载期与 fields 交叉校验(拼错即拒载)。
+      url_template: "https://www.cheapshark.com/redirect?dealID={deal_id}"
+      fields:
+        title: "$[*].title"             # 游戏名
+        deal_id: "$[*].dealID"          # 构 URL 用(已 URL-encoded,见上)
+        sale_price: "$[*].salePrice"    # 美元元,字符串直出("0.50";数值不归一进
+                                         # 人民币分基线=v3 决议④;dedup 键价格态
+                                         # 的字符串别名见下方 final_price 注释)
+        savings_pct: "$[*].savings"     # 字符串 %("97.057092");规则里 float() 白名单转换
+        normal_price: "$[*].normalPrice"  # 美元元,字符串直出("16.99")
+        metacritic: "$[*].metacriticScore"  # 显示参考(字符串;0 = 无评分)
+        # dedup 键带价格态(10-03-games-dedup-fix)的配套提取:键 {url}-{final_price}
+        # 在 dedup.make_key 对**缺失字段抛 ValueError** 的实锤下(dedup.py
+        # 「缺少字段」分支,实测:缺失→条目按 dedup_key_error 整条丢弃),四源
+        # 每条目都必须携带 final_price——CS/GOG 原先只有美元字段,故各补一份
+        # **字符串形态**的价格进 final_price(别名,不动 sale_price)。三条
+        # 安全性论证(10-03-games-dedup-fix 实测验证):
+        # 1. 模板显示分支:模板 elif 链已重排为 price_text → sale_price →
+        #    final_price,CS/GOG 条目走 $sale_price(原价 X) 美元段,
+        #    final_price/100 分支(对字符串会 TypeError)永不触达;
+        # 2. 限免规则:`final_price == 0` 对字符串 "0.50"/"0.00" 恒 False
+        #    (str == int 不抛错、不误判),CS 实测无 0 元 deal,immediate
+        #    仍只属限免——GOG 限免判定继续走 sale_price/normal_price 析取;
+        # 3. 基线:numeric_value 拒 str(只收 int/float),美元字符串不写
+        #    final_price 人民币分基线,vs_yesterday 不受污染。
+        # 已知代价(与大折扣规则对 CS 条目的既有噪音同类,可接受):digest
+        # 路由 when `final_price > 0` 对字符串 TypeError → 按不命中 → 保守
+        # 缺省 digest,落点与今天完全一致,仅逐条 WARNING 日志。
+        final_price: "$[*].salePrice"   # 美元元字符串("0.50"),仅作 dedup 键价格态;显示/规则/基线均不消费(见上论证)
+    # 无 pagination:pageSize=20 单请求全量(每日 1 请求,不需要 {page} 翻页)
+    rate_limit:                 # 礼貌档(同 Epic/Steam)
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      # deliberate override(v3 决议①,有据推翻已批):CS robots.txt 明文
+      # Disallow: /api/1.0/,循 stocks/Yahoo 判例——结构化公共数据 API、官方
+      # 文档公开邀请、qps 0.5 礼貌档低频(每日 1 请求)。**回退条件:本源若
+      # 复用为页面爬取(HTML)前必须翻回 true。**
+      respect_robots: false
+    proxy: direct
+    retry: 3
+
+  # GOG 限免第四源(wrap, task 10-03-games-wrap):catalog.gog.com/v1/catalog
+  # 是 gog.com 官网 SSR 自己在用的公开 JSON 通道——官网渲染 /en/games?
+  # priceRange=0,0&discounted=true 时内嵌缓存键即此查询(evidence/
+  # gog-probe-ssr-filtered-excerpt.txt),纯 curl 默认 UA 匿名 200,无 cookie
+  # 无伪装头。price=between:0,0 锁「当前 0 元」:核心判定=products 非空即
+  # 有 0 元可领,条目级双保险=现价 0.00 且原价>0(见 classify 限免析取)。
+  # **该端点无促销截止字段**(price 仅 final/base/discount/finalMoney/
+  # baseMoney),限免结束时间拿不到;结束时间可挂 LootScraper GOG Atom
+  # feed 做补充源,但那是第三方个人 feed,只当 backstop 不进本源(探查
+  # 结论,gog-probe-summary.json)。参数形态坑实测:between-0-0 横线形 404
+  # "result window is too large";in:game:pack 冒号形静默清零——正确形是
+  # between:0,0 与 in:game,pack,别"顺手美化"。countryCode=US/CN 均实测
+  # 匿名可用,此处取 US/USD(与证据主通道一致)。
+  - name: gog-free
+    engine: direct_api          # L1 JSON API;零成本最快路径
+    url: "https://catalog.gog.com/v1/catalog?countryCode=US&locale=en-US&currency=USD&limit=48&page=1&productType=in:game,pack&price=between:0,0&discounted=eq:true"
+    method: GET
+    headers:                    # 无凭据头;honest MYIA UA 用引擎缺省(实测
+      Accept: "application/json"  # 默认 UA 匿名直连即 200,无需伪装)
+    extract:
+      type: json_path           # 嵌套 $.products[*] 前缀(同 Epic/Steam 形态,
+                                # 区别于 CS 顶层数组 $[*])
+      # 无 url_template:storeLink 是绝对链接(https://www.gog.com/en/game/
+      # <slug>)直出免拼接——extract.fields 的 url 字段路径(schema 二选一
+      # 之另一边,与 url_template 互斥)。美元字符串循 v3 决议④独立命名
+      # (sale_price/normal_price,与 CS 同名同形态),不进 final_price
+      # 人民币分基线;模板美元段 $现价(原价 X)自动复用。
+      fields:
+        title: "$.products[*].title"                        # 游戏名(en-US)
+        url: "$.products[*].storeLink"                      # 绝对商店页链接,直出
+        gog_id: "$.products[*].id"                          # 字符串数字("1096877296")
+        image: "$.products[*].coverVertical"                # 竖版封面绝对 URL
+        sale_price: "$.products[*].price.finalMoney.amount"   # 美元元字符串("0.00")
+        normal_price: "$.products[*].price.baseMoney.amount"  # 美元元字符串("19.99";永久免费="0.00")
+        # dedup 键价格态配套(10-03-games-dedup-fix,同 CS 源注释的三条安全
+        # 论证):make_key 对缺失字段抛 ValueError→dedup_key_error 整条丢弃,
+        # GOG 条目也必须携带 final_price。字符串形态("0.00"/"19.99"):
+        # 限免判定继续走 sale_price/normal_price 双保险析取(str=="0.00" !=
+        # int 0,final_price==0 半边不误判也不抢判);模板走 $sale_price 段
+        # (elif 链已重排);numeric_value 拒 str 不写分基线。
+        final_price: "$.products[*].price.finalMoney.amount"  # 美元元字符串,仅作 dedup 键价格态
+    # 无 pagination:limit=48 单请求(每日 1 请求礼貌档;0 元全集 419 条/9 页
+    # 是永久免费噪音,不为它翻页)
+    rate_limit:                 # 礼貌档(同 Epic/Steam)
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true      # catalog.gog.com robots.txt 404(2026-10-03
+                                # 实测,无限制;同 Epic 判例,缺省即允许)
+    proxy: direct
+    retry: 3
+
+watchlist:                      # enrich 关闭时仅做提及量统计,不做降权
+  keywords: [喜加一, 限免, 免费, 史低, 折扣, 白嫖]   # (核订:watchlist 只在
+  mute: [抽奖, 求购, 二手, 代练]                     # enrich 阶段消费,不会误杀标题)
+
+classify:                       # 零 token 第一漏斗;游戏标题不落七大类,
+  builtin: false                # 内置扫描只会误杀,同 gpu-prices 口径关闭
+  rules:
+    # Epic/Steam 产出同名归一化字段(final_price/discount_pct);规则缺字段
+    # 整条让路(含 None 运算 / float(None) = 该条不命中)——无促销条目
+    # 自然落空。GOG 析取(wrap 第四源):现价 0.00 且原价>0 = 限免双保险
+    # ——该端点无促销截止字段,判定只能靠价格形态;原价同为 0.00 的永久
+    # 免费游戏(2026-10-03 实测 419 条全如此,gog-probe-summary.json)被
+    # 「原价>0」半边天然滤掉,不会刷屏 immediate。美元字符串循 CS 先例用
+    # float() 白名单转换;CS 实测无 0 元 deal(v3 已记档),该析取对 CS
+    # 条目永不误命中。
+    # **None 守卫是结构必需不是美化**:BoolOp 短路只在真值处停——GOG 条目
+    # 无 final_price/discount_pct,裸 `discount_pct >= 100` 会在轮到 GOG
+    # 析取之前以 TypeError 炸整条(or 的假值分支继续求值);同理裸
+    # float(sale_price) 对 Epic/Steam 条必炸(求值失败按不命中,还逐条
+    # WARNING 刷日志)。`(x or 0)`/`(x or "-1")` 让全部四源形态干净求值,
+    # 结果与 v1/v3 各源单独评估时逐条等价。
+    - name: 限免
+      when: 'final_price == 0 or (discount_pct or 0) >= 100 or (float(sale_price or "-1") == 0 and float(normal_price or "-1") > 0)'
+      tag: 限免
+    # v2 决议②:「下周免费」预告——字段融合进同一条目(upcoming_pct 并列
+    # 提取)。10-03-games-dedup-fix 勘误:原判断「dedup 稳定 {url}、切换
+    # 碰撞由槽位抑制消解」不成立——is_seen 是全期拦截,预告日推过的同 url
+    # 到正式免费日被吞,限免 immediate 失效;修法=dedup 键带价格态,免费日
+    # final_price 变 0 即新键入库,immediate 照常落地。预告不是现在能领的,
+    # 路由不设 immediate(final_price>0 天然落 digest)。
+    - name: 下周免费
+      when: "upcoming_pct >= 100"
+      tag: 下周免费
+    - name: 大折扣
+      when: "discount_pct >= 50"
+      tag: 半价+
+    # v3 决议④:CheapShark 美元折扣源——savings 是字符串 %("97.057092"),
+    # float() 是规则白名单函数;缺字段整条让路(float(None) 求值失败按
+    # 不命中),Epic/Steam 条目无 savings_pct 天然无感,零归一成本共存。
+    # 路由不加 immediate:CS 全落 digest(digest 无 items 排序,日报顺序=
+    # 源到达序,跳楼价排在 Epic/Steam 之后,并非置顶);immediate 仍只属
+    # 限免(决议④路由零改动)。
+    - name: 多店大折扣
+      when: "float(savings_pct) >= 50"
+      tag: 多店半价+
+
+dedup:
+  # 键带价格态(10-03-games-dedup-fix):is_seen 是**全期**拦截入库
+  # (pipeline.py _stage_dedup → DedupRegistry.is_seen,条目见过即永拒),
+  # 纯 {url} 键=条目一生只推一次——v2 预告字段融合后,预告日 digest 推过
+  # 的同 url 到正式免费日被 seen 吞掉,限免 immediate 失效(本修复的靶心)。
+  # 带价格态后:同 url 同价=同键,仍只推一次;价格变化=新键新入库——预告日
+  # 键 {url}-5300,免费日键 {url}-0,immediate 照常落地。价格基线不受键轮换
+  # 影响:item_metric_key 已改 url 优先(templates.py),vs_yesterday 按
+  # 商品 url 取昨值,不断链。{date}/{slot} 不进键:槽位轮换键会把同一价
+  # 格态每槽重推一遍(seen 全期语义下只有价格变化才值得再推)。{title}
+  # schema 永拒。四源都携带 final_price(Epic/Steam 人民币分 int;CS/GOG
+  # 美元元字符串,补齐理由与安全性论证见各源 fields 注释)。
+  key: "{url}-{final_price}"      # 部署过渡注记:存量库首轮旧键({url} 无价
+                                # 格后缀)全不在注册表→现役条目一次性全量
+                                # 重推一遍(含在途限免多推一次 immediate),
+                                # items 表同 url 会落第二行;一次性、次日起
+                                # 自愈(键稳定)。升级日看到重复卡属预期。
+
+enrich:                         # 零 token 路线:游戏价格数值自解释,不烧
+  enabled: false                # LLM 精评(趋势交给 baseline 数值基线)
+
+baseline:                       # v0.4 趋势基线(sidecar 节):两家单位同为分,
+  enabled: true                 # final_price 可直接比
+  fields: [final_price]         # vs_yesterday 给「这游戏今天又降了」
+  windows: [day, week]          # msrp 对照不进:游戏 SKU 名对照不现实,
+                                # 史低判定交给折扣阈值 + 价格趋势(D4)
+
+push:
+  - channel: feishu_card        # 双通道(wrap 落地 v1 决议⑤:telegram 加挂
+    target: env:FEISHU_CHAT_ID  # = YAML 再加一个 push 条目,不动结构)。
+                                # bot token 走渠道缺省 env:FEISHU_BOT_TOKEN。
+    route:                      # 首匹配;规则未命中走保守缺省 digest
+      # immediate=喜加一即推:Epic/Steam(final_price 0 / 折扣 100)+ GOG
+      # 限免双保险(现价 0.00 且原价>0;永久免费 base=0.00 不触发)。
+      # when 与 classify 限免规则逐字一致(None 守卫 rationale 见彼处注释)
+      - when: 'final_price == 0 or (discount_pct or 0) >= 100 or (float(sale_price or "-1") == 0 and float(normal_price or "-1") > 0)'   # 喜加一即推
+        mode: immediate
+      - when: "final_price > 0"                           # 普通折扣进日报
+        mode: digest
+    # 四源字段形态并存(wrap):价格优先 price_text(Epic "¥60.00"/"0" 直出),
+    # Steam 无该字段退 final_price/100(分 → 元),CS/GOG 条目走美元段
+    # $sale_price(原价 normal_price)直出(字符串形态免换算)——GOG 条目
+    # (wrap)美元字段与 CS 同名同形态,同一段 $现价(原价 X) 自动复用,
+    # sale_price=="0.00" 即限免。**elif 链顺序 sale_price 先于 final_price
+    # (10-03-games-dedup-fix)**:CS/GOG 为 dedup 键价格态补了字符串
+    # final_price 后,若 final_price 分支在前,str/100 会 TypeError 炸整卡;
+    # 重排后美元条目照走 $ 段,final_price/100 只属 Steam(分 int)。
+    # 守卫用 `is defined`/`default`:StrictUndefined 下裸
+    # default(final_price/100) 对 CS/GOG 条目会先求值缺字段而炸(default
+    # 实参是急求值)。savings 是字符串 %,先 |float 再 |round|int(裸 |round
+    # 对 str 直接 TypeError)。折扣只在有值时显示(vs_yesterday 无历史时
+    # 渲染空串,不是错误)。
+    template: |
+      **游戏情报 · {{ date }}**
+      {% for item in items %}
+      - [{{ item.title }}]({{ item.url }}) {% if item.price_text is defined %}{{ item.price_text }}{% elif item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}
+      {% endfor %}
+
+  # telegram 加挂(wrap 落地 v1 决议⑤「单通道起步,telegram 后续加挂 =
+  # YAML 再加一个 push 条目,不动结构」):同款两级路由(when 逐字与 feishu
+  # 条目一致,含 GOG 限免双保险析取);模板走精简纯文本变体——telegram
+  # 用户模板契约是渲染文本**不带 parse_mode 直发**(src/myia/push/
+  # telegram.py _compose),markdown 链接语法会原样露出,故标题后直跟裸
+  # URL,价格/折扣徽标与 feishu 模板同口径。chat id 走
+  # env:TELEGRAM_CHAT_ID;bot token 走渠道缺省 env:TELEGRAM_BOT_TOKEN
+  # (DEFAULT_TOKEN_ENV_REF,无需在此声明)。
+  - channel: telegram
+    target: env:TELEGRAM_CHAT_ID
+    route:                      # 首匹配;与 feishu 条目同款两级路由
+      # (when 逐字与 classify 限免规则一致,None 守卫 rationale 见彼处注释)
+      - when: 'final_price == 0 or (discount_pct or 0) >= 100 or (float(sale_price or "-1") == 0 and float(normal_price or "-1") > 0)'   # 喜加一即推
+        mode: immediate
+      - when: "final_price > 0"                           # 普通折扣进日报
+        mode: digest
+    template: |
+      游戏情报 · {{ date }}
+      {% for item in items %}
+      - {{ item.title }} {{ item.url }} {% if item.price_text is defined %}{{ item.price_text }}{% elif item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}
+      {% endfor %}
+
+storage:                        # 基线期自动长于条目期:metric_history 按
+  retention: 90d                # 2× retention 保留(周环比至少两个完整窗口)
+  vacuum: monthly

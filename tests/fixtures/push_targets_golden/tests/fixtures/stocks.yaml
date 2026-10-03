@@ -1,0 +1,75 @@
+# plugins/stocks.yaml — complete 12-section schema showcase: stock intelligence.
+# Reference example for docs/write-a-plugin.md; run with `myia run plugins/stocks.yaml`.
+id: stocks
+name: 股票情报
+schedule: "0 9,15 * * 1-5"        # trading days 09:00 / 15:00 (cron semantics)
+timezone: Asia/Shanghai
+
+sources:
+  - name: yahoo
+    engine: auto                  # auto = L1->L4 degrade chain | direct_api | static_html | crawl4ai | scrapling | stealth_browser | llm_browser
+    url: "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&page={page}"
+    method: GET                   # GET/POST; POST takes a post_body key
+    headers:                      # request headers / login state; credential refs only, plaintext refused
+      User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+      Cookie: "keychain:linuxsb_cookie"   # keychain: / env: reference, never plaintext
+    pagination:                   # list-style categories need pagination
+      mode: template              # template (?page={n}) | selector (a.next@href) | scroll
+      max_pages: 3
+    extract:                      # field extraction; L2/list sources need it, crawl4ai auto-structures when absent
+      type: list                  # list (list page -> item array) | item (single page) | json_path (JSON API)
+      item: "div.topic-list tr"
+      fields:
+        title: "a.title"
+        url: "a.title@href"
+        time: "td.time"
+        symbol: "td.symbol"       # dedup key placeholder ⊆ extract.fields (schema-enforced)
+    rate_limit:                   # politeness, implemented once in the engine layer (same-domain merged)
+      qps: 0.5
+      jitter: "2s"                # random delay
+      backoff: exponential        # 429/5xx exponential backoff
+      respect_robots: true
+    proxy: direct                 # direct | pool:main | residential:us
+    retry: 3
+    symbols: [NVDA, AAPL, TSLA, "0700.HK"]
+
+watchlist:                        # relevance profile — baseline for the LLM relevance score
+  keywords: [NVDA, AI芯片, 美股]
+  mute: [广告, 中奖]              # hit -> demote / archive
+
+classify:                         # first funnel: keyword pre-filter, zero token
+  rules:
+    - name: 异动
+      when: "abs(change_pct) >= 3"
+      tag: "大涨/大跌"
+
+dedup:
+  key: "{symbol}-{date}"          # URL/composite key, never title fingerprint
+
+enrich:                           # second funnel: explicit LLM precision scoring
+  enabled: true
+  model: glm-4-flash              # any OpenAI-compatible endpoint
+  scores: [value, relevance, credibility]   # 0-10, three dimensions
+  batch: 20                       # batch scoring saves tokens
+  cache: true                     # same URL never scored twice
+  budget_per_run: 50000           # token guardrail; exhausted -> keyword-only for the rest of the run
+
+push:
+  - channel: feishu_card
+    target: env:FEISHU_CHAT_ID
+    route:                        # threshold routing — what happens after scoring
+      - when: "score >= 8"
+        mode: immediate           # push now
+      - when: "score >= 5"
+        mode: digest              # daily digest, AM/PM slots
+      - when: "score < 5"
+        mode: archive             # store only, never pushed
+    template: |
+      **股票异动 · {{ date }}**
+      {% for item in items %}
+      {{ item.symbol }} {{ item.change_pct }}% 现价 {{ item.price }}
+      {% endfor %}
+
+storage:                          # data lifecycle (long-running desktop safety)
+  retention: 90d                  # items auto-purged after the retention window
+  vacuum: monthly                 # periodic SQLite VACUUM

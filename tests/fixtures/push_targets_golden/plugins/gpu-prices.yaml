@@ -1,0 +1,85 @@
+# plugins/gpu-prices.yaml — official plugin: GPU market watch over ZOL's
+# server-rendered product list (L2), upgraded in v0.4 (PRD
+# 10-01-v04-trend-baseline) from raw listings into trend intelligence:
+# numeric price history per card + 「vs 昨日 / vs 上周」 comparisons + MSRP
+# 对照 + 关键词提及量周环比 (v1.7 变更/趋势基线 — 从搬运到分析).
+id: gpu-prices
+name: 显卡行情
+schedule: "0 10 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  - name: zol
+    engine: static_html           # server-rendered product list (L2)
+    url: "https://detail.zol.com.cn/vga/{page}.html"
+    method: GET
+    headers:
+      User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    pagination:
+      mode: template
+      max_pages: 5
+    extract:
+      type: list
+      item: "div.list-item"
+      fields:
+        title: "h3 a"
+        url: "h3 a@href"
+        price: "span.price-type"  # baseline.fields 依赖的数值字段
+    rate_limit:
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true
+    proxy: direct
+    retry: 3
+
+watchlist:                        # keywords 双职责:相关性画像 + 提及量周环比统计口径
+  keywords: [RTX, RX, 显卡]
+  mute: [二手, 求购]
+
+classify:                         # 单一用途品类:源即品类,不做七大类过滤
+  builtin: false                  # 关闭内置关键词漏斗(显卡标题不落七大类,开了只会误杀)
+  rules:
+    - name: 高价段
+      when: "price >= 10000"
+      tag: 旗舰卡
+
+dedup:
+  key: "{url}"
+
+enrich:                           # 零 token 路线:趋势判断靠数值基线,不烧 LLM 评分
+  enabled: false
+
+baseline:                         # v0.4 趋势基线(sidecar 节):数值历史 + 窗口对比
+  enabled: true
+  fields: [price]                 # 数值字段清单(逐条目逐 run 存 metric_history 快照)
+  windows: [day, week]            # 对比窗口:vs 昨日 / vs 上周(模板 vs_yesterday / vs_last_week)
+  msrp:                           # MSRP 对照表(公开建议零售价,人民币;vs_msrp 消费)
+    "RTX 5090": 16499
+    "RTX 5080": 8299
+    "RTX 4070": 4999
+    "RX 9070 XT": 4999
+    "RX 7800 XT": 4099
+
+push:
+  - channel: feishu_card
+    target: env:FEISHU_CHAT_ID
+    route:                        # 旗舰高价即时推;其余显式走保守 digest
+                                  # (缺省即 digest,显式化是为满足官方插件
+                                  # route 两态齐全的展示契约——行为不变)
+      - when: "price >= 10000"
+        mode: immediate
+      - when: "price > 0"
+        mode: digest
+    template: |
+      **显卡行情 · {{ date }}**
+      {% for item in items %}
+      - [{{ item.title }}]({{ item.url }}) ¥{{ item.price }} {{ vs_msrp(item) }} {{ vs_yesterday(item, 'price') }} {{ vs_last_week(item, 'price') }}
+      {% endfor %}
+      {% if keyword_trends %}
+      **关键词提及周环比**:{% for t in keyword_trends %}{{ t.word }} {{ t.count }} 条({{ t.change_text }}) {% endfor %}
+      {% endif %}
+
+storage:                          # 基线期自动长于条目期:metric_history 按 2× retention 保留
+  retention: 90d                  # 条目 90 天;价格基线 180 天(周环比至少要两个完整窗口)
+  vacuum: monthly
