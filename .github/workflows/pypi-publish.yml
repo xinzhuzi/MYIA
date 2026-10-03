@@ -2,7 +2,7 @@
 # 仅手动触发(workflow_dispatch),与 CI/Docker 发布刻意分离:CI 管测试,Docker 管镜像,本文件管 PyPI。
 #
 # ── 触发方式 ─────────────────────────────────────────────────────────────────
-#   GitHub 仓库页 → Actions → "PyPI Publish" → Run workflow → 选 package + 鉴权方式。
+#   GitHub 仓库页 → Actions → "PyPI Publish" → Run workflow → 选目标仓库 + package + 鉴权方式。
 #   本工作流没有 push/tag 触发器,推送合并永远不会误发 PyPI。
 #
 # ── Trusted Publishing 四元组(owner 发布前在 PyPI 侧按此核对)──────────────────
@@ -21,8 +21,11 @@
 #      前置:PyPI → Account settings → API tokens 生成 token(scope 建议 project),
 #      本仓库 Settings → Secrets and variables → Actions 新增 secret PYPI_API_TOKEN。
 #      工作流有守卫步骤:选了 token 模式但 secret 未配置时立刻报中文错误,不会静默回落。
-#   注:TestPyPI 演练同理,把 publisher/token 配在 test.pypi.org 并给 action 加
-#      repository-url: https://test.pypi.org/legacy/(可选,非首发必经)。
+#   注:TestPyPI 演练已内置为 dispatch input repository(默认 test-pypi,演练优先):
+#      选 test-pypi 时 publish action 注入 repository-url: https://test.pypi.org/legacy/,
+#      选 pypi 才注入正式 https://upload.pypi.org/legacy/;publisher/token 相应配在
+#      test.pypi.org 侧(与 pypi.org 互不相通)。演练步骤见 docs/launch/RELEASE.md
+#      的「TestPyPI 演练」节。
 #
 # 安全说明:工作流内不出现任何凭据字面值;token 仅经 secrets 注入;零第三方安装脚本,
 # 构建用 uv 官方 astral-sh/setup-uv,发布用 PyPA 官方 action;inputs 经 env 传入
@@ -33,6 +36,13 @@ name: PyPI Publish
 on:
   workflow_dispatch:
     inputs:
+      repository:
+        description: "目标仓库:test-pypi = TestPyPI 演练(默认),pypi = 正式发布"
+        type: choice
+        default: test-pypi
+        options:
+          - test-pypi
+          - pypi
       package:
         description: "要发布的包"
         type: choice
@@ -171,28 +181,51 @@ jobs:
           name: dist
           path: dist/
 
+      - name: Resolve upload repository
+        # 演练开关:repository=test-pypi(默认)→ TestPyPI;pypi → 正式 PyPI。
+        # URL 经 GITHUB_ENV 传给下方 publish action 的 repository-url,
+        # 沿用本文件纪律:inputs 只经 env 进 shell,不在 with 里内插三元表达式。
+        env:
+          REPOSITORY: ${{ inputs.repository }}
+        run: |
+          case "$REPOSITORY" in
+            test-pypi) url="https://test.pypi.org/legacy/" ;;
+            pypi)      url="https://upload.pypi.org/legacy/" ;;
+            *) echo "::error::未知 repository 输入:${REPOSITORY}(应为 test-pypi 或 pypi)" ; exit 1 ;;
+          esac
+          echo "REPOSITORY_URL=${url}" >> "$GITHUB_ENV"
+          echo "上传目标:${REPOSITORY} → ${url}"
+
       - name: Check API token is configured (token mode only)
         # 守卫:token 模式但 PYPI_API_TOKEN 未配置 → 立刻中文报错,
         # 不再让空密码静默回落 OIDC 造成难懂的失败。
+        # TestPyPI 演练额外提示:token 必须在 test.pypi.org 生成,
+        # pypi.org 的 token 在 TestPyPI 无效(反之亦然)。
         if: ${{ inputs.use-api-token }}
         env:
           HAS_TOKEN: ${{ secrets.PYPI_API_TOKEN != '' }}
+          REPOSITORY: ${{ inputs.repository }}
         run: |
           if [ "$HAS_TOKEN" != "true" ]; then
             echo "::error::选择了 API Token 模式,但仓库未配置 secret PYPI_API_TOKEN。请到 Settings → Secrets and variables → Actions 新增,或改用 Trusted Publishing(use-api-token=false)。"
             exit 1
           fi
-          echo "PYPI_API_TOKEN secret is set."
+          if [ "$REPOSITORY" = "test-pypi" ]; then
+            echo "::warning::TestPyPI 演练:请确认 secret PYPI_API_TOKEN 当前存的是 test.pypi.org(Account settings → API tokens)生成的 token;pypi.org 的 token 在 TestPyPI 无效。"
+          fi
+          echo "PYPI_API_TOKEN secret is set (repository=${REPOSITORY})."
 
       - name: Publish to PyPI (Trusted Publishing OIDC)
         if: ${{ !inputs.use-api-token }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
+          repository-url: ${{ env.REPOSITORY_URL }}
           verbose: true
 
       - name: Publish to PyPI (API token)
         if: ${{ inputs.use-api-token }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
+          repository-url: ${{ env.REPOSITORY_URL }}
           password: ${{ secrets.PYPI_API_TOKEN }}
           verbose: true

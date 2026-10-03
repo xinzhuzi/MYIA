@@ -80,6 +80,8 @@ git ls-remote origin main   # 拿到最新 commit 后,在 GitHub 网页核对
 
 1. 仓库页 → **Actions → 左侧 PyPI Publish → Run workflow**。
 2. 选项:
+   - **repository**:`test-pypi`(默认)= TestPyPI 演练(见下文「TestPyPI 演练」节);
+     **正式发布必须显式选 `pypi`**(上传 `https://upload.pypi.org/legacy/`)。
    - **package**:
      - 首发或双包同版本发布 → 选 `both`(两包一起,共 4 个产物:wheel+sdist × 2);
      - 只更分类器 → `shishi-classifier`;只更主包 → `shishi`。
@@ -131,12 +133,70 @@ PyPI 已发布后,各文案里的安装命令从「源码安装」切换为 `pip
 (发帖前 `docs/launch/README.md` 检查表有对应项)。发出后按 README 的
 「首周反馈汇总」表记录链接与反馈。
 
-## 可选:TestPyPI 演练
+## TestPyPI 演练
 
-首次正式发布前,可在 <https://test.pypi.org> 全流程演练一遍:publisher 四元组
-配在 test.pypi.org 侧、token 用 TestPyPI 的,dispatch 跑完用
-`pip install --index-url https://test.pypi.org/simple/ shishi-classifier` 验证。
-演练产物与正式 PyPI 完全隔离。
+首次正式发布前,先在 <https://test.pypi.org> 全流程彩排一遍。工作流已内置
+`repository` 开关:dispatch 选 `test-pypi`(**默认**)即上传到
+`https://test.pypi.org/legacy/`,选 `pypi` 才走正式
+`https://upload.pypi.org/legacy/`。演练产物与正式 PyPI 完全隔离。
+
+### 准备(test.pypi.org 侧,一次性)
+
+test.pypi.org 与 pypi.org 的账号、publisher、token **互不相通**,两边各配各的:
+
+- **路径 A(Trusted Publishing,推荐)**:登录 <https://test.pypi.org/manage/publishing/>
+  → **Add a new pending publisher**,四元组与第三步 A 逐字相同
+  (`xinzhuzi` / `世事` / `pypi-publish.yml` / `pypi`),PyPI project name 各填
+  `shishi` 与 `shishi-classifier` 一次。GitHub 侧无需新增任何东西
+  (`environment: pypi` 沿用第二步已建的环境)。
+- **路径 B(API Token)**:登录 <https://test.pypi.org/manage/account/token/> →
+  **Add API token**,把 `pypi-` 开头的 token 粘贴到仓库 secret
+  `PYPI_API_TOKEN`(与正式发布同一个 secret 名)。两点注意:
+  1. token 必须在 **test.pypi.org** 生成——pypi.org 的 token 在 TestPyPI 无效
+     (反之亦然),工作流守卫会对 test-pypi 给出相应提示;
+  2. **正式发布前记得换回 pypi.org 的 token**(或正式发布直接走路径 A,免来回换)。
+     test.pypi 上项目还不存在时 scope 只能选 account,同第三步 B 的鸡生蛋说明。
+
+### 演练命令
+
+`gh` 已登录、workflow 文件已在 main(第一步)时:
+
+```bash
+gh workflow run pypi-publish.yml -f repository=test-pypi
+# 或显式给全参数(演练建议 both,把双包链路一次跑通;OIDC 路径):
+gh workflow run pypi-publish.yml --ref main \
+  -f repository=test-pypi -f package=both -f use-api-token=false
+# 看进度:
+gh run watch "$(gh run list --workflow=pypi-publish.yml --limit 1 --json databaseId -q '.[0].databaseId')"
+```
+
+### 演练后校验
+
+1. **Actions 日志**:该次 run 的 publish job 全绿,日志里
+   *Resolve upload repository* 步骤应打印 `上传目标:test-pypi → https://test.pypi.org/legacy/`。
+2. **test.pypi 项目页**:<https://test.pypi.org/project/shishi-classifier/> 与
+   <https://test.pypi.org/project/shishi/> 可访问、版本号正确(pending publisher
+   首次上传成功后自动建项目,刚注册完看不到项目页是正常的)。
+3. **pip index 查版本**(不动本地环境):
+
+   ```bash
+   pip index versions shishi-classifier --index-url https://test.pypi.org/simple/
+   # 预期列出刚演练上传的版本号
+   ```
+
+4. **安装验证**(可选,模拟真实用户):
+
+   ```bash
+   uv venv /tmp/verify-testpypi && source /tmp/verify-testpypi/bin/activate
+   pip install --index-url https://test.pypi.org/simple/ shishi-classifier
+   # 验主包时其余依赖不在 TestPyPI 上,需挂正式源兜底:
+   pip install --index-url https://test.pypi.org/simple/ \
+     --extra-index-url https://pypi.org/simple/ shishi
+   deactivate
+   ```
+
+演练确认 build → 校验 → 上传全链路无误后,回第四步正式 dispatch:repository
+显式选 `pypi`(默认是 test-pypi,别漏选)。
 
 ## 故障排查
 
