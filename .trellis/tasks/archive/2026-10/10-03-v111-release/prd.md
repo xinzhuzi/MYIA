@@ -55,6 +55,11 @@
 ## 普查交叉引用(10-03-gap-census,发布线内顺带修)
 
 - **B5**:本地领先 origin/main 的提交批后即推(grill Q5)。
+  > **处置注记(2026-10-03 三轮收口,主线裁决)**:B5 归工作流收尾阶段统一推
+  > ——origin 落后 20 提交,含远端 CI 红修复件(e0ba3b1/96751a5,ci.yml run
+  > 37114102925 红)与 aipocket-fusion 并行线 2 提交(a000ac3/f03d08e,未验证完
+  > 不代推),均将随收尾推送一并上去。实现层不单独 push(任务附注口径经
+  > escalate 裁决维持);此项属流程分工而非缺陷。
 - **A1/A2**:README 的 `pip install -e .` / `pip install myia-classifier`
   宣称随 README 升格一并修正(PyPI 发布本身即兑现 A2);docs 侧三处由
   `10-03-docs-truth` 修(防双头改)。
@@ -129,3 +134,11 @@
 非阻断遗留(已记录债务,树静后顺手改):README 仍有 2 处「v1.2」旧口径——:118(中文「桌面卡片内按钮随 v1.2 交付」)与 :575(英文 "scheduled for v1.2");其余四处已改 v1.1.2 口径,最终口径随主人更名重批统一核改。另 B5:本地领先 origin/main 4 个提交待批后即推。
 
 处置:conditional,已执行 `python3 .trellis/scripts/task.py archive 10-03-v111-release`;上述剩余项与遗留随发布门禁(密钥/tag/PyPI)在 v1.1.1 发布完成时由主人或终检员闭环。
+
+## 口径漂移补注(2026-10-03 二轮收口,10-03-v111-release 实现代)
+
+上方勾选记录中的 **AC1(四处版本号=1.1.1)与 AC7(v1.1.1 tag+GitHub Release 四资产)** 已被更晚的主人决策作废,勾选与现实脱节,特此如实标注:
+
+- 主人令(2026-10-03,`10-03-tag-release` 决议 9):**版本序列归零 0.0.1** —— `v1.1.1` tag 与其 GitHub Release 已删除(实测 `git tag` 仅剩 `v0.0.1`;`gh api releases/tags/v1.1.1` 404),五处版本源同日落零,并以 **v0.0.1** 完成首发(Release 四桌面资产 + GHCR 0.0.1/latest;PyPI 两连红待 pending publisher)。
+- 因此 AC1/AC7 的勾选是**当时事实**(2026-10-03 早间确曾四处 1.1.1、tag+Release 四资产),非当前事实;验收线以归零后的 0.0.1 线为准。本档其余勾选项(CHANGELOG/README/demo 随包/updater UI 接线)不受影响。
+- CHANGELOG 链接区已随二轮收口修正:补 `[0.0.1]` 小节+链接,`[1.1.x]` 三死链撤除并注明 retired(编辑属 10-03-v111-release 收口,内容记录 tag-release 线事实)。

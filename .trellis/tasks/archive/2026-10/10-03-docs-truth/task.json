@@ -21,7 +21,7 @@
   "children": [],
   "parent": "10-03-grill-v112",
   "relatedFiles": [],
-  "notes": "2026-10-03 status 手动置 in_progress(不走 task.py start,规避会话指针踩踏;并行会话在途)。finish 防护手动演示(隔离 scratch repo /tmp/trellis-finish-demo,双会话 TRELLIS_CONTEXT_ID 模拟):无 --force 清他 session 指针 → 拒绝并打印 Source: session-fallback:claude_sessionA、exit 1、指针文件未动;--force → 清除 exit 0;本 session 自有指针 → 无需 --force 正常清、空态 exit 0 不变。py_compile 过。| 2026-10-03 收尾:status 直改 review(不走 task.py finish,防跨会话指针踩踏)。代码已提交 fbba437 链;装机冒烟+截图由本流程补齐;tag/PyPI 待主人。",
+  "notes": "2026-10-03 status 手动置 in_progress(不走 task.py start,规避会话指针踩踏;并行会话在途)。finish 防护手动演示(隔离 scratch repo /tmp/trellis-finish-demo,双会话 TRELLIS_CONTEXT_ID 模拟):无 --force 清他 session 指针 → 拒绝并打印 Source: session-fallback:claude_sessionA、exit 1、指针文件未动;--force → 清除 exit 0;本 session 自有指针 → 无需 --force 正常清、空态 exit 0 不变。py_compile 过。| 2026-10-03 收尾:status 直改 review(不走 task.py finish,防跨会话指针踩踏)。代码已提交 fbba437 链;装机冒烟+截图由本流程补齐;tag/PyPI 待主人。| 2026-10-03 Q8 单测收口:手动演示固化为 tests/test_trellis_finish_guard.py(11 例——单元层 active_task fallback 唯一才猜/按名精确清/只清自有,子进程层 task.py finish 双会话 scratch repo 全演练:拒清 exit 1 点名来源/--force 按名清/自有免 force/空态 exit 0),双跑法 11 绿、CI 同款 ruff 全仓过、全量套件双跑法 2460 绿。",
   "meta": {
     "priority": "P1"
   }

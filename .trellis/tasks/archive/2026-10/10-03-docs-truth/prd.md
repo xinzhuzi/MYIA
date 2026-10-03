@@ -77,9 +77,13 @@ tests/test_docs.py——锁 yaml 块/zh-en 结构对齐/凭据 env 引用/相对
 - [x] B5:动工时 origin 零积压;本任务批次随并行工作流 fbba437 链即批即推
 - [x] E7:三件全清(osint_stderr.log/.coverage/myia.db,2026-10-03 12:1x 实删;
       myia.db=仓库根 dev 运行残料,App 真数据在 ~/Library/Application Support,判定无用)
-- [ ] 双跑法全绿:**等价性已实证**(2026-10-03 12:1x 两跑法失败集逐条一致 7=7,裸跑零额外假红);
+- [x] 双跑法全绿:**等价性已实证**(2026-10-03 12:1x 两跑法失败集逐条一致 7=7,裸跑零额外假红);
       零失败暂被并行「世事更名」波(12:01-12:03,如 test_cli 断言 `myia 1.1.1` vs 实出 `shishi 1.1.1`)压住,
       失败全数归属改名波、非本任务面——波平后复跑勾选
+      (2026-10-03 Q8 单测收口时复跑双绿:M1 `uv run --no-sync python -m pytest -q --tb=short`
+      → 2460 passed/19 skipped exit 0;M2 裸 `uv run --no-sync pytest -q` 整仓复跑同绿,
+      首跑唯一红 test_credhunter_wiring CLI 检查点系并行 WIP flake——隔离双跑法均过、
+      整仓重跑过,归属 credhunter 波非本任务面)
 - [x] 合批提交+journal:原批随 fbba437 链入库+journal 已记;E7/本收注为收尾补笔
 
 ## 验收记录(2026-10-03,受主人委托代验)
