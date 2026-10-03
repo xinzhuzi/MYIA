@@ -3,7 +3,7 @@
   "name": "golden-frozen-snapshots",
   "title": "黄金回归治本:活 fixture 换冻结快照副本(防并行会话误伤)",
   "description": "test_push_schema_targets 的黄金基线当前比对活体 plugins/*.yaml 的 push 子树,任何会话改自己品类 push 配置都会误伤它(2026-10-03 已两次);治本=生成期把七份 fixture 冻结成 tests/ 下不可变副本,测试只对冻结副本断言,与活库演进彻底解耦",
-  "status": "in_progress",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,
