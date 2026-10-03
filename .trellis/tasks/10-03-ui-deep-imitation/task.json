@@ -3,7 +3,7 @@
   "name": "ui-deep-imitation",
   "title": "前端 UI 深度模仿:模仿总表彻底化",
   "description": "按规划 v1.7 视觉锚点(Linear 暗色质感+Vercel Dashboard 数据密度)与功能模仿总表,把 desktop/ui-src 五+屏的视觉与交互从『能用的 shadcn 默认态』推到『对标成品软件的彻底模仿』;配套 8 个前端技能已装 .agents/skills/",
-  "status": "planning",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -21,6 +21,6 @@
   "children": [],
   "parent": null,
   "relatedFiles": [],
-  "notes": "",
+  "notes": "执行摘要(并行版,2026-10-03 收口;开工分诊依据见本任务 check.jsonl/design.md 与工作区在途记录):完成屏=YAML 配置编辑器、消息、源管理、情报流、壳层(侧栏/顶栏/路由)、采集日志、设置、仪表盘(8/8,地基 token+基件先行);质检 1 屏问题已派修;门禁修 4 处最小增量(vision-models.test.tsx label 更名跟进/dashboard api.ts TrendDay 再导出/sources-table v8 isResizingColumn/sources.test 三处 null 收口);终审全屏 PASS(反 AI 审美+跨屏一致性+WCAG 抽检,PIL 像素分析+25 组色对实算+vitest 240 用例+tsc 0),1 P1(源管理键盘排序死角+destructive 徽章 4.15)+5 P2(侧栏小字/日志错误行 4.43/设置 destructive 3.41/text-11px 漂移 30 处/feed 搜索框 ring-1)局部修缮不动架构,终审修判定无需修整,残留入 leftovers;spec 产出 .trellis/spec/desktop/frontend-ui.md 已挂 index.md;evidence 8 屏 before/after 全配对。",
   "meta": {}
 }

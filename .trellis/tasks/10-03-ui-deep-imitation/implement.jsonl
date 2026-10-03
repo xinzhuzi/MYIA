@@ -6,3 +6,4 @@
 {"file": ".trellis/tasks/10-03-feed-ux/prd.md", "reason": "G1-G5 功能件归属边界;本任务视觉层给容器留白但不实现功能"}
 {"file": ".trellis/tasks/archive/2026-10/10-03-ui-feature-census/prd.md", "reason": "G1-G12 全景与 17 工具对标证据;防止视觉改造搭车功能项"}
 {"file": ".trellis/spec/guides/engineering-discipline.md", "reason": "长任务监控+先报量再动手(>30 分钟报规模清单)"}
+{"file": ".trellis/spec/desktop/frontend-ui.md", "reason": "token 体系与改 UI 必读(本任务 Phase1 产出,收口入 spec);后续任何 desktop/ui-src 改动的硬约束与反 AI 审美红线"}

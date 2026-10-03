@@ -1,0 +1,20 @@
+{
+  "phase": "before",
+  "bridge": "http://127.0.0.1:39873",
+  "steps": [
+    {
+      "name": "before:屏(stocks.yaml 打开+校验通过)",
+      "ok": true,
+      "evidence": "findings-empty=\"校验通过:股票情报(1 源)\";控制台错误=1"
+    },
+    {
+      "name": "before:编辑弹窗(打开即截,零保存)",
+      "ok": true,
+      "evidence": "dialog boxShadow=\"rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0…\" animation=none;editor-path font=11px/400;控制台错误=2"
+    }
+  ],
+  "consoleErrors": [
+    "pageerror: TypeError: Cannot read properties of undefined (reading 'unregisterListener')",
+    "pageerror: TypeError: Cannot read properties of undefined (reading 'unregisterListener')"
+  ]
+}

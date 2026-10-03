@@ -13,6 +13,7 @@
 | [domain/connector-selection.md](./domain/connector-selection.md) | 云端连接器选型门禁:免费路径硬规则 |
 | [domain/os-etiquette.md](./domain/os-etiquette.md) | 系统交互礼仪:静默操作铁律(禁抢焦点/清场禁全目录还原/共享构建缓存隔离) |
 | [desktop/sidecar-protocol.md](./desktop/sidecar-protocol.md) | 桌面 sidecar 协议:方法注册表(23)与错误码(事实源 = entry.py `_HANDLERS`) |
+| [desktop/frontend-ui.md](./desktop/frontend-ui.md) | 桌面前端 UI:token 体系(色彩/字号/动效/elevation/焦点)+ 改 UI 必读检查单(事实源 = `desktop/ui-src/src/index.css`) |
 | [guides/](./guides/index.md) | 通用思维指南(复用/跨层) |
 | [guides/ai-dispatch-template.md](./guides/ai-dispatch-template.md) | AI 任务分发模板(v1.1 协议与顺序) |
 | [guides/engineering-discipline.md](./guides/engineering-discipline.md) | 工程纪律:长任务监控 / 先报量再动手(查改分家) / 高星参考 |

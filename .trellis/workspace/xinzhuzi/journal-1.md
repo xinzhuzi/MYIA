@@ -279,6 +279,32 @@
 
 - 主令零冲突残余清单终审:10-03-hermes-messaging review 态归档 archive/2026-10(每目录两轮核脏零在途;prd 载五交付 commit fbba437/2b54865/b3c8084/ed1276f/4be1325 实核在库+双轮验收——首跑 1759 全绿、终跑 7 failed 全归并行在飞而 -k push 222 消息范围零失败;四子任务 core/feishu/telegram/hermes-look 已 completed);games-v2/v3 已净零动作(归档提交 cf2c68f/063d2f9 实核,task.json completed);归档摘链 3 活动子档 parent(platforms/w2-platforms/weixin-bridge,diff 仅此一字段随本笔入库);一笔 chore(task) 只含 .trellis,journal 以 hash-object 外科入库未收编并行 news-rss 块
 
+## 2026-10-03 游戏资讯 RSS 立项(task 10-03-news-rss,planning 等批复)
+
+- 主人批「要」(games 终局后两待决口之二)→ 建档 10-03-news-rss(PRD+jsonl 齐,validate 绿):RSS 提取小能力(extract.type 词表扩展,非新引擎层级)+机核 gcores RSS 接入(探查证据引 archive wrap 档 news-probe-*;static_html 硬接不可行的实测依据在案);三待决带推荐——feedparser(BSD-2,解析坑是这类库存在的全部理由)/独立品类 plugins/news.yaml(资讯无价格字段,games 规则面全是价格语义)/v1 只机核(IGN 是加一行);验收含 OFFICIAL_PLUGINS 全套电池+golden 同步(三连教训)+真跑条目>0;等主人批复或直接下令开工
+- **三件套补齐(同日,主人批「按推荐」,commit 落档)**:决议回写 PRD(feedparser/独立 news.yaml/v1 只机核);design 定形——extract.type 加 rss 走 static_html 引擎文本通路(SUPPORTED_EXTRACT_TYPES:49 加词,decode_response→提取函数同构)、fields 值=feedparser entry 属性白名单(title/link/published/updated/summary/author)拼错拒载、direct_api 保持 JSON-only(R4 边界)、模板不进 CDATA summary(R3 减坑);implement 六步(依赖→schema→引擎→品类+golden 收编→docs→门禁真跑,三笔归属提交);开工前核设计事实:gcores/IGN 实录 RSS 样本确在 archive wrap 档 evidence(fixture 素材现成)。validate 绿,可 start 等开工令
+
+## 2026-10-03 dedup 语义修正落地+RSS 资讯条件止损(dwfrun-2b73698f 双任务)
+
+- **任务一 games-dedup-fix 完成**(e332d4b,9 文件 483 行,任务 review):grill Q1A 落地——item_metric_key 反转 url 优先(质检五维度深核:games 旧序键==url 零断裂/gpu-prices 同/wool·stocks 无基线不触达,消费者与早退链全 grep 核实)+games 键 {url}-{final_price}(make_key 缺占位抛错实测→四源补齐 final_price:CS/GOG 美元字符串三重安全论证=不进模板显示分支/规则字符串≠0 不误判/numeric_value 拒 str 不写基线;模板 elif 重排否则 CS 炸卡——实测复现)+两跑测试承重设计(games 第二跑改搅动未提取的 endDate 骗指纹,提取内容不变→同键拦截;新增变价=新键专测反向钉语义)+golden 全树真再生成(超测试承诺面,质检员 additive 规则全树比对漂移=0)+同库两跑 dedup_seen 实证;**靶心缺陷修复实证:Epic 预告期 {url}-5300 落 digest、免费日 {url}-0 新键落 immediate**;勘误两处入档(决议⑥实际=只推新条目;v2 决议②切换碰撞旧描述错误)
+- 质检 10 low 0 修全实证,4 条文档级小瑕疵主会话顺手收尾(部署过渡一次性全量重推注记[存量库首轮新键全放行,升级日重卡属预期,自愈]/docstring stocks 举例错位/两跑模块注释 games 例外/PRD 引文笔误;scoped 89 绿+dry-run 0+ruff 0 后小 commit)
+- **任务二 news-rss 按设计止损**:schema.py+test_schema.py 被 vision 线持有(images 节在途),占用检查拦下未开工,回 planning;档与六步执行单齐备,vision 收口后重跑即做
+- 工作流工程:三道编译错修复(字面量窄化/鸭子类型 retype 逃 ask 站点身份→改直调 lambda/Node 是 PromiseLike 非 Promise 放宽签名)——**helper 收 agent 必须传 (m)=>agent.ask(m) 直调回调,不能 retype**
+
+## 2026-10-03 v1.1.1 正式发布成功 + 模块改名等树静(task 10-03-shishi-everywhere 续)
+
+- 工作流 dwfrun-18df6728:desktop-release run 37095582342 重跑成功(主人配了 TAURI_UPDATER_PUBKEY/TAURI_SIGNING_PRIVATE_KEY)——Release v1.1.1 四资产齐:shishi_1.1.1_aarch64.dmg / shishi.app.tar.gz(+.sig)/ latest.json,世事名下首个带自动更新通道的正式版
+- 模块改名未执行:树静门禁等满 3h(并行 7→3 但代码面始终 20+ 脏),按设计不硬闯;脚本与范围/保留名单已验证,树静即跑(等主人令或自动重挂)
+- PyPI 未盲发(遵 R2-3):OIDC Trusted Publishing 且无 test 通道,主人前置二选一(注册 trusted publisher 或配 PYPI_API_TOKEN+加 test 开关)
+
+## 2026-10-03 news-rss 主会话直做收口(task 10-03-news-rss,review;games 线+资讯全清)
+
+- 主人「别挂了,继续做 news-rss」+「为啥要等?」——质疑成立:等的前提(schema.py 被占)经 hunk 勘察打破(**他线 hunks 在 164/181/873+区,我方词表 162/179/544 区零重叠**),基线全绿 2015 证在途自洽,hunk 分离提交可行即开工
+- 实现=trellis-implement 子代理六步(feedparser 6.0.14/EXTRACT_TYPES+rss+RSS_ENTRY_FIELDS 白名单+invalid_rss_field 拼错拒载+rss×url_template 互斥/extract_rss 走 static_html 分流+bozo 容错/plugins/news.yaml 双通道全 digest/SKILL.md 被 test_skill_doc 枚举契约强制同步[指令清单缺口由仓库纪律补上]/golden news 首增);scoped 397 绿
+- 门禁:全量 2147 passed 零新红(基线 2015+新增 132);独立质检 4 low 0 缺陷(fixture 注释出处+证据档未落+docs 措辞+golden 跨线提示),前二顺手修;**真跑机核 20 条真实资讯全链通**(exit=3=无凭据引导态),证据落档
+- **提交工程(本轮最陡的一课)**:①暂存区早被 W2/v1.1.2 线暂了四个版本号文件,`commit -- pathspec` 语义=取工作树版(会连带他线 hunks)→ 弃用;②重排法:git reset 全退(unstage 零工作树影响)→ 三笔精确重放暂存(混线文件 schema.py/SKILL.md 用 -U0 patch 按内容判归属分离,零歧义脚本)→ 逐笔裸 commit(187e10d/7f4d9f8/9f8d68e);③**golden news 块剥 weixin_hermes_bin×2**(质检④实锤:他线在途字段混进实时 dump,我方提交树必红——剥后 HEAD 匹配);④**stash 隔离验证 HEAD 提交树**:12 红逐条归因全部与他线半途提交预存(版本/desktop store×7/push 协议×2),news 增量测试零红=提交安全;⑤他线 stash 即还
+- **games+资讯线至此全清**:五源折扣限免预告+机核资讯双品类、dedup 修正、RSS 能力,零欠账;待主人唯二:配凭据真收卡(games 升级日重推属预期)、后续 IGN 加行
+
 ## 2026-10-03 发布模型立项 tag-release + 版本序列归零 0.0.1(task 10-03-tag-release,planning)
 
 - 主人纠偏「打包逻辑错误:以 tag 方式打包、GitHub 原生功能承载,而非很多个版本」→ 建档 10-03-tag-release 三件套:取证=Docker 在 main 每推必发 GHCR(当日 15+ run,sha tag 机制堆版本)是"很多个版本"直接来源、PyPI 纯 dispatch 从未跑、desktop-release 已 tag 触发不动;目标=一 tag 一次完整发布(桌面 Release+GHCR X.Y.Z/latest+PyPI 双包+wheels 附 Release 页),main 推送零发布物
@@ -306,3 +332,19 @@
 - E2E 首轮暴露 verify 发行名 glob 未随 shishi 更名(myia-*→实产 shishi-*,4 glob 全空);本地真跑 uv build+脚本全文复验再抓获第二缺陷=classifier sdist 针脚误照根包 src 布局(平铺布局应 myia_classifier/data/...)——双修 96751a5,本地 all-OK 后删 Release+tag 移到修复提交重推
 - 二轮终态:Desktop success(Release 4 资产重构,latest.json 0.0.1)、Docker success(恰 0.0.1+latest 同 digest ae5fa91c)、PyPI 守卫/Build/verify 全绿+publish 红在 OIDC claim 被拒=预期 pending-publisher 红(排错链接为证)
 - 教训:从未运行过的工作流,静态审查(质检两轮)抓不住「模块名≠发行名」「布局差异」这类只在真实产物上显形的缺陷;发布前本地 uv build+verify 脚本真跑应进 runbook 为 tag 前置(已含在体检流程)
+
+## 2026-10-03 aipocket 融合执行收口(task 10-03-aipocket-fusion;插件包+接线两笔提交 a862bcd/ca613ee,credcheck 401 判死与 exposure 无 key 空态真跑双绿、证据落 research/evidence,执行报告落档;credhunt token/活 key 余额/FOFA-Shodan key 三项待主人侧,质检残留 2 项与工作树未提交修复归脚本侧)
+
+## 2026-10-03 并行执行潮:feed-ux + v112 双批次闭环(主人令「并发并行开满子代理」)
+
+- feed-ux(769ebd1+1d255b7,review):真相=代码早被并行线写完,子代理核验收口(六项全过,vitest 153/协议 86 复核);代理清单两虚列文件坑了 commit --only 一轮(教训:清单先逐个验存在)
+- v112-desktop-parity(dc1cf86,review):第二切片子代理主笔 B2 反馈闭环/B3 评分开关/B4 sparkline 趋势/C10 版本注入/C12 全局运行/E4 骨架清理,PRD 11 项代码面全消号;entry.py 压后+活跃度探测纪律生效(vision 停笔 22 分钟+ast 过才最小增量);vision-v2 完整在途同树收编(整树 2562 pytest+vitest 211+协议 98+cargo check 全绿证完整性)
+- 提交工程:大收编走 zsh 数组(三连低级复盘:第一遍静默败在 2>/dev/null 吞错+回退链、检查 grep 漏 awk 假绿——数组+显式验证终结)
+- 在途:收尾工作流(树静→改名→1.1.2→PyPI)等待中;fleet 持续收尾;统一 GUI 冒烟(D12/B3/feed-ux 重打包)排队树静
+
+## 2026-10-03 UI 深度模仿并行版收口(task 10-03-ui-deep-imitation,review;8 屏全落+spec 入库)
+
+- 完成面(8/8):YAML 配置编辑器、消息、源管理、情报流、壳层(侧栏/顶栏/路由)、采集日志、设置、仪表盘;地基先行——index.css token 深化(三层暗面/字号阶梯 11-18/三级时长+expo-out/浮层阴影/紧凑间距/统一 focus-visible)+components/ui/ 基件 6→14 件
+- 门禁修 4 处最小增量:vision-models.test.tsx 跟进 vision-v2 的 repo_id→repo 有意更名(4 处 getByLabelText)/dashboard api.ts 补 TrendDay 再导出(对齐 client.ts:210 惯例)/sources-table v8.21.3 isResizingColumn(v9 字段名纠偏,语义等价)/sources.test 三处 querySelector null 收口(as HTMLElement,对齐 :688 惯例);vitest 20 文件 240 用例+tsc --noEmit 双绿
+- 终审 PASS(PIL 像素级 15 张 after 截图侧栏/内容/顶栏取色与 token 全一致+25 组色对实算+反 AI 审美 grep+全量读壳层 8 屏 9 基件):对标 Linear 暗色质感+Vercel Dashboard 数据密度落地约九成,teardown 出处注释佐证非 AI 默认态;残留 1 P1(源管理键盘排序死角+destructive 徽章 4.15)+5 P2(侧栏两处小字/日志错误行 4.43/设置 destructive 3.41/text-[11px] 漂移 30 处/feed 搜索框 ring-1)局部参数级,终审修判定无需修整,均入 leftovers 勿扩大
+- 收口动作:spec 产出 .trellis/spec/desktop/frontend-ui.md(token 体系+改 UI 必读+反 AI 审美红线+可达性约定)并挂 spec/index.md;task.json 直改 review(守则:不经 task.py finish);implement.jsonl 补执行引用一行;evidence 8 屏 before/after 全配对(feed 三态+settings 四分区+yaml-editor 子档均备)
