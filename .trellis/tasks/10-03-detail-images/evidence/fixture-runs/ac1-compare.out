@@ -1,0 +1,3 @@
+run 结果 JSON(剥时序字段)对比: IDENTICAL
+items 表逐字段(5 vs 5 行): IDENTICAL
+stdout 推送 digest 条目集: IDENTICAL

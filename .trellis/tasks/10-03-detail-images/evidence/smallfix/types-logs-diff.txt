@@ -1,0 +1,12 @@
+== git diff(未提交)相关 hunks ==
++  ts: string;
+- *  铁律:api_key 只收 keychain:/env: 引用,明文凭据拒载(security-baseline)。 */
++ *  铁律:api_key 只收 keychain: 引用(env: 同拒),明文凭据拒载(security-baseline)。 */
++    return { key: `event:${seq}`, runId: null, stream: "system", text: outcome, ts: event.ts };
+
+== 现值:logs/api.ts completed 行(147 邻域) ==
+  if (event.type === "completed") {
+    return { key: `event:${seq}`, runId: event.run_id, stream: "system", text: completedText(event), ts: event.ts };
+  }
+== 现值:types.ts VisionConfig 注释行 ==
+582: *  铁律:api_key 只收 keychain: 引用(env: 同拒),明文凭据拒载(security-baseline)。 */

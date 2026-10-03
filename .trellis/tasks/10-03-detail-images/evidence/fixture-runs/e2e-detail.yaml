@@ -1,0 +1,49 @@
+# E2E fixture 品类(10-03-detail-images AC2/AC3):列表页零图 + 5 详情页对照
+# a=有字真图+渐变(同域)/ b=404 / c=零img / d=仅跨域img / e=连接拒绝(127.0.0.1:9999)
+# vl: off(OCR-only;socket 审计证零外联)
+id: e2e-detail
+name: E2E详情取图
+schedule: "0 8,20 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  - name: cards
+    engine: static_html
+    url: "http://127.0.0.1:8765/index.html"
+    rate_limit:
+      qps: 100.0
+    retry: 0
+    extract:
+      type: list
+      item: "article.card"
+      fields:
+        title: "h3"
+        url: "a@href"
+watchlist:
+  keywords: [MYIA]
+  mute: []
+classify:
+  builtin: false
+  rules: []
+dedup:
+  key: "{url}"
+enrich:
+  enabled: false
+  model: glm-4-flash
+  scores: [value, relevance, credibility]
+  batch: 20
+  cache: true
+  budget_per_run: 50000
+push:
+  - channel: stdout
+storage:
+  retention: 90d
+  vacuum: monthly
+images:
+  enabled: true
+  max_images: 3
+  max_per_run: 30
+  min_bytes: 1024
+  vl: "off"
+  detail_fetch: true
+  detail_max_items: 10

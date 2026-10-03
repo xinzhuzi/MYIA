@@ -1,0 +1,18 @@
+[PASS] AC2 run status=success、5/5 条目在场
+[PASS] AC2 条目a:detail_status=ok:n=2(同域 2 图收集) :: ['http://127.0.0.1:8765/static/text-shot.png', 'http://127.0.0.1:8765/gradient.png']
+[PASS] AC2 条目a:image_ocr 经 detail 链落地(文案=fixture 图专属)
+[PASS] AC2 条目a:image_status=ok
+[PASS] AC3 条目b(404):failed:http_404、仅标记
+[PASS] AC3 条目c(零img):no_images
+[PASS] AC2 条目d(仅跨域img):no_images(同域过滤)
+[PASS] AC3 条目e(不可达):failed:http_502 仅标记
+[PASS] AC3 失败页照常入库:5/5 条目 items 表在场(b/c/d/e 含标记)
+[PASS] AC2 db 里 image_ocr 落地
+[PASS] AC3 socket 审计:9/9 出站连接全 loopback(OCR 路径零外联) :: total=9 hosts={'127.0.0.1'}
+[PASS] AC2 追抓串行:详情页 GET 间隔 ≥1s(b→c 1.381s、c→d 1.004s)
+[PASS] AC2 截断(detail_max_items=1):仅条目a 追抓、其余零标记 :: detail GETs=['/detail-a.html']
+[PASS] AC2 截断:access.log 该 run 波次仅 1 次详情页 GET :: ['/detail-a.html']
+[PASS] AC1 缺省 false:当前树零 detail_status、零详情页 GET
+[PASS] AC1 HEAD(关前)vs 当前树逐字段一致 :: run 结果 JSON(剥时序字段)对比: IDENTICAL | items 表逐字段(5 vs 5 行): IDENTICAL | stdout 推送 digest 条目集: IDENTICAL | 
+
+SUMMARY: 16/16 PASS

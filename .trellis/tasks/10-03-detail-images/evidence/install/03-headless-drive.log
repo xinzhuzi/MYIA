@@ -1,0 +1,8 @@
+[PASS] AC7:侧栏无「看图」项 :: 导航项 7 个:["仪表盘","情报流","源管理","配置编辑","消息","采集日志","设置"];含看图=false
+[PASS] AC7:feed「图」Badge + 图析行渲染 :: 「图」Badge 1 个;OCR 文本渲染=true;图析行样例=["图析:配图 OCR 文本摘要","MYIA DETAIL IMAGES E2E\nDETAIL PAGE OCR 2026\n详情页取图链测试"]
+[PASS] AC7:settings 看图分区在(VisionForm 卡片) :: 看图卡片标题=true;「二级看图通道」描述=true;卡片标题样例=["设置","LLM 精评","代理池","推送通道","看图","钥匙链凭据名(secret.list)","软件更新","保存后验证(doctor 回显)"]
+
+==== SUMMARY ====
+PASS  AC7:侧栏无「看图」项
+PASS  AC7:feed「图」Badge + 图析行渲染
+PASS  AC7:settings 看图分区在(VisionForm 卡片)

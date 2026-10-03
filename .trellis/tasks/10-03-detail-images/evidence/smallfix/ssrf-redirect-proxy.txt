@@ -1,0 +1,11 @@
+$ .venv/bin/pytest tests/test_vision_collect.py -v -k 'follow_redirects_true_cannot_bypass or rebind or proxy'
+tests/test_vision_collect.py::TestDegradationMatrix::test_fake_ip_proxy_range_allowed PASSED [ 11%]
+tests/test_vision_collect.py::TestSsrfHardening::test_injected_client_follow_redirects_true_cannot_bypass_hop_check PASSED [ 22%]
+tests/test_vision_collect.py::TestSsrfHardening::test_connection_layer_rebind_to_private_rejected PASSED [ 33%]
+tests/test_vision_collect.py::TestSsrfHardening::test_detail_connection_layer_rebind_rejected PASSED [ 44%]
+tests/test_vision_collect.py::TestProxyPassthrough::test_own_download_client_mounts_proxy_url PASSED [ 55%]
+tests/test_vision_collect.py::TestProxyPassthrough::test_pool_source_ring_and_detail_ride_pool_client PASSED [ 66%]
+tests/test_vision_collect.py::TestProxyPassthrough::test_client_egress_is_proxied_shapes PASSED [ 77%]
+tests/test_vision_collect.py::TestProxyPassthrough::test_download_via_local_proxy_egress_not_killed_as_rebind PASSED [ 88%]
+tests/test_vision_collect.py::TestProxyPassthrough::test_detail_via_local_proxy_egress_not_killed_as_rebind PASSED [100%]
+======================= 9 passed, 55 deselected in 0.23s =======================

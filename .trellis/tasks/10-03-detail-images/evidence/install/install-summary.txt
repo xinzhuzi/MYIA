@@ -1,0 +1,28 @@
+# AC7 装机记录(10-03-detail-images,2026-10-03 19:39-19:43 CST)
+
+构建(本地 desktop-release 流程,CI 二段式:sidecar 已在前段产出,本段 MYIA_SIDECAR_SKIP=1 复用):
+- `cd desktop/ui-src && npm run build`(等价 ask 的 `npm --prefix desktop/ui-src run build`)→ exit 0,1.52s,1748 modules,产物落 desktop/ui → 01-ui-build.log
+- 前置核验:sidecar 冻结件 desktop/src-tauri/binaries/myia-core-aarch64-apple-darwin(117091280B,19:16)之后 myia/、myia-classifier/、ui-src/src、src-tauri/src 源码零改动(find -newer 全空)→ 复用合法
+- `cd desktop && MYIA_SIDECAR_SKIP=1 npx tauri build --bundles app,dmg` → exit 0(cargo `Finished release ... in 13.14s`,缓存热;skip 行见 02-tauri-build.log:8)→ 02-tauri-build.log
+- 产物:.app = desktop/src-tauri/target/release/bundle/macos/世事.app(125.36 MiB);dmg = desktop/src-tauri/target/release/bundle/dmg/世事_0.0.1_aarch64.dmg(117.86 MiB)
+- .app 核验:CFBundleShortVersionString=0.0.1、CFBundleDisplayName=世事、MacOS/MYIA(19:40 新编)+ myia-core(19:16 冻结件,字节数与源 sidecar 一致)
+
+换装(全程未抢前台):
+- 前台检查:frontmost=Finder(非世事);世事/MYIA 进程不存在(未运行,无需优雅退出)
+- `mv /Applications/世事.app /tmp/世事.app.bak-pre-detail-1003`(备份 125M)→ `ditto <新构建>.app /Applications/世事.app`(125M)
+- `open -g /Applications/世事.app` exit 0;open 前 frontmost=Finder,open 后 frontmost=Finder(未抢前台)
+
+进程验证:
+- MYIA pid 10119 起,存活 >10s 实测(17s/27s 时点 ps 复核仍在,ALIVE_AFTER_10S);路径 /Applications/世事.app/Contents/MacOS/MYIA
+- sidecar 由壳拉起:10130 myia-core serve(MYIA 子进程)+ 10136(PyInstaller onefile bootloader 的 payload 子进程,父子关系已核,单实例)
+
+无头 GUI 三断言(Playwright 法,法同 app-headless/di-smoke-drive.cjs;桥 bridge-install.mjs 改 spawn **已装 app 的冻结 sidecar** /Applications/世事.app/Contents/MacOS/myia-core serve,桥探针 version=myia 0.0.1/protocol 4;UI 为 desktop/ui 构建产物静态 serve,即 tauri frontendDist 嵌入 .app 的同一份;唯一注入 store.items params.db=/tmp/myia-di-e2e/runs/main/myia.db fixture 库)→ 03-headless-drive.log + ac7-install-verify-transcript.json:
+1. PASS 侧栏无「看图」:导航 7 项(仪表盘/情报流/源管理/配置编辑/消息/采集日志/设置),含看图=false → ac7-01-sidebar.png
+2. PASS feed「图」Badge + 图析行:Badge 1 个,OCR 文本(MYIA DETAIL IMAGES E2E)渲染=true,图析行 title=「图析:配图 OCR 文本摘要」→ ac7-02-feed-image-row.png
+3. PASS settings 看图分区在:VisionForm 卡片标题「看图」+ 描述「二级看图通道」在(卡片序列:设置/LLM 精评/代理池/推送通道/看图/钥匙链凭据名/软件更新)→ ac7-03-settings-vision.png
+
+终态:装机后 app 持续在跑(pid 10119),验证桥已清理(bridge_clean)。
+
+证据文件:01-ui-build.log / 02-tauri-build.log / 03-headless-drive.log / bridge-install.mjs / bridge-install.log / install-verify-drive.cjs / ac7-install-verify-transcript.json / ac7-01-sidebar.png / ac7-02-feed-image-row.png / ac7-03-settings-vision.png / install-summary.txt(本件)
+
+注记:并行会话在场(tag-release 线在 /tmp/v0001-dmg 下载 CI dmg shishi_0.0.1),若其随后也从 CI dmg 换装,本机 /Applications 版本仍为 0.0.1 同码位;本线备份 /tmp/世事.app.bak-pre-detail-1003 保留。

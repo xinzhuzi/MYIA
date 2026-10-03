@@ -1,0 +1,15 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>detail a</title></head>
+<body>
+<article>
+  <h1>MYIA DETAIL A</h1>
+  <p>same-domain absolute:</p>
+  <img src="/static/text-shot.png" alt="text shot">
+  <p>same-domain relative:</p>
+  <img src="gradient.png" alt="gradient">
+  <p>cross-domain (must be filtered out, never requested):</p>
+  <img src="https://external-invalid.example/pixel.png" alt="cross">
+  <p>data: URI (not http/https, dropped):</p>
+  <img src="data:image/png;base64,AAAA" alt="inline">
+</article>
+</body></html>

@@ -1,0 +1,19 @@
+# 门禁四道(10-03-detail-images 冒烟窗口,2026-10-03 晚;工作树含并行会话在途改动)
+# CI 同款命令(.github/workflows/ci.yml:23/44/74)+ vitest(implement.md 门禁口径)
+
+1. pytest 全量      : .venv/bin/pytest -q --tb=short
+   → 2466 passed, 19 skipped, 0 failed(exit 0)      [pytest-full.log]
+   注:PRD AC6 预注的「已知外来红 test_skill_doc rss」本轮未复现(并行线已修);
+       19 skipped 均为环境条件跳过(无桌面钥匙串/平台门),与基线口径一致。
+2. vitest           : cd desktop/ui-src && npm test
+   → Test Files 15 passed (15);Tests 153 passed (153)(exit 0)[vitest.log]
+3. tsc + vite build : cd desktop/ui-src && npm run build
+   → tsc -b 零错;vite built(exit 0)                    [build.log]
+4. cargo check      : cd desktop/src-tauri && cargo check --locked
+   → Finished dev profile(exit 0)                       [cargo.log]
+
+# ai-news 相关用例(golden/fixture 同步后)
+$ .venv/bin/pytest tests/test_plugins.py tests/test_classify.py tests/test_store_dedup.py -q
+→ 228 passed, 6 skipped(0 failed)                     [ainews-cases.txt]
+
+四道全绿;外来红为零。

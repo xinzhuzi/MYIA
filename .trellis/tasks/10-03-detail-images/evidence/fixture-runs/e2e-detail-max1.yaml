@@ -1,0 +1,48 @@
+# 截断对照(AC2):detail_max_items=1 —— 仅条目 a(item 顺序第一个)被追抓,
+# b/c/d/e 零 detail_status 标记、access.log 只见一次详情页 GET。
+id: e2e-detail
+name: E2E详情取图
+schedule: "0 8,20 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  - name: cards
+    engine: static_html
+    url: "http://127.0.0.1:8765/index.html"
+    rate_limit:
+      qps: 100.0
+    retry: 0
+    extract:
+      type: list
+      item: "article.card"
+      fields:
+        title: "h3"
+        url: "a@href"
+watchlist:
+  keywords: [MYIA]
+  mute: []
+classify:
+  builtin: false
+  rules: []
+dedup:
+  key: "{url}"
+enrich:
+  enabled: false
+  model: glm-4-flash
+  scores: [value, relevance, credibility]
+  batch: 20
+  cache: true
+  budget_per_run: 50000
+push:
+  - channel: stdout
+storage:
+  retention: 90d
+  vacuum: monthly
+images:
+  enabled: true
+  max_images: 3
+  max_per_run: 30
+  min_bytes: 1024
+  vl: "off"
+  detail_fetch: true
+  detail_max_items: 1

@@ -1,0 +1,66 @@
+# ai-news 副本(10-03-detail-images AC4 cocoloop 真网 best-effort):
+# - 仅留 cocoloop 源(aihot 列表页无图且 SPA 详情不开追抓,与本 AC 无关,砍掉控时长)
+# - push 剥离 feishu_card → stdout(真网跑不外发)
+# - db 与 vision.yaml 同目录摆位(/tmp/myia-di-realnet/),ocr engine_default=vision
+# 其余字段逐字照抄 plugins/ai-news.yaml 的 cocoloop 源与品类节。
+id: ai-news
+name: AI资讯
+schedule: "0 8,20 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  - name: cocoloop
+    engine: static_html
+    url: "https://www.cocoloop.cn/latest?page={page}"
+    method: GET
+    headers:
+      User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    pagination:
+      mode: template
+      max_pages: 2
+    extract:
+      type: list
+      item: "tr.topic-list-item"
+      fields:
+        title: "a.raw-topic-link"
+        url: "a.raw-topic-link@href"
+    rate_limit:
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true
+    proxy: direct
+    retry: 3
+    images_detail_fetch: true
+
+watchlist:
+  keywords: [LLM, Agent, 开源模型, AI芯片, 大模型, 多模态]
+  mute: [广告, 招聘]
+
+classify:
+  builtin: true
+  rules: []
+
+dedup:
+  key: "{url}"
+
+enrich:
+  enabled: false
+  model: glm-4-flash
+  scores: [value, relevance, credibility]
+  batch: 20
+  cache: true
+  budget_per_run: 50000
+
+push:
+  - channel: stdout
+
+storage:
+  retention: 90d
+  vacuum: monthly
+
+images:
+  enabled: true
+  max_images: 3
+  max_per_run: 30
+  min_bytes: 10240

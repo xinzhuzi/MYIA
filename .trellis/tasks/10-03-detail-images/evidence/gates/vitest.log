@@ -1,0 +1,30 @@
+
+> myia-desktop-ui@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/zhengbingjin/Project/Github/MYIA/desktop/ui-src
+
+ ✓ src/lib/api/client.test.ts (6 tests) 4ms
+ ✓ src/screens/yaml-editor/editor-pane.test.tsx (2 tests) 132ms
+ ✓ src/screens/messaging/platform-icons.test.tsx (8 tests) 103ms
+ ✓ src/screens/settings/updater-card.test.tsx (4 tests) 180ms
+ ✓ src/screens/logs/logs-screen.test.tsx (5 tests) 178ms
+ ✓ src/components/layout/top-bar.test.tsx (3 tests) 244ms
+ ✓ src/hooks/use-sidecar-status.test.tsx (5 tests) 342ms
+ ✓ src/screens/dashboard/dashboard-screen.test.tsx (9 tests) 288ms
+ ✓ src/screens/yaml-editor/yaml-editor-dialog.test.tsx (8 tests) 286ms
+ ✓ src/screens/settings/vision-form.test.tsx (5 tests) 331ms
+ ✓ src/screens/sources/sources.test.tsx (14 tests) 487ms
+ ✓ src/screens/messaging/messaging-screen.test.tsx (31 tests) 646ms
+ ✓ src/screens/yaml-editor/yaml-editor-screen.test.tsx (17 tests) 611ms
+ ✓ src/screens/settings/settings.test.tsx (16 tests) 842ms
+ ✓ src/screens/feed/feed-screen.test.tsx (20 tests) 1002ms
+     ✓ 分页加载:首页 50 条出「加载更早」按钮,翻页带 before/before_id 复合游标,取尽后按钮消失  361ms
+
+ Test Files  15 passed (15)
+      Tests  153 passed (153)
+   Start at  19:28:12
+   Duration  2.10s (transform 1.56s, setup 0ms, import 3.85s, tests 5.68s, environment 9.30s)
+
+VITEST_EXIT=0

@@ -1,0 +1,25 @@
+{
+  "steps": [
+    {
+      "name": "AC8:侧栏无「看图」项(拆屏后旧断言)",
+      "ok": true,
+      "evidence": "导航项 7 个:[\"仪表盘\",\"情报流\",\"源管理\",\"配置编辑\",\"消息\",\"采集日志\",\"设置\"];含看图=false",
+      "screenshot": "ac8-01-sidebar.png"
+    },
+    {
+      "name": "AC8:#/image 路由 → 重定向(404 兜底 Navigate to /)",
+      "ok": true,
+      "evidence": "goto #/image 后 location.hash=\"#/\";正文首 100 字=\"仪表盘\\n情报流\\n源管理\\n配置编辑\\n消息\\n采集日志\\n设置\\n品类\\n全部品类\\n仪表盘\\n\\n品类运行状态、源健康度(ok / degraded / dead)与近期 run 成功率\\n\\n刷新\\n品类状态\\n已载品类、\"",
+      "screenshot": "ac8-02-image-route.png"
+    },
+    {
+      "name": "AC8:feed「图」Badge + 图析行(detail 链 image_ocr 渲染)",
+      "ok": true,
+      "evidence": "「图」Badge 1 个(条目 a);OCR 文本渲染=true;图析行样例=[\"图析:配图 OCR 文本摘要\",\"MYIA DETAIL IMAGES E2E\\nDETAIL PAGE OCR 2026\\n详情页取图链测试\"]",
+      "screenshot": "ac8-03-feed-image-row.png"
+    }
+  ],
+  "consoleErrors": [
+    "pageerror: TypeError: Cannot read properties of undefined (reading 'unregisterListener')"
+  ]
+}

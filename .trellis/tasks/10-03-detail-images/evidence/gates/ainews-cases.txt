@@ -1,0 +1,2 @@
+$ .venv/bin/pytest tests/test_plugins.py tests/test_classify.py tests/test_store_dedup.py -q   # ai-news 引用用例
+228 passed, 6 skipped in 21.99s

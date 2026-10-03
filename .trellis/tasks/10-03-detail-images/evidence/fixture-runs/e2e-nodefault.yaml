@@ -1,0 +1,47 @@
+# 零影响默认(AC1):images 节开启但**不写 detail 键**(缺省 detail_fetch=false)。
+# 断言:当前树跑 → 零 detail_status、零详情页 GET;与 HEAD worktree(关前)
+# 逐字段对比 IDENTICAL。
+id: e2e-detail
+name: E2E详情取图
+schedule: "0 8,20 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  - name: cards
+    engine: static_html
+    url: "http://127.0.0.1:8765/index.html"
+    rate_limit:
+      qps: 100.0
+    retry: 0
+    extract:
+      type: list
+      item: "article.card"
+      fields:
+        title: "h3"
+        url: "a@href"
+watchlist:
+  keywords: [MYIA]
+  mute: []
+classify:
+  builtin: false
+  rules: []
+dedup:
+  key: "{url}"
+enrich:
+  enabled: false
+  model: glm-4-flash
+  scores: [value, relevance, credibility]
+  batch: 20
+  cache: true
+  budget_per_run: 50000
+push:
+  - channel: stdout
+storage:
+  retention: 90d
+  vacuum: monthly
+images:
+  enabled: true
+  max_images: 3
+  max_per_run: 30
+  min_bytes: 1024
+  vl: "off"
