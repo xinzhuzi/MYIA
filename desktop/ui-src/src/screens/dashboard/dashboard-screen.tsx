@@ -161,13 +161,13 @@ function CategoryCard({
     >
       <div className="flex min-w-0 flex-col gap-0.5">
         <p className="truncate text-xs font-medium text-foreground">{category.name}</p>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {category.sourceCount} 源
           {category.schedule ? ` · ${category.schedule}` : " · 手动"}
           {category.nextFireAt ? " · 有排程" : ""}
         </p>
         {runOnce.phase === "error" ? (
-          <p className="text-[11px] text-destructive" data-testid={`run-once-error-${category.file}`}>
+          <p className="text-2xs text-destructive" data-testid={`run-once-error-${category.file}`}>
             跑一次失败:{runOnce.message}
           </p>
         ) : null}
@@ -204,11 +204,11 @@ function RecentRunRow({ run }: { run: DashboardRun }) {
       className="flex items-center justify-between gap-2 border-b border-border/40 py-1.5 last:border-b-0"
     >
       <div className="flex min-w-0 items-center gap-2">
-        <span className="font-mono text-[11px] text-muted-foreground">#{run.runId}</span>
+        <span className="font-mono text-2xs text-muted-foreground">#{run.runId}</span>
         <span className="truncate text-xs text-foreground">{run.category}</span>
         {run.dry ? <Badge variant="outline">dry</Badge> : null}
       </div>
-      <div className="flex shrink-0 items-center gap-2 text-[11px] text-muted-foreground">
+      <div className="flex shrink-0 items-center gap-2 text-2xs text-muted-foreground">
         {itemCount !== null ? <span>{itemCount} 条</span> : null}
         <span className="font-mono">{formatDuration(run.durationMs)}</span>
         <Badge variant={badge.variant}>{badge.label}</Badge>
@@ -478,7 +478,7 @@ export function DashboardScreen() {
                   pulse={collecting}
                   aria-label={`近 ${windowDays} 天采集量 sparkline,共 ${trendTotal} 条,峰值 ${trendPeak} 条`}
                 />
-                <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                <p className="flex flex-wrap items-center gap-1.5 text-2xs text-muted-foreground">
                   <span data-testid="trend-total">
                     近 {windowDays} 天共 {trendTotal} 条 · 峰值 {trendPeak} 条/日
                   </span>
@@ -589,7 +589,7 @@ export function DashboardScreen() {
                   <span data-testid="run-success-rate" className="text-2xl font-semibold text-foreground">
                     {formatSuccessRate(runSummary.successRate)}
                   </span>
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-2xs text-muted-foreground">
                     {runSummary.success}/{runSummary.finished} 次成功
                     {runSummary.running > 0 ? ` · ${runSummary.running} 个运行中` : ""}
                   </span>
