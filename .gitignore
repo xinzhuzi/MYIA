@@ -73,3 +73,6 @@ desktop/src-tauri/binaries/
 *.bak
 *~
 Thumbs.db
+
+# ---- 冒烟运行态(本机私有,勿提交)----
+.zcode/smoke/
