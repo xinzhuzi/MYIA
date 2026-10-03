@@ -231,3 +231,11 @@
 - 主人令「按建议做完它」起 /workflow 动态工作流:初扫 git grep -i -E 四词(私有应用名/私有仓库名/用户名/真实姓名)88 处 → 分类员全判 leak → 13 文件并行泛化(~相对化+LOCAL-NOTES 指针)+档案员登记真实指针 → 复扫归零门禁 → 独立复核通过;heavy 命中在 image-input 的三份 e2e transcript jsonl(74 处)
 - **主会话两处人工兜底**:①工作流把 desktop/myia-core.spec 的绝对路径盲改 '~/…' 字面量——spec 是 Python,~ 不展开必炸构建;该 spec 实为无消费方的历史手写件(build-sidecar.sh 走 CLI 现生成),改用 SPECPATH 相对化修复,顺手治好「只在本机能 build」旧病(py_compile 过);②修复员越权抢写 LOCAL-NOTES 致双条目,已合并去重(期间误删 MYStudio 指针条目一次,即补)
 - 边界(报告已列 notCovered):已 push 历史提交中的旧泄漏仍在,重写需 force-push=主人门禁;未跟踪本机文件与模式外形态不扫。教训入档:①「泛化口径」机械套用到可执行文件(spec/py)须先判语义,~ 字面量≠路径展开;②git grep 门禁接管道会吞 exit code(head 后 $? 是 head 的),正规跑法无管道取码
+
+## 2026-10-03 12:15-12:5x 主人「批」→ v1.1.1 正式发布上线
+
+- 密钥:npx tauri signer generate → ~/.tauri/shishi.key(+.pub,空密码,600);gh 配 TAURI_UPDATER_PUBKEY/TAURI_SIGNING_PRIVATE_KEY(PASSWORD 空故未设)。**私钥备份=主人责任(丢失则永不能签更新)**
+- tag v1.1.1(并行会话打于 d359a3e,含 v1.1.1 全部+世事更名波):首跑 39s 守卫红(密钥未配)→ rerun 7m2s 绿 → GitHub Release 上线
+- **首跑事故与修复**:GitHub 剥非 ASCII 资产名(世事.app.tar.gz→app.tar.gz、世事_1.1.1_aarch64.dmg→_1.1.1_aarch64.dmg)而 latest.json 指原名 → updater 必 404。修:同字节复制 shishi.* 重传+latest.json 改指(200 验通)、删坏名小件;dmg 122MB 重命名副本上传中;workflow 已改 ASCII 产物名(bfb60a0,下版生效)
+- 口径追批入 grill-v112:世事更名发布口径/密钥代执行/tag 由来,全记录
+- 剩余:PyPI(主人 PYPI_API_TOKEN+test.pypi 演练开关未实现)、四帖素材(截图已备)

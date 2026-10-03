@@ -69,9 +69,9 @@
 - [x] CHANGELOG.md 就位,覆盖 v1.0→1.1.1(含数据通路修复条目)
 - [x] README 徽章/状态段升格;五屏真实数据截图入 docs;Gatekeeper 右键指引;
       B2/B3/B4 交付宣称如实化
-- [ ] updater 通道闭环:UI「检查更新」接线 + 密钥签名校验通过(主人三密钥就位后)
-- [ ] 密钥扫描零命中(命令+报告入日志)
-- [ ] `v1.1.1` tag 推送,desktop-release.yml 绿,GitHub Release 带 dmg+latest.json
+- [x] updater 通道闭环:UI 接线已交付;主人 2026-10-03「批」后 AI 代生成密钥(~/.tauri/shishi.key*,空密码)+ 2 Secrets,v1.1.1 更新包经真钥签名、latest.json 指向的资产 200 可达(签名内容=真钥产物);真实旧客户端升级演练留待下版首个真实更新场景
+- [x] 密钥扫描零命中(独立终检 grep 等价口径全仓扫,零真凭据;gitleaks 未装以等价口径完成,报告在收尾工作流)
+- [x] v1.1.1 tag(并行会话打于 d359a3e)+ desktop-release.yml 首跑守卫红(密钥未配)→ 配毕 rerun 7m2s 绿;GitHub Release 上线 dmg+shishi.app.tar.gz{,.sig}+latest.json。**首跑事故已修**:GitHub 剥非 ASCII 资产名(世事.*→裸名)致 latest.json 404,已按字节同复制 shishi.* 修复并验证 200,workflow 已改 ASCII 名(bfb60a0)
 - [ ] PyPI 双包先 test.pypi 演练再正式,链接入日志
 - [ ] 四帖素材(含截图)交主人定稿;发帖后链接回填 v10-release
 
