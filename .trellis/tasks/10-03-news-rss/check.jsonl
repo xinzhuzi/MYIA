@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/domain/yaml-schema.md", "reason": "核对 rss 类型+news.yaml 全段合法+golden 同步"}
+{"file": ".trellis/spec/python/index.md", "reason": "python 层红线与依赖纪律"}
