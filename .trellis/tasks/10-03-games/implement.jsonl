@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/domain/yaml-schema.md", "reason": "品类 YAML 12 段 schema 纪律与金测基线;写 plugins/games.yaml 的 ground truth(stocks/gpu-prices 是活样例)"}
+{"file": ".trellis/spec/domain/security-baseline.md", "reason": "凭据铁律:YAML 禁明文,只许 env:/keychain:;games push 目标必须走引用"}

@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/domain/yaml-schema.md", "reason": "核对 games.yaml 全段合法(dedup 禁裸 {title}/route 白名单/未知字段拒收)"}
+{"file": ".trellis/spec/domain/security-baseline.md", "reason": "核对零明文凭据、推送目标全为凭据引用"}
+{"file": ".trellis/spec/python/index.md", "reason": "python 层红线(测试导入规约/桌面数据根约定);CI 零外网要求出处"}
