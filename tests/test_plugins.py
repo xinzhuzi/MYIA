@@ -274,6 +274,12 @@ def test_plugin_template_renders_with_representative_items(name):
             {"title": "The Outlast Trials", "url": "https://store.steampowered.com/app/1304930",
              "final_price": 1360, "original_price": 13600, "discount_pct": 90},
         ],
+        # gpu-prices:vs_msrp/vs_* 在无 msrp/trends 上下文时渲染空串(契约),
+        # keyword_trends 缺省空列表——模板必须裸渲染存活
+        "gpu-prices": [
+            {"title": "iGame RTX 5080 公开演示", "url": "https://detail.zol.com.cn/vga/1.html",
+             "price": 8999},
+        ],
     }[name]
     renderer = TemplateRenderer()
     expected_marker = {
@@ -281,6 +287,7 @@ def test_plugin_template_renders_with_representative_items(name):
         "ai-news": "公开演示标题",
         "wool": "公开演示标题",
         "games": "深埋之星",
+        "gpu-prices": "iGame RTX 5080",
     }[name]
     # 值级标记(opt-in):钉住换算/退路的输出值,不只是「渲染不炸」。
     # games:Steam 条目无 price_text → 退 final_price/100,1360 分应渲染 13.6
@@ -551,6 +558,17 @@ _TWO_RUN_PLANS: dict[str, dict[str, Any]] = {
         "payloads": [
             _epic_free_body(0, "0"),            # 限免价 0(实录形状)
             _epic_free_body(100, "¥1.00"),      # 促销价变了,URL 不变
+        ],
+    },
+    # gpu-prices(10-03-games-v2):zol 形状合成 markup(真实页被反爬检查页
+    # 拦,无法录制——同 v2ex parked 口径);同 URL 换价,拦截点在 dedup
+    "gpu-prices": {
+        "source": "zol",
+        "payloads": [
+            '<div class="list-item"><h3><a href="https://detail.zol.com.cn/vga/1.html">'
+            'iGame RTX 5080 公开演示</a></h3><span class="price-type">8999</span></div>',
+            '<div class="list-item"><h3><a href="https://detail.zol.com.cn/vga/1.html">'
+            'iGame RTX 5080 公开演示</a></h3><span class="price-type">9099</span></div>',
         ],
     },
 }

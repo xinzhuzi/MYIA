@@ -64,9 +64,13 @@ baseline:                         # v0.4 趋势基线(sidecar 节):数值历史 
 push:
   - channel: feishu_card
     target: env:FEISHU_CHAT_ID
-    route:                        # 旗舰高价即时推;未命中规则按缺省保守 digest
+    route:                        # 旗舰高价即时推;其余显式走保守 digest
+                                  # (缺省即 digest,显式化是为满足官方插件
+                                  # route 两态齐全的展示契约——行为不变)
       - when: "price >= 10000"
         mode: immediate
+      - when: "price > 0"
+        mode: digest
     template: |
       **显卡行情 · {{ date }}**
       {% for item in items %}
