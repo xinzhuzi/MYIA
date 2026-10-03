@@ -1,0 +1,29 @@
+{
+  "steps": [
+    {
+      "name": "AC8:侧栏无「看图」项",
+      "ok": true,
+      "evidence": "导航项 7 个:[\"仪表盘\",\"情报流\",\"源管理\",\"配置编辑\",\"消息\",\"采集日志\",\"设置\"];含看图=false",
+      "screenshot": "ac8-01-sidebar.png"
+    },
+    {
+      "name": "AC8:#/image 路由 → 重定向(404 兜底 Navigate to /)",
+      "ok": true,
+      "evidence": "goto #/image 后 location.hash=\"#/\";正文首 200 字=\"仪表盘\\n情报流\\n源管理\\n配置编辑\\n消息\\n采集日志\\n设置\\n品类\\n全部品类\\n仪表盘\\n\\n品类运行状态、源健康度(ok / degraded / dead)与近期 run 成功率\\n\\n刷新\\n品类状态\\n已载品类、调度与诊断评级(0 error / N warning)\\n\\nAI资讯\\n\\n2 源 · 0 8,20 * * * · 有排程\\n\\n正常\\n\\n凭证猎手\\n\\n1 源 · 0 */2 * * * · 有排程\\n\\n正常\\n\"",
+      "screenshot": "ac8-02-image-route.png"
+    },
+    {
+      "name": "AC8:settings 看图配置分区在(image.config.read 保留面)",
+      "ok": true,
+      "evidence": "settings 正文含看图=true;通道/引擎字段=true;image.config.read 经桥实读(见 bridge2.log)",
+      "screenshot": "ac8-03-settings-vision.png"
+    },
+    {
+      "name": "AC8:feed「图」Badge + 图析行(image_ocr 条目渲染)",
+      "ok": true,
+      "evidence": "「图」Badge 2 个(条目 a + m1);OCR 文本渲染=true;图析行样例=[\"图析:配图 OCR 文本摘要\",\"MYIA VISION PIPELINE E2E\\nQINJI 2026 SCREENSHOT\\n图像文字识别测试\\nMYIA VISION PIPELINE E2E\\nQINJI 2026 SCREENSHOT\\n图像文字识别测试\\nMYIA VISION PIPELINE E2E\\nQINJI 2026 SCREENSHOT\\n图像文字识别测试\"]",
+      "screenshot": "ac8-04-feed-image-row.png"
+    }
+  ],
+  "consoleErrors": []
+}

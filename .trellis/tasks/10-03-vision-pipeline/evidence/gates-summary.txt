@@ -1,0 +1,20 @@
+== E2E 门禁汇总(2026-10-03 14:2x-14:4x,与并行会话共用工作树,按时间线如实记录)==
+
+[14:2x] vitest 12 files/111 tests 全过;tsc -b exit 0;npm run build 绿;cargo check 绿;
+       pytest 全套 1922 passed + 2 failed(test_skill_doc:并行会话新增 dingtalk/ntfy/wecom push 通道未同步 SKILL.md)
+[14:36] pytest 全套 1930 passed, 14 skipped,0 failed(并行会话补齐文档后复测)
+       同刻 vitest/tsc 各 1 失败于 messaging/platform-icons.test.tsx(同一并行会话在途编辑,ntfy/钉钉/企微图标)
+[14:4x] vitest 12 files/113 tests 全过;tsc -b exit 0;npm run build 绿(1.46s);cargo check 绿
+       pytest 复现波动:4 failed 全在 tests/test_plugins.py 的 games 用例——
+       plugins/games.yaml 于 14:40 被并行 games 会话修改(git diff --stat:+60/-18,非本任务触点)
+       剔除该 4 用例后 test_plugins 84 passed, 6 skipped;ai-news golden 16 passed
+
+== vision-pipeline 直接面(任何时刻均绿)==
+tests/{test_vision,test_vision_collect,test_pipeline,test_enrich,test_schema,
+test_desktop_sidecar_protocol,test_baseline,test_fetch_base,test_cli_full}.py
+剔除 games 波动后:506+ passed, 7 skipped;test_vision_collect.py 单独全绿
+
+== 结论 ==
+本任务(python 面 vision-pipeline + UI 面 feed/settings/拆屏)在全部时间点绿;
+全部观测到的失败均可归因于并行会话(push 通道三件套 / games.yaml / messaging 图标)
+的在途编辑,且各自随后被该会话修复或仍在其责任面内。

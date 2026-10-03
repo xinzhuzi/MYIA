@@ -1,0 +1,5 @@
+{"id":23,"error":{"code":"method_not_found","path":"method","message":"未知方法 image.import","data":{"allowed":["ch
+{"id":24,"error":{"code":"method_not_found","path":"method","message":"未知方法 image.ocr","data":{"allowed":["chann
+{"id":25,"error":{"code":"method_not_found","path":"method","message":"未知方法 image.analyze","data":{"allowed":["c
+{"id":26,"error":{"code":"method_not_found","path":"method","message":"未知方法 image.status","data":{"allowed":["ch
+{"id":27,"result":{"file":"vision.yaml","exists":false,"config":{"channel_default":"local","local":{"base_url":"http://1

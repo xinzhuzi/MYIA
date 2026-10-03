@@ -20,14 +20,14 @@
 
 ```
 cli.py          命令入口(输出对 AI/人类双友好)
-schema.py       12 节品类 YAML 模型与校验(AI 写 YAML 的地基)
+schema.py       12 节品类 YAML 模型与校验 + images: sidecar 节(管线图片处理环开关,$.images 错误前缀,不入 12 节契约)(AI 写 YAML 的地基)
 pipeline.py     编排:fetch→classify→dedup→analyze→push(自研 ~200 行量级)
 engines/        六层引擎:fetch_base(公共底座)+ registry(降级编排)+ L1-L6 各文件一一对应
 classify/       builtin(七大类+双信号,数据与代码分离)/ custom(YAML 规则)
 dedup.py store/ SQLite + 去重注册表 + 变更基线;接口可插拔(PG 留位)
 enrich/         LLM 精评(批量/缓存/预算护栏)
 push/           通道(feishu_card/telegram/webhook/stdout)+ 阈值分级路由 + 消息平台层(directory/targets/delivery:通道目录+对象解析+定向投递)
-vision/         看图:双引擎 OCR(ocrmac+rapidocr-onnxruntime)+ OpenAI 兼容 VisionClient + vision.yaml 配置(extras myia[vision],惰性 import)
+vision/         看图:双引擎 OCR(ocrmac+rapidocr-onnxruntime)+ OpenAI 兼容 VisionClient + vision.yaml 配置 + collect.py 管线图片处理环(fetch 尾部下载→OCR→可选 VL 描述,品类 images: 节驱动,降级只写 image_status 绝不阻管线)(extras myia[vision],惰性 import)
 ```
 
 - 现有文件多为薄壳:任务是**填充**而非新建;新模块先在对应 PRD 登记

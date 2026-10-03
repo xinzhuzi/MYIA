@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/python/index.md", "reason": "核心依赖红线(httpx 已核心、vision extras 惰性)、新模块登记、桌面发行数据根"}
+{"file": ".trellis/spec/guides/index.md", "reason": "Cross-Layer Thinking Guide:本任务同时新增品类 YAML 节、管线行为、sidecar 协议删减、桌面渲染,四层联动"}
+{"file": ".trellis/spec/domain/yaml-schema.md", "reason": "品类 YAML 12 节硬规则与 PrivateAttr sidecar 节先例(images: 节照此挂)"}
+{"file": ".trellis/spec/domain/security-baseline.md", "reason": "图片下载 SSRF 防护与凭据铁律(vision.yaml 只收 keychain: 引用)"}
+{"file": ".trellis/spec/python/error-handling.md", "reason": "降级矩阵的错误标记语义与既有结构化错误契约对齐"}
+{"file": ".trellis/tasks/10-03-image-input/design.md", "reason": "复用引擎的契约事实源:run_ocr/VisionClient/vision.yaml 形状与钥匙链命名(myia/image/api_key)"}
+{"file": "~/.zcode/skills/local-ocr/SKILL.md", "reason": "describe/校对 prompt 配方与本地 VL 实测耗时基线(13-33s,GPU 争用时崩速风险)出自此档"}

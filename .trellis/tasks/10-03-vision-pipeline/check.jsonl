@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/python/index.md", "reason": "门禁口径:extras 合规(零新依赖)、新模块登记齐全、基线数字核对"}
+{"file": ".trellis/spec/domain/yaml-schema.md", "reason": "images: 节 schema 校验同门、缺省 false 零影响断言"}
+{"file": ".trellis/spec/domain/security-baseline.md", "reason": "SSRF 拒私网/魔法字节/流式限额与凭据零明文复查"}
+{"file": ".trellis/spec/desktop/sidecar-protocol.md", "reason": "拆四留二后协议事实源同步核对(该文件并行会话维护,动前重读)"}

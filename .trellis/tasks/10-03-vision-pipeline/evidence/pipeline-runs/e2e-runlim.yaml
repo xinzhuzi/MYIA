@@ -1,0 +1,59 @@
+# E2E fixture 品类:本地 http server 双图 + 私网/超大/小图/无图对照(AC2/4/6)
+# vl: off(本品类用于 AC2/AC4/AC6-offline;vl 变体见 e2e-vl-local.yaml)
+id: e2e-runlim
+name: E2E看图限额
+schedule: "0 8,20 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  - name: cards
+    engine: static_html
+    url: "http://127.0.0.1:8765/index.html"
+    rate_limit:
+      qps: 100.0
+    retry: 0
+    extract:
+      type: list
+      item: "article.card"
+      fields:
+        title: "h3"
+        url: "a@href"
+        image: "img@src"
+  - name: multi
+    engine: direct_api
+    url: "http://127.0.0.1:8765/feed.json"
+    rate_limit:
+      qps: 100.0
+    retry: 0
+    extract:
+      type: json_path
+      fields:
+        title: "$.items[*].title"
+        url: "$.items[*].url"
+        images: "$.items[*].images"
+watchlist:
+  keywords: [MYIA]
+  mute: []
+classify:
+  builtin: false
+  rules: []
+dedup:
+  key: "{url}"
+enrich:
+  enabled: false
+  model: glm-4-flash
+  scores: [value, relevance, credibility]
+  batch: 20
+  cache: true
+  budget_per_run: 50000
+push:
+  - channel: stdout
+storage:
+  retention: 90d
+  vacuum: monthly
+images:
+  enabled: true
+  max_images: 3
+  max_per_run: 2
+  min_bytes: 10240
+  vl: "off"

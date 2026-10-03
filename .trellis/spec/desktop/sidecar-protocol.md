@@ -9,11 +9,11 @@
   请求 `{"id","method","params"}`;应答 `{"id","result"}` 或
   `{"id","error":{code,path,message,data}}`;`id` 缺省 = 通知(只执行不应答);
   事件无 id,以 `type` 区分。
-- 事件 5 类:`log` / `progress` / `completed`(run 族)、`image.progress` / `image.completed`(看图族)。
+- 事件 3 类:`log` / `progress` / `completed`(run 族)。
 - 错误结构化透传(对齐 spec python/error-handling):`path` 字段路径、`message` 中文原因、`data` 原始细节。
 - EOF = 干净退出 0(serve,entry.py:1941)。
 
-## 方法注册表(27 方法,逐项核对 `_HANDLERS` entry.py)
+## 方法注册表(23 方法,逐项核对 `_HANDLERS` entry.py)
 
 | # | 方法 | 处理器 | 语义 |
 |---|------|----------------|------|
@@ -34,19 +34,16 @@
 | 15 | `yaml.template` | `_m_yaml_template` | 最小合法品类模板(id/name 占位) |
 | 16 | `yaml.save` | `_m_yaml_save` | 同门校验→跨文件 id 查重→`.bak`→原子写(mtime 乐观锁) |
 | 17 | `yaml.delete` | `_m_yaml_delete` | 围栏→`.bak` 留底→删主文件→连带删 `.disabled.json` |
-| 18 | `image.import` | `_m_image_import` | 图片入库:魔数嗅探→heic 转 png→sha256 去重 |
-| 19 | `image.ocr` | `_m_image_ocr` | 一级 OCR(双引擎):逐行 `{text,conf}` |
-| 20 | `image.analyze` | `_m_image_analyze` | 二级看图(read/describe/ask):提交即返 job_id,结果走事件流 |
-| 21 | `image.status` | `_m_image_status` | 看图任务对账:busy + 当前 job_id |
-| 22 | `image.config.read` | `_m_image_config_read` | vision.yaml 脱敏读取(不存在 = 全缺省) |
-| 23 | `image.config.save` | `_m_image_config_save` | vision.yaml 保存,同门校验失败零写入 |
-| 24 | `channels.list` | `_m_channels_list` | 消息屏目录四视图:platforms+aliases+dead+rules(零平台=合法空态) |
-| 25 | `channels.refresh` | `_m_channels_refresh` | 单平台 `discover_directory`→桶替换+落盘;失败结构化上抛,旧桶不动 |
-| 26 | `channels.alias` | `_m_channels_alias` | 别名 set/delete(name 非空/null 区分);落盘复核未生效即报错 |
-| 27 | `push.write` | `_m_push_write` | push[] 全量替换:围栏→文本手术→双门→`.bak`→原子写;失败零写入 |
+| 18 | `image.config.read` | `_m_image_config_read` | vision.yaml 脱敏读取(不存在 = 全缺省) |
+| 19 | `image.config.save` | `_m_image_config_save` | vision.yaml 保存,同门校验失败零写入 |
+| 20 | `channels.list` | `_m_channels_list` | 消息屏目录四视图:platforms+aliases+dead+rules(零平台=合法空态) |
+| 21 | `channels.refresh` | `_m_channels_refresh` | 单平台 `discover_directory`→桶替换+落盘;失败结构化上抛,旧桶不动 |
+| 22 | `channels.alias` | `_m_channels_alias` | 别名 set/delete(name 非空/null 区分);落盘复核未生效即报错 |
+| 23 | `push.write` | `_m_push_write` | push[] 全量替换:围栏→文本手术→双门→`.bak`→原子写;失败零写入 |
 
 分组:核心 10(1-10)+ 源启停 1(11)+ 品类 YAML 编辑 6(12-17,task 10-03-yaml-editor)+
-看图 6(18-23,task 10-03-image-input)+ 消息 4(24-27,task 10-03-messaging-ui)。
+看图配置 2(18-19,task 10-03-image-input;10-03-vision-pipeline 拆四留二)+
+消息 4(20-23,task 10-03-messaging-ui)。
 
 ## 错误码表
 
@@ -70,8 +67,7 @@
 | run | `run_busy` / `run_not_found` | 单飞拒绝并发 / 未知 run_id |
 | 源启停 | `duplicate_source` / `last_source` / `source_unknown` / `source_file_unreadable` / `source_dir_unreadable` / `source_write_failed` / `stash_unreadable` / `category_invalid` | `sources.write` 全链路 |
 | 品类 YAML 编辑 | `path_outside_root` / `not_yaml_suffix` / `invalid_file_stem` / `file_too_large` / `invalid_encoding` / `file_not_found` / `mtime_conflict` / `duplicate_category_id`(另复用 `category_invalid` / `source_file_unreadable` / `source_write_failed`) | 围栏 + 乐观锁 + 跨文件查重(yaml.* 六方法) |
-| 看图(请求应答) | `image_not_found` / `image_unsupported` / `image_too_large` / `image_ocr_failed` / `image_engine_unknown` / `image_no_credentials` / `image_busy` / `image_config_invalid` | `image_` 前缀统一;analyze 同步预检即时应答 |
-| 看图(仅事件流) | `image_unreachable` / `image_provider_error` | analyze 后台线程失败 → `image.completed` 事件 `ok:false` + error 对象,不是请求错误(:1690-1698、:1724、:1749) |
+| 看图配置 | `image_config_invalid` | `image.config.read` 装载拒载 / `image.config.save` 未过校验零写入(拆四留二后看图族仅余此码) |
 | 消息 | `unknown_platform` / `discover_not_supported` / `channel_refresh_failed` / `alias_write_failed` / `push_write_unsupported`(另复用 `category_invalid` / `file_not_found` / `path_outside_root` / `source_write_failed` / `invalid_params`) | channels.* / push.write 全链路(task 10-03-messaging-ui;数据面错误码透传 push 层如 `credential_not_found` 经 `channel_refresh_failed.data.code` 携带) |
 
 ### 透传族(`exc.code` 动态透传,不在 entry.py 静态出现)
@@ -85,9 +81,9 @@
 1. 新增/改名方法:**只改 `_HANDLERS` 一处** + `tests/test_desktop_sidecar_protocol.py` 契约用例;
    本文注册表随同更新(行号注解允许漂移,方法名集合不许漂)。
 2. 对账手法:发未知方法名,拿 `data.allowed` 与本文注册表比对;前端共享类型映射
-   `SidecarProtocol`(types.ts)现盖 16 方法(核心 + image.*),`sources.write`/`yaml.*`
-   刻意未入共享映射——对账时按上表分组核对,勿以 16 当全量。
+   `SidecarProtocol`(types.ts)现盖 9 方法(核心 7 + image.config.*),`sources.write`/`yaml.*`
+   刻意未入共享映射——对账时按上表分组核对,勿以映射数当全量。
 3. 封装面 ≠ 协议面:`ui-src/src/lib/api/client.ts` 的 `api` 门面只盖核心 10 方法;
    `sources.write` 在 `screens/sources/api.ts`、`yaml.*` 在 `screens/yaml-editor/api.ts`、
-   `image.*` 在 `screens/image/api.ts`、`channels.*`/`push.write` 在
+   `image.config.*` 在 `screens/settings/vision-api.ts`、`channels.*`/`push.write` 在
    `screens/messaging/api.ts` 屏私有封装(invoke 直连,不走共享门面)。

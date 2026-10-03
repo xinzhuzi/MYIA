@@ -1,0 +1,1 @@
+1791008569.457641 pid=69654 resolve_host patched for 127.0.0.1; socket.connect audit hook installed
