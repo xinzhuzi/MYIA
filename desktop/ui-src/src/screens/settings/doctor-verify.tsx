@@ -176,7 +176,7 @@ export function DoctorVerifyPanel({ verify, loading }: DoctorVerifyPanelProps) {
         </section>
       ) : null}
 
-      <p className="text-[11px] text-muted-foreground">诊断时间:{verify.generatedAt}</p>
+      <p className="text-2xs text-muted-foreground">诊断时间:{verify.generatedAt}</p>
     </div>
   );
 }

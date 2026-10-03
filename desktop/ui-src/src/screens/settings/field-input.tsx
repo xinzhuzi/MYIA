@@ -37,11 +37,11 @@ export function FieldInput({ label, hint, error, className, ...props }: FieldInp
         {...props}
       />
       {error ? (
-        <p id={errorId} className="text-[11px] text-destructive">
+        <p id={errorId} className="text-2xs text-destructive">
           {error}
         </p>
       ) : hint ? (
-        <p className="text-[11px] text-muted-foreground">{hint}</p>
+        <p className="text-2xs text-muted-foreground">{hint}</p>
       ) : null}
     </div>
   );

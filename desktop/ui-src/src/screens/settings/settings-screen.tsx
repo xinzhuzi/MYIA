@@ -177,7 +177,7 @@ function CardSaveBar({
         {state?.kind === "saved" ? (
           <div role="status" data-testid="save-status" className="text-xs text-ok">
             已写入钥匙链:{state.names.join("、")}(值不回显)
-            {state.note ? <span className="mt-0.5 block text-[11px] text-muted-foreground">{state.note}</span> : null}
+            {state.note ? <span className="mt-0.5 block text-2xs text-muted-foreground">{state.note}</span> : null}
           </div>
         ) : null}
         {state?.kind === "note" ? (
@@ -295,7 +295,7 @@ function EnrichFeedbackCard({
                     <span className="truncate text-xs font-medium text-foreground">
                       {pluginFile.split("/").pop() ?? pluginFile}
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-2xs text-muted-foreground">
                       预算护栏 budget_per_run = {enrich.budget_per_run}(只读,改值走「配置编辑」)
                     </span>
                   </div>
@@ -606,7 +606,7 @@ export function SettingsScreen() {
                 aria-current={active ? "true" : undefined}
                 onClick={() => setSearchParams(id === DEFAULT_SECTION ? {} : { section: id })}
                 className={cn(
-                  "relative flex h-8 shrink-0 items-center gap-2.5 rounded-md px-2.5 text-[13px]",
+                  "relative flex h-8 shrink-0 items-center gap-2.5 rounded-md px-2.5 text-sm",
                   "transition-colors duration-(--duration-fast) ease-out-expo",
                   active
                     ? "bg-accent font-medium text-foreground"
@@ -883,7 +883,7 @@ export function SettingsScreen() {
                     {pushTestNote}
                   </p>
                 ) : null}
-                <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-2 text-2xs text-muted-foreground">
                   <span>推送通道声明(push: 节)与阈值路由在品类 YAML:</span>
                   {/* HashRouter 路由:普通锚点即可跳配置编辑屏,不引 Router context 依赖 */}
                   <a href="#/yaml-editor" className="underline underline-offset-2 hover:text-foreground">
@@ -963,7 +963,7 @@ export function SettingsScreen() {
                 </CardContent>
               </Card>
 
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 安全底线:任何凭据输入只经协议 secret.set 写入系统钥匙链(macOS Keychain /
                 Windows DPAPI);配置文件出现明文凭据 = 启动即报错拒跑。model /
                 enrich.enabled 经「通用 → 评分与反馈」写回品类 YAML(yaml.save,注释保真);

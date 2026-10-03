@@ -575,7 +575,7 @@ export function VisionModelsCard() {
                 <span className="min-w-0 truncate font-mono text-xs" title={model.path}>
                   {model.name}
                 </span>
-                <span className="text-[11px] text-muted-foreground">{formatModelBytes(model.bytes)}</span>
+                <span className="text-2xs text-muted-foreground">{formatModelBytes(model.bytes)}</span>
                 {model.incomplete ? (
                   <Badge variant="warning" data-testid={`vision-model-incomplete-${model.name}`}>
                     未完成(可续传)
@@ -670,7 +670,7 @@ export function VisionModelsCard() {
               <Download className="size-3.5" />
               {job ? "下载中…" : "下载模型"}
             </Button>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               磁盘预检不足收口 disk_insufficient;同名完整模型拒 model_exists(先删或换名),半成品同名续传
             </span>
           </div>
@@ -690,7 +690,7 @@ export function VisionModelsCard() {
                   aria-label={`下载进度 ${job.repo}`}
                 />
               </div>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-2xs text-muted-foreground">
                 {job.repo}:
                 {percent !== null
                   ? ` ${formatModelBytes(job.doneBytes)} / ${formatModelBytes(job.totalBytes ?? 0)}(${percent.toFixed(0)}%)`
@@ -748,7 +748,7 @@ export function VisionModelsCard() {
             </Button>
           </div>
           {server ? (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               {server.base_url} · 模型 {server.model || "(未配置)"}
             </p>
           ) : null}

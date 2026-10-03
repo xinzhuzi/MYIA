@@ -340,7 +340,7 @@ export function SourcesScreen() {
                   </li>
                 ))}
               </ul>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 停用名单以品类 YAML 为准(写回应答为准出);会话前已停用的源不在 health 协议面,读取待协议扩展。
               </p>
             </CardContent>
@@ -407,7 +407,7 @@ export function SourcesScreen() {
                   ))}
                 </ul>
               )}
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 预览为纯计算(schedule.preview);排程执行属 CLI/常驻形态,改 schedule 节到「配置编辑」。
               </p>
             </CardContent>
