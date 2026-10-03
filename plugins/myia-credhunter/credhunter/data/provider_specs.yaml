@@ -1,0 +1,195 @@
+# 验证层供应商规格(verification specs)——myia-credhunter 数据文件。
+#
+# 行为规格:.trellis/tasks/10-03-aipocket-fusion/research/behavior-specs/
+# fingerprints.md §1/§3/§4/§5/§6(25 规格)。字段语义:
+#   name              供应商标识
+#   category          international | domestic | gateway | coding_agent | cloud
+#   domain_suffixes   apiurl 域名后缀匹配(resolve 的主通道,域名优先)
+#   key_prefixes      密钥前缀匹配(resolve 的兜底通道)。泛前缀(如 sk-)
+#                     刻意不进此列——会吞掉所有 sk-* 网关键(规格 §4 注意)
+#   protocol          openai_compatible | anthropic | gemini | vertex | aws_bedrock
+#                     (决定验证请求形状;请求装配在 credcheck 阶段实现)
+#   models            默认探测模型(models 端点 2xx 空列表即判 invalid-response)
+#   official_api_url  官方 API 基址;空串 = 无统一官方地址(azure_openai 需
+#                     部署级资源 URL,规格明示为空;验证层据此报 no_api_url)
+# 官方地址来源:行为规格钉死者照抄;其余为各供应商公开文档地址
+# (ksyun=金山云星流平台、longcat=美团 LongCat 已按官方文档核),
+# 与发现层 provider_packs.yaml 的 id 一一对应(packs 多 azure_openai 查询、
+# specs 多 nvidia/ksyun/siliconflow/groq/openrouter,差集照规格 §3)。
+# 加供应商 = 在本文件加一节,零代码改动(loader 见 credhunter/specs.py)。
+specs:
+  - name: openai
+    category: international
+    domain_suffixes: [openai.com, oaiusercontent.com]
+    key_prefixes: [sk-proj-, sk-admin-, sk-svcacct-]
+    protocol: openai_compatible
+    models: [gpt-4o-mini]
+    official_api_url: https://api.openai.com/v1
+  - name: anthropic
+    category: international
+    domain_suffixes: [anthropic.com, claude.ai]
+    key_prefixes: [sk-ant-]
+    protocol: anthropic
+    models: [claude-3-5-haiku-20241022]
+    official_api_url: https://api.anthropic.com
+  - name: deepseek
+    category: domestic
+    domain_suffixes: [deepseek.com]
+    key_prefixes: []
+    protocol: openai_compatible
+    models: [deepseek-chat]
+    official_api_url: https://api.deepseek.com
+  - name: kimi
+    category: domestic
+    domain_suffixes: [moonshot.cn, moonshot.ai]
+    key_prefixes: []
+    protocol: openai_compatible
+    models: [moonshot-v1-8k]
+    official_api_url: https://api.moonshot.cn/v1
+  - name: glm
+    category: domestic
+    domain_suffixes: [bigmodel.cn, zhipuai.cn, zhipu.ai]
+    key_prefixes: []
+    protocol: openai_compatible
+    models: [glm-4-flash]
+    official_api_url: https://open.bigmodel.cn/api/paas/v4
+  - name: minimax
+    category: domestic
+    domain_suffixes: [minimaxi.com, minimax.chat, minimax.cn]
+    key_prefixes: []
+    protocol: openai_compatible
+    models: [MiniMax-Text-01]
+    official_api_url: https://api.minimaxi.com/v1
+  - name: nvidia
+    category: international
+    domain_suffixes: [nvidia.com, api.nvidia.com]
+    key_prefixes: [nvapi-]
+    protocol: openai_compatible
+    models: [meta/llama-3.3-70b-instruct]
+    official_api_url: https://integrate.api.nvidia.com/v1
+  - name: ksyun
+    category: domestic
+    domain_suffixes: [ksyun.com]
+    key_prefixes: []
+    protocol: openai_compatible
+    models: [deepseek-v3]
+    official_api_url: https://kspmas.ksyun.com/v1
+  - name: longcat
+    category: domestic
+    domain_suffixes: [longcat.chat]
+    key_prefixes: []
+    protocol: openai_compatible
+    models: [LongCat-Flash-Chat]
+    official_api_url: https://api.longcat.chat/openai
+  - name: qwen
+    category: domestic
+    domain_suffixes: [dashscope.aliyuncs.com, dashscope-intl.aliyuncs.com]
+    key_prefixes: []
+    protocol: openai_compatible
+    models: [qwen-turbo]
+    official_api_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  - name: siliconflow
+    category: gateway
+    domain_suffixes: [siliconflow.cn, siliconflow.com]
+    key_prefixes: []
+    protocol: openai_compatible
+    models: [Qwen/Qwen2.5-7B-Instruct]
+    official_api_url: https://api.siliconflow.cn/v1
+  - name: cohere
+    category: international
+    domain_suffixes: [cohere.com, cohere.ai]
+    key_prefixes: []
+    protocol: openai_compatible
+    models: [command-r-08-2024]
+    official_api_url: https://api.cohere.com
+  - name: replicate
+    category: international
+    domain_suffixes: [replicate.com]
+    key_prefixes: [r8_]
+    protocol: openai_compatible
+    models: [meta/meta-llama-3-8b-instruct]
+    official_api_url: https://api.replicate.com/v1
+  - name: together
+    category: international
+    domain_suffixes: [together.ai, together.xyz]
+    key_prefixes: []
+    protocol: openai_compatible
+    models: [meta-llama/Llama-3.3-70B-Instruct-Turbo]
+    official_api_url: https://api.together.xyz/v1
+  - name: fireworks
+    category: international
+    domain_suffixes: [fireworks.ai]
+    key_prefixes: [fw_]
+    protocol: openai_compatible
+    models: [accounts/fireworks/models/llama-v3p1-8b-instruct]
+    official_api_url: https://api.fireworks.ai/inference/v1
+  - name: groq
+    category: international
+    domain_suffixes: [groq.com]
+    key_prefixes: [gsk_]
+    protocol: openai_compatible
+    models: [llama-3.1-8b-instant]
+    official_api_url: https://api.groq.com/openai/v1
+  - name: openrouter
+    category: gateway
+    domain_suffixes: [openrouter.ai]
+    key_prefixes: [sk-or-]
+    protocol: openai_compatible
+    models: [openai/gpt-4o-mini]
+    official_api_url: https://openrouter.ai/api
+  - name: xai
+    category: international
+    domain_suffixes: [x.ai]
+    key_prefixes: [xai-]
+    protocol: openai_compatible
+    models: [grok-4.6]
+    official_api_url: https://api.x.ai/v1
+  - name: qoder
+    category: coding_agent
+    domain_suffixes: [qoder.com]
+    key_prefixes: [pt-]
+    protocol: openai_compatible
+    models: [claude-sonnet-4-5]
+    official_api_url: https://api.qoder.com
+  - name: kiro
+    category: coding_agent
+    domain_suffixes: [kiro.dev]
+    key_prefixes: [ksk_]
+    protocol: openai_compatible
+    models: [claude-sonnet-4-5]
+    official_api_url: https://app.kiro.dev
+  - name: aws_bedrock
+    category: cloud
+    domain_suffixes: [amazonaws.com]
+    key_prefixes: [ABSK]
+    protocol: aws_bedrock
+    models: [anthropic.claude-3-5-sonnet-20240620-v1:0]
+    official_api_url: https://bedrock-runtime.us-east-1.amazonaws.com
+  - name: cursor
+    category: coding_agent
+    domain_suffixes: [cursor.com, cursor.sh]
+    key_prefixes: [crsr_]
+    protocol: openai_compatible
+    models: [claude-sonnet-4-5]
+    official_api_url: https://api.cursor.com
+  - name: windsurf
+    category: coding_agent
+    domain_suffixes: [server.codeium.com, windsurf.com, codeium.com]
+    key_prefixes: []          # 服务键无特征前缀,靠上下文变量名归因(规格 §6)
+    protocol: openai_compatible
+    models: [claude-sonnet-4-5]
+    official_api_url: https://server.codeium.com/api/v1
+  - name: gemini
+    category: international
+    domain_suffixes: [generativelanguage.googleapis.com, googleapis.com]
+    key_prefixes: [AIza]
+    protocol: gemini
+    models: [gemini-2.0-flash]
+    official_api_url: https://generativelanguage.googleapis.com
+  - name: azure_openai
+    category: cloud
+    domain_suffixes: [openai.azure.com]
+    key_prefixes: []
+    protocol: openai_compatible
+    models: [gpt-4o-mini]
+    official_api_url: ""      # 无统一官方地址:需部署级资源 URL,规格明示留空

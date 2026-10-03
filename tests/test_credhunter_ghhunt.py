@@ -309,7 +309,7 @@ class TestNoisePathFilter:
         ],
     )
     def test_noise_paths(self, path, expected):
-        assert gh.is_noise_artifact_path(path) is expected
+        assert gh.should_discard_path(path) is expected
 
 
 # ---------------------------------------------------------------------------
@@ -319,7 +319,7 @@ class TestNoisePathFilter:
 
 class TestUnifiedDiffParsing:
     def test_sides_and_line_counters(self):
-        lines = gh.parse_unified_patch(DIFF_TEXT)
+        lines = gh.parse_diff_sides(DIFF_TEXT)
         assert [line.side for line in lines] == ["context", "removed", "added", "added", "context"]
         # 元数据行(diff/index/---/+++)全部跳过
         assert all(line.content or line.side == "context" for line in lines)
@@ -334,7 +334,7 @@ class TestUnifiedDiffParsing:
 
     def test_skip_prefixes_empty_line_and_stray_chars(self):
         text = "@@ -1,2 +1,2 @@\n kept\n\\ No newline at end of file\n> stray\n\n-removed line"
-        lines = gh.parse_unified_patch(text)
+        lines = gh.parse_diff_sides(text)
         # 反斜杠行跳过、">" 首字符丢弃、空行 → context(两计数器同进)
         assert [(line.side, line.content) for line in lines] == [
             ("context", "kept"),
@@ -346,11 +346,11 @@ class TestUnifiedDiffParsing:
 
     def test_multibyte_first_char_is_not_a_marker(self):
         # 首字符按码点剥离:多字节字符既非 +/- 也非空格 → 整行丢弃
-        assert gh.parse_unified_patch("@@ -1,1 +1,1 @@\n中文 context 行") == []
+        assert gh.parse_diff_sides("@@ -1,1 +1,1 @@\n中文 context 行") == []
 
     def test_hunk_header_resets_counters_across_hunks(self):
         text = "@@ -1,1 +1,1 @@\n-a\n@@ -40,2 +50,3 @@\n+b\n+c"
-        lines = gh.parse_unified_patch(text)
+        lines = gh.parse_diff_sides(text)
         assert [(line.side, line.old_lineno, line.new_lineno) for line in lines] == [
             ("removed", 1, None),
             ("added", None, 50),

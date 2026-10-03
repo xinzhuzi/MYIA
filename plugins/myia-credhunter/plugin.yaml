@@ -17,7 +17,7 @@
 id: myia-credhunter
 name: 凭证猎手(credhunter)
 version: 0.1.0
-compatible: ">=0.1,<2.0"
+compatible: ">=0.0.1,<0.1"
 # 分级 desktop:纯进程内能力(指纹库 + 数据文件),零 docker 零服务依赖。
 tier: desktop
 requires: []

@@ -1,7 +1,7 @@
 """验证层供应商规格 loader 与 resolve(credhunter R3)。
 
 数据文件:data/provider_specs.yaml(25 个规格)。本模块装形状校验、
-:class:`ProviderRegistry.resolve` 归因与官方基址回填 —— **加供应商 =
+:class:`ProviderResolver.resolve` 归因与官方基址回填 —— **加供应商 =
 在数据文件加一节,零代码改动**(任务 10-03-aipocket-fusion R3 扩展纪律)。
 
 行为规格(behavior-specs/fingerprints.md §1/§4/§5/§6 + credcheck.md §2):
@@ -12,7 +12,7 @@
   ``.`` + 后缀结尾;aws_bedrock 特判:host 以 ``.amazonaws.com`` 结尾且
   以 ``bedrock.``/``bedrock-`` 开头)→ **密钥前缀兜底**(reason=
   "key_prefix")→ **unknown**(reason="unknown",apiurl 回落官方基址,
-  官方基址也为空则空串,验证层据此判 "no API URL");
+  官方基址也为空则空串,验证层据此判 "no_api_url");
 - 泛前缀纪律:``sk-`` 一类会吞掉所有 sk-* 网关键的泛前缀刻意不进
   key_prefixes(数据文件已注释),域名兜底才是主通道。
 
@@ -35,8 +35,8 @@ __all__ = [
     "CATEGORY_TOKENS",
     "PROTOCOL_TOKENS",
     "SPECS_DATA_FILE",
-    "ProviderRegistry",
-    "ProviderSpec",
+    "ProviderResolver",
+    "ProviderProfile",
     "Resolution",
     "SpecDataError",
     "load_specs",
@@ -68,7 +68,7 @@ class SpecDataError(ValueError):
 
 
 @dataclass(frozen=True)
-class ProviderSpec:
+class ProviderProfile:
     """一个验证层供应商规格(字段语义见数据文件头注与模块 docstring)。"""
 
     name: str
@@ -86,12 +86,12 @@ class Resolution:
 
     apiurl 语义:传入 apiurl 优先(猎取命中项带 URL 时直接用);否则回落
     规格 official_api_url;仍为空(如 azure_openai)则空串 —— 验证层据此
-    判 rejected/"no API URL"(credcheck.md §2)。
+    判 rejected/"no_api_url"(credcheck.md §2)。
     """
 
     provider: str
     reason: str            # domain | key_prefix | unknown
-    spec: ProviderSpec | None
+    spec: ProviderProfile | None
     apiurl: str
 
 
@@ -104,13 +104,13 @@ def _host_of(apiurl: str) -> str:
     return (parsed.hostname or "").lower().rstrip(".")
 
 
-class ProviderRegistry:
+class ProviderResolver:
     """验证层规格注册表:域名 → 前缀 → unknown 三级归因。"""
 
-    def __init__(self, specs: Sequence[ProviderSpec]) -> None:
-        self._specs: dict[str, ProviderSpec] = {spec.name: spec for spec in specs}
+    def __init__(self, specs: Sequence[ProviderProfile]) -> None:
+        self._specs: dict[str, ProviderProfile] = {spec.name: spec for spec in specs}
 
-    def spec(self, name: str) -> ProviderSpec | None:
+    def spec(self, name: str) -> ProviderProfile | None:
         """按名取规格;不存在返回 None。"""
         return self._specs.get(name)
 
@@ -119,7 +119,7 @@ class ProviderRegistry:
         """全部规格名(保持构造顺序)。"""
         return list(self._specs)
 
-    def _match_domain(self, host: str) -> ProviderSpec | None:
+    def _match_domain(self, host: str) -> ProviderProfile | None:
         """域名后缀匹配(host 等于后缀、或以 .后缀 结尾);aws_bedrock 特判在前。"""
         if not host:
             return None
@@ -138,7 +138,7 @@ class ProviderRegistry:
                     return spec
         return None
 
-    def _match_prefix(self, apikey: str) -> ProviderSpec | None:
+    def _match_prefix(self, apikey: str) -> ProviderProfile | None:
         """密钥前缀匹配(泛前缀已在数据层排除,首命中即归因)。"""
         if not apikey:
             return None
@@ -186,7 +186,7 @@ def _validate_string_list(
     return tuple(cleaned)
 
 
-def load_specs(path: str | Path | None = None) -> list[ProviderSpec]:
+def load_specs(path: str | Path | None = None) -> list[ProviderProfile]:
     """读入并校验验证层数据文件,返回全部规格(保持文件内顺序)。
 
     Raises:
@@ -209,7 +209,7 @@ def load_specs(path: str | Path | None = None) -> list[ProviderSpec]:
     if not isinstance(entries, Sequence) or isinstance(entries, (str, bytes)):
         raise SpecDataError("specs_not_list", "specs: 必须是列表")
     errors: list[str] = []
-    specs: list[ProviderSpec] = []
+    specs: list[ProviderProfile] = []
     seen_names: set[str] = set()
     for index, entry in enumerate(entries):
         if not isinstance(entry, Mapping):
@@ -240,7 +240,7 @@ def load_specs(path: str | Path | None = None) -> list[ProviderSpec]:
             errors.append(f"specs[{name!r}].official_api_url 必须是字符串(允许空串),当前为 {url!r}")
             continue
         specs.append(
-            ProviderSpec(
+            ProviderProfile(
                 name=name,
                 category=category,
                 domain_suffixes=_validate_string_list(name, "domain_suffixes", entry.get("domain_suffixes", []), errors, pattern=_DOMAIN_SUFFIX_RE),

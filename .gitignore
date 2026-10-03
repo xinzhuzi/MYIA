@@ -27,6 +27,9 @@ data/
 !src/myia/classify/data/
 !src/myia/enrich/data/
 !myia-classifier/myia_classifier/data/
+# credhunter 指纹库数据(20 发现查询包 + 25 验证规格)同上:程序数据非抓取
+# 产物,fresh clone/CI 缺它即三 lane 启动全坏(10-03-aipocket-fusion R3)。
+!plugins/myia-credhunter/credhunter/data/
 out/
 output/
 exports/
@@ -84,3 +87,13 @@ Thumbs.db
 
 # ---- 冒烟运行态(本机私有,勿提交)----
 .zcode/smoke/
+
+# ---- 仓库根误落的运行时产物(防误提交)----
+# 消息屏目录/别名是运行态数据,正常应落数据根(MYIA_HOME);desktop serve 在
+# 仓库 cwd 下直跑时缺省写到仓库根——内容含真实平台 chat_id 与群名(私有
+# 标识,同 myia.db 零容忍口径),且会随每次 discover 变化,严禁入库。
+/channel_aliases.json
+/channel_directory.json
+/channel_dead.json
+# 技能工具链的本地锁文件(本机技能版本快照,非仓库配置)
+/skills-lock.json

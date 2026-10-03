@@ -10,9 +10,9 @@ adapter/宿主 —— 与 packs/specs/fingerprints/findings 同一架构纪律):
 - **前缀改道**(§2.3):openai/anthropic/gemini/openrouter 四家,密钥前缀
   命中官方族时强制改道官方 URL(防网关蜜罐 URL 劫持探测);
 - **models 存活探测 = 验证本体**(§2):三态归类 final_verified /
-  rejected(401/403 unauthorized,或 2xx 无证据 invalid-response-schema)/
+  rejected(401/403 auth_denied,或 2xx 无证据 no_model_evidence)/
   transient(429/5xx/传输层失败);Q7:存活探测默认开;
-- **余额/身份探测**(§4/§5):BalanceResult 17 字段;13 家匿名探测矩阵 +
+- **余额/身份探测**(§4/§5):BalanceReport 17 字段;13 家匿名探测矩阵 +
   glm/longcat 被动 depleted 标记 + 仅存活性家族(balance "N/A")+ 无探测
   家族(kiro/azure_openai/vertex/longcat 无标记)诚实 unknown;Q7:默认
   **关**,``probe_balance=True`` 显式开;
@@ -34,7 +34,7 @@ adapter/宿主 —— 与 packs/specs/fingerprints/findings 同一架构纪律):
 - tier 由 ``x-ratelimit-limit-requests`` 头推断:≥10000→tier5(规格点名),
   3000/1000/500/100 → tier4-1 为对称补档;tok�en 头不参与(阈值未核实);
 - 匿名余额端点遇 401/403:deepseek 规格钉死 matched+alive=False
-  (source ``deepseek:unauthorized``),其余 12 家沿用同一判死语义;
+  (source ``deepseek:auth_denied``),其余 12 家沿用同一判死语义;
   其它非 2xx = 未命中(全默认值),不武断判死;
 - 余额仅对 validation_state ∈ {final_verified, transient} 执行(rejected
   已判死无探测价值;transient 放行是为了 glm/longcat 被动标记在 429/5xx
@@ -62,9 +62,9 @@ __all__ = [
     "REQUEST_TIMEOUT_SECONDS",
     "RESPONSE_SNIPPET_CHARS",
     "REROUTE_OFFICIAL_PROVIDERS",
-    "BalanceResult",
+    "BalanceReport",
     "HttpxTransport",
-    "ModelsProbeResult",
+    "ModelsProbeOutcome",
     "Pacer",
     "ValidationResult",
     "check_credential",
@@ -72,7 +72,7 @@ __all__ = [
     "credential_kind",
     "extract_models",
     "format_amount",
-    "is_definitive_auth_rejection",
+    "is_hard_auth_denial",
     "is_safe_header_value",
     "mask_apikey",
     "probe_models",
@@ -95,7 +95,7 @@ REQUEST_TIMEOUT_SECONDS = 15.0
 #: response_snippet 上限(规格 §2.6:body 前 512 字符;先掩码后截断)。
 RESPONSE_SNIPPET_CHARS = 512
 
-#: BalanceResult.evidence_kind 封闭词表(规格 §4)。
+#: BalanceReport.evidence_kind 封闭词表(规格 §4)。
 BALANCE_EVIDENCE_KINDS = ("cash_balance", "quota", "liveness", "identity", "entitlement")
 
 #: 前缀命中官方族时强制改道官方 URL 的供应商(规格 §2.3)。
@@ -143,7 +143,7 @@ def is_safe_header_value(value: str) -> bool:
     return "\r" not in value and "\n" not in value and all(ord(ch) < 128 for ch in value)
 
 
-def is_definitive_auth_rejection(status_code: int) -> bool:
+def is_hard_auth_denial(status_code: int) -> bool:
     """401/403 = 终局认证否决(规格 §3:判死依据,transient 不得覆盖)。"""
     return status_code in (401, 403)
 
@@ -381,7 +381,7 @@ def _openrouter_base(base: str) -> str:
 
 
 @dataclass(frozen=True)
-class ModelsProbeResult:
+class ModelsProbeOutcome:
     """models 存活探测结果(规格 §3 五字段)。"""
 
     models: tuple[str, ...] = ()
@@ -427,28 +427,28 @@ def _identity_evidence(payload: Any) -> bool:
     return any(isinstance(payload.get(key), str) and payload[key] for key in ("apiKeyName", "userEmail"))
 
 
-def _probe_outcome(provider: str, response: HttpResponse, payload: Any, *, require_models: bool) -> ModelsProbeResult:
-    """三态归类(§2.6 → §3 key_state 映射)。error 文案:unauthorized /
-    read-failed / invalid-response-schema(§2.3)。"""
+def _probe_outcome(provider: str, response: HttpResponse, payload: Any, *, require_models: bool) -> ModelsProbeOutcome:
+    """三态归类(§2.6 → §3 key_state 映射)。error 值:auth_denied /
+    read_error / no_model_evidence(MYIA 自订机器码,语义对齐 §2.3)。"""
     status = response.status_code
     if 200 <= status < 300:
         models = extract_models(payload)
         evidence = bool(models) if require_models else _identity_evidence(payload)
         if evidence:
-            return ModelsProbeResult(models=models, status_code=status, provider=provider, key_state="active")
-        return ModelsProbeResult(
-            status_code=status, provider=provider, key_state="invalid_response", error="invalid-response-schema"
+            return ModelsProbeOutcome(models=models, status_code=status, provider=provider, key_state="active")
+        return ModelsProbeOutcome(
+            status_code=status, provider=provider, key_state="invalid_response", error="no_model_evidence"
         )
-    if is_definitive_auth_rejection(status):
-        return ModelsProbeResult(status_code=status, provider=provider, key_state="expired", error="unauthorized")
+    if is_hard_auth_denial(status):
+        return ModelsProbeOutcome(status_code=status, provider=provider, key_state="expired", error="auth_denied")
     if status == 429:
-        return ModelsProbeResult(status_code=status, provider=provider, key_state="rate_limited", error="read-failed")
-    return ModelsProbeResult(status_code=status, provider=provider, key_state="unavailable", error="read-failed")
+        return ModelsProbeOutcome(status_code=status, provider=provider, key_state="rate_limited", error="read_error")
+    return ModelsProbeOutcome(status_code=status, provider=provider, key_state="unavailable", error="read_error")
 
 
 def _run_models_probe(
     *, provider: str, spec: Any, base: str, apikey: str, client: _ProbeClient
-) -> tuple[ModelsProbeResult, HttpResponse, Any]:
+) -> tuple[ModelsProbeOutcome, HttpResponse, Any]:
     """装配并执行一次 models 存活探测(专用矩阵 → 协议族通用路径)。"""
     protocol = getattr(spec, "protocol", "openai_compatible") or "openai_compatible"
     if provider == "anthropic" or (provider not in _SPECIALIZED_VALIDATORS and protocol == "anthropic"):
@@ -497,18 +497,18 @@ def probe_models(
     registry: Any,
     transport: Any = None,
     pacer: Pacer | None = None,
-) -> ModelsProbeResult:
+) -> ModelsProbeOutcome:
     """单发 models 存活探测(Q7 默认开的「存活探测」独立入口)。
 
     resolve → 前缀改道 → 安全闸 → 专用/通用探测;不发请求的失败
-    (no API URL / 安全闸)直接以 unavailable 返回。
+    (no_api_url / 安全闸)直接以 unavailable 返回。
     """
     resolution = registry.resolve(apiurl, apikey)
     base = _effective_base(resolution, apikey)
     if not base:
-        return ModelsProbeResult(provider=resolution.provider, key_state="unavailable", error="no API URL")
+        return ModelsProbeOutcome(provider=resolution.provider, key_state="unavailable", error="no_api_url")
     if not is_safe_header_value(apikey):
-        return ModelsProbeResult(provider=resolution.provider, key_state="unavailable", error="unsafe-key")
+        return ModelsProbeOutcome(provider=resolution.provider, key_state="unavailable", error="unsafe-key")
     client = _ProbeClient(
         provider=resolution.provider, apikey=apikey, transport=transport or HttpxTransport(), pacer=pacer or Pacer()
     )
@@ -519,12 +519,12 @@ def probe_models(
 
 
 # ---------------------------------------------------------------------------
-# 5) BalanceResult(17 字段,§4)+ 探测矩阵(§5)
+# 5) BalanceReport(17 字段,§4)+ 探测矩阵(§5)
 # ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
-class BalanceResult:
+class BalanceReport:
     """余额/身份探测结果 —— 17 字段与语义逐条对齐规格 §4。
 
     - balance_usd:"N/A"=明确无余额概念(仅存活性家族);空串=未匹配;
@@ -560,7 +560,7 @@ class _BalanceContext:
     base: str
     apikey: str
     client: _ProbeClient
-    probe: ModelsProbeResult
+    probe: ModelsProbeOutcome
     payload: Any          # 验证响应解析后的 JSON(被动家族的证据源)
     raw_body: str         # 验证响应原文(depleted 文案标记可能在非 JSON 体上)
     response_headers: Mapping[str, str]
@@ -584,9 +584,9 @@ def _snippet(body: str, apikey: str) -> str:
     return redacted[:RESPONSE_SNIPPET_CHARS]
 
 
-def _matched(ctx: _BalanceContext, **fields: Any) -> BalanceResult:
+def _matched(ctx: _BalanceContext, **fields: Any) -> BalanceReport:
     base = {"gateway": ctx.provider, "provider": ctx.provider, "matched": True}
-    return BalanceResult(**{**base, **fields})
+    return BalanceReport(**{**base, **fields})
 
 
 def _parse_json(body: str) -> Any:
@@ -596,20 +596,20 @@ def _parse_json(body: str) -> Any:
         return None
 
 
-def _unmatched(alive: bool | None = None) -> BalanceResult:
-    return BalanceResult(alive=alive)
+def _unmatched(alive: bool | None = None) -> BalanceReport:
+    return BalanceReport(alive=alive)
 
 
 def _passive_alive(status_code: int) -> bool | None:
     """验证上下文的被动存活:2xx→True;401/403→False;其它→None(§5)。"""
     if 200 <= status_code < 300:
         return True
-    if is_definitive_auth_rejection(status_code):
+    if is_hard_auth_denial(status_code):
         return False
     return None
 
 
-def _liveness_balance(ctx: _BalanceContext) -> BalanceResult:
+def _liveness_balance(ctx: _BalanceContext) -> BalanceReport:
     """仅存活性家族:balance "N/A" + liveness 证据(429 亦 alive=True,§5)。"""
     alive = _passive_alive(ctx.probe.status_code)
     if ctx.probe.status_code == 429:
@@ -617,7 +617,7 @@ def _liveness_balance(ctx: _BalanceContext) -> BalanceResult:
     return _matched(ctx, balance_usd="N/A", evidence_kind="liveness", source=f"{ctx.provider}:models", alive=alive)
 
 
-def _passive_survival_balance(ctx: _BalanceContext) -> BalanceResult:
+def _passive_survival_balance(ctx: _BalanceContext) -> BalanceReport:
     """无探测家族:诚实 unknown(不命中策略,只回填被动存活,§5)。"""
     return _unmatched(alive=_passive_alive(ctx.probe.status_code))
 
@@ -634,11 +634,11 @@ def _ratelimit_tier(headers: Mapping[str, str]) -> str:
     return ""
 
 
-def _balance_deepseek(ctx: _BalanceContext) -> BalanceResult:
+def _balance_deepseek(ctx: _BalanceContext) -> BalanceReport:
     response = ctx.client.request("GET", _join_url(_strip_version_tail(ctx.base), "/user/balance"))
     payload = _parse_json(response.body)
-    if is_definitive_auth_rejection(response.status_code):
-        return _matched(ctx, source="deepseek:unauthorized", evidence_kind="liveness", alive=False)
+    if is_hard_auth_denial(response.status_code):
+        return _matched(ctx, source="deepseek:auth_denied", evidence_kind="liveness", alive=False)
     if not (200 <= response.status_code < 300) or not isinstance(payload, dict):
         return _unmatched()
     native = usd = 0.0
@@ -671,15 +671,15 @@ def _kimi_currency(host: str) -> str:
     return ""
 
 
-def _balance_kimi(ctx: _BalanceContext) -> BalanceResult:
+def _balance_kimi(ctx: _BalanceContext) -> BalanceReport:
     currency = _kimi_currency(urlparse(ctx.base if "://" in ctx.base else f"https://{ctx.base}").hostname or "")
     if not currency:
         return _liveness_balance(ctx)  # 非 moonshot 域名退化为 models_liveness
     response = ctx.client.request("GET", _join_url(ctx.base, "/users/me/balance"))
     payload = _parse_json(response.body)
     data = payload.get("data") if isinstance(payload, dict) else None
-    if is_definitive_auth_rejection(response.status_code):
-        return _matched(ctx, source="kimi:unauthorized", evidence_kind="liveness", alive=False)
+    if is_hard_auth_denial(response.status_code):
+        return _matched(ctx, source="kimi:auth_denied", evidence_kind="liveness", alive=False)
     if not (200 <= response.status_code < 300) or not isinstance(data, dict):
         return _unmatched()
     amount = format_amount(data.get("available_balance"))
@@ -692,12 +692,12 @@ def _balance_kimi(ctx: _BalanceContext) -> BalanceResult:
     return _matched(ctx, **fields)
 
 
-def _balance_minimax(ctx: _BalanceContext) -> BalanceResult:
+def _balance_minimax(ctx: _BalanceContext) -> BalanceReport:
     response = ctx.client.request("GET", _join_url(ctx.base, "/token_plan/remains"))
     payload = _parse_json(response.body)
     base_resp = payload.get("base_resp") if isinstance(payload, dict) else None
-    if is_definitive_auth_rejection(response.status_code):
-        return _matched(ctx, source="minimax:unauthorized", evidence_kind="liveness", alive=False)
+    if is_hard_auth_denial(response.status_code):
+        return _matched(ctx, source="minimax:auth_denied", evidence_kind="liveness", alive=False)
     if not (200 <= response.status_code < 300) or not isinstance(base_resp, dict) or base_resp.get("status_code") != 0:
         return _unmatched()
     return _matched(
@@ -710,11 +710,11 @@ def _balance_minimax(ctx: _BalanceContext) -> BalanceResult:
     )
 
 
-def _balance_cohere(ctx: _BalanceContext) -> BalanceResult:
+def _balance_cohere(ctx: _BalanceContext) -> BalanceReport:
     response = ctx.client.request("POST", _join_url(ctx.base, "/v1/check-api-key"), json_body={})
     payload = _parse_json(response.body)
-    if is_definitive_auth_rejection(response.status_code):
-        return _matched(ctx, source="cohere:unauthorized", evidence_kind="liveness", alive=False)
+    if is_hard_auth_denial(response.status_code):
+        return _matched(ctx, source="cohere:auth_denied", evidence_kind="liveness", alive=False)
     if not (200 <= response.status_code < 300) or not isinstance(payload, dict):
         return _unmatched()
     valid = payload.get("valid") is True
@@ -731,11 +731,11 @@ def _balance_cohere(ctx: _BalanceContext) -> BalanceResult:
     )
 
 
-def _balance_together(ctx: _BalanceContext) -> BalanceResult:
+def _balance_together(ctx: _BalanceContext) -> BalanceReport:
     response = ctx.client.request("GET", _join_url(ctx.base, "/whoami"))
     payload = _parse_json(response.body)
-    if is_definitive_auth_rejection(response.status_code):
-        return _matched(ctx, source="together:unauthorized", evidence_kind="liveness", alive=False)
+    if is_hard_auth_denial(response.status_code):
+        return _matched(ctx, source="together:auth_denied", evidence_kind="liveness", alive=False)
     if not (200 <= response.status_code < 300) or not isinstance(payload, dict):
         return _unmatched()
     identity = {
@@ -751,11 +751,11 @@ def _balance_together(ctx: _BalanceContext) -> BalanceResult:
     )
 
 
-def _balance_replicate(ctx: _BalanceContext) -> BalanceResult:
+def _balance_replicate(ctx: _BalanceContext) -> BalanceReport:
     response = ctx.client.request("GET", _join_url(ctx.base, "/account"))
     payload = _parse_json(response.body)
-    if is_definitive_auth_rejection(response.status_code):
-        return _matched(ctx, source="replicate:unauthorized", evidence_kind="liveness", alive=False)
+    if is_hard_auth_denial(response.status_code):
+        return _matched(ctx, source="replicate:auth_denied", evidence_kind="liveness", alive=False)
     if not (200 <= response.status_code < 300) or not isinstance(payload, dict):
         return _unmatched()
     identity = {
@@ -772,11 +772,11 @@ def _balance_replicate(ctx: _BalanceContext) -> BalanceResult:
 _FIREWORKS_TIER_BY_MAX_VALUE = {"50": "tier1", "500": "tier2", "5000": "tier3", "50000": "tier4"}
 
 
-def _balance_fireworks(ctx: _BalanceContext) -> BalanceResult:
+def _balance_fireworks(ctx: _BalanceContext) -> BalanceReport:
     response = ctx.client.request("GET", _join_url(ctx.base, "/accounts"))
     payload = _parse_json(response.body)
-    if is_definitive_auth_rejection(response.status_code):
-        return _matched(ctx, source="fireworks:unauthorized", evidence_kind="liveness", alive=False)
+    if is_hard_auth_denial(response.status_code):
+        return _matched(ctx, source="fireworks:auth_denied", evidence_kind="liveness", alive=False)
     accounts = payload.get("accounts") if isinstance(payload, dict) else None
     if not (200 <= response.status_code < 300) or not isinstance(accounts, list) or not accounts:
         return _unmatched()
@@ -813,12 +813,12 @@ def _balance_fireworks(ctx: _BalanceContext) -> BalanceResult:
     )
 
 
-def _balance_openrouter(ctx: _BalanceContext) -> BalanceResult:
+def _balance_openrouter(ctx: _BalanceContext) -> BalanceReport:
     response = ctx.client.request("GET", _join_url(ctx.base, "/v1/auth/key"))
     payload = _parse_json(response.body)
     info = payload.get("data") if isinstance(payload, dict) and isinstance(payload.get("data"), dict) else payload
-    if is_definitive_auth_rejection(response.status_code):
-        return _matched(ctx, source="openrouter:unauthorized", evidence_kind="liveness", alive=False)
+    if is_hard_auth_denial(response.status_code):
+        return _matched(ctx, source="openrouter:auth_denied", evidence_kind="liveness", alive=False)
     if 200 <= response.status_code < 300 and isinstance(info, dict):
         amount: Any = None
         if info.get("limit_remaining") is not None:
@@ -858,7 +858,7 @@ def _openai_account_type(apikey: str) -> str:
     return "ordinary"
 
 
-def _balance_openai(ctx: _BalanceContext) -> BalanceResult:
+def _balance_openai(ctx: _BalanceContext) -> BalanceReport:
     account_type = _openai_account_type(ctx.apikey)
     origin = _strip_version_tail(ctx.base)
     grants = ctx.client.request("GET", _join_url(origin, "/dashboard/billing/credit_grants"))
@@ -897,7 +897,7 @@ def _balance_openai(ctx: _BalanceContext) -> BalanceResult:
     return replace(result, account_type=account_type, tier=_ratelimit_tier(ctx.response_headers), source="openai:models")
 
 
-def _balance_anthropic(ctx: _BalanceContext) -> BalanceResult:
+def _balance_anthropic(ctx: _BalanceContext) -> BalanceReport:
     if credential_kind(ctx.apikey, ctx.provider) not in ("admin", "oauth"):
         return _liveness_balance(ctx)  # 普通键:/v1/models 存活(429 亦 alive,§5)
     me = ctx.client.request("GET", _join_url(ctx.base, "/v1/organizations/me"), auth="x-api-key")
@@ -934,7 +934,7 @@ def _balance_anthropic(ctx: _BalanceContext) -> BalanceResult:
     )
 
 
-def _balance_qoder(ctx: _BalanceContext) -> BalanceResult:
+def _balance_qoder(ctx: _BalanceContext) -> BalanceReport:
     # 验证端点即余额证据源:零新请求复用验证响应(§5 qoder 行)
     plan = _first_present(ctx.payload, ("plan", "subscription", "tier"))
     return _matched(
@@ -943,7 +943,7 @@ def _balance_qoder(ctx: _BalanceContext) -> BalanceResult:
     )
 
 
-def _balance_cursor(ctx: _BalanceContext) -> BalanceResult:
+def _balance_cursor(ctx: _BalanceContext) -> BalanceReport:
     payload = ctx.payload if isinstance(ctx.payload, dict) else {}
     identity = {
         key: payload[key] for key in ("apiKeyName", "userEmail", "name") if isinstance(payload.get(key), str) and payload[key]
@@ -955,12 +955,12 @@ def _balance_cursor(ctx: _BalanceContext) -> BalanceResult:
     )
 
 
-def _balance_windsurf(ctx: _BalanceContext) -> BalanceResult:
+def _balance_windsurf(ctx: _BalanceContext) -> BalanceReport:
     response = ctx.client.request("POST", _join_url(ctx.base, "/GetTeamCreditBalance"), auth="none",
                                   json_body={"service_key": ctx.apikey})
     payload = _parse_json(response.body)
-    if is_definitive_auth_rejection(response.status_code):
-        return _matched(ctx, source="windsurf:unauthorized", evidence_kind="liveness", alive=False)
+    if is_hard_auth_denial(response.status_code):
+        return _matched(ctx, source="windsurf:auth_denied", evidence_kind="liveness", alive=False)
     if not (200 <= response.status_code < 300) or not isinstance(payload, dict):
         return _unmatched()
     credits = payload.get("addOnCreditsAvailable")
@@ -971,7 +971,7 @@ def _balance_windsurf(ctx: _BalanceContext) -> BalanceResult:
     )
 
 
-def _balance_glm(ctx: _BalanceContext) -> BalanceResult:
+def _balance_glm(ctx: _BalanceContext) -> BalanceReport:
     error = ctx.payload.get("error") if isinstance(ctx.payload, dict) else None
     code = str(error.get("code", "")) if isinstance(error, dict) else ""
     if code in GLM_DEPLETED_CODES:
@@ -983,7 +983,7 @@ def _balance_glm(ctx: _BalanceContext) -> BalanceResult:
     return _liveness_balance(ctx)  # 无被动错误码 → 仅存活性(§5)
 
 
-def _balance_longcat(ctx: _BalanceContext) -> BalanceResult:
+def _balance_longcat(ctx: _BalanceContext) -> BalanceReport:
     """被动 depleted 文案标记在验证响应原文上判定(§5);无标记 = 诚实 unknown。"""
     if any(marker in ctx.raw_body for marker in LONGCAT_DEPLETED_MARKERS):
         return _matched(
@@ -1011,7 +1011,7 @@ _BALANCE_HANDLERS: dict[str, Any] = {
 }
 
 
-def _probe_balance(ctx: _BalanceContext) -> BalanceResult:
+def _probe_balance(ctx: _BalanceContext) -> BalanceReport:
     """余额/身份探测分派(§5):匿名矩阵 → 被动家族 → 无探测 → 存活性兜底。"""
     handler = _BALANCE_HANDLERS.get(ctx.provider)
     if handler is not None:
@@ -1031,8 +1031,8 @@ class ValidationResult:
     """一次凭证验证的完整产物(验证本体 + 可选余额回填)。
 
     validation_state ∈ {final_verified, rejected, transient}(§2.6);
-    error ∈ {"", unauthorized, read-failed, invalid-response-schema,
-    "no API URL", unsafe-key};balance 仅在 probe_balance=True 且未判死时
+    error ∈ {"", auth_denied, read_error, no_model_evidence,
+    "no_api_url", unsafe-key};balance 仅在 probe_balance=True 且未判死时
     非 None。
     """
 
@@ -1048,10 +1048,10 @@ class ValidationResult:
     credential_kind: str = "standard"
     scope: str = ""
     tier_evidence: str = ""
-    balance: BalanceResult | None = None
+    balance: BalanceReport | None = None
 
 
-def _classify(probe: ModelsProbeResult) -> tuple[str, str]:
+def _classify(probe: ModelsProbeOutcome) -> tuple[str, str]:
     """key_state → (validation_state, error)(§2.6 三态)。"""
     if probe.key_state == "active":
         return "final_verified", ""
@@ -1086,7 +1086,7 @@ def check_credential(
     Args:
         apikey: 全文密钥(仅本函数作用域使用:auth 头/掩码;永不落返回值)。
         apiurl: 猎取侧归因的 API 地址(可空;空则回落规格官方基址)。
-        registry: ``specs.ProviderRegistry``(duck-typed ``resolve``)。
+        registry: ``specs.ProviderResolver``(duck-typed ``resolve``)。
         transport: 可注入传输(默认 :class:`HttpxTransport`;测试必注入)。
         pacer: Q8 限速器(默认 :class:`Pacer` 串行 2s/供应商)。
         probe_balance: Q7 余额/身份探测开关(默认 **关**,显式开)。
@@ -1101,7 +1101,7 @@ def check_credential(
     if not base:
         return ValidationResult(
             provider=provider, resolve_reason=resolution.reason, apiurl="",
-            validation_state="rejected", error="no API URL", key_state="unavailable",
+            validation_state="rejected", error="no_api_url", key_state="unavailable",
             credential_kind=kind,
         )
     if not is_safe_header_value(apikey):
@@ -1117,7 +1117,7 @@ def check_credential(
         provider=provider, spec=resolution.spec, base=base, apikey=apikey, client=client
     )
     state, error = _classify(probe)
-    balance: BalanceResult | None = None
+    balance: BalanceReport | None = None
     if probe_balance and state in ("final_verified", "transient"):
         ctx = _BalanceContext(
             provider=provider, base=base, apikey=apikey, client=client, probe=probe,

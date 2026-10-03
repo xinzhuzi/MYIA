@@ -6,7 +6,7 @@ ghhunt.md``)的 MYIA 功能重实现:httpx.AsyncClient 全异步、零上游代�
 
 - **code 泳道**:逐查询走 ``GET /search/code`` 1..=5 页 ×100,逐条公开性
   校验(``repository/private == false`` 或 ``visibility == "public"``)→
-  噪音路径过滤(:func:`is_noise_artifact_path`)→ 基础文本 =
+  噪音路径过滤(:func:`should_discard_path`)→ 基础文本 =
   ``text_matches`` 的 JSON 串;能取到 blob sha 则 ``GET
   /repos/{o}/{r}/git/blobs/{sha}``,base64 解码后 **≤1 MiB 才采用**
   (采用 = 替换基础文本作为扫描对象,基础文本是取不到 blob 时的回落);
@@ -78,9 +78,9 @@ __all__ = [
     "build_async_client",
     "decode_blob",
     "hunt",
-    "is_noise_artifact_path",
+    "should_discard_path",
     "is_unified_diff",
-    "parse_unified_patch",
+    "parse_diff_sides",
     "process_artifacts",
     "rotate_queries",
     "scan_text",
@@ -377,7 +377,7 @@ _NOISE_PATH_SUBSTRINGS = (
 _NOISE_BASENAME_PREFIXES = ("readme", "changelog", "license", "contributing")
 
 
-def is_noise_artifact_path(path: str) -> bool:
+def should_discard_path(path: str) -> bool:
     """工件路径噪音判定(规格 §5,code 泳道扫描期先行过滤)。
 
     - basename 以 ``.env`` 开头 → **永不判噪**(保留 .env.example);
@@ -429,7 +429,7 @@ class PatchLine:
         return self.new_lineno if self.new_lineno is not None else self.old_lineno
 
 
-def parse_unified_patch(text: str) -> list[PatchLine]:
+def parse_diff_sides(text: str) -> list[PatchLine]:
     """解析统一 diff 为带侧别与行号的行列表(规格 §3 语义)。
 
     - 元数据行(``---``/``+++``/``diff ``/``index ``/``\\``)跳过;
@@ -495,7 +495,7 @@ def scan_unified_patch(text: str) -> list[SideHit]:
     与该侧行号范围(非命中行精确行号 —— 上游语义)。行号口径:优先 new
     行号,removed 行用 old 行号。被删除行/未变更行里的密钥同样可见。
     """
-    patch_lines = parse_unified_patch(text)
+    patch_lines = parse_diff_sides(text)
     results: list[SideHit] = []
     for side in ("added", "removed", "context"):
         selected = [line for line in patch_lines if line.side == side]
@@ -819,7 +819,7 @@ async def _hunt_code_lane(
                     counters["code_private_skipped"] += 1
                     continue
                 path = entry.get("path") if isinstance(entry.get("path"), str) else ""
-                if is_noise_artifact_path(path):
+                if should_discard_path(path):
                     counters["noise_dropped"] += 1
                     continue
                 repo_full = repository.get("full_name") if isinstance(repository.get("full_name"), str) else ""

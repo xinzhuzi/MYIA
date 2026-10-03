@@ -5,8 +5,8 @@
 凭据(全部为人工合成脱敏键,不对应任何真实账号)。钉住的契约:
 
 1. **安全闸 + 三态归类**(credcheck.md §2/§3):header ASCII/无 CRLF 闸、
-   final_verified / rejected(401/403 unauthorized、2xx 无模型
-   invalid-response-schema)/ transient(429/5xx/传输层失败);
+   final_verified / rejected(401/403 auth_denied、2xx 无模型
+   no_model_evidence)/ transient(429/5xx/传输层失败);
 2. **resolve 链 + 前缀改道**:域名 → 前缀 → unknown 经真实 specs registry
    走通;openai/anthropic/gemini/openrouter 官方族前缀强制改道官方 URL;
 3. **专用端点矩阵**(§2.3):anthropic/gemini/azure_openai/openai/qoder/
@@ -78,7 +78,7 @@ def cc() -> Any:
 
 @pytest.fixture()
 def registry() -> Any:
-    return _adapter().specs.ProviderRegistry(_adapter().specs.load_specs())
+    return _adapter().specs.ProviderResolver(_adapter().specs.load_specs())
 
 
 # ---------------------------------------------------------------------------
@@ -180,11 +180,11 @@ class TestSafetyGateAndHelpers:
         assert cc.format_amount(3.14159265) == "3.1416"
         assert cc.format_amount("not-a-number") == ""
 
-    def test_is_definitive_auth_rejection(self, cc):
-        assert cc.is_definitive_auth_rejection(401) is True
-        assert cc.is_definitive_auth_rejection(403) is True
-        assert cc.is_definitive_auth_rejection(429) is False
-        assert cc.is_definitive_auth_rejection(200) is False
+    def test_is_hard_auth_denial(self, cc):
+        assert cc.is_hard_auth_denial(401) is True
+        assert cc.is_hard_auth_denial(403) is True
+        assert cc.is_hard_auth_denial(429) is False
+        assert cc.is_hard_auth_denial(200) is False
 
     def test_extract_models_three_shapes(self, cc):
         assert cc.extract_models({"data": [{"id": "m-a"}, {"id": "m-b"}]}) == ("m-a", "m-b")
@@ -232,18 +232,18 @@ class TestThreeStateClassification:
         assert result.resolve_reason == "domain"
 
     @pytest.mark.parametrize("status", [401, 403])
-    def test_401_403_rejected_unauthorized(self, cc, registry, status):
+    def test_401_403_rejected_auth_denied(self, cc, registry, status):
         transport = FakeTransport(_deepseek_routes(status, '{"error":"auth"}'))
         result = check(registry, transport, apikey=KEY_GENERIC, apiurl="https://api.deepseek.com")
         assert result.validation_state == "rejected"
-        assert result.error == "unauthorized"
+        assert result.error == "auth_denied"
         assert result.key_state == "expired"
 
     def test_2xx_without_models_rejected_invalid_schema(self, cc, registry):
         transport = FakeTransport(_deepseek_routes(200, '{"data": []}'))
         result = check(registry, transport, apikey=KEY_GENERIC, apiurl="https://api.deepseek.com")
         assert result.validation_state == "rejected"
-        assert result.error == "invalid-response-schema"
+        assert result.error == "no_model_evidence"
         assert result.key_state == "invalid_response"
 
     def test_429_transient_rate_limited(self, cc, registry):
@@ -257,7 +257,7 @@ class TestThreeStateClassification:
         transport = FakeTransport(_deepseek_routes(status, '{"error":"boom"}'))
         result = check(registry, transport, apikey=KEY_GENERIC, apiurl="https://api.deepseek.com")
         assert result.validation_state == "transient"
-        assert result.error == "read-failed"
+        assert result.error == "read_error"
         assert result.key_state == "unavailable"
 
     def test_transport_level_failure_is_transient(self, cc, registry):
@@ -271,7 +271,7 @@ class TestThreeStateClassification:
         result = check(registry, transport, apikey=KEY_GENERIC, apiurl="")
         assert transport.calls == []
         assert result.validation_state == "rejected"
-        assert result.error == "no API URL"
+        assert result.error == "no_api_url"
         assert result.provider == "unknown"
 
     def test_snippet_redacted_and_capped(self, cc, registry):
@@ -325,7 +325,7 @@ class TestResolveChainAndReroute:
         s3 = FakeTransport()
         s3_result = check(registry, s3, apikey=KEY_GENERIC, apiurl="https://bucket.s3.us-east-1.amazonaws.com")
         assert s3_result.provider == "unknown", "非 bedrock 的 amazonaws.com host 不误归因"
-        # unknown 但带传入 URL:按通用兼容路径验证该网关地址,而非 no API URL
+        # unknown 但带传入 URL:按通用兼容路径验证该网关地址,而非 no_api_url
         assert s3.calls[0][1] == "https://bucket.s3.us-east-1.amazonaws.com/v1/models"
         assert s3_result.validation_state == "transient"
 
@@ -418,7 +418,7 @@ class TestSpecializedEndpoints:
         bare = FakeTransport([("GET", "https://api.cursor.com/v1/me", 200, '{"name":"n"}', {})])
         bare_result = check(registry, bare, apikey=KEY_CURSOR, apiurl="https://api.cursor.com")
         assert bare_result.validation_state == "rejected"
-        assert bare_result.error == "invalid-response-schema"
+        assert bare_result.error == "no_model_evidence"
 
     def test_openrouter_two_phase_auth_key_gate(self, cc, registry):
         transport = FakeTransport([
@@ -426,7 +426,7 @@ class TestSpecializedEndpoints:
         ])
         result = check(registry, transport, apikey=KEY_OPENROUTER, apiurl="")
         assert result.validation_state == "rejected"
-        assert result.error == "unauthorized"
+        assert result.error == "auth_denied"
         assert len(transport.calls) == 1, "auth/key 失败即终,不再打 models"
 
     def test_bedrock_foundation_models_bearer(self, cc, registry):
@@ -455,13 +455,13 @@ class TestSpecializedEndpoints:
 
 
 # ---------------------------------------------------------------------------
-# 契约五:BalanceResult 17 字段(§4)+ Q7 开关
+# 契约五:BalanceReport 17 字段(§4)+ Q7 开关
 # ---------------------------------------------------------------------------
 
 
-class TestBalanceResultShape:
+class TestBalanceReportShape:
     def test_seventeen_fields_with_spec_names(self, cc):
-        fields = [f.name for f in dataclasses.fields(cc.BalanceResult())]
+        fields = [f.name for f in dataclasses.fields(cc.BalanceReport())]
         assert len(fields) == 17
         assert fields == [
             "gateway", "provider", "balance_usd", "tier", "plan", "account_type",
@@ -470,7 +470,7 @@ class TestBalanceResultShape:
         ]
 
     def test_default_balance_is_unmatched_and_honest(self, cc):
-        result = cc.BalanceResult()
+        result = cc.BalanceReport()
         assert result.matched is False
         assert result.balance_usd == ""
         assert result.alive is None
@@ -641,7 +641,7 @@ class TestAnonymousBalanceMatrix:
         ])
         result = check(registry, transport, apikey=KEY_GENERIC, apiurl="https://api.deepseek.com", probe_balance=True)
         assert result.validation_state == "final_verified"
-        assert_balance(result, matched=True, alive=False, source="deepseek:unauthorized")
+        assert_balance(result, matched=True, alive=False, source="deepseek:auth_denied")
 
     def test_together_rate_limit_header_upgrades_to_quota(self, cc, registry):
         transport = FakeTransport([
@@ -1002,4 +1002,4 @@ class TestProbeModelsStandalone:
     def test_no_url_unavailable(self, cc, registry):
         probe = cc.probe_models(apikey=KEY_GENERIC, apiurl="", registry=registry,
                                 transport=FakeTransport(), pacer=FakePacer())
-        assert (probe.key_state, probe.error) == ("unavailable", "no API URL")
+        assert (probe.key_state, probe.error) == ("unavailable", "no_api_url")

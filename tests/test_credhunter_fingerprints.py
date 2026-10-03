@@ -162,7 +162,7 @@ class TestSpecLoader:
         assert {"nvidia", "ksyun", "siliconflow", "groq", "openrouter"} <= set(names)
 
     def test_openai_and_openrouter_match_behavior_spec(self, adapter):
-        registry = adapter.specs.ProviderRegistry(adapter.specs.load_specs())
+        registry = adapter.specs.ProviderResolver(adapter.specs.load_specs())
         openai = registry.spec("openai")
         assert openai.category == "international"
         assert openai.domain_suffixes == ("openai.com", "oaiusercontent.com")
@@ -177,7 +177,7 @@ class TestSpecLoader:
         assert openrouter.official_api_url == "https://openrouter.ai/api"
 
     def test_azure_openai_official_url_is_empty(self, adapter):
-        registry = adapter.specs.ProviderRegistry(adapter.specs.load_specs())
+        registry = adapter.specs.ProviderResolver(adapter.specs.load_specs())
         assert registry.spec("azure_openai").official_api_url == ""
         assert registry.spec("azure_openai").domain_suffixes == ("openai.azure.com",)
 
@@ -186,7 +186,7 @@ class TestSpecLoader:
             assert "sk-" not in spec.key_prefixes, "泛前缀会吞掉所有 sk-* 网关键(规格 §4)"
 
     def test_resolve_prefers_domain_then_prefix_then_unknown(self, adapter):
-        registry = adapter.specs.ProviderRegistry(adapter.specs.load_specs())
+        registry = adapter.specs.ProviderResolver(adapter.specs.load_specs())
         by_domain = registry.resolve("https://api.openai.com/v1", "whatever")
         assert (by_domain.provider, by_domain.reason, by_domain.apiurl) == (
             "openai", "domain", "https://api.openai.com/v1",
@@ -198,7 +198,7 @@ class TestSpecLoader:
         assert (unknown.provider, unknown.reason, unknown.apiurl) == ("unknown", "unknown", "")
 
     def test_resolve_bedrock_host_special_case(self, adapter):
-        registry = adapter.specs.ProviderRegistry(adapter.specs.load_specs())
+        registry = adapter.specs.ProviderResolver(adapter.specs.load_specs())
         bedrock = registry.resolve("https://bedrock-runtime.us-east-1.amazonaws.com", "ABSKopaque")
         assert (bedrock.provider, bedrock.reason) == ("aws_bedrock", "domain")
         # 非 Bedrock 的 amazonaws.com host 不误归因(如 S3)

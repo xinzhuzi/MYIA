@@ -1,0 +1,154 @@
+# 发现层供应商查询包(discovery packs)——myia-credhunter 数据文件。
+#
+# 行为规格:.trellis/tasks/10-03-aipocket-fusion/research/behavior-specs/
+# fingerprints.md §2(20 包清单)。字段语义:
+#   id              供应商标识(与验证层 provider_specs.yaml 的 name 对齐)
+#   fofa_queries    FOFA 查询(body="..." 形态;FOFA 侧才用)
+#   shodan_queries  Shodan 查询(http.html:"..." 形态;Shodan 侧才用)
+#   github_terms    GitHub 泳道查询词(code search / commit message 共用)
+# 仅 GitHub 键名查询的 10 家(验证层在、发现面只有 GitHub)fofa/shodan 留空。
+# 加供应商 = 在本文件加一节,零代码改动(loader 见 credhunter/packs.py)。
+#
+# 许可边界:上游(AGPL)零代码复制;查询串为公开搜索语法,语义按
+# MYIA 行为规格自订。
+packs:
+  - id: openai
+    fofa_queries:
+      - body="sk-"
+    shodan_queries:
+      - http.html:sk-
+    github_terms:
+      - sk- filename:.env
+      - OPENAI_API_KEY
+  - id: anthropic
+    fofa_queries:
+      - body="sk-ant-"
+    shodan_queries:
+      - http.html:sk-ant-
+    github_terms:
+      - sk-ant- filename:.env
+      - ANTHROPIC_API_KEY
+  - id: gemini
+    fofa_queries:
+      - body="GEMINI_API_KEY"
+      - body="generativelanguage.googleapis.com" && body="AIza"
+    shodan_queries:
+      - http.html:GEMINI_API_KEY
+      - http.html:generativelanguage.googleapis.com
+    github_terms:
+      - GEMINI_API_KEY
+      - GOOGLE_API_KEY filename:.env
+      - AIza generativelanguage
+  - id: xai
+    fofa_queries:
+      - body="XAI_API_KEY"
+    shodan_queries:
+      - http.html:XAI_API_KEY
+    github_terms:
+      - XAI_API_KEY
+      - api.x.ai sk-
+      - grok-4.6 filename:.env
+      - grok-4.7 filename:.env
+  - id: qoder
+    fofa_queries:
+      - body="QODER_PAT"
+      - body="api.qoder.com"
+    shodan_queries:
+      - http.html:QODER_PAT
+      - http.html:api.qoder.com
+    github_terms:
+      - QODER_PAT
+      - QODER_PERSONAL_ACCESS_TOKEN
+      - pt- filename:.env
+  - id: kiro
+    fofa_queries:
+      - body="KIRO_API_KEY"
+    shodan_queries:
+      - http.html:KIRO_API_KEY
+    github_terms:
+      - KIRO_API_KEY
+      - ksk_ kiro
+  - id: aws_bedrock
+    fofa_queries:
+      - body="AWS_BEARER_TOKEN_BEDROCK"
+    shodan_queries:
+      - http.html:AWS_BEARER_TOKEN_BEDROCK
+    github_terms:
+      - AWS_BEARER_TOKEN_BEDROCK
+      - ABSK filename:.env
+  - id: cursor
+    fofa_queries:
+      - body="CURSOR_API_KEY"
+    shodan_queries:
+      - http.html:CURSOR_API_KEY
+    github_terms:
+      - CURSOR_API_KEY
+      - crsr_ api.cursor.com
+  - id: windsurf
+    fofa_queries:
+      - body="WINDSURF_SERVICE_KEY"
+      - body="CODEIUM_SERVICE_KEY"
+    shodan_queries:
+      - http.html:WINDSURF_SERVICE_KEY
+      - http.html:CODEIUM_SERVICE_KEY
+    github_terms:
+      - WINDSURF_SERVICE_KEY
+      - CODEIUM_SERVICE_KEY
+      - GetTeamCreditBalance service_key
+  - id: azure_openai
+    fofa_queries:
+      - body="openai.azure.com"
+    shodan_queries:
+      - http.html:openai.azure.com
+    github_terms:
+      - AZURE_OPENAI_API_KEY
+  - id: cohere
+    fofa_queries: []
+    shodan_queries: []
+    github_terms:
+      - COHERE_API_KEY
+  - id: deepseek
+    fofa_queries: []
+    shodan_queries: []
+    github_terms:
+      - DEEPSEEK_API_KEY
+  - id: fireworks
+    fofa_queries: []
+    shodan_queries: []
+    github_terms:
+      - FIREWORKS_API_KEY
+  - id: glm
+    fofa_queries: []
+    shodan_queries: []
+    github_terms:
+      - ZHIPUAI_API_KEY
+  - id: kimi
+    fofa_queries: []
+    shodan_queries: []
+    github_terms:
+      - MOONSHOT_API_KEY
+  - id: longcat
+    fofa_queries: []
+    shodan_queries: []
+    github_terms:
+      - LONGCAT_API_KEY
+  - id: minimax
+    fofa_queries: []
+    shodan_queries: []
+    github_terms:
+      - MINIMAX_API_KEY
+  - id: qwen
+    fofa_queries: []
+    shodan_queries: []
+    github_terms:
+      - DASHSCOPE_API_KEY
+  - id: replicate
+    fofa_queries: []
+    shodan_queries: []
+    github_terms:
+      - REPLICATE_API_TOKEN
+  - id: together
+    fofa_queries: []
+    shodan_queries: []
+    github_terms:
+      - TOGETHER_API_KEY

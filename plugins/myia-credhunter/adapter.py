@@ -468,7 +468,7 @@ def run_credcheck(
         CredhunterError: records 形状坏(``invalid_record``,结构化降级)。
     """
     started = clock()
-    registry = specs.ProviderRegistry(specs.load_specs())
+    registry = specs.ProviderResolver(specs.load_specs())
     try:
         results = credcheck.check_credentials(list(records), registry=registry, probe_balance=probe_balance)
     except ValueError as exc:

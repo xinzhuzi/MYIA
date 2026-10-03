@@ -1,0 +1,177 @@
+{
+  "probe": "exposure-no-key-empty-state",
+  "date": "2026-10-03",
+  "command": "MYIA_HOME=/tmp/myia-credhunter-smoke .venv/bin/shishi run plugins/exposure.yaml --dry-run --json",
+  "sandbox": "MYIA_HOME=/tmp/myia-credhunter-smoke(全新沙箱,不碰真实数据根;沙箱内未配置任何 FOFA/Shodan key)",
+  "keychain_state": "钥匙链仅 myia/image/api_key(与本任务无关);myia/credhunter/fofa-key 与 shodan-key 均未配置",
+  "stderr_warnings": [
+    "插件自检 warning:myia-credhunter 未装入安装根(引擎按仓库 plugins/ 目录直载,品类照常跑)",
+    "exposure lane 凭据解析失败 → 该 lane 降级为空态(fofa_apikey/shodan_apikey 各一条,可见留痕不静默)"
+  ],
+  "checks": {
+    "exit_code_0": true,
+    "run_status_success": true,
+    "exposure_source_skipped_credential_missing": true,
+    "exposure_source_zero_items_no_error": true,
+    "no_failures": true,
+    "masked_key_form_matches_mask_apikey": true,
+    "full_synthetic_key_absent_from_output": true
+  },
+  "all_passed": true,
+  "run_payload": {
+    "category": "exposure",
+    "category_name": "曝面哨兵",
+    "run_id": 1,
+    "status": "success",
+    "dry_run": true,
+    "resumed_from_run_id": null,
+    "started_at": "2026-10-03T11:06:16.167150+00:00",
+    "finished_at": "2026-10-03T11:06:16.232129+00:00",
+    "duration_seconds": 0.065,
+    "stages": [
+      {
+        "name": "fetch",
+        "status": "ok",
+        "attempts": 1,
+        "duration_seconds": 0.0218,
+        "items_in": 2,
+        "items_out": 1,
+        "skips": {},
+        "failures": [],
+        "warnings": [],
+        "error": null,
+        "skip_reason": null
+      },
+      {
+        "name": "classify",
+        "status": "ok",
+        "attempts": 1,
+        "duration_seconds": 0.0,
+        "items_in": 1,
+        "items_out": 1,
+        "skips": {},
+        "failures": [],
+        "warnings": [],
+        "error": null,
+        "skip_reason": null
+      },
+      {
+        "name": "dedup",
+        "status": "ok",
+        "attempts": 1,
+        "duration_seconds": 0.0001,
+        "items_in": 1,
+        "items_out": 1,
+        "skips": {},
+        "failures": [],
+        "warnings": [],
+        "error": null,
+        "skip_reason": null
+      },
+      {
+        "name": "analyze",
+        "status": "ok",
+        "attempts": 1,
+        "duration_seconds": 0.0,
+        "items_in": 1,
+        "items_out": 1,
+        "skips": {},
+        "failures": [],
+        "warnings": [],
+        "error": null,
+        "skip_reason": null
+      },
+      {
+        "name": "push",
+        "status": "ok",
+        "attempts": 1,
+        "duration_seconds": 0.0,
+        "items_in": 1,
+        "items_out": 1,
+        "skips": {},
+        "failures": [],
+        "warnings": [],
+        "error": null,
+        "skip_reason": null
+      }
+    ],
+    "sources": [
+      {
+        "source": "exposure-scan",
+        "engine": "credhunter",
+        "url": "https://fofa.info",
+        "item_count": 0,
+        "attempts": 1,
+        "duration_seconds": 0.0013,
+        "skipped": true,
+        "skip_reason": "credential_missing",
+        "failures": [],
+        "error": null,
+        "failed": false
+      },
+      {
+        "source": "manual-triage",
+        "engine": "credhunter",
+        "url": "https://api.github.com",
+        "item_count": 1,
+        "attempts": 1,
+        "duration_seconds": 0.0204,
+        "skipped": false,
+        "skip_reason": null,
+        "failures": [],
+        "error": null,
+        "failed": false
+      }
+    ],
+    "items": [
+      {
+        "url": "https://example.com/triage/config.env",
+        "title": "openai 疑似泄露凭证 sk-4f1c9…MASKED…abcd(manual)",
+        "source": "manual-triage",
+        "category": null,
+        "dedup_key": "https://example.com/triage/config.env",
+        "tags": [
+          "credential-leak",
+          "attribution"
+        ],
+        "metadata": {
+          "provider": "openai",
+          "apikey_masked": "sk-4f1c9…MASKED…abcd",
+          "key_fingerprint": "sha256-9d6d3b5c261fd9f6",
+          "apiurl": "",
+          "matched_by": "joint",
+          "source_type": "manual",
+          "variable": "OPENAI_API_KEY",
+          "file_path": "config.env",
+          "tags": [
+            "credential-leak",
+            "attribution"
+          ]
+        }
+      }
+    ],
+    "push": [
+      {
+        "channel": "stdout",
+        "dry_run": true,
+        "immediate": 0,
+        "digest": 1,
+        "archive": 0,
+        "decisions": [
+          {
+            "url": "https://example.com/triage/config.env",
+            "title": "openai 疑似泄露凭证 sk-4f1c9…MASKED…abcd(manual)",
+            "mode": "digest",
+            "reason": "rule",
+            "rule_when": "'疑似泄露凭证' in title"
+          }
+        ],
+        "reports": [],
+        "ok": true
+      }
+    ],
+    "failures": [],
+    "maintenance": null,
+    "feedback_tuning": null
+  }
+}

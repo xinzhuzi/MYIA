@@ -1,0 +1,40 @@
+{
+  "probe": "credcheck-401-death-path",
+  "date": "2026-10-03",
+  "method": "模块函数真跑:adapter.credcheck.check_credential(经 myia.engines.credhunter.import_credhunter_adapter 加载 plugins/myia-credhunter/adapter.py)",
+  "provider_resolved": "deepseek",
+  "resolve_reason": "domain",
+  "models_endpoint": "https://api.deepseek.com/v1/models",
+  "request_shape": "GET 单次,Bearer 假 key,超时 15s;probe_balance=False(Q7 默认关,未打任何余额/身份端点)",
+  "fake_key_masked": "sk-0f1e2…MASKED…e1f0",
+  "key_note": "合成假 key(真前缀 sk- + 假串),非真实凭据;证据只留前 8 后 4 掩码形态",
+  "result": {
+    "provider": "deepseek",
+    "resolve_reason": "domain",
+    "apiurl": "https://api.deepseek.com",
+    "validation_state": "rejected",
+    "error": "auth_denied",
+    "key_state": "expired",
+    "status_code": 401,
+    "models": [],
+    "response_snippet": "{\"error\":{\"message\":\"Authentication Fails, Your api key: ****e1f0 is invalid (request_id: 0bef8795-3f61-42ba-8f3d-8b2a12a66246)\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+    "credential_kind": "standard",
+    "scope": "",
+    "tier_evidence": "",
+    "balance": null
+  },
+  "checks": {
+    "status_code_is_401or403": true,
+    "key_state_expired": true,
+    "validation_state_rejected": true,
+    "error_auth_denied": true,
+    "balance_none_q7_default_off": true,
+    "full_key_absent_from_payload": true
+  },
+  "all_passed": true,
+  "spec_alignment": {
+    "credcheck.md#2.6": "401/403 → rejected(final_verified/rejected/transient 三态)",
+    "credcheck.md#3": "401/403 → key_state=expired(credential expired or revoked),is_definitive_auth_rejection 判死",
+    "prd Q7": "余额/身份探测默认关,仅显式 --balance 才开(本次未开,零余额端点请求)"
+  }
+}

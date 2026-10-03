@@ -29,7 +29,7 @@ import yaml
 __all__ = [
     "PACKS_DATA_FILE",
     "PackDataError",
-    "ProviderPack",
+    "QueryPack",
     "discovery_query_counts",
     "github_query_pool",
     "load_packs",
@@ -55,7 +55,7 @@ class PackDataError(ValueError):
 
 
 @dataclass(frozen=True)
-class ProviderPack:
+class QueryPack:
     """一个发现层查询包:三路静态查询串(id 与验证层规格 name 对齐)。"""
 
     id: str
@@ -90,7 +90,7 @@ def _validate_queries(pack_id: str, field_name: str, value: Any, errors: list[st
     return tuple(cleaned)
 
 
-def load_packs(path: str | Path | None = None) -> list[ProviderPack]:
+def load_packs(path: str | Path | None = None) -> list[QueryPack]:
     """读入并校验发现层数据文件,返回全部包(保持文件内顺序)。
 
     Raises:
@@ -113,7 +113,7 @@ def load_packs(path: str | Path | None = None) -> list[ProviderPack]:
     if not isinstance(entries, Sequence) or isinstance(entries, (str, bytes)):
         raise PackDataError("packs_not_list", "packs: 必须是列表")
     errors: list[str] = []
-    packs: list[ProviderPack] = []
+    packs: list[QueryPack] = []
     seen_ids: set[str] = set()
     for index, entry in enumerate(entries):
         if not isinstance(entry, Mapping):
@@ -132,7 +132,7 @@ def load_packs(path: str | Path | None = None) -> list[ProviderPack]:
             continue
         seen_ids.add(pack_id)
         packs.append(
-            ProviderPack(
+            QueryPack(
                 id=pack_id,
                 fofa_queries=_validate_queries(pack_id, "fofa_queries", entry.get("fofa_queries", []), errors),
                 shodan_queries=_validate_queries(pack_id, "shodan_queries", entry.get("shodan_queries", []), errors),
@@ -144,7 +144,7 @@ def load_packs(path: str | Path | None = None) -> list[ProviderPack]:
     return packs
 
 
-def github_query_pool(packs: Sequence[ProviderPack]) -> list[str]:
+def github_query_pool(packs: Sequence[QueryPack]) -> list[str]:
     """全部包 github_terms 拼接去重(保持首现顺序)—— GitHub 泳道查询集。"""
     seen: set[str] = set()
     pool: list[str] = []
@@ -156,6 +156,6 @@ def github_query_pool(packs: Sequence[ProviderPack]) -> list[str]:
     return pool
 
 
-def discovery_query_counts(packs: Sequence[ProviderPack]) -> list[dict[str, Any]]:
+def discovery_query_counts(packs: Sequence[QueryPack]) -> list[dict[str, Any]]:
     """逐包三路查询条数(`queries` 诊断口径:计数,不回显查询文本)。"""
     return [pack.query_counts() for pack in packs]

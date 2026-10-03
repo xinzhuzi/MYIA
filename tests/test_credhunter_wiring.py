@@ -443,7 +443,7 @@ class TestCliCommands:
         assert payload["error"] == "tokens_missing"
 
     def test_credcheck_rejected_verdict_is_data_not_error(self):
-        """unknown 供应商 + 空 apiurl →「no API URL」判死:零网络、零探测,
+        """unknown 供应商 + 空 apiurl →「no_api_url」判死:零网络、零探测,
         rejected 是**结论**不是失败 → 退出码 0。"""
         code, out = _run_cli(
             ["credcheck", "--apikey", "totally-unattributable-key-shape", "--json"]
@@ -452,7 +452,7 @@ class TestCliCommands:
         assert code == 0
         assert payload["status"] == "success"
         assert payload["counts"]["rejected"] == 1
-        assert payload["results"][0]["error"] == "no API URL"
+        assert payload["results"][0]["error"] == "no_api_url"
 
     def test_credcheck_env_ref_resolution(self, monkeypatch):
         monkeypatch.setenv("WIRING_CHECK_KEY", "totally-unattributable-key-shape")
