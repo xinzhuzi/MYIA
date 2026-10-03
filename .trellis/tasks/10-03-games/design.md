@@ -1,5 +1,9 @@
 # Design — 游戏情报品类插件(plugins/games.yaml)
 
+> **grill 2026-10-03 已收口(主人「按照你的建议去做」= 全按推荐)**:
+> 九条决议见 prd.md「Grill 决议」节;对本档的影响——D1 已批为唯一 url
+> 路径、D5 排程/通道/重推语义拍定、§5 明确不做边界固化。无悬而未决项。
+
 > 事实基线:2026-10-03 本机实跑探源 + 源码核订(schema.py / fetch_base.py /
 > custom.py / templates.py / test_plugins.py,行号为当日 HEAD)。所有引述
 > 均可复核;探源原始响应存本任务 `evidence/epic-free.json`、
@@ -51,14 +55,14 @@
 
 ## 2. D 决策
 
-### D1 url 构造:extract.url_template 微扩展(推荐,本任务内做)
+### D1 url 构造:extract.url_template 微扩展(grill 决议⑦ 已批,本任务内做)
 
 两个入选源的响应里**都没有可点的页面 URL**(Epic 元素 `url` 恒 None,只有
 `urlSlug`/`productSlug`;Steam 只有数字 `id`)。这正是 stocks.yaml 注释里
 记录过的 open issue:「json_path cannot express "item URL = f(field)"」。
-现状只有两条路:
+grill 2026-10-03 决议⑦ 已批扩展路线:
 
-- **D1(推荐)**:`ExtractConfig` 增可选 `url_template: str`(`{field}` 占位,
+- **已批**:`ExtractConfig` 增可选 `url_template: str`(`{field}` 占位,
   与 dedup.key 同款迷你模板语义),提取出口统一渲染覆盖 url;
   `missing_url_field` 校验放宽为「url 字段或 url_template 二选一」。
   变更面:schema.py(~15 行)+ fetch_base 提取出口(~15 行)+ 单测;
@@ -66,9 +70,9 @@
   stocks 自己换装不在本任务(向后兼容,url 字段路径行为不变)。
   Epic:`https://store.epicgames.com/zh-CN/p/{url_slug}`;
   Steam:`https://store.steampowered.com/app/{steam_id}`(int 渲染成 str)。
-- **D2(备选,主人不批动 schema 时)**:url=slug/appid 占位(stocks 先例),
-  推送卡与 feed「打开原文」链接失效,G2 shell:allow-open(https scope)
-  会拒开——缺口注记,链接体验残缺。
+- ~~备选占位方案~~(grill 决议⑦ 否决,仅存档):url=slug/appid 占位(stocks
+  先例),推送卡与 feed「打开原文」链接失效,G2 shell:allow-open(https
+  scope)会拒开——链接体验残缺,弃。
 
 ### D2 dedup.key = `{url}`(稳定键,不能带 {date})
 
@@ -104,10 +108,12 @@
 ### D5 排程与推送
 
 - `schedule: "0 11 * * *"` + `timezone: Asia/Shanghai`:每日 11:00(AM 槽)。
-  Epic 喜加一周四刷新、Steam 特惠每日轮换,每日一跑全覆盖;嫌吵调稀
+  Epic 喜加一周四刷新、Steam 特惠每日轮换,每日一跑全覆盖;grill 决议⑥ 已拍
+  **接受长促销每日重推一条 immediate**(窗口期可见性优先),嫌吵调稀
   `0 11 * * 4,6` 是主人旋钮,不动结构。
-- push:`feishu_card` + `target: env:FEISHU_CHAT_ID`(与 gpu-prices/stocks
-  同款凭据引用;bot token 走渠道缺省 env:FEISHU_BOT_TOKEN)。
+- push:`feishu_card` **单通道**(grill 决议⑤)+ `target: env:FEISHU_CHAT_ID`
+  (与 gpu-prices/stocks 同款凭据引用;bot token 走渠道缺省
+  env:FEISHU_BOT_TOKEN)。telegram 后续加挂=YAML 加一个 push 条目。
 - enrich:`enabled: false`(零 token;游戏情报数值自解释,不需要 LLM 精评)。
 - watchlist:keywords `[喜加一, 限免, 免费, 史低, 折扣, 白嫖]`,
   mute `[抽奖, 求购, 二手, 代练]`。**核订事实:enrich 关闭时 watchlist
@@ -175,10 +181,12 @@ implement 阶段为准。)
 - **R6 url_template 是 schema 扩展**:向后兼容(url 字段路径行为不变,
   新字段可选);spec/文档锁定面同步见 implement 步骤 5,防「文档照做即失败」。
 
-## 5. 明确不做(本轮)
+## 5. 明确不做(本轮;grill Round 1 全按推荐拍定)
 
 - Reddit 源(证据:HTML 拒答;骗 UA 违原则)——backlog。
-- 中文 L2 游戏源(反爬未探)——backlog,拆任务时先全量探查。
-- Epic「下周免费」upcoming 提前预告——v2 增强(PRD 开放问题④)。
+- 中文 L2 游戏源(反爬未探)——backlog,拆任务时先全量探查(grill 决议②③)。
+- Epic「下周免费」upcoming 提前预告——**v2 首项**(grill 决议②:同一源两种
+  条目形状,dedup 与「当前免费」切换时点有碰撞细节,值得单独做)。
+- 游戏资讯类(新游/版本)——backlog,要则独立任务先探源(grill 决议②)。
 - stocks 换装 url_template、gpu-prices 入 OFFICIAL_PLUGINS——独立小事,
-  不混本任务提交。
+  不混本任务提交(grill 决议⑧)。

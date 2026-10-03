@@ -26,10 +26,10 @@ wf_crawl.py,金测集钉住,不扩表)以及 stocks(股票)/gpu-prices(显卡行
    - Steam 每日特惠官方接口(`featuredcategories?cc=cn` specials)——✅ 实测 200;
    - Reddit r/GameDeals `.json` **剔除**(honest UA 返回 HTML,骗头违礼貌采集原则);
    - 中文 L2 源(什么值得买游戏区/小黑盒)未探,留 backlog。
-3. **url 构造前置(D1)**:两源响应均无页面 URL(只有 slug/appid),需
-   `extract.url_template` 微扩展(可选字段,`{field}` 占位,提取后渲染;
-   与 url 字段二选一)——正面收口 stocks 记录过的 schema 缺口;向后兼容,
-   旧 yaml 零影响。主人不批动 schema 则退 D2 占位方案(链接体验残缺)。
+3. **url 构造前置(D1,grill 决议⑦ 已批)**:两源响应均无页面 URL(只有
+   slug/appid),做 `extract.url_template` 微扩展(可选字段,`{field}` 占位,
+   提取后渲染;与 url 字段二选一)——正面收口 stocks 记录过的 schema 缺口;
+   向后兼容,旧 yaml 零影响。(D2 占位备选已否决:链接体验残缺。)
 4. **分类**:`classify.builtin: false` + 自定义规则(两源同名归一化字段,
    规则求值对缺字段整条让路——见 design §1.3):
    - 限免:`final_price == 0 or discount_pct >= 100` → tag `限免`;
@@ -37,9 +37,10 @@ wf_crawl.py,金测集钉住,不扩表)以及 stocks(股票)/gpu-prices(显卡行
 5. **去重**:dedup key = `{url}`(**稳定键**:槽位抑制语义下每天每槽最多
    重推一次;且 baseline 价格历史按 dedup_key 存,带 `{date}` 会断链)。
    禁裸 `{title}`(schema 永拒)。
-6. **推送**:feishu_card,`target: env:FEISHU_CHAT_ID`(凭据引用铁律);
-   路由:限免 → immediate,其余 → digest。排程 `0 11 * * *` Asia/Shanghai
-   (每日 11:00;调稀为主人旋钮)。
+6. **推送**:feishu_card 单通道(grill 决议⑤),`target: env:FEISHU_CHAT_ID`
+   (凭据引用铁律);路由:限免 → immediate,其余 → digest。排程
+   `0 11 * * *` Asia/Shanghai(每日 11:00;grill 决议⑥ 接受每日重推,
+   调稀=改 cron 旋钮,不动结构)。
 7. **价格基线(D4,进 v1)**:`baseline.enabled: true, fields: [final_price]`
    (两家单位同为分,vs_yesterday 给「今天又降了」);msrp 对照表**不进**
    (游戏 SKU 名对照不现实,史低判定交给折扣阈值+趋势)。
@@ -50,18 +51,29 @@ wf_crawl.py,金测集钉住,不扩表)以及 stocks(股票)/gpu-prices(显卡行
 
 - 不改 myia-classifier 七大类关键词表(忠实移植红线,金测集钉住)。
 - 不做游戏内数据(战绩/库存/账号交易),只做"省钱"情报;游戏资讯类
-  (新游/版本)v1 不做——源与判重口径都未探,留 backlog。
+  (新游/版本)v1 不做——源与判重口径都未探,留 backlog(要则独立任务先探源)。
+- Epic「下周免费」预告(upcomingPromotionalOffers)不进 v1——**v2 首项**
+  (grill 决议②:同一源条目形状与切换时点细节值得单独做)。
+- gpu-prices 补进 OFFICIAL_PLUGINS 不混本任务(grill 决议⑧:独立小待办)。
 - Windows/移动端适配不在本任务(随整体发布节奏)。
 
-## 开放问题(开工前主人拍板;均带推荐)
+## Grill 决议(Round 1,2026-10-03,主人「按照你的建议去做」= 全按推荐)
 
-1. 平台范围:**推荐 Epic+Steam 起步**(两官方 API 实测稳定);GOG/Switch/
-   主机电商源未探,要则拆后续任务。
-2. 资讯要不要:**推荐 v1 只做折扣/限免**(数值自解释、零 token);资讯类
-   留 backlog。
-3. 中英文源偏好:**推荐英文官方 API 先行**(实测稳定、无反爬);中文源
-   探查后按需补。
-4. 史低基线:**推荐 price 基线进 v1、msrp 对照不进**(D4)。
+1. **平台范围**:Epic+Steam 起步;GOG/Switch/主机电商未探,要则拆后续任务
+   (先全量探查含反爬评估)。
+2. **内容范围**:v1 只做折扣/限免;upcoming「下周免费」预告=v2 首项;
+   游戏资讯类留 backlog。
+3. **源语言**:英文官方 API 先行;中文 L2 源探查后按需补。
+4. **史低基线**:price 基线进 v1(`fields: [final_price]`),msrp 对照不进
+   (史低判定交给折扣阈值+价格趋势)。
+5. **推送通道**:feishu_card 单通道起步;telegram 后续加挂(YAML 加一个
+   push 条目即可,不动结构)。
+6. **限免重推语义**:接受每日 immediate 重推(槽位抑制+每日一跑的自然
+   结果,窗口期可见性优先);嫌吵调 cron(如 `0 11 * * 4,6`),不动结构。
+7. **url 构造**:D1 `extract.url_template` 微扩展已批;D2 占位否决。
+8. **gpu-prices 补测试元组**:不混本任务,独立小待办。
+9. **开工时机**:等大工作流(dwfrun-9808b474)收尾后主人单独下令——
+   schema.py / test_plugins.py 是热点路径,避免同工作树双线施工。
 
 ## Acceptance Criteria
 
