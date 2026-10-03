@@ -375,3 +375,9 @@
 - **yaml-toggle-comments**|完成|-(零改动复核)|已于 2026-10-03 完成验收归档,工作树无本任务在途产物;现状复核五 AC 全绿(surgery 44 passed、sources_write 4 passed、全量基线 3037 passed)
 
 settle 侧另落:任务簿记三件(news-rss 置 review/shishi-everywhere 发布注记/v12-backlog 入池两项,eaddf56)与 .gitignore 技能副本防线(ff2389a)。残留处置后工作树全静;主人侧门禁(真机冒烟/GUI 目验/tag/PyPI/密钥/发帖/归档决策)见工作流返回清单。
+
+## 2026-10-04 归档会话(archive-review,主人令本会话代执行)
+
+- 16+1 档归档:7 completed 历史伞档、aipocket-fusion(全勾)、v112-desktop-batch(superseded)、7 个已交付未勾框档(feed-ux/news-rss/games-dedup-fix/fe-small-batch/ui-deep-imitation/v112-desktop-parity/golden-frozen-snapshots——逐档补「归档会话注记」载明既录证据,装机冒烟类统一移交 wrapup-checklist)、archive-review 自身
+- 保留 7 活跃档:w3-longtail(覆盖未证+工作流死,建议 resume)、shishi-everywhere(src/myia 未改名,模块改名+PyPI 真在途)、tag-release(AC8 主人门禁)、v12-backlog 池、alert-rules、crawl4ai-l3、wrapup-checklist
+- 教训延续:状态≠勾选,归档判据=证据(commit/独立质检/门禁记录),框未勾不阻断归档但须注记代勾

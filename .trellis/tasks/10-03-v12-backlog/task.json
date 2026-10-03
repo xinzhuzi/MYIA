@@ -19,7 +19,8 @@
   "pr_url": null,
   "subtasks": [],
   "children": [
-    "10-03-v12-crawl4ai-l3"
+    "10-03-v12-crawl4ai-l3",
+    "10-04-alert-rules"
   ],
   "parent": null,
   "relatedFiles": [],

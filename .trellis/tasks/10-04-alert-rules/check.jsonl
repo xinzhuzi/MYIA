@@ -1,0 +1,5 @@
+{"file": ".trellis/tasks/10-04-alert-rules/prd.md", "reason": "本档 AC 草案与 Grill Q1-Q8 决议落点;验收口径=决议后改定版逐条核对"}
+{"file": ".trellis/spec/desktop/sidecar-protocol.md", "reason": "协议版本 bump 与方法表镜像对账一致性(alerts.* 入表后 43→47 行)"}
+{"file": ".trellis/spec/python/quality.md", "reason": "测试纪律:零惊扰默认(不配规则逐字节不变)与资源护栏用例的覆盖口径"}
+{"file": ".trellis/tasks/10-03-v12-backlog/prd.md", "reason": "父池档 AC:拆正式任务须引用本池;本档是否吸收 G5 主体全部边界的回查锚点"}
+{"file": ".trellis/tasks/archive/2026-10/10-03-ui-feature-census/prd.md", "reason": "G5 验收口径回指:测试按钮(已落)+ 告警规则(Rules 式衔接关键词漏斗)两半齐"}

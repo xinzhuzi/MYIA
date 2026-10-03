@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/desktop/sidecar-protocol.md", "reason": "alerts.* 方法族入表与协议 v6→v7 bump 的对账面(方法注册表镜像与错误码纪律)"}
+{"file": ".trellis/spec/domain/yaml-schema.md", "reason": "品类 YAML 12 节公开契约边界(规则存储推荐 SQLite 不动 YAML 的依据);watchlist keywords/mute 语义"}
+{"file": ".trellis/spec/python/error-handling.md", "reason": "坏 when 表达式装载期结构化拒、求值错隔离不上抛的错误模型纪律"}
+{"file": ".trellis/spec/python/logging.md", "reason": "求值错单条 WARNING + 视为未命中的自动恢复语义(classify 先例对齐)"}
+{"file": ".trellis/tasks/10-03-v12-backlog/prd.md", "reason": "父池档第 5 项 G5 主体边界与拆任务引用闭环要求"}
+{"file": ".trellis/tasks/archive/2026-10/10-03-ui-feature-census/prd.md", "reason": "G5 缺口矩阵行(业界证据/MYIA 现状/优先级)与 F 类刻意不做边界"}
+{"file": ".trellis/tasks/archive/2026-10/10-03-ui-feature-census/research/feed-monitors.md", "reason": "Inoreader Rules 条件→动作语义原始出处(官方 URL),模仿对象语义依据"}
