@@ -35,7 +35,7 @@ behavior-specs/`),零上游代码复制、不搬上游标识符/文案/注释;�
 | 能力名 | 段 | 状态 |
 |---|---|---|
 | `credhunt` | GitHub 工件凭证猎取(code search + commit message 两泳道,联合正则十大族) | 已落地:引擎 lane(`engine_options.credhunter.lane: credhunt`)+ CLI 冒烟口 `shishi credhunt` |
-| `credcheck` | 凭证验证(models 三态)+ 余额/身份探测 | 已落地:CLI 子命令 `shishi credcheck`(读库→探测的后处理,不走引擎) |
+| `credcheck` | 凭证验证(models 三态)+ 余额/身份探测 | 已落地:CLI 子命令 `shishi credcheck`(`--apikey` 显式传键探测,不走引擎;读库→回填通路列 fast-follow) |
 | `exposure` | FOFA/Shodan 曝面发现 + L0 被动探测 | 已落地:引擎 lane(`lane: exposure`)+ CLI 冒烟口 `shishi exposure`;无 key 显式空态 |
 
 供应商指纹库(发现层 20 查询包 + 验证层 25 规格,数据文件化,

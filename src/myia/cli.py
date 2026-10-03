@@ -186,7 +186,7 @@ DEFAULT_PROXY_CHECK_TIMEOUT_SECONDS = 10.0
 PROXY_FETCH_FAILURE_CODES = frozenset({"fetch_failed", "no_alive_proxy"})
 #: 凭证猎手插件(myia-credhunter,进程内三 lane:credhunt/credcheck/exposure;
 #: 10-03-aipocket-fusion;正式取数走 engine: credhunter 进管线,CLI 面是
-#: 调试/冒烟口,credcheck 是读库后处理不走引擎)。
+#: 调试/冒烟口,credcheck 是显式传键探测不走引擎,读库回填列 fast-follow)。
 CREDHUNTER_PLUGIN_ID = "myia-credhunter"
 #: credhunt 配置类失败码 → 1(GitHub 无 token 该源不启用,规格语义);
 #: 采集类失败由 payload 状态面(errors/items)判定,不走失败码映射。

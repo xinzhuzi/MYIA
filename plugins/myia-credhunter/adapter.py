@@ -21,9 +21,9 @@ importlib,防插件目录产生 ``__pycache__`` 垃圾)。
 - **exposure(R4 FOFA/Shodan 曝面)**::func:`fetch_exposure`(引擎面,
   to_thread 包同步实现)/ :func:`run_exposure`(CLI 面,同步)—— 搜页 +
   L0 被动探测;
-- **credcheck(R2 验证/余额)**::func:`run_credcheck`(CLI 面;验证是
-  「读库→探测→回填」后处理而非 fetch,不走引擎,见 integration-facts
-  §2)。
+- **credcheck(R2 验证/余额)**::func:`run_credcheck`(CLI 面;显式
+  ``--apikey`` 传键探测而非 fetch,不走引擎,见 integration-facts §2;
+  「读库→回填」通路列 fast-follow——store/* 当前被并行线持有)。
 
 纪律红线:
 - **密钥经参数注入**(github_tokens/fofa_key/shodan_key/records 形参),

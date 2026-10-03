@@ -12,7 +12,7 @@ ghhunt.md``)的 MYIA 功能重实现:httpx.AsyncClient 全异步、零上游代�
   (采用 = 替换基础文本作为扫描对象,基础文本是取不到 blob 时的回落);
   返回条数 < per_page 提前停页;每查询页游标跨 run 接续(扫描出错停在
   当前页),跑完(提前停或页数封顶)重置回 1。
-- **commit 泳道**:``GET /search/commits`` 仅第 1 页;run 预算 12 条查询;run 预算 12 条查询
+- **commit 泳道**:``GET /search/commits`` 仅第 1 页;run 预算 12 条查询
   跨 run 轮转(Q8:游标存 checkpoint);仅 ``repository/private == false``
   的 item 参与(visibility 在此泳道不算数);对 ``commit.message`` 全文
   跑指纹。

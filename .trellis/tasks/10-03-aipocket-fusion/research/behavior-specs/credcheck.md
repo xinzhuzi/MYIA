@@ -2,6 +2,7 @@
 
 > 行为规格——AGPL 只读观察产出,实现时只认本规格不回看源码。
 > 源码:aipocket-main(Rust)。证据指针 file:line 均相对该仓库。
+> **本地化注记(2026-10-03 交付后补)**:本文引用的上游字面值(error="unauthorized"/"read-failed"/"invalid-response-schema"/"no API URL"、source="deepseek:unauthorized" 等)仅指**语义**;MYIA 实现的输出值已本地化为自有机器码(auth_denied/no_api_url、source=<provider>:auth_denied 等)——写断言与后续验收以实现值为准,勿按上游字面值对表。
 
 ## 1. 总体顺序(scanner.rs:330-610)
 管线相位:discovery → extract(regex+GPT 归因)→ **validate(批量,批 500/并发 20,scanner.rs:430-436;config.rs:147-149)** → GPT recheck → finalize(蜜罐/格式门控)→ **balance(仅对 finalize 后 valid+suspicious 集合,scanner.rs:528-560)**。即:models 探测是验证本体(不是前置),余额在验证之后按需做。增量模式可跳过已验证凭证(dedup 缓存,scanner.rs:439-450)。

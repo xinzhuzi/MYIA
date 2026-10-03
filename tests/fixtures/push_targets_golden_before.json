@@ -154,7 +154,7 @@
   "name": "凭证猎手",
   "push": [
    {
-    "channel": "feishu_card",
+    "channel": "stdout",
     "retries": 2,
     "retry_backoff_seconds": 1.0,
     "route": [
@@ -171,7 +171,6 @@
       "when": "score < 5"
      }
     ],
-    "target": "env:FEISHU_CHAT_ID",
     "template": "**新凭证情报 · {{ date }}**\n{% for item in items %}\n- {{ item.title }} ({{ item.url }})\n{% endfor %}\n",
     "timeout": 10.0
    }

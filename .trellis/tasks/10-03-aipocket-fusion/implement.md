@@ -72,10 +72,10 @@
 
 ## P4 残留清单(2026-10-03 交付后,质检核实 7 条;主人过目后逐项收)
 
-- [ ] **发现4(low)**:plugins/credentials.yaml push 仍 feishu_card,与 Q9「官方品类模板默认 stdout」不一致(exposure 已 stdout)——改 stdout 需同步 push_targets golden(改值=取值漂移,golden 手工同改)。
-- [ ] **发现5(low)**:credcheck「读库→探测→回填」口径(adapter.py/cli.py/README 三处 docstring)与实现(--apikey 显式传键、零 store 代码)分叉——store 回填通路补齐或口径改写,二选一。
-- [ ] **发现6(low)**:ghhunt.py:15 docstring「run 预算 12 条查询」重复连写两遍。
-- [ ] **发现(低,规格文档)**:behavior-specs/credcheck.md 仍钉上游字面 error/source 值,实现已本地化机器码(auth_denied/no_api_url 等)——规格加注「输出值已本地化,上游字面值仅指语义」。
+- [x] **发现4(low)已修(2026-10-03 主会话)**:credentials.yaml push feishu_card→stdout(Q9)+golden 同步(channel/target 两处)。
+- [x] **发现5(low)已对齐口径(2026-10-03 主会话)**:adapter.py/cli.py/README 三处改为「--apikey 显式传键;读库→回填列 fast-follow(store/* 被并行线持有)」——**回填通路本体仍未实现**,补齐时按 integration-facts §2 通路与 Q7/Q8 分层限速。
+- [x] **发现6(low)已修(2026-10-03 主会话)**:ghhunt.py docstring 重复短语删除。
+- [x] **发现(低,规格文档)已加注(2026-10-03 主会话)**:credcheck.md 头部加「本地化注记」——上游字面值仅指语义,断言以实现值为准。
 - [ ] **发现3(线权)**:plugins/myia-credentials/plugin.yaml compatible('>=0.1,<2.0'→'0.0.1 矩阵')工作树已修但属 tag-release 线领地不代收——提交树该行仍旧,依赖 tag-release 线版本落定后同批收。
 - [ ] **发现7(提交卫生,主人裁决)**:ca613ee 混入 weixin 通道文档行(skill/SKILL.md,疑 messaging W2 在途内容被收编);未推送,可 rebase 拆分——是否重写历史归主人。
 - [ ] **主人侧三项**:myia secret set myia/credhunter/github-token(credhunt 真跑 ≥1 finding,AC2)/活 key 显式 --balance(余额矩阵验证)/myia/credhunter/{fofa,shodan}-key(曝面真跑)。
