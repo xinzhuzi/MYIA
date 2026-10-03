@@ -3,7 +3,7 @@
   "name": "v11-umbrella",
   "title": "v1.1 桌面版与打磨(总览)",
   "description": "v1.1 阶段伞任务:桌面正式版为头号交付,配套插件源码化转向、skill 安装通路、backlog 清偿;承载排序与验收总控",
-  "status": "planning",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -27,7 +27,7 @@
   ],
   "parent": null,
   "relatedFiles": [],
-  "notes": "",
+  "notes": "2026-10-03 状态考古:工作实质已随 v1.0(31 任务全交付)/v1.1(11 任务全交付)落地,伞档状态从未翻转;直标 completed 归档前态",
   "meta": {
     "priority": "P1"
   }

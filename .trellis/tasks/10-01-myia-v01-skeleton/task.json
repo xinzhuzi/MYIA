@@ -3,7 +3,7 @@
   "name": "myia-v01-skeleton",
   "title": "v0.1 骨架:核心流水线+引擎+schema+分类+推送",
   "description": "MYIA v0.1:core pipeline、L1/L2/firecrawl 引擎、完整 YAML schema、变更指纹、七大类分类、飞书分级推送、ai/wool/stocks 插件",
-  "status": "planning",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -32,7 +32,7 @@
   ],
   "parent": null,
   "relatedFiles": [],
-  "notes": "",
+  "notes": "2026-10-03 状态考古:工作实质已随 v1.0(31 任务全交付)/v1.1(11 任务全交付)落地,伞档状态从未翻转;直标 completed 归档前态",
   "meta": {
     "priority": "P0"
   }
