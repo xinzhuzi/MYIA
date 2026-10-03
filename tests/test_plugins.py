@@ -12,6 +12,10 @@ network except the opt-in smoke at the bottom).
 games (task 10-03-games) joined the battery: its two official-API sources
 have no page URL in the payload (only urlSlug / numeric id), so the snippet
 tests also pin the extract.url_template rendering at the extraction outlet.
+v3 (task 10-03-games-v3) added the CheapShark multi-store source: its
+response is a **top-level array** (``$[*]`` field prefixes), dealID arrives
+pre-URL-encoded, and its dollar fields (sale_price/savings_pct) stay
+un-normalized — no final_price, no baseline, digest-only routing.
 """
 
 import asyncio
@@ -119,10 +123,24 @@ def test_ai_news_carries_firecrawl_semantics_and_discourse_list():
     # source-level pass-through.
     assert aihot.engine == "auto"
     assert aihot.extract.item == "article[data-item-id]"
+    # 图片处理环官方示范(10-03-vision-pipeline 拍板⑨):活跃 list 源收图 URL
+    # (img@src → metadata["image"]),品类 images: 节开 OCR(vl 注释示例保留
+    # 本地服务启动指引,不实配)。
+    assert "image" in aihot.extract.fields, "aihot 必须抽取卡片封面 img@src"
+    assert config.images is not None and config.images.enabled
+    assert config.images.vl == "off", "示范只 OCR;vl: local 是注释示例不是实配"
     cocoloop = by_name["cocoloop"]
     assert cocoloop.engine == "static_html"
     assert cocoloop.pagination is not None and cocoloop.pagination.max_pages >= 1
     assert "{page}" in cocoloop.url
+
+
+def test_ai_news_images_ring_local_hint_comment_ships_startup_guide():
+    """拍板⑨:`vl: local` 以注释示例出现,且必须带本地服务启动指引一句
+    (games 教训:官方插件声明面的注释也是 agent 的 ground truth)。"""
+    text = (PLUGINS_DIR / "ai-news.yaml").read_text(encoding="utf-8")
+    assert "# vl: local" in text
+    assert "mlx_vlm.server" in text, "本地 VL 服务启动指引必须在注释里"
 
 
 def test_wool_declares_seven_source_slots():
@@ -140,20 +158,44 @@ def test_wool_declares_seven_source_slots():
 
 
 def test_games_uses_direct_api_json_path_with_url_template():
-    """10-03-games D1/D6:双源 direct_api + json_path,响应无页面 URL
-    (Epic 只有 urlSlug、Steam 只有数字 id),条目 URL 全靠 url_template
-    渲染;dedup 稳定键 {url}(baseline 价格历史按 dedup_key 存,不能带日期)。"""
+    """10-03-games D1/D6 + v3:三源 direct_api + json_path,响应无页面 URL
+    (Epic 只有 urlSlug、Steam 只有数字 id、CS 只有已编码 dealID),条目 URL
+    全靠 url_template 渲染;dedup 稳定键 {url}(baseline 价格历史按 dedup_key
+    存,不能带日期)。"""
     config = _load("games")
-    assert {source.name for source in config.sources} == {"epic-free", "steam-specials"}
+    assert {source.name for source in config.sources} == {"epic-free", "steam-specials", "cheapshark"}
     for source in config.sources:
         assert source.engine == "direct_api"
         assert source.extract is not None and source.extract.type == "json_path"
-        assert source.extract.url_template, "两源响应无页面 URL,url 必须来自模板渲染"
+        assert source.extract.url_template, "三源响应无页面 URL,url 必须来自模板渲染"
         assert "url" not in source.extract.fields
     assert config.dedup.key == "{url}"
     assert config.classify.builtin is False, "游戏标题不落七大类,内置扫描只会误杀"
     assert config.baseline is not None and config.baseline.enabled
-    assert config.baseline.fields == ["final_price"], "两家单位同为分,final_price 可直接比"
+    assert config.baseline.fields == ["final_price"], "人民币分单位可直接比;CS 美元元不归一(v3 决议④)"
+
+
+def test_games_cheapshark_source_declares_three_stores_top_array_prefix():
+    """10-03-games-v3 决议①③⑤:storeID=7,11,15(GOG/Humble/Fanatical,与
+    Steam featured 零重叠);响应是**顶层数组**——字段全部同一 $[*] 前缀
+    (extract_json 同前缀逐元素提取同样适用);URL 走 .com 域 redirect
+    (dealID 已 URL-encoded 直拼);robots 有据推翻已批(循 stocks/Yahoo
+    判例)→ respect_robots: false 是 deliberate override,不能是缺省漂移。"""
+    config = _load("games")
+    cs = next(s for s in config.sources if s.name == "cheapshark")
+    assert "storeID=7,11,15" in cs.url
+    assert "sortBy=Savings" in cs.url
+    assert cs.extract is not None
+    assert cs.extract.url_template == "https://www.cheapshark.com/redirect?dealID={deal_id}"
+    # 顶层数组:每个字段路径都是同一 $[*] 前缀(Epic/Steam 是嵌套 $.data…[*])
+    assert cs.extract.fields
+    for name, path in cs.extract.fields.items():
+        assert path.startswith("$[*]."), f"CS 顶层数组字段 {name} 应为 $[*] 前缀,当前 {path!r}"
+    # 美元字段独立命名,不碰归一化字段(决议④:人民币分基线不容美元元)
+    assert set(cs.extract.fields) == {"title", "deal_id", "sale_price", "savings_pct", "normal_price", "metacritic"}
+    assert "final_price" not in cs.extract.fields and "discount_pct" not in cs.extract.fields
+    assert cs.rate_limit is not None
+    assert cs.rate_limit.respect_robots is False, "CS robots Disallow: /api/1.0/ → deliberate override(判例注释在 YAML)"
 
 
 def test_games_free_item_hits_rules_and_immediate_route():
@@ -202,6 +244,43 @@ def test_games_upcoming_free_hits_tag_rule_and_stays_digest():
     assert rules["限免"].evaluate(upcoming) is False, "预告不是当前限免"
     (push,) = config.push
     assert resolve_route(upcoming, routes_from_config(push.route)).mode == "digest"
+
+
+def test_games_cheapshark_deal_hits_rule_and_stays_digest():
+    """10-03-games-v3 决议④:合成 CS 条目(美元字符串形态,裁自 evidence/
+    cs-multi.json Unclaimed World)——`float(savings_pct) >= 50` 白名单转换
+    命中「多店半价+」;Epic/Steam 条目无 savings_pct,float(None) 求值失败
+    按不命中(缺字段让路,天然无感);路由零改动:CS 条目无 final_price/
+    discount_pct,两级 when 均不命中走保守缺省 digest——immediate 仍只属限免
+    (跳楼价在 digest 里按 savings 排序自然置顶)。"""
+    config = _load("games")
+    rules = {
+        rule.tag: rule
+        for rule in rules_from_config([rule.model_dump() for rule in config.classify.rules])
+    }
+    cs_hit = {
+        "title": "Unclaimed World",
+        "url": "https://www.cheapshark.com/redirect?dealID=hV1uGbDuy%2FdMUfxYZb%2BPCBj345sgqPwRWHlLgtuAxAk%3D",
+        "sale_price": "0.50", "normal_price": "16.99", "savings_pct": "97.057092",
+    }
+    assert rules["多店半价+"].evaluate(cs_hit) is True
+    # 边界:恰好半价命中(>= 50,非严格大于)
+    assert rules["多店半价+"].evaluate({**cs_hit, "savings_pct": "50.0"}) is True
+    assert rules["多店半价+"].evaluate({**cs_hit, "savings_pct": "49.999"}) is False
+    # 缺字段让路:两源条目(无 savings_pct)对该规则零影响
+    epic = {"title": "深埋之星", "url": "https://store.epicgames.com/zh-CN/p/x", "final_price": 0}
+    steam = {"title": "The Outlast Trials", "url": "https://store.steampowered.com/app/1",
+             "final_price": 1360, "discount_pct": 90}
+    assert rules["多店半价+"].evaluate(epic) is False
+    assert rules["多店半价+"].evaluate(steam) is False
+    # 两源既有规则对 CS 条目同样让路(字段互不污染)
+    assert rules["限免"].evaluate(cs_hit) is False
+    assert rules["半价+"].evaluate(cs_hit) is False
+
+    (push,) = config.push
+    assert resolve_route(cs_hit, routes_from_config(push.route)).mode == "digest", (
+        "CS 条目必须落 digest(immediate 只属限免,v3 决议④路由零改动)"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -287,8 +366,9 @@ def test_plugin_template_renders_with_representative_items(name):
         ],
         "ai-news": [{"title": "公开演示标题", "url": "https://example.com/t/1"}],
         "wool": [{"title": "公开演示标题", "url": "https://example.com/t/2"}],
-        # games 两条覆盖两种字段形态:Epic 限免(price_text 直出)与 Steam
-        # 特惠(无 price_text,模板退 final_price/100)
+        # games 条目覆盖三种字段形态:Epic 限免(price_text 直出)、Steam
+        # 特惠(无 price_text,模板退 final_price/100)、CS 多店折扣(美元
+        # 字符串段 $sale_price(原价 normal_price)+ savings |float|round|int)
         "games": [
             {"title": "深埋之星", "url": "https://store.epicgames.com/zh-CN/p/buried-stars",
              "final_price": 0, "original_price": 11600, "discount_pct": 0, "price_text": "0"},
@@ -298,6 +378,11 @@ def test_plugin_template_renders_with_representative_items(name):
             {"title": "TerraScape 预告", "url": "https://store.epicgames.com/zh-CN/p/terrascape-2b12b1",
              "final_price": 5300, "original_price": 5300, "upcoming_pct": 100,
              "upcoming_start": "2026-10-08T15:00:00.000Z"},
+            # v3 决议④:CS 美元形态(sale_price/normal_price/savings_pct 全字符串;
+            # URL 已含 URL-encoded dealID,钉不二次编码)
+            {"title": "Unclaimed World",
+             "url": "https://www.cheapshark.com/redirect?dealID=hV1uGbDuy%2FdMUfxYZb%2BPCBj345sgqPwRWHlLgtuAxAk%3D",
+             "sale_price": "0.50", "normal_price": "16.99", "savings_pct": "97.057092"},
         ],
         # gpu-prices:vs_msrp/vs_* 在无 msrp/trends 上下文时渲染空串(契约),
         # keyword_trends 缺省空列表——模板必须裸渲染存活
@@ -316,8 +401,11 @@ def test_plugin_template_renders_with_representative_items(name):
     }[name]
     # 值级标记(opt-in):钉住换算/退路的输出值,不只是「渲染不炸」。
     # games:Steam 条目无 price_text → 退 final_price/100,1360 分应渲染 13.6;
-    # 预告徽标 📅<日期>起免费(v2 决议②)
-    value_markers: dict[str, list[str]] = {"games": ["13.6", "📅2026-10-08起免费"]}
+    # 预告徽标 📅<日期>起免费(v2 决议②);CS 美元段 + 字符串 savings 取整
+    # 徽标 $0.50(原价 16.99) -97%(v3 决议④)
+    value_markers: dict[str, list[str]] = {
+        "games": ["13.6", "📅2026-10-08起免费", "$0.50(原价 16.99)", "-97%"],
+    }
     for push in config.push:
         if push.template is None:
             continue
@@ -350,10 +438,14 @@ _SNIPPETS = {
         "expect_title": "NVIDIA Corporation",
     },
     ("ai-news", "aihot"): {
-        "html": '<article data-item-id="abc"><h3><a href="/items/abc">公开演示标题</a></h3></article>',
+        # 10-03-vision-pipeline 拍板⑨:aihot 抽 img@src(封面相对路径经
+        # urljoin 绝对化)——snippet 同步钉住 image 字段的真实解析形状。
+        "html": '<article data-item-id="abc"><h3><a href="/items/abc">公开演示标题</a></h3>'
+                '<img src="/assets/cover-abc.jpg" alt="封面"></article>',
         "base": "https://aihot.news/",
         "expect_url": "https://aihot.news/items/abc",
         "expect_title": "公开演示标题",
+        "expect_image": "https://aihot.news/assets/cover-abc.jpg",
     },
     ("ai-news", "cocoloop"): {
         "html": '<table><tr class="topic-list-item"><td><a class="title raw-topic-link" href="https://www.cocoloop.cn/t/topic/1">公开演示标题</a></td></tr></table>',
@@ -481,6 +573,45 @@ _SNIPPETS = {
             "expire": 1791478800,
         },
     },
+    # games v3 (10-03-games-v3): CheapShark deals 是**顶层数组**(字段同一
+    # $[*] 前缀);dealID 已 URL-encoded,url_template 直拼不再编码。两个
+    # 元素裁自 evidence/cs-multi.json(2026-10-03 实录,Humble storeID=11):
+    # [0] Unclaimed World 97% 命中形状;[1] The Book of Legends ——唯一的人
+    # 为调整是 savings 改 "45.0"(非命中形状):三店 top-Savings 页实测
+    # 全 ≥50%(top-60 全查无 sub-50),无实录非命中元素可裁,同 gpu-prices
+    # zol 合成 markup 先例;其余字段(dealID/价格/storeID)逐字实录。
+    ("games", "cheapshark"): {
+        "json": [
+            {
+                "internalName": "UNCLAIMEDWORLD", "title": "Unclaimed World",
+                "dealID": "hV1uGbDuy%2FdMUfxYZb%2BPCBj345sgqPwRWHlLgtuAxAk%3D",
+                "storeID": "11", "gameID": "107953",
+                "salePrice": "0.50", "normalPrice": "16.99", "isOnSale": "1",
+                "savings": "97.057092", "metacriticScore": "0",
+                "steamAppID": "284100", "releaseDate": 1475539200,
+                "lastChange": 1790536189, "dealRating": "7.3",
+            },
+            {
+                "internalName": "THEBOOKOFLEGENDS", "title": "The Book of Legends",
+                "dealID": "nlp3qDJuphBKbhB375Uh1maMvh4fQqKur9BHFfgLZqI%3D",
+                "storeID": "11", "gameID": "106360",
+                "salePrice": "0.59", "normalPrice": "14.99", "isOnSale": "1",
+                "savings": "45.0", "metacriticScore": "0",
+                "steamAppID": "277470", "releaseDate": 1329523200,
+                "lastChange": 1759396067, "dealRating": "0.0",
+            },
+        ],
+        "expect_url": "https://www.cheapshark.com/redirect?dealID=hV1uGbDuy%2FdMUfxYZb%2BPCBj345sgqPwRWHlLgtuAxAk%3D",
+        "expect_title": "Unclaimed World",
+        # 第二形状(非命中):多元素不错位——items[1] 是自己的 dealID 链接与
+        # 美元字段(savings 45.0 < 50,规则不命中);URL-encoded dealID 直拼
+        # 钉「不二次编码」(%2F/%3D 原样)
+        "expect_second": {
+            "url": "https://www.cheapshark.com/redirect?dealID=nlp3qDJuphBKbhB375Uh1maMvh4fQqKur9BHFfgLZqI%3D",
+            "sale_price": "0.59",
+            "savings_pct": "45.0",
+        },
+    },
     # v2ex is parked (commented out in wool.yaml, challenge-gated until a
     # firecrawl backend exists) — its extract was never live-verified, so it
     # has no snippet here; re-add one when the source ships.
@@ -502,6 +633,12 @@ def test_plugin_extract_matches_recorded_markup(plugin, source_name):
     assert items, f"{plugin}/{source_name}: extract found nothing"
     assert items[0]["url"] == spec["expect_url"]
     assert items[0].get("title") == spec["expect_title"]
+    # 图 URL 抽取(opt-in,10-03-vision-pipeline):img@src 经 urljoin 绝对化
+    # 后落 metadata["image"],是图片处理环的候选来源之一。
+    if "expect_image" in spec:
+        assert items[0].get("image") == spec["expect_image"], (
+            f"{plugin}/{source_name}: image 字段(img@src)解析形状漂移"
+        )
     # 第二差异形状(opt-in):钉住逐元素提取不错位与字段省略行为,防 fixture
     # 付出的形状成本只被「首条断言」覆盖(games 质检 low 修复)
     second = spec.get("expect_second")
@@ -509,7 +646,9 @@ def test_plugin_extract_matches_recorded_markup(plugin, source_name):
         assert len(items) > 1, f"{plugin}/{source_name}: second shape missing"
         for field in second.get("absent", []):
             assert field not in items[1], f"{plugin}/{source_name}: {field} 应逐元素省略"
-        for key in ("url", "title", "discount_pct", "expire", "upcoming_pct", "upcoming_start"):
+        # 断言键集随源字段形态扩(v3:CS 美元字符串字段 sale_price/savings_pct)
+        for key in ("url", "title", "discount_pct", "expire", "upcoming_pct", "upcoming_start",
+                    "sale_price", "savings_pct"):
             if key in second:
                 assert items[1].get(key) == second[key], f"{plugin}/{source_name}: 第二形状 {key} 错位"
 

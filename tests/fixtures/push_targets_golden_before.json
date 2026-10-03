@@ -221,6 +221,194 @@
    "mute": []
   }
  },
+ "plugins/games.yaml": {
+  "classify": {
+   "builtin": false,
+   "rules": [
+    {
+     "name": "限免",
+     "tag": "限免",
+     "when": "final_price == 0 or discount_pct >= 100"
+    },
+    {
+     "name": "下周免费",
+     "tag": "下周免费",
+     "when": "upcoming_pct >= 100"
+    },
+    {
+     "name": "大折扣",
+     "tag": "半价+",
+     "when": "discount_pct >= 50"
+    },
+    {
+     "name": "多店大折扣",
+     "tag": "多店半价+",
+     "when": "float(savings_pct) >= 50"
+    }
+   ]
+  },
+  "dedup": {
+   "key": "{url}"
+  },
+  "enrich": {
+   "api_key": null,
+   "base_url": null,
+   "batch": 20,
+   "budget_per_run": 50000,
+   "cache": true,
+   "enabled": false,
+   "model": "glm-4-flash",
+   "scores": [
+    "value",
+    "relevance",
+    "credibility"
+   ]
+  },
+  "id": "games",
+  "name": "游戏情报",
+  "push": [
+   {
+    "channel": "feishu_card",
+    "retries": 2,
+    "retry_backoff_seconds": 1.0,
+    "route": [
+     {
+      "mode": "immediate",
+      "when": "final_price == 0 or discount_pct >= 100"
+     },
+     {
+      "mode": "digest",
+      "when": "final_price > 0"
+     }
+    ],
+    "target": "env:FEISHU_CHAT_ID",
+    "template": "**游戏情报 · {{ date }}**\n{% for item in items %}\n- [{{ item.title }}]({{ item.url }}) {% if item.price_text is defined %}{{ item.price_text }}{% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}\n{% endfor %}\n",
+    "timeout": 10.0
+   }
+  ],
+  "schedule": "0 11 * * *",
+  "sources": [
+   {
+    "engine": "direct_api",
+    "extract": {
+     "fields": {
+      "discount_pct": "$.data.Catalog.searchStore.elements[*].promotions.promotionalOffers[0].promotionalOffers[0].discountSetting.discountPercentage",
+      "final_price": "$.data.Catalog.searchStore.elements[*].price.totalPrice.discountPrice",
+      "original_price": "$.data.Catalog.searchStore.elements[*].price.totalPrice.originalPrice",
+      "price_text": "$.data.Catalog.searchStore.elements[*].price.totalPrice.fmtPrice.discountPrice",
+      "title": "$.data.Catalog.searchStore.elements[*].title",
+      "upcoming_pct": "$.data.Catalog.searchStore.elements[*].promotions.upcomingPromotionalOffers[0].promotionalOffers[0].discountSetting.discountPercentage",
+      "upcoming_start": "$.data.Catalog.searchStore.elements[*].promotions.upcomingPromotionalOffers[0].promotionalOffers[0].startDate",
+      "url_slug": "$.data.Catalog.searchStore.elements[*].catalogNs.mappings[0].pageSlug"
+     },
+     "item": null,
+     "type": "json_path",
+     "url_template": "https://store.epicgames.com/zh-CN/p/{url_slug}"
+    },
+    "headers": {
+     "Accept": "application/json"
+    },
+    "method": "GET",
+    "name": "epic-free",
+    "pagination": null,
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 2.0,
+     "qps": 0.5,
+     "respect_robots": true
+    },
+    "retry": 3,
+    "url": "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=zh-CN&country=CN&allowCountries=CN"
+   },
+   {
+    "engine": "direct_api",
+    "extract": {
+     "fields": {
+      "discount_pct": "$.specials.items[*].discount_percent",
+      "expire": "$.specials.items[*].discount_expiration",
+      "final_price": "$.specials.items[*].final_price",
+      "original_price": "$.specials.items[*].original_price",
+      "steam_id": "$.specials.items[*].id",
+      "title": "$.specials.items[*].name"
+     },
+     "item": null,
+     "type": "json_path",
+     "url_template": "https://store.steampowered.com/app/{steam_id}"
+    },
+    "headers": {
+     "Accept": "application/json"
+    },
+    "method": "GET",
+    "name": "steam-specials",
+    "pagination": null,
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 2.0,
+     "qps": 0.5,
+     "respect_robots": true
+    },
+    "retry": 3,
+    "url": "https://store.steampowered.com/api/featuredcategories?cc=cn"
+   },
+   {
+    "engine": "direct_api",
+    "extract": {
+     "fields": {
+      "deal_id": "$[*].dealID",
+      "metacritic": "$[*].metacriticScore",
+      "normal_price": "$[*].normalPrice",
+      "sale_price": "$[*].salePrice",
+      "savings_pct": "$[*].savings",
+      "title": "$[*].title"
+     },
+     "item": null,
+     "type": "json_path",
+     "url_template": "https://www.cheapshark.com/redirect?dealID={deal_id}"
+    },
+    "headers": {
+     "Accept": "application/json"
+    },
+    "method": "GET",
+    "name": "cheapshark",
+    "pagination": null,
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 2.0,
+     "qps": 0.5,
+     "respect_robots": false
+    },
+    "retry": 3,
+    "url": "https://www.cheapshark.com/api/1.0/deals?storeID=7,11,15&sortBy=Savings&pageSize=20"
+   }
+  ],
+  "storage": {
+   "retention": "90d",
+   "vacuum": "monthly"
+  },
+  "timezone": "Asia/Shanghai",
+  "watchlist": {
+   "keywords": [
+    "喜加一",
+    "限免",
+    "免费",
+    "史低",
+    "折扣",
+    "白嫖"
+   ],
+   "mute": [
+    "抽奖",
+    "求购",
+    "二手",
+    "代练"
+   ]
+  }
+ },
  "plugins/gpu-prices.yaml": {
   "classify": {
    "builtin": false,

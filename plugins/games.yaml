@@ -1,9 +1,9 @@
 # plugins/games.yaml — official plugin: game deal intelligence (折扣/限免)
-# over two public official APIs — Epic weekly freebies + Steam daily specials
-# (task 10-03-games; source evidence 2026-10-03 in
-# .trellis/tasks/10-03-games/evidence/). Same 12-section shape as
-# stocks/gpu-prices with every section explained inline ("AI writes the YAML"
-# reference duty). Load-check any plugin with:
+# over three public official APIs — Epic weekly freebies + Steam daily
+# specials + CheapShark multi-store deals(v3, task 10-03-games-v3;source
+# evidence 2026-10-03 in .trellis/tasks/10-03-games{,-v3}/evidence/).
+# Same 12-section shape as stocks/gpu-prices with every section explained
+# inline ("AI writes the YAML" reference duty). Load-check any plugin with:
 #   myia run plugins/games.yaml --dry-run --json
 
 id: games
@@ -83,6 +83,47 @@ sources:
     proxy: direct
     retry: 3
 
+  # CheapShark 多店折扣聚合官方 API(v3,task 10-03-games-v3):一个稳定公共
+  # 接口盖 GOG(storeID=7)/Humble(11)/Fanatical(15)三店的**付费折扣**——
+  # 与 Steam featured 源零重叠(Steam 店 storeID=1 不在集合),小众 key 店
+  # 噪音(Aldorlea 类 96% off 刷屏)由白名单天然排除。限免仍归 Epic 官方源:
+  # CS 实测无 0 元 deal(evidence/cs-free.json 空集),它不是限免通道。
+  # **响应是顶层数组**:字段前缀 $[*]——与 Epic/Steam 的嵌套 elements[*]/
+  # items[*] 前缀不同,extract_json 的「同前缀逐元素提取」同样适用(缺字段
+  # 逐元素省略,不错位)。美元字段**独立命名不归一**(v3 决议④):人民币分
+  # 基线不容美元元,sale_price/savings_pct 不进 final_price/baseline。
+  - name: cheapshark
+    engine: direct_api          # L1 JSON API;零成本最快路径
+    url: "https://www.cheapshark.com/api/1.0/deals?storeID=7,11,15&sortBy=Savings&pageSize=20"
+    method: GET
+    headers:                    # 无凭据头;honest MYIA UA 用引擎缺省——CS 实测
+      Accept: "application/json"   # 拒 generic UA,MYIA/0.1 描述性 UA 放行
+    extract:
+      type: json_path           # 顶层数组:全部字段同一 $[*] 前缀,逐元素提取
+      # 条目 URL = .com 域 redirect + dealID(决议⑤:.net 域本机两次 SSL 拒连
+      # 记档不纠缠)。dealID **已 URL-encoded**(%2F/%2B/%3D),直接拼链接、
+      # 不要再编码——占位符在装载期与 fields 交叉校验(拼错即拒载)。
+      url_template: "https://www.cheapshark.com/redirect?dealID={deal_id}"
+      fields:
+        title: "$[*].title"             # 游戏名
+        deal_id: "$[*].dealID"          # 构 URL 用(已 URL-encoded,见上)
+        sale_price: "$[*].salePrice"    # 美元元,字符串直出("0.50";不归一 final_price)
+        savings_pct: "$[*].savings"     # 字符串 %("97.057092");规则里 float() 白名单转换
+        normal_price: "$[*].normalPrice"  # 美元元,字符串直出("16.99")
+        metacritic: "$[*].metacriticScore"  # 显示参考(字符串;0 = 无评分)
+    # 无 pagination:pageSize=20 单请求全量(每日 1 请求,不需要 {page} 翻页)
+    rate_limit:                 # 礼貌档(同 Epic/Steam)
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      # deliberate override(v3 决议①,有据推翻已批):CS robots.txt 明文
+      # Disallow: /api/1.0/,循 stocks/Yahoo 判例——结构化公共数据 API、官方
+      # 文档公开邀请、qps 0.5 礼貌档低频(每日 1 请求)。**回退条件:本源若
+      # 复用为页面爬取(HTML)前必须翻回 true。**
+      respect_robots: false
+    proxy: direct
+    retry: 3
+
 watchlist:                      # enrich 关闭时仅做提及量统计,不做降权
   keywords: [喜加一, 限免, 免费, 史低, 折扣, 白嫖]   # (核订:watchlist 只在
   mute: [抽奖, 求购, 二手, 代练]                     # enrich 阶段消费,不会误杀标题)
@@ -105,6 +146,14 @@ classify:                       # 零 token 第一漏斗;游戏标题不落七�
     - name: 大折扣
       when: "discount_pct >= 50"
       tag: 半价+
+    # v3 决议④:CheapShark 美元折扣源——savings 是字符串 %("97.057092"),
+    # float() 是规则白名单函数;缺字段整条让路(float(None) 求值失败按
+    # 不命中),Epic/Steam 条目无 savings_pct 天然无感,零归一成本共存。
+    # 路由不加 immediate:跳楼价在 digest 里按 savings 排序自然置顶,
+    # immediate 仍只属限免(决议④路由零改动)。
+    - name: 多店大折扣
+      when: "float(savings_pct) >= 50"
+      tag: 多店半价+
 
 dedup:
   key: "{url}"                  # 稳定键(不带 {date}):槽位抑制语义下同一条
@@ -130,13 +179,17 @@ push:
         mode: immediate
       - when: "final_price > 0"                           # 普通折扣进日报
         mode: digest
-    # 价格优先 price_text(Epic "¥60.00"/"0" 直出);Steam 无该字段退
-    # final_price/100(分 → 元)。折扣只在有值时显示(vs_yesterday 无
-    # 历史时渲染空串,不是错误)。
+    # 三源字段形态并存(v3):价格优先 price_text(Epic "¥60.00"/"0" 直出),
+    # Steam 无该字段退 final_price/100(分 → 元),CS 条目两者皆无 → 美元段
+    # $sale_price(原价 normal_price)直出(字符串形态免换算)。守卫用
+    # `is defined`/`default`:StrictUndefined 下裸 default(final_price/100)
+    # 对 CS 条目会先求值缺字段而炸(default 实参是急求值)。savings 是字符串
+    # %,先 |float 再 |round|int(裸 |round 对 str 直接 TypeError)。折扣只在
+    # 有值时显示(vs_yesterday 无历史时渲染空串,不是错误)。
     template: |
       **游戏情报 · {{ date }}**
       {% for item in items %}
-      - [{{ item.title }}]({{ item.url }}) {{ item.price_text | default(item.final_price / 100) }}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}
+      - [{{ item.title }}]({{ item.url }}) {% if item.price_text is defined %}{{ item.price_text }}{% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}
       {% endfor %}
 
 storage:                        # 基线期自动长于条目期:metric_history 按
