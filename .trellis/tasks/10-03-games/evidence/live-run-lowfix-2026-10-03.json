@@ -1,0 +1,18 @@
+{
+ "date": "2026-10-03",
+ "purpose": "4 low 收尾验证:url_slug 改用 catalogNs.mappings[0].pageSlug 后的真跑",
+ "status": "partial",
+ "push_note": "exit=3 系 shell 无 FEISHU_BOT_TOKEN 的引导态(设计),fetch/extract/classify 正常",
+ "epic_count": 24,
+ "steam_count": 18,
+ "hash_slug_urls": 0,
+ "epic_urls_sample": [
+  "https://store.epicgames.com/zh-CN/p/thems-fightin-herds",
+  "https://store.epicgames.com/zh-CN/p/model-builder-complete-edition-f9b456",
+  "https://store.epicgames.com/zh-CN/p/eternal-threads-197169",
+  "https://store.epicgames.com/zh-CN/p/ghostrunner-2",
+  "https://store.epicgames.com/zh-CN/p/lost-castle-abb2e2",
+  "https://store.epicgames.com/zh-CN/p/lisa-the-definitive-edition"
+ ],
+ "steam_expire_field_present": false
+}

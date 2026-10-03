@@ -31,13 +31,16 @@ sources:
       type: json_path           # 逐元素提取,缺字段省略不错位(无促销元素
                                 # 自然没有 discount_pct)
       # 条目 URL = 商店页 + slug;占位符在装载期与 fields 交叉校验(拼错即
-      # 拒载)。偶发 urlSlug=null 的元素 url 渲染为空串,该条目被管线按
-      # invalid_item 记失败后丢弃——不带坏链接入库(design R1 修正口径,
-      # v1 接受该损失面:损失的是那一条情报,不是数据质量)
+      # 拒载)。url_slug 取 catalogNs.mappings 的 pageSlug 而非顶层 urlSlug:
+      # 实测 12 条中 4 条 urlSlug 是 32 位 hash(不可读也可能不可点),而
+      # mappings.pageSlug 12/12 全覆盖且就是官方商店 slug 形态。偶发
+      # mappings 空的元素 url 渲染为空串,该条目被管线按 invalid_item 记
+      # 失败后丢弃——不带坏链接入库(design R1 修正口径,v1 接受该损失面:
+      # 损失的是那一条情报,不是数据质量)
       url_template: "https://store.epicgames.com/zh-CN/p/{url_slug}"
       fields:
         title: "$.data.Catalog.searchStore.elements[*].title"                                # zh-CN 直出
-        url_slug: "$.data.Catalog.searchStore.elements[*].urlSlug"                           # 构 URL 用
+        url_slug: "$.data.Catalog.searchStore.elements[*].catalogNs.mappings[0].pageSlug"    # 构 URL 用(见上:hash urlSlug 形态由此消解)
         final_price: "$.data.Catalog.searchStore.elements[*].price.totalPrice.discountPrice"     # 分(decimals=2);限免=0
         original_price: "$.data.Catalog.searchStore.elements[*].price.totalPrice.originalPrice"  # 分
         price_text: "$.data.Catalog.searchStore.elements[*].price.totalPrice.fmtPrice.discountPrice"  # "¥60.00" 直出,免换算
@@ -69,6 +72,7 @@ sources:
         final_price: "$.specials.items[*].final_price"      # 分(样本 1360=¥13.60)
         original_price: "$.specials.items[*].original_price"  # 分
         discount_pct: "$.specials.items[*].discount_percent"  # int 直出(样本 90)
+        expire: "$.specials.items[*].discount_expiration"     # unix 秒;入库供后续 UI/排序(沙箱无日期格式化,模板不显示)
     rate_limit:
       qps: 0.5
       jitter: "2s"

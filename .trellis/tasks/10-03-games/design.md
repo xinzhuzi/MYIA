@@ -27,7 +27,7 @@
 | 归一字段 | json_path | 备注 |
 | --- | --- | --- |
 | title | `.title` | zh-CN |
-| url_slug | `.urlSlug` | 构 URL 用;部分元素为 None(风险 R1) |
+| url_slug | `.catalogNs.mappings[0].pageSlug` | 构 URL 用。**质检 low 处置(2026-10-03 主人批「按照你的建议去做」)**:顶层 `urlSlug` 实测 12 条中 4 条是 32 位 hash(不可读、可点性存疑),`mappings.pageSlug` 12/12 全覆盖且即官方商店 slug 形态 → 取后者,hash 形态消解;mappings 为空的形态归 R1 |
 | final_price | `.price.totalPrice.discountPrice` | **单位=分**(decimals=2);限免=0 |
 | original_price | `.price.totalPrice.originalPrice` | 分 |
 | discount_pct | `.promotions.promotionalOffers[0].promotionalOffers[0].discountSetting.discountPercentage` | 仅当前促销存在;缺=无促销(逐元素提取缺字段省略,不错位) |
@@ -44,7 +44,7 @@
 | final_price | `.final_price` | **单位=分**(样本 1360=¥13.60,discount 90%) |
 | original_price | `.original_price` | 分 |
 | discount_pct | `.discount_percent` | int 直出(样本 90) |
-| expire | `.discount_expiration` | unix 秒;模板显示用 |
+| expire | `.discount_expiration` | unix 秒;**入库供后续 UI/排序,模板不显示**(沙箱 Jinja2 无日期格式化——质检 low 处置注记,2026-10-03) |
 
 ### 1.3 为什么必须同名归一化字段(规则求值事实)
 
@@ -168,13 +168,16 @@ implement 阶段为准。)
 
 ## 4. 风险与缓解
 
-- **R1 Epic urlSlug 为 None 的元素**:url 渲染为空。
+- **R1 Epic 取不到 slug 的元素**(urlSlug hash 形态已消解,见 §1.1;
+  剩余形态 = `catalogNs.mappings` 为空):url 渲染为空。
   缓解:v1 接受(缺注);后继可加 productSlug 兜底字段(需字符串清理,
   json_path 无字符串操作,得靠 url_template 多占位或 python 侧,不进本任务)。
   **实施期质检修正(2026-10-03)**:核订 pipeline.py `Item.from_extracted`
   对空/缺 url 抛 ValueError → 该条目在 fetch 阶段记 `invalid_item` 失败后
   丢弃,**不是**「条目入库但链接差」——实际损失面更小(丢那一条情报,
   不产生坏链接行),「v1 接受」结论不变;所有文档锁定面已按实际行为改写。
+  实测证据面:本周 12/12 元素 mappings 非空,hash urlSlug 4 条全部由
+  pageSlug 渲染出正规链接(fixture 已钉住该形状)。
   同轮加占位符-字段装载期交叉校验(字段名拼错即拒,防 AI 写错 = 静默整源
   全灭,同 dedup.key 先例)。
 - **R2 Steam 特惠轮换下架**:条目自然消失,retention 90d 清尾,无需特判。

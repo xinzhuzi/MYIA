@@ -279,11 +279,16 @@ def test_plugin_template_renders_with_representative_items(name):
         "wool": "公开演示标题",
         "games": "深埋之星",
     }[name]
+    # 值级标记(opt-in):钉住换算/退路的输出值,不只是「渲染不炸」。
+    # games:Steam 条目无 price_text → 退 final_price/100,1360 分应渲染 13.6
+    value_markers: dict[str, list[str]] = {"games": ["13.6"]}
     for push in config.push:
         if push.template is None:
             continue
         rendered = renderer.render(push.template, sample_items, _send_context())
         assert expected_marker in rendered
+        for marker in value_markers.get(name, []):
+            assert marker in rendered, f"{name}: 值级标记 {marker!r} 未渲染(单位换算/退路回归?)"
         assert rendered.strip(), "rendered card must not be blank"
         assert "#" not in rendered, "template comments leaked into the card"
 
@@ -349,14 +354,18 @@ _SNIPPETS = {
     # extract.url_template (the payload has none), so these pin the D1
     # extraction-outlet rendering as well as the field mapping.
     ("games", "epic-free"): {
-        # evidence/epic-free.json elements[9](深埋之星,限免形状:
-        # discountPrice 0 / discountPercentage 0)与 elements[3](幽灵行者 2,
-        # 无当前促销形状:promotionalOffers 空 → discount_pct 逐元素省略)
+        # evidence/epic-free.json elements[9](深埋之星,限免形状:discountPrice 0
+        # / discountPercentage 0)与 TerraScape(hash urlSlug 形状 + 无当前促销
+        # 形状:promotionalOffers 空 → discount_pct 逐元素省略;URL 由
+        # catalogNs.mappings[0].pageSlug 渲染,hash urlSlug 形态由此钉住消解)
         "json": {
             "data": {"Catalog": {"searchStore": {"elements": [
                 {
                     "title": "深埋之星",
                     "urlSlug": "buried-stars",
+                    "catalogNs": {"mappings": [
+                        {"pageSlug": "buried-stars-d7c88c", "pageType": "productHome"},
+                    ]},
                     "price": {"totalPrice": {
                         "discountPrice": 0, "originalPrice": 11600, "discount": 11600,
                         "currencyCode": "CNY",
@@ -370,20 +379,29 @@ _SNIPPETS = {
                     }]}], "upcomingPromotionalOffers": []},
                 },
                 {
-                    "title": "《幽灵行者 2》",
-                    "urlSlug": "ghostrunner-2",
+                    "title": "TerraScape",
+                    "urlSlug": "f229ed53ddba40788e0ab62978e9eaf9",
+                    "catalogNs": {"mappings": [
+                        {"pageSlug": "terrascape-2b12b1", "pageType": "productHome"},
+                    ]},
                     "price": {"totalPrice": {
-                        "discountPrice": 16900, "originalPrice": 16900, "discount": 0,
+                        "discountPrice": 5300, "originalPrice": 5300, "discount": 0,
                         "currencyCode": "CNY",
-                        "fmtPrice": {"originalPrice": "¥169.00", "discountPrice": "¥169.00",
-                                     "intermediatePrice": "¥169.00"},
+                        "fmtPrice": {"originalPrice": "¥53.00", "discountPrice": "¥53.00",
+                                     "intermediatePrice": "¥53.00"},
                     }},
                     "promotions": {"promotionalOffers": [], "upcomingPromotionalOffers": []},
                 },
             ]}}},
         },
-        "expect_url": "https://store.epicgames.com/zh-CN/p/buried-stars",
+        "expect_url": "https://store.epicgames.com/zh-CN/p/buried-stars-d7c88c",
         "expect_title": "深埋之星",
+        # 第二形状:hash urlSlug 元素照样渲染出正规 pageSlug 链接;无促销元素
+        # 的 discount_pct 逐元素省略(不错位、不补 None)
+        "expect_second": {
+            "url": "https://store.epicgames.com/zh-CN/p/terrascape-2b12b1",
+            "absent": ["discount_pct"],
+        },
     },
     ("games", "steam-specials"): {
         # evidence/steam-featured.json specials.items[0](The Outlast Trials,
@@ -406,6 +424,13 @@ _SNIPPETS = {
         ]}},
         "expect_url": "https://store.steampowered.com/app/1304930",
         "expect_title": "The Outlast Trials",
+        # 第二形状:多元素字段不错位(items[1] 是 How to Fish 自己的 id/折扣),
+        # expire(unix 秒)随 fields 入库
+        "expect_second": {
+            "url": "https://store.steampowered.com/app/4001890",
+            "discount_pct": 38,
+            "expire": 1791478800,
+        },
     },
     # v2ex is parked (commented out in wool.yaml, challenge-gated until a
     # firecrawl backend exists) — its extract was never live-verified, so it
@@ -428,6 +453,16 @@ def test_plugin_extract_matches_recorded_markup(plugin, source_name):
     assert items, f"{plugin}/{source_name}: extract found nothing"
     assert items[0]["url"] == spec["expect_url"]
     assert items[0].get("title") == spec["expect_title"]
+    # 第二差异形状(opt-in):钉住逐元素提取不错位与字段省略行为,防 fixture
+    # 付出的形状成本只被「首条断言」覆盖(games 质检 low 修复)
+    second = spec.get("expect_second")
+    if second is not None:
+        assert len(items) > 1, f"{plugin}/{source_name}: second shape missing"
+        for field in second.get("absent", []):
+            assert field not in items[1], f"{plugin}/{source_name}: {field} 应逐元素省略"
+        for key in ("url", "title", "discount_pct", "expire"):
+            if key in second:
+                assert items[1].get(key) == second[key], f"{plugin}/{source_name}: 第二形状 {key} 错位"
 
 
 # ---------------------------------------------------------------------------
@@ -455,12 +490,15 @@ def test_plugin_builds_a_pipeline(name):
 def _epic_free_body(discount_price: int, fmt_price: str) -> dict:
     """One-element Epic freeGamesPromotions body(trimmed evidence 形状).
 
-    Same urlSlug both runs → same url_template 渲染 → 同一 {url} dedup 键;
-    price 变化让内容指纹不吞掉第二次 run(拦截发生在 dedup 阶段)。
+    Same catalogNs pageSlug both runs → same url_template 渲染 → 同一 {url}
+    dedup 键;price 变化让内容指纹不吞掉第二次 run(拦截发生在 dedup 阶段)。
     """
     return {"data": {"Catalog": {"searchStore": {"elements": [{
         "title": "深埋之星",
         "urlSlug": "buried-stars",
+        "catalogNs": {"mappings": [
+            {"pageSlug": "buried-stars-d7c88c", "pageType": "productHome"},
+        ]},
         "price": {"totalPrice": {
             "discountPrice": discount_price, "originalPrice": 11600,
             "discount": 11600 - discount_price, "currencyCode": "CNY",
