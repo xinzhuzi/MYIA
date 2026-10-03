@@ -16,6 +16,7 @@ Windows DPAPI shares the keyring code path and is condition-tested in
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from typing import Any
 
@@ -135,6 +136,141 @@ class TestSecretCrud:
         set_secret(CANONICAL_NAME, "old", backend=backend)
         set_secret(CANONICAL_NAME, "new", backend=backend)
         assert get_secret(CANONICAL_NAME, backend=backend) == "new"
+
+    def test_set_existing_item_update_denied_falls_back_to_delete_recreate(self):
+        """模拟 macOS -25244:既有项原地更新被拒(GUI 授权)、新建/删除正常;
+        set_secret 第二次写入应走「删旧建新」回落成功,读回新值且索引不丢。"""
+
+        class UpdateDeniedBackend(InMemoryKeychainBackend):
+            """既有项 set_password 恒拒、其余操作走内存实现。"""
+
+            def set_password(self, service: str, username: str, password: str) -> None:
+                if self.get_password(service, username) is not None:
+                    raise RuntimeError("errSecAuthFailed -25244: 既有项更新需 GUI 授权")
+                super().set_password(service, username, password)
+
+        mac_like = UpdateDeniedBackend()
+        set_secret(CANONICAL_NAME, "old", backend=mac_like)
+        set_secret(CANONICAL_NAME, "new", backend=mac_like)
+        assert get_secret(CANONICAL_NAME, backend=mac_like) == "new"
+        assert list_secrets(backend=mac_like) == [CANONICAL_NAME]
+
+    def test_set_new_item_failure_raises_without_fallback(self):
+        """无既有项时 set_password 失败不做删旧建新回落,真实错误结构化抛出。"""
+
+        class CreateDeniedBackend(InMemoryKeychainBackend):
+            """set_password 恒拒的空后端;delete 记录调用以验证未回落。"""
+
+            def __init__(self) -> None:
+                super().__init__()
+                self.delete_calls: list[str] = []
+
+            def set_password(self, service: str, username: str, password: str) -> None:
+                raise RuntimeError("errSecAuthFailed: 新建也被拒")
+
+            def delete_password(self, service: str, username: str) -> None:
+                self.delete_calls.append(username)
+                super().delete_password(service, username)
+
+        denied = CreateDeniedBackend()
+        with pytest.raises(SecretError) as excinfo:
+            set_secret(CANONICAL_NAME, "v", backend=denied)
+        assert excinfo.value.code == "keychain_operation_failed"
+        assert isinstance(excinfo.value.__cause__, RuntimeError)  # 底层异常 from 链保留
+        assert denied.delete_calls == []  # 无既有项:不做删旧建新回落
+
+    def test_set_recreate_failure_restores_old_value(self):
+        """删旧成功、重建失败:必须尽力回写旧值,项不因回落而凭空消失,
+        报错文案告知项已恢复为旧值。"""
+
+        class RecreateFailsBackend(InMemoryKeychainBackend):
+            """secret 项 set_password 按调用序放行/拒绝:首建(1)放行、更新(2)
+            与重建(3)拒、恢复回写(4)放行;索引项照常。"""
+
+            def __init__(self) -> None:
+                super().__init__()
+                self.secret_set_calls = 0
+
+            def set_password(self, service: str, username: str, password: str) -> None:
+                if username != INDEX_ACCOUNT:
+                    self.secret_set_calls += 1
+                    if self.secret_set_calls in (2, 3):
+                        raise RuntimeError(f"update/re-create denied (set call #{self.secret_set_calls})")
+                super().set_password(service, username, password)
+
+        mac_like = RecreateFailsBackend()
+        set_secret(CANONICAL_NAME, "old", backend=mac_like)
+        with pytest.raises(SecretError) as excinfo:
+            set_secret(CANONICAL_NAME, "new", backend=mac_like)
+        assert excinfo.value.code == "keychain_operation_failed"
+        assert "删旧建新回落亦失败" in str(excinfo.value)
+        assert "项已恢复为旧值" in str(excinfo.value)
+        assert isinstance(excinfo.value.__cause__, RuntimeError)  # 原始写入错误入链
+        assert get_secret(CANONICAL_NAME, backend=mac_like) == "old"  # 旧值已回写恢复
+
+    def test_set_fallback_delete_denied_keeps_item_and_reports_state(self):
+        """更新被拒且删除也被拒(双失败):项未被破坏,文案告知回落失败与
+        项状态;原始 set 错误入 __cause__,delete 错误以 __context__ 保留。"""
+
+        class UpdateAndDeleteDeniedBackend(InMemoryKeychainBackend):
+            """既有项 set/delete 恒拒(项存在才拒)、新建放行。"""
+
+            def set_password(self, service: str, username: str, password: str) -> None:
+                if self.get_password(service, username) is not None:
+                    raise RuntimeError("errSecAuthFailed -25244: 既有项更新需 GUI 授权")
+                super().set_password(service, username, password)
+
+            def delete_password(self, service: str, username: str) -> None:
+                if self.get_password(service, username) is not None:
+                    raise RuntimeError("errSecAuthFailed -25244: 既有项删除需 GUI 授权")
+                super().delete_password(service, username)
+
+        mac_like = UpdateAndDeleteDeniedBackend()
+        set_secret(CANONICAL_NAME, "old", backend=mac_like)
+        with pytest.raises(SecretError) as excinfo:
+            set_secret(CANONICAL_NAME, "new", backend=mac_like)
+        assert excinfo.value.code == "keychain_operation_failed"
+        assert "删旧建新回落亦失败" in str(excinfo.value)
+        assert "旧值回写亦失败" in str(excinfo.value)  # 项状态告知:可能已丢失
+        assert get_secret(CANONICAL_NAME, backend=mac_like) == "old"  # 删除未成:项原样
+        assert isinstance(excinfo.value.__cause__, RuntimeError)
+        assert isinstance(excinfo.value.__context__, RuntimeError)
+
+    def test_set_probe_read_failure_treated_as_new_item_with_warning_log(self, caplog):
+        """探测读失败(如 ACL 拒读):按无既有项处理、不做回落,但必须记
+        warning 留痕——否则与真无既有项的新建失败无从区分。"""
+
+        class AclDeniedReadBackend(InMemoryKeychainBackend):
+            """get_password 恒抛(ACL 拒读)、set_password 恒拒、delete 记录调用。"""
+
+            def __init__(self) -> None:
+                super().__init__()
+                self.delete_calls: list[str] = []
+
+            def get_password(self, service: str, username: str) -> str | None:
+                raise OSError("read denied by ACL")
+
+            def set_password(self, service: str, username: str, password: str) -> None:
+                raise RuntimeError("errSecItemNotAllowed -25244: 写入被拒")
+
+            def delete_password(self, service: str, username: str) -> None:
+                self.delete_calls.append(username)
+                super().delete_password(service, username)
+
+        acl_like = AclDeniedReadBackend()
+        with caplog.at_level(logging.WARNING, logger="myia.secrets"):
+            with pytest.raises(SecretError) as excinfo:
+                set_secret(CANONICAL_NAME, "v", backend=acl_like)
+        assert excinfo.value.code == "keychain_operation_failed"
+        assert str(excinfo.value).startswith("写入系统钥匙链失败")  # 无回落分支口径
+        assert "删旧建新回落亦失败" not in str(excinfo.value)
+        assert acl_like.delete_calls == []  # 探测失败:不尝试删旧建新
+        probe_warnings = [
+            record
+            for record in caplog.records
+            if record.levelno == logging.WARNING and "read denied by ACL" in record.getMessage()
+        ]
+        assert probe_warnings, "探测读失败必须记 warning 留痕"
 
     def test_set_invalid_name_raises_structured(self, backend):
         with pytest.raises(SecretError) as excinfo:

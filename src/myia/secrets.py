@@ -226,6 +226,11 @@ def validate_secret_name(name: str) -> str:
 def set_secret(name: str, value: str, *, backend: KeychainBackend | None = None) -> None:
     """Write one secret into the system keychain (首跑录入的底座).
 
+    macOS 对既有项的跨进程原地更新可能被底层拒绝(-25244,需 GUI 授权)而
+    新建正常:写入前先探测既有项并保留旧值(读失败按无既有项处理并记 warning
+    留痕),更新被拒且确有既有项时回落「删旧建新」重建;重建失败尽力回写旧值,
+    报错文案告知项当前状态。无既有项的失败不做回落,真实错误原样抛出。
+
     Args:
         name: canonical ``myia/<scope>/<name>``.
         value: the secret value — 调用方负责不落日志/仓库.
@@ -237,12 +242,43 @@ def set_secret(name: str, value: str, *, backend: KeychainBackend | None = None)
     """
     validate_secret_name(name)
     chosen = backend if backend is not None else get_backend()
+    # 先探测既有项并保留旧值(回落失败时的回写底牌):读取本身失败按无既有项
+    # 处理,但必须记 warning 留痕——读被拒(如 ACL)与项不存在混同会让回落被
+    # 静默跳过,事后无从诊断。
+    try:
+        existing_value = chosen.get_password(SECRET_SERVICE, name)
+    except Exception as probe_exc:
+        existing_value = None
+        logger.warning(
+            "既有凭据探测读取失败,按无既有项处理(不做删旧建新回落) name=%s: %s",
+            name,
+            probe_exc,
+        )
     try:
         chosen.set_password(SECRET_SERVICE, name, value)
     except Exception as exc:
-        raise SecretError(
-            "keychain_operation_failed", f"写入系统钥匙链失败 name={name}: {exc}"
-        ) from exc
+        if existing_value is None:
+            # 新建路径失败:不做回落,直接结构化抛出。
+            raise SecretError(
+                "keychain_operation_failed", f"写入系统钥匙链失败 name={name}: {exc}"
+            ) from exc
+        # 既有项更新被拒(典型 macOS -25244 需 GUI 授权):删旧建新重建。
+        try:
+            chosen.delete_password(SECRET_SERVICE, name)
+            chosen.set_password(SECRET_SERVICE, name, value)
+        except Exception as retry_exc:
+            # 重建失败:旧值此刻可能已被删,尽力回写旧值避免凭据凭空消失,
+            # 并在文案中告知项当前状态。
+            try:
+                chosen.set_password(SECRET_SERVICE, name, existing_value)
+                restored = "项已恢复为旧值"
+            except Exception as restore_exc:
+                restored = f"旧值回写亦失败,该项可能已丢失: {restore_exc}"
+            raise SecretError(
+                "keychain_operation_failed",
+                f"更新系统钥匙链既有项失败 name={name}"
+                f"(删旧建新回落亦失败: {retry_exc};{restored}): {exc}",
+            ) from exc
     _update_index(chosen, add=name)
     logger.info("凭据已写入系统钥匙链 name=%s service=%s(值不落日志)", name, SECRET_SERVICE)
 
