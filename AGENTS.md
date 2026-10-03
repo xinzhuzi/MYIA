@@ -26,7 +26,7 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
 
 **任何仓库/仓库外/网络搜索前,先完整读取[搜索 SOP](.trellis/spec/guides/search-sop.md)**(仓库内热路径 + 仓库外本地路径 + 网络搜索路由 + GitNexus 用法;两大铁律:中文路径勿手拼、先 Read 再操作)。
 
-> **MYIA 的 GitNexus 实况**(下方 gitnexus 块为工具自动生成的通用版,与本段冲突时以本段为准):本机 MCP server 未注册,**CLI 是唯一通道**;全局多仓索引,查询命令必须带 `-r MYIA`(不带会报 "Multiple repositories indexed");`detect_changes()` 的 CLI 等价 = `gitnexus detect-changes -r MYIA --scope staged`(文档/配置类提交可豁免);索引刷新用 `gitnexus analyze --index-only`(免 `CLAUDE.md`/`.claude/` 副作用副本,二者已 gitignore);`rename` 仅 MCP 可用故暂不可用,符号重命名走手动多文件改 + 全树核验 + 测试兜底;技能参考在全局 `~/.agents/skills/gitnexus-*/SKILL.md`;WAL 损坏/单写者锁/管道吞退出码等坑清单见搜索 SOP 的 GitNexus 节。
+> **MYIA 的 GitNexus 实况**(下方 gitnexus 块为工具自动生成的通用版,与本段冲突时以本段为准):本机 MCP server 未注册,**CLI 是唯一通道**;全局多仓索引,查询命令必须带 `-r shishi`——**索引名已随远端改名漂移**:仓库远端 MYIA→shishi(GitHub `xinzhuzi/shishi`)后,GitNexus 按远端名重新注册索引为 `shishi`(本地目录仍名 MYIA;2026-10-04 实测 `~/.gitnexus/registry.json`,不带 `-r` 报 "Multiple repositories indexed",当前清单 shishi/MYStudio/MA);`detect_changes()` 的 CLI 等价 = `gitnexus detect-changes -r shishi --scope staged`(文档/配置类提交可豁免);索引刷新用 `gitnexus analyze --index-only`(免 `CLAUDE.md`/`.claude/` 副作用副本,二者已 gitignore);`rename` 仅 MCP 可用故暂不可用,符号重命名走手动多文件改 + 全树核验 + 测试兜底;技能参考在全局 `~/.agents/skills/gitnexus-*/SKILL.md`;WAL 损坏/单写者锁/管道吞退出码等坑清单见搜索 SOP 的 GitNexus 节。
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence

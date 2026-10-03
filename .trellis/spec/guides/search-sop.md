@@ -29,7 +29,7 @@
 |------|------|----------|
 | `fd` | 文件名搜索(推荐) | `fd vision src/myia` |
 | `rg` | 文件内容搜索(正则/精准匹配) | `rg 'def fetch' src/myia/push` |
-| `gitnexus` | 语义搜索 + 代码知识图谱 + 影响分析 | `gitnexus query -r MYIA 'push channel dispatch lifecycle'` |
+| `gitnexus` | 语义搜索 + 代码知识图谱 + 影响分析 | `gitnexus query -r shishi 'push channel dispatch lifecycle'` |
 | `fzf` | 交互模糊筛选 | `fzf` |
 | LSP | TypeScript 符号索引(`desktop/ui-src`) | `smart_search` / `smart_outline` 或 `tsserver` |
 
@@ -119,7 +119,7 @@ Claude / 非交互 shell 用原生 `rg` / `fd`,**不得假设** zsh 别名或函
 - 文件名搜索一律 `fd`;`find` 仅可用于已经确定的定点存在性检查。
 - **安全红线**:搜索命中凭据(env:/keychain: 引用之外的明文)、`myia.db` 内容、`loot/` 侦察情报时,只报告位置与形状,不把原文搬进上下文或外发(见 security-baseline)。
 - 检测命中不等于可以修改;先读上下文并验证语义。批量结果、JSON 台账和扫描脚本留在磁盘,AI 只接收摘要与路径。
-- `gitnexus` 查询必须带 `-r MYIA`(全局索引了多个仓库,不带会报 "Multiple repositories indexed";见下节)。
+- `gitnexus` 查询必须带 `-r shishi`(全局索引了多个仓库,不带会报 "Multiple repositories indexed";索引名已随远端改名漂移为 shishi,来历见下节)。
 
 ---
 
@@ -155,14 +155,14 @@ Claude / 非交互 shell 用原生 `rg` / `fd`,**不得假设** zsh 别名或函
 ### 使用规则(强制)
 
 > 索引过时时在仓库根运行 `node .gitnexus/run.cjs analyze`(自动选择 runner);无 `run.cjs` 则 `gitnexus analyze`。
-> ⚠️ **多仓库消歧**: 本机全局索引了多个仓库(其余为私有仓库,清单见 `LOCAL-NOTES.md`),CLI 查询命令(`query`/`impact`/`context`/`detect-changes`)**必须带 `-r MYIA`**——`status` 在仓库目录下能自动识别,但 `query` 不行,不带会报 "Multiple repositories indexed"。(MCP 工具本机未注册,CLI 是唯一通道,见下。)
+> ⚠️ **多仓库消歧**: 本机全局索引了多个仓库(实测清单 shishi/MYStudio/MA,其余详情见 `LOCAL-NOTES.md`),CLI 查询命令(`query`/`impact`/`context`/`detect-changes`)**必须带 `-r shishi`**——`status` 在仓库目录下能自动识别,但 `query` 不行,不带会报 "Multiple repositories indexed"。**`-r` 取值是索引名,不是目录名**:仓库远端改名 MYIA→shishi(GitHub `xinzhuzi/shishi`)后,GitNexus 按远端名重新注册本仓索引为 `shishi`(本地目录仍名 `~/Project/Github/MYIA`;2026-10-04 实测 `~/.gitnexus/registry.json` 与不带 `-r` 的报错信息核实)。(MCP 工具本机未注册,CLI 是唯一通道,见下。)
 
 **必做 (Always Do)**
 
-- **改任何符号前先跑 impact 分析**:修改函数/类/方法/导出前,运行 `gitnexus impact -r MYIA <symbol>`,向用户报告爆炸半径(直接调用者、受影响执行流、风险等级)。
-- **提交前跑 `gitnexus detect-changes -r MYIA --scope staged`** 验证改动只影响预期符号和执行流(文档/配置类提交可豁免)。
+- **改任何符号前先跑 impact 分析**:修改函数/类/方法/导出前,运行 `gitnexus impact -r shishi <symbol>`,向用户报告爆炸半径(直接调用者、受影响执行流、风险等级)。
+- **提交前跑 `gitnexus detect-changes -r shishi --scope staged`** 验证改动只影响预期符号和执行流(文档/配置类提交可豁免)。
 - impact 返回 HIGH 或 CRITICAL 风险时必须先警告用户,再继续编辑。
-- 探索陌生代码时用 `gitnexus query -r MYIA '<概念>'` 按执行流搜索,而非 grep。
+- 探索陌生代码时用 `gitnexus query -r shishi '<概念>'` 按执行流搜索,而非 grep。
 
 **禁止 (Never Do)**
 
@@ -174,12 +174,12 @@ Claude / 非交互 shell 用原生 `rg` / `fd`,**不得假设** zsh 别名或函
 
 | 命令 | 用途 | 示例 |
 |------|------|------|
-| `gitnexus query` | 语义搜索(BM25 + 向量 + RRF 混合) | `gitnexus query -r MYIA 'push channel retry lifecycle'` |
-| `gitnexus impact` | 影响分析("改 X 会影响谁") | `gitnexus impact -r MYIA fetch_feed --depth 3` |
-| `gitnexus context` | 符号 360° 视图(入站+出站调用) | `gitnexus context -r MYIA run_pipeline` |
+| `gitnexus query` | 语义搜索(BM25 + 向量 + RRF 混合) | `gitnexus query -r shishi 'push channel retry lifecycle'` |
+| `gitnexus impact` | 影响分析("改 X 会影响谁") | `gitnexus impact -r shishi fetch_feed --depth 3` |
+| `gitnexus context` | 符号 360° 视图(入站+出站调用) | `gitnexus context -r shishi run_pipeline` |
 | `gitnexus wiki` | 从知识图谱生成 LLM 文档 | `gitnexus wiki` |
 | `gitnexus status` | 查看索引状态 | `gitnexus status` |
-| `gitnexus detect-changes` | Git diff 影响分析(提交前) | `gitnexus detect-changes -r MYIA --scope staged` |
+| `gitnexus detect-changes` | Git diff 影响分析(提交前) | `gitnexus detect-changes -r shishi --scope staged` |
 
 > **本机 MCP server 未注册**(`~/.zcode/cli/config.json` 的 `mcp.servers` 无 gitnexus;`gitnexus setup` 不支持 ZCode,如需 MCP 须手动编辑该 config.json),**CLI 是当前唯一通道**。MCP 专属能力中 `rename`(理解调用图的多文件重命名)因此暂不可用——符号重命名走手动多文件改 + 全树 `rg` 核验 + 测试兜底。技能参考(探索/影响/排障/重构/指南/CLI,共 7 个含 pr-review)在全局 `~/.agents/skills/gitnexus-*/SKILL.md`。
 
