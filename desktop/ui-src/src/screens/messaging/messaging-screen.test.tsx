@@ -1,0 +1,362 @@
+// @vitest-environment jsdom
+//
+// 消息屏组件测试:mock sidecar(壳命令 sidecar_request 的 JS 假实现,
+// 内存态模拟 channel_directory/aliases/ledger/rules),覆盖:目录渲染
+// (平台分组/类型徽标/死信徽标/别名徽标)、别名行内编辑(调用 channels.alias
+// set/delete)、targets 多选产出 platform:名称 spec 与 push.write 全量保存、
+// 平台刷新按钮、空态(先配平台凭据指引)、断连态(结构化错误 + 重试)。
+// 协议契约权威:desktop/entry.py `_m_channels_*` / `_m_push_write` +
+// 任务 10-03-messaging-ui design.md §D2。
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
+
+const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({ invoke: mocks.invoke }));
+
+import { MessagingScreen } from "./messaging-screen";
+import type { ChannelsView } from "./api";
+
+const FILE = "plugins/messaging-demo.yaml";
+
+// ---------------------------------------------------------------------------
+// 协议夹具(形状逐字段对照 ./api.ts / desktop/entry.py 应答载荷)
+// ---------------------------------------------------------------------------
+
+function channelEntry(
+  platform: string,
+  chatId: string,
+  name: string,
+  extra: Partial<{ type: string; last_seen: number | null }> = {},
+) {
+  return {
+    platform,
+    chat_id: chatId,
+    name,
+    type: extra.type ?? "group",
+    thread_id: null,
+    last_seen: extra.last_seen ?? null,
+  };
+}
+
+function channelsViewFixture(): ChannelsView {
+  return {
+    data_root: "/tmp/home",
+    updated_at: "2026-10-03T08:00:00",
+    platforms: {
+      feishu: [
+        channelEntry("feishu", "oc_1", "AI中转站合伙人群", { last_seen: 1760000000 }),
+        channelEntry("feishu", "oc_2", "羊毛反馈群", { type: "dm" }),
+      ],
+      telegram: [channelEntry("telegram", "12345", "测试私聊", { type: "dm" })],
+    },
+    aliases: {} as Record<string, Record<string, string>>,
+    dead: ["feishu:oc_2"],
+    rules: [
+      {
+        file: FILE,
+        category_id: "messaging-demo",
+        category_name: "消息屏夹具",
+        parse_ok: true,
+        error: null,
+        entries: [
+          {
+            index: 0,
+            channel: "feishu_card",
+            platform: "feishu",
+            targets: ["feishu:AI中转站合伙人群"],
+            has_template: false,
+            route_count: 1,
+            raw: {
+              channel: "feishu_card",
+              targets: ["feishu:AI中转站合伙人群"],
+              route: [{ when: "category == 'freebie'", mode: "immediate" }],
+            },
+          },
+          {
+            index: 1,
+            channel: "stdout",
+            platform: null,
+            targets: [],
+            has_template: false,
+            route_count: 0,
+            raw: { channel: "stdout" },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// mock sidecar:内存态 = channels.list 四视图;写方法只记账(不真改状态)
+// ---------------------------------------------------------------------------
+
+type Handler = (params: never) => unknown;
+type SidecarMap = Record<string, Handler>;
+
+function okSidecar() {
+  const view = channelsViewFixture();
+  const calls: { method: string; params: unknown }[] = [];
+  const map: SidecarMap = {
+    "channels.list": () => JSON.parse(JSON.stringify(view)) as unknown,
+    "channels.refresh": (params: never) => {
+      const { platform } = params as { platform: string };
+      const bucket = view.platforms[platform] ?? [];
+      return { platform, merged: bucket.length, entries: bucket };
+    },
+    "channels.alias": (params: never) => {
+      const { platform, chat_id, name } = params as {
+        platform: string;
+        chat_id: string;
+        name: string | null;
+      };
+      if (name === null) {
+        delete view.aliases[platform]?.[chat_id];
+      } else {
+        (view.aliases[platform] ??= {})[chat_id] = name;
+      }
+      return { platform, chat_id: chat_id, deleted: name === null, name };
+    },
+    "push.write": (params: never) => {
+      const { file, push } = params as { file: string; push: unknown[] };
+      return { file, written: true as const, changed: true, push };
+    },
+  };
+  const record = (method: string, params: unknown) => {
+    calls.push({ method, params });
+  };
+  return { map, view, calls, record };
+}
+
+/** 安装 mock sidecar:所有 invoke("sidecar_request") 走此分派;未知方法=结构化 404 */
+function installSidecar(map: SidecarMap, record?: (method: string, params: unknown) => void): void {
+  mocks.invoke.mockImplementation(
+    async (_command: string, args: { method: string; params?: unknown }) => {
+      const handler = map[args.method];
+      if (record) record(args.method, args.params);
+      if (!handler) {
+        throw JSON.stringify({
+          code: "method_not_found",
+          path: "method",
+          message: `未知方法 ${args.method}`,
+          data: { allowed: Object.keys(map).sort() },
+        });
+      }
+      return handler(args.params as never);
+    },
+  );
+}
+
+function lastParams(calls: { method: string; params: unknown }[], method: string): unknown {
+  return calls.filter((call) => call.method === method).at(-1)?.params;
+}
+
+beforeEach(() => {
+  mocks.invoke.mockReset();
+});
+afterEach(() => {
+  cleanup(); // vitest 非 globals 模式下 RTL 不自动清理,防 DOM 跨测试污染
+  vi.clearAllMocks();
+});
+
+// ---------------------------------------------------------------------------
+
+describe("消息:通道目录渲染", () => {
+  it("平台分组渲染:名称/类型徽标/最后发现/死信徽标;死信只标在对应行", async () => {
+    const sidecar = okSidecar();
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+
+    const feishu = within(await screen.findByTestId("platform-feishu"));
+    expect(feishu.getByText("AI中转站合伙人群")).toBeTruthy();
+    // 类型徽标:group(群)/dm(私聊)如实呈现
+    expect(feishu.getByText("group")).toBeTruthy();
+    expect(feishu.getByText("dm")).toBeTruthy();
+    // 死信徽标只在 oc_2 行;别名徽标此时不存在
+    const deadRow = feishu.getByTestId("entry-oc_2");
+    expect(within(deadRow).getByText("死信")).toBeTruthy();
+    expect(within(feishu.getByTestId("entry-oc_1")).queryByText("死信")).toBeNull();
+    expect(screen.queryByText("别名")).toBeNull();
+    // telegram 平台分组同样渲染
+    expect(within(screen.getByTestId("platform-telegram")).getByText("测试私聊")).toBeTruthy();
+  });
+});
+
+describe("消息:别名行内编辑", () => {
+  it("改名:输入新名保存 → channels.alias(set)参数正确,成功提示呈现", async () => {
+    const sidecar = okSidecar();
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+    const feishu = within(await screen.findByTestId("platform-feishu"));
+    fireEvent.click(within(feishu.getByTestId("entry-oc_1")).getByRole("button", { name: "改名" }));
+
+    const input = feishu.getByLabelText("别名 oc_1") as HTMLInputElement;
+    expect(input.value).toBe("AI中转站合伙人群"); // 预填当前名
+    fireEvent.change(input, { target: { value: "重点群" } });
+    fireEvent.click(feishu.getByRole("button", { name: "保存" }));
+
+    expect(lastParams(sidecar.calls, "channels.alias")).toEqual({
+      platform: "feishu",
+      chat_id: "oc_1",
+      name: "重点群",
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("messaging-notice").textContent).toContain("已命名 feishu:重点群");
+    });
+  });
+
+  it("已命名条目出「别名」徽标与「取消别名」;点击 → channels.alias(name:null)", async () => {
+    const sidecar = okSidecar();
+    sidecar.view.aliases = { feishu: { oc_1: "手工名" } };
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+    const feishu = within(await screen.findByTestId("platform-feishu"));
+    const row = feishu.getByTestId("entry-oc_1");
+    expect(within(row).getByText("别名")).toBeTruthy();
+
+    fireEvent.click(within(row).getByRole("button", { name: "取消别名" }));
+    expect(lastParams(sidecar.calls, "channels.alias")).toEqual({
+      platform: "feishu",
+      chat_id: "oc_1",
+      name: null,
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("messaging-notice").textContent).toContain("已取消");
+    });
+  });
+});
+
+describe("消息:targets 多选与 push.write 保存", () => {
+  it("勾选产出 platform:名称 spec;保存提交完整 push 数组(仅 targets 变)", async () => {
+    const sidecar = okSidecar();
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+
+    const group = await screen.findByTestId("rule-file-messaging-demo");
+    // 初始态:已选 AI中转站合伙人群(spec 文本直接可见)
+    expect(group.textContent).toContain("feishu:AI中转站合伙人群");
+
+    // 取消 AI中转站合伙人群,勾上 羊毛反馈群(spec = feishu:羊毛反馈群)
+    fireEvent.click(within(group).getByLabelText("对象 AI中转站合伙人群"));
+    fireEvent.click(within(group).getByLabelText("对象 羊毛反馈群"));
+
+    fireEvent.click(within(group).getByRole("button", { name: "保存推送对象" }));
+
+    expect(lastParams(sidecar.calls, "push.write")).toEqual({
+      file: FILE,
+      push: [
+        {
+          channel: "feishu_card",
+          targets: ["feishu:羊毛反馈群"],
+          route: [{ when: "category == 'freebie'", mode: "immediate" }],
+        },
+        { channel: "stdout" },
+      ],
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("messaging-notice").textContent).toContain("已保存");
+    });
+  });
+
+  it("不支持寻址的条目(stdout/webhook)不出选择器,如实说明", async () => {
+    const sidecar = okSidecar();
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+    const group = await screen.findByTestId("rule-file-messaging-demo");
+    expect(group.textContent).toContain("该通道不支持目录寻址");
+  });
+});
+
+describe("消息:平台刷新", () => {
+  it("点平台组内「刷新」→ channels.refresh({platform});失败 toast 结构化错误", async () => {
+    const sidecar = okSidecar();
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+    fireEvent.click(
+      within(await screen.findByTestId("platform-feishu")).getByRole("button", { name: "刷新" }),
+    );
+    expect(lastParams(sidecar.calls, "channels.refresh")).toEqual({ platform: "feishu" });
+    await waitFor(() => {
+      expect(screen.getByTestId("messaging-notice").textContent).toContain("feishu 目录已刷新");
+    });
+
+    // 失败路径:凭据缺失族错误如实带回,目录不清空
+    sidecar.map["channels.refresh"] = () => {
+      throw JSON.stringify({
+        code: "channel_refresh_failed",
+        path: "params.platform",
+        message: "feishu 目录发现失败,旧目录不动: [credential_not_found] 飞书 bot 凭据未配置",
+        data: { platform: "feishu", code: "credential_not_found" },
+      });
+    };
+    fireEvent.click(
+      within(screen.getByTestId("platform-feishu")).getByRole("button", { name: "刷新" }),
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("messaging-notice").textContent).toContain("credential_not_found");
+    });
+    // 旧目录仍在(作用域钉在目录区,规则区的同名选项不参与匹配)
+    expect(within(screen.getByTestId("platform-feishu")).getByText("AI中转站合伙人群")).toBeTruthy();
+  });
+});
+
+describe("消息:空态与断连态", () => {
+  it("目录为空 → 「先配平台凭据」指引空态", async () => {
+    const sidecar = okSidecar();
+    sidecar.view.platforms = {};
+    sidecar.view.rules = [];
+    installSidecar(sidecar.map);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText("通道目录还是空的")).toBeTruthy();
+    expect(screen.getByText(/先到「设置」录入平台凭据/)).toBeTruthy();
+    expect(screen.getByText(/还没有品类 YAML/)).toBeTruthy();
+  });
+
+  it("sidecar 不可达 → 结构化错误(code/path)+ 重试", async () => {
+    mocks.invoke.mockImplementation(async () => {
+      throw JSON.stringify({ code: "sidecar_not_running", path: "$", message: "sidecar 进程未运行" });
+    });
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("sidecar 进程未运行");
+    expect(alert.textContent).toContain("code=sidecar_not_running");
+    expect(alert.textContent).toContain("path=$");
+    fireEvent.click(screen.getByRole("button", { name: "重试" }));
+    await waitFor(() => {
+      expect(mocks.invoke.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+});

@@ -11,6 +11,9 @@ Hermes-Agent,MIT;上游路径 ``~/.hermes/hermes-agent/gateway/channel_directory
 - :meth:`ChannelDirectory.merge_entries` 被动增量合并(10-03-messaging-telegram
   D2):无目录发现 API 的平台(如 Telegram)靠入站观测逐条积累,Hermes 的
   等价物是入站消息回填目录;
+- :meth:`ChannelDirectory.commit_platform_refresh` 单平台已发现的合并提交
+  (10-03-messaging-ui):sidecar 刷新按钮要把发现失败结构化上抛(不吞进
+  warning),发现与合并拆开,合并口单列;
 - ``last_seen`` 字段(Hermes 无):给桌面 UI「最后发现」列用;
 - 手工直编 ``channel_directory.json`` 不保证保留(Hermes 同款);别名文件
   ``channel_aliases.json`` 才是持久覆盖层,在 load 与 replace 双向生效
@@ -268,6 +271,14 @@ class ChannelDirectory:
                         )
                     )
 
+    def aliases_snapshot(self) -> dict[str, dict[str, str]]:
+        """Raw alias overlay view(read-only fresh copy;呈现层/sidecar 用).
+
+        形态 ``{platform: {chat_id: name}}``,与别名文件的持久形态一致
+        (手工可编);损坏/缺失按空(与 :meth:`_aliases_raw` 同一解析)。
+        """
+        return self._aliases_raw()
+
     def set_alias(self, platform: str, chat_id: str, name: str) -> None:
         """Write one alias to the overlay file + apply it to the live directory.
 
@@ -351,6 +362,30 @@ class ChannelDirectory:
         if counts:
             logger.info("目录刷新完成: %s", counts)
         return counts
+
+    def commit_platform_refresh(
+        self,
+        platform: str,
+        entries: Iterable[ChannelEntry],
+        *,
+        now: float | None = None,
+    ) -> list[ChannelEntry]:
+        """Commit an already-discovered bucket: replace + ``updated_at`` + persist.
+
+        与 :meth:`refresh` 的分工(10-03-messaging-ui):那边发现与合并一体、
+        单平台失败只告警隔离(推送路径绝不因目录停摆);这边发现已由调用方
+        完成 —— sidecar ``channels.refresh`` 要把发现失败**结构化上抛**给
+        UI,不能吞进 warning,故合并+落盘单列此口。替换/别名重套/持久化
+        语义与 refresh 完全同一实现路径。
+
+        Returns:
+            替换后的平台桶(拷贝;调用方直接作应答载荷)。
+        """
+        stamp = now if now is not None else self._wall_clock()
+        self.replace_platform(platform, entries, now=stamp)
+        self._updated_at = datetime.fromtimestamp(stamp).isoformat()
+        self.save()
+        return self.entries(platform)
 
     def merge_entries(
         self,

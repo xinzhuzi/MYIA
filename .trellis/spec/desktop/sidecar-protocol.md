@@ -13,36 +13,40 @@
 - 错误结构化透传(对齐 spec python/error-handling):`path` 字段路径、`message` 中文原因、`data` 原始细节。
 - EOF = 干净退出 0(serve,entry.py:1941)。
 
-## 方法注册表(23 方法,逐项核对 `_HANDLERS` entry.py:1875-1899)
+## 方法注册表(27 方法,逐项核对 `_HANDLERS` entry.py)
 
-| # | 方法 | 处理器(定义行) | 语义 |
+| # | 方法 | 处理器 | 语义 |
 |---|------|----------------|------|
-| 1 | `version` | `_m_version`(:451) | `myia --version` 等价:版本 + 协议版本 |
-| 2 | `health` | `_m_health`(:456) | 插件清单 + 源健康度 + 计数聚合 |
-| 3 | `plugins.list` | `_m_plugins_list`(:491) | 已装市场插件 + findings |
-| 4 | `doctor` | `_m_doctor`(:507) | 结构化诊断(问题全在 findings,完成即 0) |
-| 5 | `run.start` | `_m_run_start`(:1339) | 启动 run 子进程,立即返回 run_id;单飞 `run_busy` |
-| 6 | `run.status` | `_m_run_status`(:1378) | run 注册表查询;未知 id = 结构化 404 |
-| 7 | `logs.tail` | `_m_logs_tail`(:1392) | 环形缓冲尾部日志,run_id 可选过滤 |
-| 8 | `store.items` | `_m_store_items`(:551) | SQLite 单库直读情报流(新→旧) |
-| 9 | `secret.set` | `_m_secret_set`(:579) | 凭据只入系统钥匙链;值零回显零落日志 |
-| 10 | `secret.list` | `_m_secret_list`(:593) | 只列名字,值永不可读 |
-| 11 | `sources.write` | `_m_sources_write`(:672) | 源启停写回(sources 屏私有封装) |
-| 12 | `yaml.list` | `_m_yaml_list`(:995) | plugins 目录品类 YAML 清单(坏文件也入列) |
-| 13 | `yaml.read` | `_m_yaml_read`(:1009) | 原文直读,注释/顺序逐字节保真(不经 dump) |
-| 14 | `yaml.validate` | `_m_yaml_validate`(:1050) | 干跑校验,findings 分级,永不抛校验错 |
-| 15 | `yaml.template` | `_m_yaml_template`(:1072) | 最小合法品类模板(id/name 占位) |
-| 16 | `yaml.save` | `_m_yaml_save`(:1077) | 同门校验→跨文件 id 查重→`.bak`→原子写(mtime 乐观锁) |
-| 17 | `yaml.delete` | `_m_yaml_delete`(:1191) | 围栏→`.bak` 留底→删主文件→连带删 `.disabled.json` |
-| 18 | `image.import` | `_m_image_import`(:1530) | 图片入库:魔数嗅探→heic 转 png→sha256 去重 |
-| 19 | `image.ocr` | `_m_image_ocr`(:1611) | 一级 OCR(双引擎):逐行 `{text,conf}` |
-| 20 | `image.analyze` | `_m_image_analyze`(:1756) | 二级看图(read/describe/ask):提交即返 job_id,结果走事件流 |
-| 21 | `image.status` | `_m_image_status`(:1826) | 看图任务对账:busy + 当前 job_id |
-| 22 | `image.config.read` | `_m_image_config_read`(:1847) | vision.yaml 脱敏读取(不存在 = 全缺省) |
-| 23 | `image.config.save` | `_m_image_config_save`(:1855) | vision.yaml 保存,同门校验失败零写入 |
+| 1 | `version` | `_m_version` | `myia --version` 等价:版本 + 协议版本 |
+| 2 | `health` | `_m_health` | 插件清单 + 源健康度 + 计数聚合 |
+| 3 | `plugins.list` | `_m_plugins_list` | 已装市场插件 + findings |
+| 4 | `doctor` | `_m_doctor` | 结构化诊断(问题全在 findings,完成即 0) |
+| 5 | `run.start` | `_m_run_start` | 启动 run 子进程,立即返回 run_id;单飞 `run_busy` |
+| 6 | `run.status` | `_m_run_status` | run 注册表查询;未知 id = 结构化 404 |
+| 7 | `logs.tail` | `_m_logs_tail` | 环形缓冲尾部日志,run_id 可选过滤 |
+| 8 | `store.items` | `_m_store_items` | SQLite 单库直读情报流(新→旧) |
+| 9 | `secret.set` | `_m_secret_set` | 凭据只入系统钥匙链;值零回显零落日志 |
+| 10 | `secret.list` | `_m_secret_list` | 只列名字,值永不可读 |
+| 11 | `sources.write` | `_m_sources_write` | 源启停写回(sources 屏私有封装) |
+| 12 | `yaml.list` | `_m_yaml_list` | plugins 目录品类 YAML 清单(坏文件也入列) |
+| 13 | `yaml.read` | `_m_yaml_read` | 原文直读,注释/顺序逐字节保真(不经 dump) |
+| 14 | `yaml.validate` | `_m_yaml_validate` | 干跑校验,findings 分级,永不抛校验错 |
+| 15 | `yaml.template` | `_m_yaml_template` | 最小合法品类模板(id/name 占位) |
+| 16 | `yaml.save` | `_m_yaml_save` | 同门校验→跨文件 id 查重→`.bak`→原子写(mtime 乐观锁) |
+| 17 | `yaml.delete` | `_m_yaml_delete` | 围栏→`.bak` 留底→删主文件→连带删 `.disabled.json` |
+| 18 | `image.import` | `_m_image_import` | 图片入库:魔数嗅探→heic 转 png→sha256 去重 |
+| 19 | `image.ocr` | `_m_image_ocr` | 一级 OCR(双引擎):逐行 `{text,conf}` |
+| 20 | `image.analyze` | `_m_image_analyze` | 二级看图(read/describe/ask):提交即返 job_id,结果走事件流 |
+| 21 | `image.status` | `_m_image_status` | 看图任务对账:busy + 当前 job_id |
+| 22 | `image.config.read` | `_m_image_config_read` | vision.yaml 脱敏读取(不存在 = 全缺省) |
+| 23 | `image.config.save` | `_m_image_config_save` | vision.yaml 保存,同门校验失败零写入 |
+| 24 | `channels.list` | `_m_channels_list` | 消息屏目录四视图:platforms+aliases+dead+rules(零平台=合法空态) |
+| 25 | `channels.refresh` | `_m_channels_refresh` | 单平台 `discover_directory`→桶替换+落盘;失败结构化上抛,旧桶不动 |
+| 26 | `channels.alias` | `_m_channels_alias` | 别名 set/delete(name 非空/null 区分);落盘复核未生效即报错 |
+| 27 | `push.write` | `_m_push_write` | push[] 全量替换:围栏→文本手术→双门→`.bak`→原子写;失败零写入 |
 
 分组:核心 10(1-10)+ 源启停 1(11)+ 品类 YAML 编辑 6(12-17,task 10-03-yaml-editor)+
-看图 6(18-23,task 10-03-image-input)。
+看图 6(18-23,task 10-03-image-input)+ 消息 4(24-27,task 10-03-messaging-ui)。
 
 ## 错误码表
 
@@ -68,6 +72,7 @@
 | 品类 YAML 编辑 | `path_outside_root` / `not_yaml_suffix` / `invalid_file_stem` / `file_too_large` / `invalid_encoding` / `file_not_found` / `mtime_conflict` / `duplicate_category_id`(另复用 `category_invalid` / `source_file_unreadable` / `source_write_failed`) | 围栏 + 乐观锁 + 跨文件查重(yaml.* 六方法) |
 | 看图(请求应答) | `image_not_found` / `image_unsupported` / `image_too_large` / `image_ocr_failed` / `image_engine_unknown` / `image_no_credentials` / `image_busy` / `image_config_invalid` | `image_` 前缀统一;analyze 同步预检即时应答 |
 | 看图(仅事件流) | `image_unreachable` / `image_provider_error` | analyze 后台线程失败 → `image.completed` 事件 `ok:false` + error 对象,不是请求错误(:1690-1698、:1724、:1749) |
+| 消息 | `unknown_platform` / `discover_not_supported` / `channel_refresh_failed` / `alias_write_failed` / `push_write_unsupported`(另复用 `category_invalid` / `file_not_found` / `path_outside_root` / `source_write_failed` / `invalid_params`) | channels.* / push.write 全链路(task 10-03-messaging-ui;数据面错误码透传 push 层如 `credential_not_found` 经 `channel_refresh_failed.data.code` 携带) |
 
 ### 透传族(`exc.code` 动态透传,不在 entry.py 静态出现)
 
@@ -84,4 +89,5 @@
    刻意未入共享映射——对账时按上表分组核对,勿以 16 当全量。
 3. 封装面 ≠ 协议面:`ui-src/src/lib/api/client.ts` 的 `api` 门面只盖核心 10 方法;
    `sources.write` 在 `screens/sources/api.ts`、`yaml.*` 在 `screens/yaml-editor/api.ts`、
-   `image.*` 在 `screens/image/api.ts` 屏私有封装(invoke 直连,不走共享门面)。
+   `image.*` 在 `screens/image/api.ts`、`channels.*`/`push.write` 在
+   `screens/messaging/api.ts` 屏私有封装(invoke 直连,不走共享门面)。

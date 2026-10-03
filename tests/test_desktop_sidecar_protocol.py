@@ -1240,8 +1240,9 @@ def test_yaml_read_limits_and_encoding(tmp_path, monkeypatch):
 
 
 def test_sources_write_backup_stops_comment_loss(tmp_path):
-    """启停止血(决议 2):点一次启停,.bak 保有操作前的带注释原文(主文件仍
-    被 safe_dump 重写抹注释 —— 已知缺陷,根治在 10-03-yaml-toggle-comments)。"""
+    """启停止血(决议 2)+ 根治(10-03-yaml-toggle-comments 已落地):点一次
+    启停,.bak 保有操作前的带注释原文(第二条保险带);主文件不再被 safe_dump
+    整份重写抹注释 —— 文本手术逐字节保真,只摘目标条目整段。"""
     path = Path(write_yaml(tmp_path, COMMENTED_TOGGLE_YAML, "toggle.yaml"))
     original = path.read_text(encoding="utf-8")
     code, responses, _ = rpc({"id": 1, "method": "sources.write",
@@ -1249,7 +1250,9 @@ def test_sources_write_backup_stops_comment_loss(tmp_path):
     assert code == 0 and responses[0]["result"]["written"] is True
     bak = tmp_path / "toggle.yaml.bak"
     assert bak.read_text(encoding="utf-8") == original  # .bak = 带注释原文
-    assert "顶部注释" not in path.read_text(encoding="utf-8")  # 主文件被重写(止血不根治)
+    after = path.read_text(encoding="utf-8")
+    assert "顶部注释" in after  # 根治:文本手术保注释,不再 safe_dump 重写
+    assert "drop-me" not in after  # 摘除的只有目标条目(暂存入独立 stash 文件)
 
 
 def test_sources_write_then_yaml_save_mutex_by_mtime(tmp_path, monkeypatch):
@@ -1417,6 +1420,23 @@ def test_image_import_too_large_structured(tmp_path, monkeypatch):
     assert not (tmp_path / "home" / "images").exists() or not any(
         (tmp_path / "home" / "images").iterdir()
     )
+
+
+def test_image_import_path_size_precheck_before_read(tmp_path, monkeypatch):
+    """path 分支 stat 预检:超大文件零 read_bytes(不整读进内存才拒;同 yaml.read)。"""
+    monkeypatch.setenv("MYIA_HOME", str(tmp_path / "home"))
+    big = tmp_path / "big.png"
+    big.write_bytes(PNG_BYTES + b"\x00" * (10 * 1024 * 1024 + 1))
+
+    def _forbid_read(self):
+        raise AssertionError("超大文件必须 stat 预检拒绝,不得 read_bytes 整读进内存")
+
+    monkeypatch.setattr(Path, "read_bytes", _forbid_read)
+    code, responses, _ = rpc({"id": 1, "method": "image.import",
+                              "params": {"kind": "path", "value": str(big)}})
+    error = responses[0]["error"]
+    assert error["code"] == "image_too_large"
+    assert error["data"]["size"] == 10 * 1024 * 1024 + 1 + len(PNG_BYTES)
 
 
 def test_image_import_unsupported_magic(tmp_path, monkeypatch):
@@ -1795,3 +1815,443 @@ def test_image_config_save_plaintext_rejected_zero_write(tmp_path, monkeypatch):
                               "params": {"config": bad_engine}})
     assert responses[0]["error"]["code"] == "image_config_invalid"
     assert responses[0]["error"]["data"]["error_type"] == "invalid_engine"
+
+
+# ---------------------------------------------------------------------------
+# channels.list / channels.refresh / channels.alias / push.write
+# (消息屏协议,task 10-03-messaging-ui;追加式新增,契约钉死于任务档 design.md §D2)
+# ---------------------------------------------------------------------------
+
+#: 消息屏品类夹具:feishu push 条目带 targets(同平台约束正例形态)。
+MESSAGING_YAML = """
+id: messaging-demo
+name: 消息屏夹具
+schedule: "0 9 * * *"
+sources:
+  - name: local-api
+    engine: direct_api
+    url: "http://127.0.0.1:9/list"
+    rate_limit:
+      qps: 1000.0
+      respect_robots: false
+    retry: 0
+    extract:
+      type: json_path
+      fields:
+        title: "$.data[*].title"
+        url: "$.data[*].url"
+classify:
+  builtin: false
+push:
+  - channel: feishu_card
+    targets:
+      - feishu:AI中转站合伙人群
+      - feishu:羊毛反馈群
+    route:
+      - when: "category == 'freebie'"
+        mode: immediate
+"""
+
+
+def _messaging_home(tmp_path: Path, monkeypatch, yaml_text: str | None = MESSAGING_YAML) -> Path:
+    """home 模式夹具:MYIA_HOME 指向 tmp home,plugins 内放消息屏品类 YAML。"""
+    home = tmp_path / "home"
+    monkeypatch.setenv("MYIA_HOME", str(home))
+    plugins = home / "plugins"
+    plugins.mkdir(parents=True, exist_ok=True)
+    if yaml_text is not None:
+        (plugins / "messaging-demo.yaml").write_text(yaml_text, encoding="utf-8")
+    return home
+
+
+def _write_directory(home: Path, platforms: dict, updated_at: str | None = None) -> None:
+    """直编 channel_directory.json(夹具数据源;格式=directory.py 持久形态)。"""
+    import json as _json
+
+    payload = {"updated_at": updated_at, "platforms": platforms}
+    (home / "channel_directory.json").write_text(
+        _json.dumps(payload, ensure_ascii=False), encoding="utf-8"
+    )
+
+
+def test_channels_list_four_views(tmp_path, monkeypatch):
+    """channels.list 正例:目录+别名+死信+规则四视图,条目名已套别名覆盖。"""
+    home = _messaging_home(tmp_path, monkeypatch)
+    _write_directory(
+        home,
+        {
+            "feishu": [
+                {"platform": "feishu", "chat_id": "oc_1", "name": "AI中转站合伙人群",
+                 "type": "group", "thread_id": None, "last_seen": 1760000000.0},
+                {"platform": "feishu", "chat_id": "oc_2", "name": "羊毛反馈群",
+                 "type": "group", "thread_id": None, "last_seen": None},
+            ]
+        },
+        updated_at="2026-10-03T00:00:00",
+    )
+    (home / "channel_aliases.json").write_text(
+        json.dumps({"feishu": {"oc_2": "手动别名群"}}, ensure_ascii=False), encoding="utf-8"
+    )
+    (home / "delivery_ledger.json").write_text(
+        json.dumps({"feishu:oc_2": {"reason": "forbidden: bot was blocked",
+                                    "marked_at": 1760000001.0}}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    code, responses, _ = rpc({"id": 1, "method": "channels.list", "params": {}})
+    assert code == 0
+    result = responses[0]["result"]
+    assert result["data_root"] == str(home)
+    assert result["updated_at"] == "2026-10-03T00:00:00"
+    # 目录条目名已套别名覆盖(oc_2 显示手动别名),chat_id/type/last_seen 原样
+    entries = result["platforms"]["feishu"]
+    assert [e["chat_id"] for e in entries] == ["oc_1", "oc_2"]
+    assert entries[1]["name"] == "手动别名群"
+    assert entries[0]["last_seen"] == 1760000000.0
+    # 别名原始覆盖层 + 死信键快照
+    assert result["aliases"] == {"feishu": {"oc_2": "手动别名群"}}
+    assert result["dead"] == ["feishu:oc_2"]
+    # 规则视图:push 条目带 platform 映射与 targets 回显 + raw 最小无损写回 base
+    rule = next(r for r in result["rules"] if r["parse_ok"])
+    assert rule["category_id"] == "messaging-demo"
+    assert rule["entries"] == [
+        {"index": 0, "channel": "feishu_card", "platform": "feishu",
+         "targets": ["feishu:AI中转站合伙人群", "feishu:羊毛反馈群"],
+         "has_template": False, "route_count": 1,
+         "raw": {
+             "channel": "feishu_card",
+             "targets": ["feishu:AI中转站合伙人群", "feishu:羊毛反馈群"],
+             "route": [{"when": "category == 'freebie'", "mode": "immediate"}],
+         }},
+    ]
+    # raw 原样回传能过 push.write 同门(往返闭环:UI 拿 raw 改 targets 提交)
+    code, responses, _ = rpc(
+        {"id": 2, "method": "push.write",
+         "params": {"file": rule["file"], "push": [rule["entries"][0]["raw"]]}},
+    )
+    assert responses[0]["result"]["written"] is True
+
+
+def test_channels_list_empty_state_is_legal(tmp_path, monkeypatch):
+    """零平台零规则 = 合法空态(UI 给「先配平台凭据」指引,不报错)。"""
+    _messaging_home(tmp_path, monkeypatch, yaml_text=None)
+    code, responses, _ = rpc({"id": 1, "method": "channels.list", "params": {}})
+    assert code == 0
+    result = responses[0]["result"]
+    assert result["platforms"] == {}
+    assert result["aliases"] == {}
+    assert result["dead"] == []
+    assert result["rules"] == []
+
+
+def test_channels_refresh_unknown_platform_structured(tmp_path, monkeypatch):
+    """refresh 未知平台:unknown_platform + allowed 名单,旧目录不动。"""
+    home = _messaging_home(tmp_path, monkeypatch, yaml_text=None)
+    _write_directory(home, {"feishu": []})
+    code, responses, _ = rpc(
+        {"id": 1, "method": "channels.refresh", "params": {"platform": "slack"}},
+    )
+    assert code == 0
+    error = responses[0]["error"]
+    assert error["code"] == "unknown_platform"
+    assert "slack" in error["message"]
+    assert "feishu" in error["data"]["allowed"]
+    # 旧目录文件未被触碰
+    assert json.loads((home / "channel_directory.json").read_text("utf-8"))["platforms"] == {"feishu": []}
+
+
+def test_channels_refresh_discover_failure_keeps_old_bucket(tmp_path, monkeypatch):
+    """refresh 发现失败(凭据缺失族):结构化 channel_refresh_failed,旧桶不动。"""
+    from myia.push.base import PushSendError
+
+    home = _messaging_home(tmp_path, monkeypatch, yaml_text=None)
+    _write_directory(home, {"feishu": [
+        {"platform": "feishu", "chat_id": "oc_old", "name": "旧桶群", "type": "group",
+         "thread_id": None, "last_seen": None}]})
+
+    class _BrokenAdapter:
+        def discover_directory(self):
+            raise PushSendError("credential_not_found", "飞书 bot 凭据未配置")
+
+    monkeypatch.setattr("myia.push.PLATFORMS", {"feishu": _BrokenAdapter})
+    code, responses, _ = rpc(
+        {"id": 1, "method": "channels.refresh", "params": {"platform": "feishu"}},
+    )
+    error = responses[0]["error"]
+    assert error["code"] == "channel_refresh_failed"
+    assert error["data"]["code"] == "credential_not_found"
+    # 旧桶逐字节未动
+    assert json.loads((home / "channel_directory.json").read_text("utf-8"))["platforms"]["feishu"][0][
+        "chat_id"
+    ] == "oc_old"
+
+
+def test_channels_refresh_merges_and_persists(tmp_path, monkeypatch):
+    """refresh 正例:发现条目桶替换落盘,应答 merged=n + entries;updated_at 前移。"""
+    from myia.push.directory import ChannelEntry
+
+    home = _messaging_home(tmp_path, monkeypatch, yaml_text=None)
+
+    class _FakeAdapter:
+        async def discover_directory(self):
+            return [
+                ChannelEntry(platform="feishu", chat_id="oc_1", name="AI中转站合伙人群", type="group"),
+                ChannelEntry(platform="feishu", chat_id="oc_2", name="羊毛反馈群", type="group"),
+            ]
+
+    monkeypatch.setattr("myia.push.PLATFORMS", {"feishu": _FakeAdapter})
+    code, responses, _ = rpc(
+        {"id": 1, "method": "channels.refresh", "params": {"platform": "feishu"}},
+    )
+    assert code == 0
+    result = responses[0]["result"]
+    assert result["platform"] == "feishu"
+    assert result["merged"] == 2
+    assert [e["name"] for e in result["entries"]] == ["AI中转站合伙人群", "羊毛反馈群"]
+    # 落盘可复核:重开目录读到同一桶 + updated_at 已写(供 list 视图)
+    persisted = json.loads((home / "channel_directory.json").read_text("utf-8"))
+    assert len(persisted["platforms"]["feishu"]) == 2
+    assert persisted["updated_at"] is not None
+    code, responses, _ = rpc({"id": 2, "method": "channels.list", "params": {}})
+    assert responses[0]["result"]["updated_at"] == persisted["updated_at"]
+
+
+def test_channels_alias_set_delete_roundtrip(tmp_path, monkeypatch):
+    """alias 正例:set 落别名文件且立即生效;delete 摘除,未发现占位条目随之消失。"""
+    home = _messaging_home(tmp_path, monkeypatch, yaml_text=None)
+    _write_directory(home, {"feishu": [
+        {"platform": "feishu", "chat_id": "oc_1", "name": "原名", "type": "group",
+         "thread_id": None, "last_seen": None}]})
+
+    code, responses, _ = rpc(
+        {"id": 1, "method": "channels.alias",
+         "params": {"platform": "feishu", "chat_id": "oc_1", "name": "新别名"}},
+    )
+    assert code == 0
+    assert responses[0]["result"] == {
+        "platform": "feishu", "chat_id": "oc_1", "deleted": False, "name": "新别名",
+    }
+    # 别名文件持久形态 + list 视图条目名已覆盖
+    assert json.loads((home / "channel_aliases.json").read_text("utf-8")) == {
+        "feishu": {"oc_1": "新别名"}}
+    code, responses, _ = rpc({"id": 2, "method": "channels.list", "params": {}})
+    assert responses[0]["result"]["platforms"]["feishu"][0]["name"] == "新别名"
+
+    # delete:name=null 摘除别名;目录回退发现名
+    code, responses, _ = rpc(
+        {"id": 3, "method": "channels.alias",
+         "params": {"platform": "feishu", "chat_id": "oc_1", "name": None}},
+    )
+    assert responses[0]["result"]["deleted"] is True
+    assert json.loads((home / "channel_aliases.json").read_text("utf-8")) == {}
+    code, responses, _ = rpc({"id": 4, "method": "channels.list", "params": {}})
+    assert responses[0]["result"]["platforms"]["feishu"][0]["name"] == "原名"
+
+    # set 未知 chat_id = 合法占位别名(新群可先命名后首聊,directory 语义)
+    code, responses, _ = rpc(
+        {"id": 5, "method": "channels.alias",
+         "params": {"platform": "feishu", "chat_id": "oc_new", "name": "占位群"}},
+    )
+    assert responses[0]["result"]["name"] == "占位群"
+    code, responses, _ = rpc({"id": 6, "method": "channels.list", "params": {}})
+    assert {e["chat_id"] for e in responses[0]["result"]["platforms"]["feishu"]} == {
+        "oc_1", "oc_new"}
+
+
+def test_channels_alias_param_validation(tmp_path, monkeypatch):
+    """alias 参数形状:缺 platform/chat_id、name 类型错 → invalid_params 定位。"""
+    _messaging_home(tmp_path, monkeypatch, yaml_text=None)
+    code, responses, _ = rpc(
+        {"id": 1, "method": "channels.alias", "params": {"chat_id": "oc_1", "name": "x"}},
+    )
+    assert responses[0]["error"]["code"] == "invalid_params"
+    assert responses[0]["error"]["path"] == "params.platform"
+    code, responses, _ = rpc(
+        {"id": 2, "method": "channels.alias",
+         "params": {"platform": "feishu", "chat_id": "oc_1", "name": 42}},
+    )
+    assert responses[0]["error"]["code"] == "invalid_params"
+    assert responses[0]["error"]["path"] == "params.name"
+
+
+def test_push_write_full_replacement_roundtrip(tmp_path, monkeypatch):
+    """push.write 正例:targets 全量替换落盘;注释/其他节逐字节保留;.bak 留底。"""
+    from myia.schema import load_category_file
+
+    home = _messaging_home(tmp_path, monkeypatch)
+    yaml_path = home / "plugins" / "messaging-demo.yaml"
+    before = yaml_path.read_text(encoding="utf-8")
+
+    new_push = [
+        {
+            "channel": "feishu_card",
+            "targets": ["feishu:AI中转站合伙人群"],
+            "route": [{"when": "category == 'freebie'", "mode": "immediate"}],
+        },
+        {"channel": "stdout"},
+    ]
+    code, responses, _ = rpc(
+        {"id": 1, "method": "push.write",
+         "params": {"file": str(yaml_path), "push": new_push}},
+    )
+    assert code == 0
+    result = responses[0]["result"]
+    assert result["written"] is True
+    assert result["changed"] is True
+    # myia run 同门:写回文件可装载,push 逐条对上
+    config = load_category_file(yaml_path)
+    assert [push.channel for push in config.push] == ["feishu_card", "stdout"]
+    assert config.push[0].targets == ["feishu:AI中转站合伙人群"]
+    # push 之外逐字节不动(sources/classify/头部原文仍在;push 块本身被重写)
+    after = yaml_path.read_text(encoding="utf-8")
+    assert "title: \"$.data[*].title\"" in after
+    assert "builtin: false" in after
+    assert after[: after.index("push:")] == before[: before.index("push:")]
+    # .bak 留底 = 手术前原文
+    assert (home / "plugins" / "messaging-demo.yaml.bak").read_text(encoding="utf-8") == before
+
+
+def test_push_write_bad_targets_rejected_zero_write(tmp_path, monkeypatch):
+    """push.write 拒写:坏 targets(跨平台前缀)→ category_invalid 且文件未变。"""
+    from myia.schema import load_category_file  # noqa: F401 — 门禁语义锚点
+
+    home = _messaging_home(tmp_path, monkeypatch)
+    yaml_path = home / "plugins" / "messaging-demo.yaml"
+    before = yaml_path.read_text(encoding="utf-8")
+
+    bad_push = [
+        {"channel": "feishu_card", "targets": ["telegram:别的平台群"]},
+    ]
+    code, responses, _ = rpc(
+        {"id": 1, "method": "push.write",
+         "params": {"file": str(yaml_path), "push": bad_push}},
+    )
+    assert code == 0  # 业务错误在应答对象里,协议流不断
+    error = responses[0]["error"]
+    assert error["code"] == "category_invalid"
+    assert error["path"] == "params.push"
+    details = error["data"]["errors"]
+    assert details and details[0]["code"] == "platform_mismatch"
+    # 拒写 = 零写入:文件与 .bak 均未变
+    assert yaml_path.read_text(encoding="utf-8") == before
+    assert not (home / "plugins" / "messaging-demo.yaml.bak").exists()
+
+
+def test_push_write_empty_array_removes_section(tmp_path, monkeypatch):
+    """push.write 空数组 = 摘除 push 节(品类允许无 push);再写回可复原。"""
+    from myia.schema import load_category_file
+
+    home = _messaging_home(tmp_path, monkeypatch)
+    yaml_path = home / "plugins" / "messaging-demo.yaml"
+
+    code, responses, _ = rpc(
+        {"id": 1, "method": "push.write",
+         "params": {"file": str(yaml_path), "push": []}},
+    )
+    assert responses[0]["result"]["changed"] is True
+    config = load_category_file(yaml_path)
+    assert config.push == []
+    text = yaml_path.read_text(encoding="utf-8")
+    assert "push:" not in text
+
+    # 无 push 节 + 空数组 = 无操作(changed=false,不落盘)
+    mtime_before = yaml_path.stat().st_mtime_ns
+    code, responses, _ = rpc(
+        {"id": 2, "method": "push.write",
+         "params": {"file": str(yaml_path), "push": []}},
+    )
+    assert responses[0]["result"] == {
+        "file": str(yaml_path), "written": True, "changed": False, "push": []}
+    assert yaml_path.stat().st_mtime_ns == mtime_before
+
+    # 无 push 节 + 非空数组 = EOF 追加(push 节重建,可装载)
+    code, responses, _ = rpc(
+        {"id": 3, "method": "push.write",
+         "params": {"file": str(yaml_path),
+                    "push": [{"channel": "stdout"}]}},
+    )
+    assert responses[0]["result"]["changed"] is True
+    assert [push.channel for push in load_category_file(yaml_path).push] == ["stdout"]
+
+
+def test_push_write_fence_and_param_refusals(tmp_path, monkeypatch):
+    """push.write 围栏与参数:越出 plugins 目录 / 缺 push 数组 / 文件不存在。"""
+    home = _messaging_home(tmp_path, monkeypatch)
+    yaml_path = home / "plugins" / "messaging-demo.yaml"
+
+    code, responses, _ = rpc(
+        {"id": 1, "method": "push.write",
+         "params": {"file": "/tmp/elsewhere.yaml", "push": [{"channel": "stdout"}]}},
+    )
+    assert responses[0]["error"]["code"] == "path_outside_root"
+
+    code, responses, _ = rpc(
+        {"id": 2, "method": "push.write",
+         "params": {"file": str(yaml_path), "push": "not-a-list"}},
+    )
+    assert responses[0]["error"]["code"] == "invalid_params"
+    assert responses[0]["error"]["path"] == "params.push"
+
+    code, responses, _ = rpc(
+        {"id": 3, "method": "push.write",
+         "params": {"file": str(home / "plugins" / "nope.yaml"),
+                    "push": [{"channel": "stdout"}]}},
+    )
+    assert responses[0]["error"]["code"] == "file_not_found"
+
+
+def test_push_write_mid_file_block_and_template_roundtrip(tmp_path, monkeypatch):
+    """push 块夹在文件中部(plugin: 节在后)同样可换;多行模板 literal 往返保真。"""
+    from myia.schema import load_category_file
+
+    home = _messaging_home(
+        tmp_path,
+        monkeypatch,
+        yaml_text=(
+            'id: messaging-mid\n'
+            'name: 中部夹具\n'
+            'schedule: "0 9 * * *"\n'
+            'sources:\n'
+            '  - name: local-api\n'
+            '    engine: direct_api\n'
+            '    url: "http://127.0.0.1:9/list"\n'
+            '    rate_limit:\n'
+            '      qps: 1000.0\n'
+            '      respect_robots: false\n'
+            '    retry: 0\n'
+            '    extract:\n'
+            '      type: json_path\n'
+            '      fields:\n'
+            '        title: "$.a"\n'
+            '        url: "$.b"\n'
+            '# 头部注释:push 之前的内容逐字节不动\n'
+            'push:\n'
+            '  - channel: stdout\n'
+            'plugin:\n'
+            '  id: myia-mid\n'
+            '  modes:\n'
+            '    local:\n'
+            '      compose: docker-compose.yml\n'
+        ),
+    )
+    yaml_path = home / "plugins" / "messaging-demo.yaml"
+    template = "**速报 · {{ date }}**\n{% for item in items %}\n- {{ item.title }}\n{% endfor %}\n"
+    new_push = [
+        {
+            "channel": "feishu_card",
+            "targets": ["feishu:中部群"],
+            "template": template,
+        }
+    ]
+    code, responses, _ = rpc(
+        {"id": 1, "method": "push.write",
+         "params": {"file": str(yaml_path), "push": new_push}},
+    )
+    assert code == 0
+    assert responses[0]["result"]["changed"] is True
+    config = load_category_file(yaml_path)
+    assert config.push[0].template == template  # 多行模板逐字节往返
+    assert config.plugin is not None and config.plugin.id == "myia-mid"  # 后节未动
+    text = yaml_path.read_text(encoding="utf-8")
+    assert "# 头部注释:push 之前的内容逐字节不动" in text
+    assert text.index("plugin:") > text.index("push:")  # push 仍在 plugin 之前

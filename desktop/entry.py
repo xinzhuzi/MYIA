@@ -45,7 +45,8 @@ logs.tail         (sidecar 内环形缓冲)            最近日志行(可按 ru
 store.items       (SQLiteStore.list_items 直读)  情报流条目(新→旧)
 secret.set        ``myia secret set``            只入系统钥匙链,值零回显
 secret.list       ``myia secret list``           只有名字,值不可读
-sources.write     (品类 YAML 源启停写回)          disable 摘出/enable 移回;
+sources.write     (品类 YAML 源启停写回)          disable 摘出/enable 移回
+                                                 (文本手术,注释逐字节保真);
                                                  落盘前过 load_category 同门
 yaml.list         (plugins 目录扫描)              品类 YAML 清单(坏文件带
                                                  error 入列,可读可修)
@@ -68,6 +69,20 @@ image.status       (sidecar 内注册表)              busy/job_id(UI 重连对�
                                                  (订阅前被丢的 completed 对账)
 image.config.read  (vision.yaml 直读)              脱敏配置(keychain 引用不回明文)
 image.config.save  (同门校验→原子写)               失败零写入(image_config_invalid)
+channels.list      (消息屏目录四视图)              目录(platforms)+别名(aliases)
+                                                 +死信(dead)+推送规则(rules);
+                                                 零平台=合法空态
+channels.refresh   (单平台目录发现→合并)           调该平台 ``discover_directory``
+                                                 →桶替换+落盘;失败结构化上抛,
+                                                 旧目录不动(unknown_platform /
+                                                 discover_not_supported /
+                                                 channel_refresh_failed)
+channels.alias     (别名 set/delete)               name 非空=set,null/空=delete;
+                                                 写别名文件(原子)+落盘复核
+push.write         (push[] 全量替换写回)           围栏→push 块文本手术(注释
+                                                 保真)→反解析深等门→load_category
+                                                 同门(含同平台约束)→.bak→原子
+                                                 写;校验失败零写入
 ================= ============================== ============================
 
 - ``run.start`` params:``yaml``(必填)、``dry``(bool,缺省 false)、``db``、
@@ -132,6 +147,7 @@ import binascii
 import contextlib
 import hashlib
 import httpx
+import inspect
 import io
 import json
 import os
@@ -149,10 +165,13 @@ from typing import Any, Callable, Mapping, NamedTuple
 
 import myia
 import yaml
+from myia import push as myia_push
 from myia.cli import DEFAULT_DB_PATH, DEFAULT_PLUGINS_DIR, main as cli_main
 from myia.plugins.installed import INSTALL_ROOT_ENV, default_install_root
+from myia.push import ChannelDirectory, DeliveryLedger, PushSendError
 from myia.schema import (
     CATEGORY_ID_RE,
+    CHANNEL_PLATFORMS,
     CategoryConfig,
     CredentialResolveError,
     LoadError,
@@ -660,8 +679,9 @@ def _atomic_write_text(path: Path, text: str) -> None:
 
     ``newline=""`` 关闭换行翻译:yaml.save 写回的用户原文逐字节保真
     (CRLF 不被翻译成 ``os.linesep``,Windows 上尤其;task 10-03-yaml-editor
-    design §2 写侧保真)。sources.write 走同一路径,其内容是生成的纯 ``\\n``
-    文本,加 ``newline=""`` 无副作用 —— 统一一条写入路径,不留两套语义。
+    design §2 写侧保真)。sources.write 的文本手术(10-03-yaml-toggle-comments)
+    走同一路径,其内容是手术后的用户原文逐行拼接 —— ``newline=""`` 从「无
+    副作用」升级为「字节保真的半条命」,统一一条写入路径,不留两套语义。
     """
     tmp = path.with_name(path.name + ".tmp")
     with open(tmp, "w", encoding="utf-8", newline="") as handle:
@@ -669,16 +689,303 @@ def _atomic_write_text(path: Path, text: str) -> None:
     os.replace(tmp, path)
 
 
+# ---------------------------------------------------------------------------
+# sources.write 文本手术(10-03-yaml-toggle-comments 根治)
+# ---------------------------------------------------------------------------
+# 设计:写回不再 ``yaml.safe_dump`` 整份重写(那会抹掉全文件注释),而是在
+# 原文上按行搬运 ``sources:`` 条目 —— 移出的条目连同其前导空行与上方锚点
+# 注释整段摘除(逐字节存进暂存),移回时原样插回。其余行(节间注释、行内
+# 注释、引号与顺序风格、parked 注释占位)一律不动。手术不支持的形态(锚点/
+# 别名引用、流式 sources、条目行无法与解析结果对齐)一律结构化拒写,绝不
+# 静默回退 safe_dump 抹注释。
+
+#: 暂存条目的保留键:值 = ``{"raw_block": 逐字节原文, "pred": 前一条目名|None}``。
+#: 源条目自身字段原样平铺在外层(既有断言直读 ``stash[i]["name"]/["url"]``),
+#: 保留键单独嵌套且命名空间化,避开 ``SourceConfig`` extra=allow 的用户扩展
+#: 字段;真撞名时在落暂存前结构化拒写,不做静默覆盖。
+_TOGGLE_META_KEY = "_myia_toggle"
+
+#: 整行注释行(缩进任意);锚点注释归属判定用。
+_TOGGLE_LINE_COMMENT_RE = re.compile(r"^\s*#")
+
+#: 条目短横线行:空格缩进 + ``- ``(裸 ``-`` 行也认);tab 缩进的 YAML 本就不合法。
+_TOGGLE_ENTRY_DASH_RE = re.compile(r"^( +)-(?: +|$)")
+
+#: 旧版暂存条目(无位置元数据)的移入定位哨兵:追加到 sources 块尾。
+_TOGGLE_APPEND_AT_END = object()
+
+
+def _split_keep_lines(text: str) -> list[str]:
+    """按 ``\n`` 切行且逐字节无损:``"".join(result)`` 还原原文。
+
+    行尾 ``\r`` 留在行内(CRLF 文件的每行仍是 ``…\r\n``,搬运时整行原样
+    走);EOF 无结尾换行的末行原样保留(不加换行)。
+    """
+    parts = text.split("\n")
+    lines = [part + "\n" for part in parts[:-1]]
+    if parts[-1] != "":
+        lines.append(parts[-1])
+    return lines
+
+
+def _toggle_sources_header(lines: list[str]) -> tuple[int, int]:
+    """定位顶层空值 ``sources:`` 键行与块尾,返回 (键行下标, 块尾下标)(排他)。
+
+    块尾 = 键行之后第一个「列 0 的非注释非空行」(下一个顶层节点)或 EOF;
+    列 0 注释不结束块(parked 注释占位可以贴着下一节)。找不到键行(流式
+    ``sources: []``、键带锚点等)= 手术不支持的形态。
+    """
+    raise_unsupported = lambda why: ProtocolError(  # noqa: E731 — 单点小闭包
+        "source_write_unsupported",
+        f"品类 YAML 存在文本手术不支持的结构({why});拒绝写回,原文零改动",
+        path="params.file",
+    )
+    src_idx = None
+    for i, line in enumerate(lines):
+        body = line.rstrip("\r\n")
+        if re.match(r"sources:\s*(#.*)?$", body):
+            src_idx = i
+            break
+    if src_idx is None:
+        raise raise_unsupported("找不到顶层空值 sources: 键行,疑为流式/内嵌形态")
+    end = len(lines)
+    for i in range(src_idx + 1, len(lines)):
+        body = lines[i].rstrip("\r\n")
+        if body and not body[0].isspace() and not body.startswith("#"):
+            end = i
+            break
+    return src_idx, end
+
+
+def _toggle_entry_dashes(lines: list[str], src_idx: int, block_end: int) -> tuple[list[int], int]:
+    """块内条目短横线行(与首个条目同缩进;更深缩进 = 条目内嵌列表,不算)。
+
+    返回 (短横线行下标列表, 条目缩进)。块序列的兄弟条目必须同缩进,更深
+    的短横线只会是条目内部的嵌套序列(如 ``headers`` 下的列表值),不参与
+    条目计数 —— 条目数与解析结果对不齐由调用方拒写。
+    """
+    dashes: list[int] = []
+    indent: int | None = None
+    for i in range(src_idx + 1, block_end):
+        matched = _TOGGLE_ENTRY_DASH_RE.match(lines[i])
+        if matched is None:
+            continue
+        if indent is None:
+            indent = len(matched.group(1))
+        if len(matched.group(1)) == indent:
+            dashes.append(i)
+    return dashes, (indent if indent is not None else 2)
+
+
+def _toggle_chunk_spans(
+    lines: list[str], src_idx: int, block_end: int, dashes: list[int]
+) -> list[tuple[int, int]]:
+    """每个条目的搬运区间 ``[前导空行起, 正文止)``(排他下标,与条目同序)。
+
+    区间 = 前导空行 + 锚点注释 + 正文:锚点注释 = 紧贴条目首行上方的连续
+    整行注释(上一条目正文或 ``sources:`` 行截断);前导空行 = 锚点上方的
+    连续空行 —— 条目间分隔空行归属**后一条目**,这样「插回前驱区间之后」
+    恰好逐字节还原原文布局;正文 = 自短横线行起连续的非空行,条目尾部的
+    说明注释(如 wool.yaml 的 ``# No pagination…``)直接续在正文后,同属
+    条目。条目尾随空行不归属(它要么是下一条目的前导,要么是块尾留白)。
+    """
+    anchors: list[int] = []
+    for dash in dashes:
+        j = dash - 1
+        while j > src_idx and _TOGGLE_LINE_COMMENT_RE.match(lines[j]):
+            j -= 1
+        while j > src_idx and _toggle_is_blank(lines[j]):
+            j -= 1
+        anchors.append(j + 1)
+    spans: list[tuple[int, int]] = []
+    for k, dash in enumerate(dashes):
+        limit = anchors[k + 1] if k + 1 < len(dashes) else block_end
+        stop = dash
+        while stop < limit and not _toggle_is_blank(lines[stop]):
+            stop += 1
+        spans.append((anchors[k], stop))
+    return spans
+
+
+def _toggle_is_blank(line: str) -> bool:
+    """空白行(仅空白/仅换行);空行是条目分隔,不随任何条目搬运。"""
+    return line.strip("\r\n").strip() == ""
+
+
+def _toggle_alias_nodes(text: str) -> bool:
+    """文档是否存在被引用两次的节点(YAML 别名/合并键 ``<<``)。
+
+    用合成树的对象同一性判别:别名 = 同一节点对象出现两次。只定义未引用
+    的锚点不拦(定义行随条目搬运仍自洽);有引用必拒 —— 行级搬运可能把
+    定义挪到引用之后(前向引用直接拒载),不做这种隐晦破坏。
+    """
+    try:
+        root = yaml.compose(text, Loader=yaml.SafeLoader)
+    except yaml.YAMLError:
+        return False  # 语法错走上游 category_invalid,不在这里报
+    seen: set[int] = set()
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if node is None or not isinstance(node, yaml.SequenceNode | yaml.MappingNode | yaml.ScalarNode):
+            continue
+        if id(node) in seen:
+            return True
+        seen.add(id(node))
+        if isinstance(node, yaml.MappingNode):
+            stack.extend(key for key, _ in node.value)
+            stack.extend(value for _, value in node.value)
+        elif isinstance(node, yaml.SequenceNode):
+            stack.extend(node.value)
+    return False
+
+
+def _toggle_fallback_block(source: dict[str, Any], indent: int) -> str:
+    """旧版暂存条目(无 ``raw_block`` 元数据)移入时的兜底:由 dict 重序列化。
+
+    数据无损、注释不还原(旧暂存本就没存原文);只服务 sidecar 升级窗口,
+    常规路径一律走 ``raw_block`` 逐字节还原。
+    """
+    dumped = yaml.safe_dump(source, allow_unicode=True, sort_keys=False, default_flow_style=False)
+    body = dumped.splitlines()
+    if not body:
+        raise ProtocolError(
+            "source_write_unsupported", "暂存条目为空,无法重构源块", path="params.file"
+        )
+    pad = " " * indent
+    return "".join([f"{pad}- {body[0]}\n"] + [f"{pad}  {line}\n" for line in body[1:]])
+
+
+def _sources_surgical_rewrite(
+    original: str,
+    source_names: list[str],
+    disable: list[str],
+    enable_back: list[dict[str, Any]],
+) -> tuple[str, dict[str, dict[str, Any]]]:
+    """在品类 YAML 原文上按行搬运 ``sources:`` 条目,返回 (新文本, 搬运元数据)。
+
+    Args:
+        original: 文件原始字节文本(经 ``newline=""`` 读入,CRLF 原样)。
+        source_names: 解析态 ``sources`` 名单(与文本条目行按序一一对齐,
+            对不齐 = 手术不支持的形态,拒写)。
+        disable: 本次移出的源名(都已过未知/末源校验)。
+        enable_back: 本次移回的暂存条目(带 ``_myia_toggle`` 元数据;旧暂存
+            无元数据走重序列化兜底),按移入顺序排列。
+
+    Returns:
+        (手术后全文, ``{源名: {"raw_block", "pred", "gap_before"}}``)——
+        元数据供调用方塞进 ``.disabled.json`` 条目,供后续 enable 逐字节
+        还原。
+
+    移入定位:优先插回原位(暂存记录的 ``pred`` 前驱仍在文本中 → 插在其
+    区间之后;``gap_before`` 记录的「前驱区间与被移条目原位之间的无主注释
+    块」仍原样紧贴前驱区间 → 插在该块之后 —— 两活条目间空行分隔的 parked
+    占位因此不被跳过;块首前驱为空 → 插在 ``sources:`` 行之后),前驱不在
+    (也被停用)→ 追加到块尾;旧版暂存条目无位置元数据,一律追加块尾。
+    gap 失配(停用后文件又被外部改过)→ 退回前驱区间之后(有 ``.bak`` 与
+    两道门兜底,不做更激进的猜测)。每次移入后重扫文本,先前移回的条目可作
+    后续条目的前驱,多次移回仍还原原始相对顺序。
+    移回名已在文本中(崩溃窗口下主文件与暂存双份残留)→ 跳过移入、以文件
+    为准,本次只完成暂存侧清理 —— 残留自愈不制造同名双条目。
+    """
+    lines = _split_keep_lines(original)
+    src_idx, block_end = _toggle_sources_header(lines)
+    dashes, entry_indent = _toggle_entry_dashes(lines, src_idx, block_end)
+    if len(dashes) != len(source_names):
+        raise ProtocolError(
+            "source_write_unsupported",
+            f"sources 条目行({len(dashes)} 个)与解析结果({len(source_names)} 个)"
+            "无法对齐,疑为注释掉的条目/异常缩进之外的结构;拒绝写回,原文零改动",
+            path="params.file",
+        )
+    spans = _toggle_chunk_spans(lines, src_idx, block_end, dashes)
+    index_of = {name: k for k, name in enumerate(source_names)}
+
+    # -- 移出:整段摘除,逐字节记入元数据(条目自身 + 上方锚点注释随行)
+    moved: dict[str, dict[str, Any]] = {}
+    for name in disable:
+        k = index_of[name]
+        start, stop = spans[k]
+        prev_stop = spans[k - 1][1] if k > 0 else src_idx + 1
+        moved[name] = {
+            "raw_block": "".join(lines[start:stop]),
+            "pred": source_names[k - 1] if k > 0 else None,
+            # 前驱区间与被移条目区间之间的行(整行注释/空行,不归属任何
+            # 条目):不记下它,enable 插回「前驱区间之后」就会跳过它 ——
+            # 夹在两活条目间的 parked 占位被搬位、多段锚点注释被撕裂。
+            "gap_before": "".join(lines[prev_stop:start]),
+        }
+    for k in sorted((index_of[name] for name in disable), reverse=True):
+        start, stop = spans[k]
+        del lines[start:stop]
+
+    # -- 移入:在当前文本上逐条定位插回(每次重扫,先前移回的可作前驱)
+    text_names = [name for name in source_names if name not in set(disable)]
+    for entry in enable_back:
+        name = entry["name"]
+        if name in text_names:
+            continue  # 双份残留自愈:文件已有同名源,以文件为准,只清暂存侧
+        meta = entry.get(_TOGGLE_META_KEY) or {}
+        raw = meta.get("raw_block")
+        if isinstance(raw, str) and raw:
+            pred: Any = meta.get("pred")  # None = 原位就是块首
+        else:
+            # 旧版暂存无位置元数据:追加块尾(区别于「元数据说自己在块首」)
+            raw = _toggle_fallback_block(entry, entry_indent)
+            pred = _TOGGLE_APPEND_AT_END
+        src_idx, block_end = _toggle_sources_header(lines)
+        dashes, _ = _toggle_entry_dashes(lines, src_idx, block_end)
+        if len(dashes) != len(text_names):
+            raise ProtocolError(
+                "source_write_unsupported",
+                f"移入 {name} 时条目行与名单对不齐;拒绝写回,原文零改动",
+                path="params.file",
+            )
+        spans = _toggle_chunk_spans(lines, src_idx, block_end, dashes)
+        if pred is _TOGGLE_APPEND_AT_END:
+            at = spans[-1][1] if spans else src_idx + 1
+            pos = len(text_names)
+        elif pred is None:
+            at, pos = src_idx + 1, 0  # 原位就是块首
+        elif pred in text_names:
+            q = text_names.index(pred)
+            at, pos = spans[q][1], q + 1  # 兜底锚:前驱区间之后
+            gap = meta.get("gap_before")  # 前驱与原位之间的无主注释块(逐字节)
+            if isinstance(gap, str) and gap:
+                gap_lines = _split_keep_lines(gap)
+                seam = spans[q][1] + len(gap_lines)
+                if lines[spans[q][1] : seam] == gap_lines:
+                    at = seam  # 块仍原样紧贴前驱区间:插在其后 = 恰好原位
+        else:
+            at = spans[-1][1] if spans else src_idx + 1  # 前驱不在文本,追加块尾
+            pos = len(text_names)
+        inserted = _split_keep_lines(raw)
+        if at < len(lines) and not inserted[-1].endswith("\n"):
+            inserted[-1] += "\n"  # 块来自 EOF 无换行形态,插进中部时补行尾
+        if at == len(lines) and lines and not lines[-1].endswith("\n"):
+            lines[-1] += "\n"  # 接在无结尾换行的末行之后:先给前行补换行
+        lines[at:at] = inserted
+        text_names.insert(pos, name)
+    return "".join(lines), moved
+
+
 def _m_sources_write(params: dict[str, Any]) -> dict[str, Any]:
     """源启停写回品类 YAML(协议扩展 `sources.write` 收编,PRD 往返一致)。
 
     契约(ui-src/screens/sources/api.ts 模块头):``disable`` 把源从
     ``sources:`` 摘出(lossless 暂存到同目录 ``<yaml>.disabled.json``),
-    ``enable`` 移回;写回用裸 YAML dict 搬运 —— ``plugin:``/``baseline:``/
-    ``aggregate:`` 等 sidecar 节原样保留(pydantic 模型 dump 会丢 PrivateAttr)。
-    落盘前过 myia 自家装载器(:func:`load_category`,与 ``myia run`` 同一道
-    门)校验,失败即原样零写入 —— 「被 myia run 识别」由装载器同门保证。
-    拒绝停用最后一个启用源(schema ``sources`` min_length=1,停满即拒载)。
+    ``enable`` 移回。写回是**文本手术**(10-03-yaml-toggle-comments 根治,
+    取代旧 ``yaml.safe_dump`` 整份重写):在原文上按行搬运 ``sources:``
+    条目,被搬条目自身及其上方锚点注释随行,其余行逐字节不动 —— 注释/
+    顺序/引号风格天然保真,``plugin:`` 等 sidecar 节更是碰都不碰。手术不
+    支持的形态(锚点/别名引用、流式 ``sources``、条目行与解析结果对不齐)
+    = 结构化 ``source_write_unsupported`` 拒写,绝不静默回退 ``safe_dump``
+    抹注释。移出条目的逐字节原文随暂存条目(``_myia_toggle.raw_block``)进
+    ``.disabled.json``,enable 时插回原位(前驱在 → 前驱之后;否则块首/
+    块尾),停用→启用往返逐字节一致。落盘前两道门:手术结果反解析与预期
+    文档深等(防线内错搬),再过 myia 自家装载器(:func:`load_category`,
+    与 ``myia run`` 同一道门)—— 失败即原样零写入。拒绝停用最后一个启用源
+    (schema ``sources`` min_length=1,停满即拒载)。
     """
     yaml_raw = params.get("file")
     if not isinstance(yaml_raw, str) or not yaml_raw:
@@ -699,7 +1006,11 @@ def _m_sources_write(params: dict[str, Any]) -> dict[str, Any]:
 
     yaml_path = Path(yaml_raw)
     try:
-        original = yaml_path.read_text(encoding="utf-8")
+        # newline="" 原样读(CRLF 不翻译):文本手术逐字节搬运的前提 ——
+        # 读进什么搬什么,落盘(:func:`_atomic_write_text`,同样 newline="")
+        # 才能逐字节保真,官方 YAML 往返 diff 为空。
+        with open(yaml_path, encoding="utf-8", newline="") as handle:
+            original = handle.read()
     except OSError as exc:
         raise ProtocolError(
             "source_file_unreadable", f"品类 YAML 不可读: {yaml_path} ({exc})", path="params.file"
@@ -737,27 +1048,65 @@ def _m_sources_write(params: dict[str, Any]) -> dict[str, Any]:
             path="params.disable",
         )
 
-    # dict 保序 + 同名后到覆盖:搬运天然去重(崩溃窗口下的双份残留自愈)。
-    keep_enabled = {
-        name: source for name, source in zip(enabled_names, sources)
-        if name not in set(disable)
-    }
-    back_enabled = {
-        name: source for name, source in zip(disabled_names, stash) if name in set(enable)
-    }
+    # 暂存侧名单(dict 保序 + 同名后到覆盖:崩溃窗口下的双份残留自愈);
+    # 移回条目保留原始形态(含 _myia_toggle 元数据)给文本手术取原文,
+    # 应答/装载名单由手术后文本的反解析给出(见门一)。
     rest_stash = {
         name: source for name, source in zip(disabled_names, stash) if name not in set(enable)
     }
     out_stash = {
         name: source for name, source in zip(enabled_names, sources) if name in set(disable)
     }
-    # 保留源维持原序在前,重新启用的源按移入顺序追加在后(dict 保序,同名
-    # 后到覆盖天然去重 —— 崩溃窗口下的双份残留自愈)。
-    new_sources = list({**keep_enabled, **back_enabled}.values())
     new_stash = list({**rest_stash, **out_stash}.values())
-    doc["sources"] = new_sources
+    back_raw = [source for name, source in zip(disabled_names, stash) if name in set(enable)]
 
-    try:  # 往返一致门:与 myia run 同一装载器,失败零写入
+    # -- 文本手术:原文按行搬运 sources 条目,失败/不支持都零写入 ----------
+    # (多文档 ``---`` 文件在上方 safe_load 就抛 ComposerError → 既有
+    #   category_invalid 拒载,零写入 —— 无需手术侧重复设卡。)
+    if _toggle_alias_nodes(original):
+        raise ProtocolError(
+            "source_write_unsupported",
+            f"品类 YAML 存在锚点/别名引用,文本手术不做行级搬运(零写入): {yaml_path}",
+            path="params.file",
+        )
+    new_text, moved = _sources_surgical_rewrite(original, enabled_names, disable, back_raw)
+    for name, meta in moved.items():
+        out = out_stash[name]
+        if _TOGGLE_META_KEY in out:
+            raise ProtocolError(
+                "source_write_unsupported",
+                f"源 {name} 已含手术保留键 {_TOGGLE_META_KEY},拒绝静默覆盖: {yaml_path}",
+                path="params.file",
+            )
+        out[_TOGGLE_META_KEY] = meta
+    # 门一:手术后的文本反解析必须与「原文档 + 反解析源名单」深等 —— sources
+    # 名单与顺序以手术后文本为准(移回源按前驱插回原位,应答 enabled 顺序 =
+    # 文件实际顺序;api.ts 契约只钉名字集合往返,顺序不钉),其余任何键被手术
+    # 波及都会在这里现形(零写入)。
+    try:
+        reread = yaml.safe_load(new_text)
+    except yaml.YAMLError as exc:  # 手术产物连 YAML 都不是(如悬空别名)= 拒写
+        raise ProtocolError(
+            "source_write_unsupported",
+            f"文本手术结果不再是合法 YAML(零写入): {yaml_path} ({exc})",
+            path="params.file",
+        ) from exc
+    if not isinstance(reread, dict) or not isinstance(reread.get("sources"), list):
+        raise ProtocolError(
+            "source_write_unsupported",
+            f"文本手术结果不是品类文档(零写入): {yaml_path}",
+            path="params.file",
+        )
+    doc["sources"] = reread["sources"]
+    new_sources = reread["sources"]
+    if reread != doc:
+        raise ProtocolError(
+            "source_write_unsupported",
+            f"文本手术波及了 sources 之外的内容(疑为未支持结构的漏网形态,零写入): {yaml_path}",
+            path="params.file",
+        )
+
+    try:  # 门二:往返一致门,与 myia run 同一装载器,失败零写入
         load_category(doc, source=str(yaml_path))
     except LoadError as exc:
         details = [
@@ -771,12 +1120,11 @@ def _m_sources_write(params: dict[str, Any]) -> dict[str, Any]:
             data={"errors": details},
         ) from exc
 
-    new_text = yaml.safe_dump(doc, allow_unicode=True, sort_keys=False)
     stash_file = _stash_path(yaml_path)
     try:
-        # 止血(task 10-03-yaml-editor 决议 2):下面的 safe_dump 重写会抹掉
-        # 全部注释,覆盖前先把原文留底 <yaml>.bak(单份滚动);注释保真的根治
-        # (文本手术)在 10-03-yaml-toggle-comments,此处只兜底不动主逻辑。
+        # 覆盖前先把原文留底 <yaml>.bak(单份滚动,10-03-yaml-editor 决议 2
+        # 的止血保留):手术已保注释,这里是第二道保险 —— 手术自身出 bug 时
+        # 用户仍有操作前原文可回滚。
         shutil.copy2(yaml_path, yaml_path.with_suffix(yaml_path.suffix + ".bak"))
         # 先暂存后主文件:中途崩溃的最坏情形是「源同时在两处」(无损、可自愈),
         # 反过来则可能只存在于被覆盖的主文件里。
@@ -1869,6 +2217,427 @@ def _m_image_config_save(params: dict[str, Any]) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# 方法:channels.list / channels.refresh / channels.alias / push.write
+# (消息屏协议,task 10-03-messaging-ui;契约钉死于任务档 design.md §D2,
+#  TS 侧 ui-src/screens/messaging/api.ts 注释互指;能力实现在 myia.push 包:
+#  directory=通道目录+别名覆盖、delivery=死信账本;push 校验门=myia.schema)
+# ---------------------------------------------------------------------------
+
+#: 单别名长度上限(防误贴长文本;发现名不受此限,只限手工别名)。
+ALIAS_MAX_LEN = 120
+
+
+def _messaging_root(ctx: ServeContext) -> Path:
+    """消息数据根 = db 父目录(pipeline 同款:目录/别名/死信三文件同根)。"""
+    return Path(ctx.db).expanduser().resolve().parent
+
+
+def _push_rules_view(ctx: ServeContext) -> list[dict[str, Any]]:
+    """品类 YAML 的 push 条目视图(消息屏下区规则面板数据源)。
+
+    每文件 ``{file, category_id, category_name, parse_ok, error, entries}``;
+    entries 每条 ``{index, channel, platform, targets, has_template,
+    route_count, raw}``。platform 取 :data:`myia.schema.CHANNEL_PLATFORMS`
+    (webhook/stdout 不支持目录寻址 → None,UI 不给这类条目出 targets
+    选择器)。**raw 是该条目的最小无损形态**(push.write 全量替换的写回
+    base:UI 改 targets 后整文件提交)—— None 字段与 webhook 专属的
+    timeout/retries 族不携带,保证 raw 原样回传能过 push.write 的
+    load_category 同门(schema 对非 webhook 通道显式配置传输字段即拒)。
+    坏文件 parse_ok=false + error 如实入列(与 yaml.list 同哲学:坏文件
+    可看见才能被修)。
+    """
+    rules: list[dict[str, Any]] = []
+    for path in _yaml_files(Path(ctx.plugins_dir)):
+        item: dict[str, Any] = {
+            "file": str(path),
+            "category_id": None,
+            "category_name": None,
+            "parse_ok": False,
+            "error": None,
+            "entries": [],
+        }
+        try:
+            config = load_category_file(path)
+        except LoadError as exc:
+            first = exc.errors[0]
+            item["error"] = {"path": first.path, "code": first.error_type, "message": first.message}
+            rules.append(item)
+            continue
+        item["parse_ok"] = True
+        item["category_id"] = config.id
+        item["category_name"] = config.name
+        item["entries"] = [
+            {
+                "index": index,
+                "channel": push.channel,
+                "platform": CHANNEL_PLATFORMS.get(push.channel),
+                "targets": list(push.targets),
+                "has_template": push.template is not None,
+                "route_count": len(push.route),
+                "raw": _push_raw_dict(push),
+            }
+            for index, push in enumerate(config.push)
+        ]
+        rules.append(item)
+    return rules
+
+
+def _push_raw_dict(push: Any) -> dict[str, Any]:
+    """PushConfig → 最小无损 dict(与 YAML 声明形态一致;push.write 可直收)。
+
+    只携带显式声明的字段:None 的 target/template、空 targets、空 route
+    都不出现 —— UI 原样回传时与「手写 YAML 的最小条目」等价,不引入
+    schema 会拒的显式默认值(如非 webhook 通道的 timeout)。
+    """
+    raw: dict[str, Any] = {"channel": push.channel}
+    if push.target is not None:
+        raw["target"] = push.target
+    if push.targets:
+        raw["targets"] = list(push.targets)
+    if push.template is not None:
+        raw["template"] = push.template
+    if push.route:
+        raw["route"] = [
+            {"when": rule.when, "mode": rule.mode, **({"targets": list(rule.targets)} if rule.targets else {})}
+            for rule in push.route
+        ]
+    return raw
+
+
+def _m_channels_list(params: dict[str, Any]) -> dict[str, Any]:
+    """通道目录四视图:目录(platforms)+ 别名(aliases)+ 死信(dead)+ 规则(rules)。
+
+    目录条目的 name 已套别名覆盖(:class:`ChannelDirectory` 加载期语义);
+    aliases 是手工可编的原始覆盖层(UI 据此区分「发现名/手工别名」);
+    dead 为死信键快照(``platform:chat_id``,UI 徽标用);rules 见
+    :func:`_push_rules_view`。零平台 = 合法空态(UI 给「先配平台凭据」指引)。
+    """
+    ctx = _serve_context()
+    root = _messaging_root(ctx)
+    directory = ChannelDirectory(root)
+    ledger = DeliveryLedger(root)
+    platforms_view: dict[str, list[dict[str, Any]]] = {
+        platform: [entry.to_dict() for entry in directory.entries(platform)]
+        for platform in directory.platforms()
+    }
+    return {
+        "data_root": str(root),
+        "updated_at": directory.updated_at,
+        "platforms": platforms_view,
+        "aliases": directory.aliases_snapshot(),
+        "dead": ledger.dead_keys(),
+        "rules": _push_rules_view(ctx),
+    }
+
+
+def _m_channels_refresh(params: dict[str, Any]) -> dict[str, Any]:
+    """单平台目录发现 → 桶替换 + 持久化;失败结构化上抛,旧桶不动。
+
+    与 pipeline 懒刷(:func:`myia.pipeline` run 前节流刷新)同一发现
+    通道类、同一合并语义;差别只在错误处理 —— 推送路径吞错继续,UI 路径
+    必须把凭据缺失/网络失败如实带回给用户。发现凭据 = 通道类缺省 env
+    引用(``env:FEISHU_BOT_TOKEN`` 族;push 条目无 token 字段,run 时同源)。
+    telegram 无目录发现 API(被动积累)→ ``discover_not_supported``。
+    """
+    platform_raw = params.get("platform")
+    if not isinstance(platform_raw, str) or not platform_raw.strip():
+        raise ProtocolError(
+            "invalid_params", "缺少平台名 platform(如 feishu)", path="params.platform"
+        )
+    platform = platform_raw.strip()
+    platform_cls = myia_push.PLATFORMS.get(platform)
+    if platform_cls is None:
+        raise ProtocolError(
+            "unknown_platform",
+            f"未知平台 {platform!r}(已注册: {sorted(myia_push.PLATFORMS)})",
+            path="params.platform",
+            data={"allowed": sorted(myia_push.PLATFORMS)},
+        )
+    if not callable(getattr(platform_cls, "discover_directory", None)):
+        raise ProtocolError(
+            "discover_not_supported",
+            f"平台 {platform} 无目录发现 API(telegram 靠入站观测被动积累,"
+            "条目会随 bot 收到消息自动入目录;也可直接在规则里手写 targets)",
+            path="params.platform",
+        )
+    adapter = platform_cls()
+    try:
+        discovered = adapter.discover_directory()
+        entries = asyncio.run(discovered) if inspect.isawaitable(discovered) else discovered
+    except PushSendError as exc:
+        raise ProtocolError(
+            "channel_refresh_failed",
+            f"{platform} 目录发现失败,旧目录不动: [{exc.code}] {exc}",
+            path="params.platform",
+            data={"platform": platform, "code": exc.code},
+        ) from exc
+    except Exception as exc:  # noqa: BLE001 — 网络/协议异常同样结构化上抛,不裸穿
+        raise ProtocolError(
+            "channel_refresh_failed",
+            f"{platform} 目录发现失败,旧目录不动: {type(exc).__name__}: {exc}",
+            path="params.platform",
+            data={"platform": platform},
+        ) from exc
+    ctx = _serve_context()
+    bucket = ChannelDirectory(_messaging_root(ctx)).commit_platform_refresh(platform, entries)
+    return {
+        "platform": platform,
+        "merged": len(bucket),
+        "entries": [entry.to_dict() for entry in bucket],
+    }
+
+
+def _m_channels_alias(params: dict[str, Any]) -> dict[str, Any]:
+    """别名 set / delete(payload 区分:name 非空 = set,null/空串 = delete)。
+
+    写入走 :meth:`ChannelDirectory.set_alias`(别名文件原子覆盖 + 内存态
+    立即生效);set_alias 是核心侧 best-effort(写失败不阻塞推送),UI 写
+    路径必须确认落盘 —— 重读别名文件对照,未生效即结构化报错,零静默。
+    """
+    platform_raw = params.get("platform")
+    chat_raw = params.get("chat_id")
+    name = params.get("name")
+    if not isinstance(platform_raw, str) or not platform_raw.strip():
+        raise ProtocolError("invalid_params", "缺少平台名 platform", path="params.platform")
+    if not isinstance(chat_raw, str) or not chat_raw.strip():
+        raise ProtocolError("invalid_params", "缺少会话 id chat_id", path="params.chat_id")
+    deleting = name is None or (isinstance(name, str) and not name.strip())
+    cleaned = ""
+    if not deleting:
+        if not isinstance(name, str):
+            raise ProtocolError(
+                "invalid_params", "name 必须是非空字符串(设置)或 null(删除)", path="params.name"
+            )
+        cleaned = name.strip()
+        if len(cleaned) > ALIAS_MAX_LEN:
+            raise ProtocolError(
+                "invalid_params", f"别名超长(>{ALIAS_MAX_LEN} 字符)", path="params.name"
+            )
+    platform, chat_id = platform_raw.strip(), chat_raw.strip()
+    ctx = _serve_context()
+    root = _messaging_root(ctx)
+    ChannelDirectory(root).set_alias(platform, chat_id, cleaned)
+    persisted = ChannelDirectory(root).aliases_snapshot().get(platform, {})
+    if deleting:
+        applied = chat_id not in persisted
+    else:
+        applied = persisted.get(chat_id) == cleaned
+    if not applied:
+        raise ProtocolError(
+            "alias_write_failed",
+            f"别名写入未生效(检查数据根可写性): {root}",
+            path="params",
+            data={"platform": platform, "chat_id": chat_id},
+        )
+    return {"platform": platform, "chat_id": chat_id, "deleted": deleting, "name": cleaned or None}
+
+
+#: push.write 重序列化行宽(官方 YAML 阅读宽一致;模板长行不被硬拆)。
+_PUSH_DUMP_WIDTH = 100
+
+#: 顶层 push 块形态键行(nil 值,条目在后续缩进行)。
+_PUSH_BLOCK_KEY_RE = re.compile(r"^push:\s*(#.*)?$")
+#: 顶层 push 单行流式形态(``push: []``)键行。
+_PUSH_FLOW_KEY_RE = re.compile(r"^push:\s*\[.*\]\s*(#.*)?$")
+
+
+class _PushEntryDumper(yaml.SafeDumper):
+    """push 条目重序列化:多行字符串(模板)优先 literal 块形态,保模板可读。
+
+    PyYAML 缺省把多行字符串转义成双引号单行(语义无损但人不可读);literal
+    块(``|``)与官方品类 YAML 的 ``template: |`` 写法一致。字符串含尾随
+    空格等 literal 不可表示形态时,emitter 自动回落引号风格(不丢信息)。
+    """
+
+
+def _represent_str_literal(dumper: yaml.Dumper, data: str) -> Any:
+    style = "|" if "\n" in data else None
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data, style=style)
+
+
+_PushEntryDumper.add_representer(str, _represent_str_literal)
+
+
+def _dump_push_entries(entries: list[Any]) -> list[str]:
+    """新 push 数组 → 缩进 2 的 YAML 条目行(不含 ``push:`` 键行,尾随一空行)。
+
+    缩进 2 与官方品类 YAML 的 ``  - channel: …`` 序列风格一致;sort_keys=False
+    保持调用方给的键序(UI 提交的是「原条目 + 改过的 targets」)。
+    """
+    dumped = yaml.dump(
+        entries,
+        Dumper=_PushEntryDumper,
+        allow_unicode=True,
+        sort_keys=False,
+        default_flow_style=False,
+        width=_PUSH_DUMP_WIDTH,
+    )
+    return [f"  {line}\n" for line in dumped.splitlines()] + ["\n"]
+
+
+def _push_section_span(lines: list[str]) -> tuple[int, int] | None:
+    """定位顶层 push 节区间 ``(起点, 排他终点)``;无 push 键行 → None。
+
+    块形态(``push:`` nil 值):终点 = 下一个列 0 非注释非空行或 EOF(块尾
+    空行归区间内,随替换归一为一个空行分隔);单行流式(``push: []``):
+    区间即该行。多行流式/键带锚点不在此命中 —— 由调用方按「doc 有 push 而
+    文本定位不到」结构化拒写(不做静默猜测,零写入)。
+    """
+    for i, line in enumerate(lines):
+        body = line.rstrip("\r\n")
+        if _PUSH_BLOCK_KEY_RE.match(body):
+            end = len(lines)
+            for j in range(i + 1, len(lines)):
+                nxt = lines[j].rstrip("\r\n")
+                if nxt and not nxt[0].isspace() and not nxt.startswith("#"):
+                    end = j
+                    break
+            return i, end
+        if _PUSH_FLOW_KEY_RE.match(body):
+            return i, i + 1
+    return None
+
+
+def _m_push_write(params: dict[str, Any]) -> dict[str, Any]:
+    """push[] 全量替换写回:围栏 → 文本手术只换 push 块 → 双门 → ``.bak`` → 原子写。
+
+    契约(design.md §D2):``{file, push}`` 的 push 是**该文件的完整 push
+    数组**(UI 侧「编辑一条提交整个数组」,与 sources.write 的文件作用域
+    一致)。手术在原文上只动 push 节(块尾/EOF 追加/整节摘除三形),其余
+    行(节间注释、行内注释、引号风格)逐字节不动 —— 与 sources.write 的
+    文本手术同一保真哲学,绝不做整文件 safe_dump 重写。两道门:手术结果
+    反解析必须与「原文档 + 新 push」深等(防波及 push 之外);再过
+    :func:`load_category`(``myia run`` 同门,含 targets 格式与同平台
+    约束)—— 任一失败原样透传结构化错误,零写入。空数组 = 摘除 push 节
+    (品类允许无 push,条目仅入库);文件本就无 push 节且新数组空 = 无操作
+    (changed=false,不落盘)。
+    """
+    push_raw = params.get("push")
+    if not isinstance(push_raw, list):
+        raise ProtocolError(
+            "invalid_params", "缺少完整 push 数组 push(list,空数组=摘除 push 节)", path="params.push"
+        )
+    resolved, ctx = _fence_yaml_path(params.get("file"))
+    if not resolved.exists():
+        raise ProtocolError("file_not_found", f"文件不存在: {resolved}", path="params.file")
+    try:
+        stat = resolved.stat()
+        if stat.st_size > YAML_MAX_BYTES:
+            raise ProtocolError(
+                "file_too_large",
+                f"文件超过 1 MiB 上限: {stat.st_size} 字节(limit={YAML_MAX_BYTES})",
+                path="params.file",
+                data={"size": stat.st_size, "limit": YAML_MAX_BYTES},
+            )
+        with open(resolved, encoding="utf-8", newline="") as handle:
+            original = handle.read()
+    except FileNotFoundError as exc:
+        raise ProtocolError("file_not_found", f"文件不存在: {resolved}", path="params.file") from exc
+    except UnicodeDecodeError as exc:
+        raise ProtocolError(
+            "invalid_encoding",
+            f"文件不是有效的 UTF-8 编码: {resolved} ({exc});请转存 UTF-8 后重试",
+            path="params.file",
+        ) from exc
+    except OSError as exc:
+        raise ProtocolError(
+            "source_file_unreadable", f"品类 YAML 不可读: {resolved} ({exc})", path="params.file"
+        ) from exc
+    try:
+        doc = yaml.load(original, Loader=_UniqueKeyLoader)
+    except yaml.YAMLError as exc:
+        raise ProtocolError(
+            "category_invalid", f"品类 YAML 不是合法 YAML: {exc}", path="params.file"
+        ) from exc
+    if not isinstance(doc, dict) or not isinstance(doc.get("sources"), list):
+        raise ProtocolError(
+            "category_invalid", f"{resolved} 不是品类 YAML(缺少 sources 节)", path="params.file"
+        )
+
+    # -- 文本手术:三形(替换块 / EOF 追加 / 摘除),定位不到才拒 ------------
+    lines = _split_keep_lines(original)
+    span = _push_section_span(lines)
+    if span is None and "push" in doc:
+        raise ProtocolError(
+            "push_write_unsupported",
+            f"push 节形态不支持文本手术(多行流式/锚点,零写入): {resolved}",
+            path="params.file",
+        )
+    changed = True
+    if push_raw:
+        block = ["push:\n", *_dump_push_entries(push_raw)]
+        if span is None:  # 文件无 push 节:EOF 追加(空行与前节分隔)
+            if lines and not lines[-1].endswith("\n"):
+                lines[-1] += "\n"
+            if not lines or not _toggle_is_blank(lines[-1]):
+                lines.append("\n")
+            lines.extend(block)
+        else:
+            start, end = span
+            lines[start:end] = block
+    elif span is not None:
+        start, end = span
+        del lines[start:end]  # 空数组 = 整节摘除(块尾空行随区间走)
+    else:
+        changed = False  # 本就无 push 节,空数组 = 无操作
+    new_text = "".join(lines)
+
+    # -- 门一:手术结果反解析与「原文档 + 新 push」深等(零写入)------------
+    expected = dict(doc)
+    if push_raw:
+        expected["push"] = push_raw
+    else:
+        expected.pop("push", None)
+    try:
+        reread = yaml.safe_load(new_text)
+    except yaml.YAMLError as exc:
+        raise ProtocolError(
+            "push_write_unsupported",
+            f"push 块替换结果不再是合法 YAML(零写入): {resolved} ({exc})",
+            path="params.file",
+        ) from exc
+    if reread != expected:
+        raise ProtocolError(
+            "push_write_unsupported",
+            f"push 块替换波及了 push 之外的内容(疑为未支持结构的漏网形态,零写入): {resolved}",
+            path="params.file",
+        )
+
+    # -- 门二:myia run 同门装载校验(targets 格式/同平台约束在此拦)---------
+    try:
+        load_category(reread, source=str(resolved))
+    except LoadError as exc:
+        details = [
+            {"path": item.path, "code": item.error_type, "message": item.message}
+            for item in exc.errors
+        ]
+        raise ProtocolError(
+            "category_invalid",
+            f"写回后的 push 配置未过品类校验: {details}",
+            path="params.push",
+            data={"errors": details},
+        ) from exc
+
+    if not changed:
+        return {"file": str(resolved), "written": True, "changed": False, "push": list(push_raw)}
+    backed_up: str | None = None
+    try:
+        bak = resolved.with_suffix(resolved.suffix + ".bak")
+        shutil.copy2(resolved, bak)
+        backed_up = str(bak)
+        _atomic_write_text(resolved, new_text)
+    except OSError as exc:
+        raise ProtocolError("source_write_failed", f"写回失败: {exc}", path="params.file") from exc
+    return {
+        "file": str(resolved),
+        "written": True,
+        "changed": True,
+        "backed_up": backed_up,
+        "push": list(expected.get("push") or []),
+    }
+
+
+# ---------------------------------------------------------------------------
 # 分发与 serve 循环
 # ---------------------------------------------------------------------------
 
@@ -1896,6 +2665,10 @@ _HANDLERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "image.status": _m_image_status,
     "image.config.read": _m_image_config_read,
     "image.config.save": _m_image_config_save,
+    "channels.list": _m_channels_list,
+    "channels.refresh": _m_channels_refresh,
+    "channels.alias": _m_channels_alias,
+    "push.write": _m_push_write,
 }
 
 
