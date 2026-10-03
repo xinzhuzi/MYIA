@@ -219,3 +219,9 @@
 - 踩坑三记:①perl \bmyia\b 扫伤 `from myia.x import`(点也是词边界!)→ 回滚改精确字面量替换;②zsh 不词切分坑到第三次($FILES 单参),数组语法终结此坑;③干净 worktree 门禁逮出 9 红(脏树测试会掩盖)——schema 文档 YAML 钥匙串凭据名必须 myia/<scope>(校验器契约)、demo 文件随链 git mv、5 处测试断言随新横幅/发行名跟改,两轮收绿 1771/0
 - 对外:gh repo rename MYIA→shishi 成功(旧 URL 自动重定向);push main(远端已被并行流推平);tag v1.1.1 推送 → desktop-release 触发即守卫失败(设计内):缺 TAURI_UPDATER_PUBKEY/TAURI_SIGNING_PRIVATE_KEY secrets=主人侧前置(UPDATER.md §2)。Docker Publish/CI 正常在跑
 - 待办:主人配 3 updater secrets → rerun tag 流水线出 dmg+release;今晚模块改名后 workflow_dispatch 跑 PyPI(需 PYPI_API_TOKEN secret,先 test.pypi 演练)
+
+## 2026-10-03 yaml-editor 弹窗无头冒烟(补证据闭环)
+
+- 弹窗(源管理行内 modal)无头冒烟 9/9:开窗加载 stocks.yaml 原文(schedule 第 28 行+注释可见)→CM 内精确改行→Meta+S→「已保存·mtime 基线已更新|doctor 复核通过」→ESC 关闭→源管理表自动刷新(health 二次拉取)→git diff 恰 1 增 1 删→还原;bridge 全跳日志(bridge-req/sidecar-out/bridge-resp)逐帧对齐
+- 排障三次假阴性教训(产品零 bug):①成功判据选择器「text=/已保存|doctor 复核/」撞上 sources 屏背景文案「doctor 复核往返一致」秒匹配→假阳性跳过诊断分支;②ESC 触发的原生 window.confirm 会阻塞页面 JS 事件循环——挂起中的 fetch 回调在 confirm 期间不跑,[rpc] 日志失踪即此;③判定要以 RPC 轨迹([rpc]/bridge 日志)与磁盘 diff 为准,DOM 文案选择器只做辅助
+- 前情:sidecar 直连探针(相对/绝对路径×读后存×全序列重放)全部秒回,早排除产品侧;bridge id 配对+120s 兜底本身健全

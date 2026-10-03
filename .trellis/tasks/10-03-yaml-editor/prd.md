@@ -89,7 +89,7 @@ MYIA 的插件系统(`myia-*`)是**数据源场景插件**(plugin.yaml 声明 mo
 - [x] 11. **启停止血**:点一次启停后,`.bak` 保有操作前的带注释原文(主文件仍被 safe_dump 重写——已知缺陷,根治在 `10-03-yaml-toggle-comments`)——`tests/test_desktop_sidecar_protocol.py:1242-1251`(启停后 `.bak`=操作前带注释原文;主文件仍被 safe_dump 重写=止血不根治,符合预期)
 - [x] 12. 保存成功后自动 doctor 复核有结果展示;「跑一次」dirty 时禁用,发起后可在日志屏查看运行 ——vitest `yaml-editor-screen.test.tsx:418`(保存成功自动 doctor({yamls}) 调用+结果展示)、`:533`(跑一次 dirty 禁用+title 提示+发起后日志屏链接)
 - [x] 13. `keychain:` 引用未录入 → warning 级 finding 展示且保存不被拦;`env:` 引用不做存在性对照 ——`tests/test_desktop_sidecar_protocol.py:1170-1196`(keychain 未录入→warning 且 valid=true、保存放行且 warnings 带回、补录后消失;env 名字不出现在结果=不做对照)+ vitest `yaml-editor-screen.test.tsx:446`
-- [x] 14. **弹窗编辑(2026-10-03 主人追加,原话「我要的是可以弹窗出来一个界面进行编辑」)**:源管理行「编辑」当场弹出编辑对话框(role=dialog/aria-modal,零新 npm 依赖,手写 overlay),加载原文→编辑→保存→doctor 复核行,保存成功后源管理表自动刷新;dirty 关闭三路确认(ESC/遮罩/按钮);beforeunload 防丢稿;双栏屏与弹窗共用 use-yaml-file-editor 单一保存内核 —— `yaml-editor-dialog.test.tsx` 8 用例 + `sources.test.tsx` 扩展(保存→health 二次拉取);vitest 105/105、tsc/build 绿(2026-10-03)
+- [x] 14. **弹窗编辑(2026-10-03 主人追加,原话「我要的是可以弹窗出来一个界面进行编辑」)**:源管理行「编辑」当场弹出编辑对话框(role=dialog/aria-modal,零新 npm 依赖,手写 overlay),加载原文→编辑→保存→doctor 复核行,保存成功后源管理表自动刷新;dirty 关闭三路确认(ESC/遮罩/按钮);beforeunload 防丢稿;双栏屏与弹窗共用 use-yaml-file-editor 单一保存内核 —— `yaml-editor-dialog.test.tsx` 8 用例 + `sources.test.tsx` 扩展(保存→health 二次拉取);vitest 105/105、tsc/build 绿(2026-10-03);无头弹窗冒烟 2026-10-03 ✅ 9/9(开窗加载原文含注释→精确改 schedule 行→Meta+S→「已保存·mtime 基线已更新|doctor 复核通过:识别「股票情报」」→ESC 关闭→表自动刷新→git diff 恰 1 增 1 删→还原;证据 .zcode/smoke/yaml-editor/{transcript-dialog.json,git-diff-dialog.txt,10-12*.png};冒烟脚本三次假阴性系选择器撞背景文案+confirm 阻塞 JS,产品无 bug——直连探针与 UI 全流双证)
 
 ## 决议记录(grill Round 1,2026-10-03;主人批复「按建议落实到任务文档」)
 
