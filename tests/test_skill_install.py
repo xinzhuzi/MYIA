@@ -100,7 +100,7 @@ def test_skill_path_human_mode_mentions_agent_paths(capsys):
     code = main(["skill", "path"])
     out = capsys.readouterr().out
     assert code == EXIT_OK
-    assert "MYIA skill path" in out
+    assert "世事 skill path" in out
     for agent in EXPECTED_AGENTS:
         assert agent in out
 
