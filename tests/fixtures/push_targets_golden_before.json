@@ -1,0 +1,854 @@
+{
+ "plugins/ai-news.yaml": {
+  "classify": {
+   "builtin": true,
+   "rules": []
+  },
+  "dedup": {
+   "key": "{url}"
+  },
+  "enrich": {
+   "api_key": null,
+   "base_url": null,
+   "batch": 20,
+   "budget_per_run": 50000,
+   "cache": true,
+   "enabled": false,
+   "model": "glm-4-flash",
+   "scores": [
+    "value",
+    "relevance",
+    "credibility"
+   ]
+  },
+  "id": "ai-news",
+  "name": "AI资讯",
+  "push": [
+   {
+    "channel": "feishu_card",
+    "retries": 2,
+    "retry_backoff_seconds": 1.0,
+    "route": [
+     {
+      "mode": "immediate",
+      "when": "score >= 9"
+     },
+     {
+      "mode": "immediate",
+      "when": "category in ['freebie', 'proxy-node', 'buying-agent']"
+     },
+     {
+      "mode": "digest",
+      "when": "category == 'ai-news'"
+     }
+    ],
+    "target": "env:FEISHU_CHAT_ID",
+    "template": "**AI 资讯 · {{ date }}**\n{% for item in items %}\n- [{{ item.title }}]({{ item.url }})\n{% endfor %}\n",
+    "timeout": 10.0
+   }
+  ],
+  "schedule": "0 8,20 * * *",
+  "sources": [
+   {
+    "engine": "auto",
+    "extract": {
+     "fields": {
+      "title": "h3",
+      "url": "h3 a@href"
+     },
+     "item": "article[data-item-id]",
+     "type": "list"
+    },
+    "headers": {
+     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    },
+    "method": "GET",
+    "name": "aihot",
+    "pagination": null,
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 2.0,
+     "qps": 0.5,
+     "respect_robots": true
+    },
+    "retry": 3,
+    "url": "https://aihot.news/"
+   },
+   {
+    "engine": "static_html",
+    "extract": {
+     "fields": {
+      "title": "a.raw-topic-link",
+      "url": "a.raw-topic-link@href"
+     },
+     "item": "tr.topic-list-item",
+     "type": "list"
+    },
+    "headers": {
+     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    },
+    "method": "GET",
+    "name": "cocoloop",
+    "pagination": {
+     "max_pages": 2,
+     "mode": "template",
+     "selector": null
+    },
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 2.0,
+     "qps": 0.5,
+     "respect_robots": true
+    },
+    "retry": 3,
+    "url": "https://www.cocoloop.cn/latest?page={page}"
+   }
+  ],
+  "storage": {
+   "retention": "90d",
+   "vacuum": "monthly"
+  },
+  "timezone": "Asia/Shanghai",
+  "watchlist": {
+   "keywords": [
+    "LLM",
+    "Agent",
+    "开源模型",
+    "AI芯片",
+    "大模型",
+    "多模态"
+   ],
+   "mute": [
+    "广告",
+    "招聘"
+   ]
+  }
+ },
+ "plugins/credentials.yaml": {
+  "classify": {
+   "builtin": true,
+   "rules": []
+  },
+  "dedup": {
+   "key": "{url}"
+  },
+  "enrich": {
+   "api_key": null,
+   "base_url": null,
+   "batch": 20,
+   "budget_per_run": 50000,
+   "cache": true,
+   "enabled": false,
+   "model": "glm-4-flash",
+   "scores": [
+    "value",
+    "relevance",
+    "credibility"
+   ]
+  },
+  "id": "credentials",
+  "name": "凭证猎手",
+  "push": [
+   {
+    "channel": "feishu_card",
+    "retries": 2,
+    "retry_backoff_seconds": 1.0,
+    "route": [
+     {
+      "mode": "immediate",
+      "when": "score >= 8"
+     },
+     {
+      "mode": "digest",
+      "when": "score >= 5"
+     },
+     {
+      "mode": "archive",
+      "when": "score < 5"
+     }
+    ],
+    "target": "env:FEISHU_CHAT_ID",
+    "template": "**新凭证情报 · {{ date }}**\n{% for item in items %}\n- {{ item.title }} ({{ item.url }})\n{% endfor %}\n",
+    "timeout": 10.0
+   }
+  ],
+  "schedule": "0 */2 * * *",
+  "sources": [
+   {
+    "engine": "direct_api",
+    "extract": {
+     "fields": {
+      "time": "$[*].discovered_at",
+      "title": "$[*].keyword",
+      "url": "$[*].source_url"
+     },
+     "item": null,
+     "type": "json_path"
+    },
+    "headers": {
+     "Authorization": "Bearer keychain:myia/credentials/token"
+    },
+    "method": "GET",
+    "name": "aipocket",
+    "pagination": {
+     "max_pages": 10,
+     "mode": "template",
+     "selector": null
+    },
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 0.0,
+     "qps": 0.2,
+     "respect_robots": true
+    },
+    "retry": 3,
+    "url": "https://aipocket.example.com/api/v1/leaks?page={page}"
+   }
+  ],
+  "storage": {
+   "retention": "90d",
+   "vacuum": "monthly"
+  },
+  "timezone": "Asia/Shanghai",
+  "watchlist": {
+   "keywords": [],
+   "mute": []
+  }
+ },
+ "plugins/gpu-prices.yaml": {
+  "classify": {
+   "builtin": false,
+   "rules": [
+    {
+     "name": "高价段",
+     "tag": "旗舰卡",
+     "when": "price >= 10000"
+    }
+   ]
+  },
+  "dedup": {
+   "key": "{url}"
+  },
+  "enrich": {
+   "api_key": null,
+   "base_url": null,
+   "batch": 20,
+   "budget_per_run": 50000,
+   "cache": true,
+   "enabled": false,
+   "model": "glm-4-flash",
+   "scores": [
+    "value",
+    "relevance",
+    "credibility"
+   ]
+  },
+  "id": "gpu-prices",
+  "name": "显卡行情",
+  "push": [
+   {
+    "channel": "feishu_card",
+    "retries": 2,
+    "retry_backoff_seconds": 1.0,
+    "route": [
+     {
+      "mode": "immediate",
+      "when": "price >= 10000"
+     }
+    ],
+    "target": "env:FEISHU_CHAT_ID",
+    "template": "**显卡行情 · {{ date }}**\n{% for item in items %}\n- [{{ item.title }}]({{ item.url }}) ¥{{ item.price }} {{ vs_msrp(item) }} {{ vs_yesterday(item, 'price') }} {{ vs_last_week(item, 'price') }}\n{% endfor %}\n{% if keyword_trends %}\n**关键词提及周环比**:{% for t in keyword_trends %}{{ t.word }} {{ t.count }} 条({{ t.change_text }}) {% endfor %}\n{% endif %}\n",
+    "timeout": 10.0
+   }
+  ],
+  "schedule": "0 10 * * *",
+  "sources": [
+   {
+    "engine": "static_html",
+    "extract": {
+     "fields": {
+      "price": "span.price-type",
+      "title": "h3 a",
+      "url": "h3 a@href"
+     },
+     "item": "div.list-item",
+     "type": "list"
+    },
+    "headers": {
+     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    },
+    "method": "GET",
+    "name": "zol",
+    "pagination": {
+     "max_pages": 5,
+     "mode": "template",
+     "selector": null
+    },
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 2.0,
+     "qps": 0.5,
+     "respect_robots": true
+    },
+    "retry": 3,
+    "url": "https://detail.zol.com.cn/vga/{page}.html"
+   }
+  ],
+  "storage": {
+   "retention": "90d",
+   "vacuum": "monthly"
+  },
+  "timezone": "Asia/Shanghai",
+  "watchlist": {
+   "keywords": [
+    "RTX",
+    "RX",
+    "显卡"
+   ],
+   "mute": [
+    "二手",
+    "求购"
+   ]
+  }
+ },
+ "plugins/monitor.yaml": {
+  "classify": {
+   "builtin": true,
+   "rules": []
+  },
+  "dedup": {
+   "key": "{url}"
+  },
+  "enrich": {
+   "api_key": null,
+   "base_url": null,
+   "batch": 20,
+   "budget_per_run": 50000,
+   "cache": true,
+   "enabled": false,
+   "model": "glm-4-flash",
+   "scores": [
+    "value",
+    "relevance",
+    "credibility"
+   ]
+  },
+  "id": "monitor",
+  "name": "变更监控",
+  "push": [
+   {
+    "channel": "feishu_card",
+    "retries": 2,
+    "retry_backoff_seconds": 1.0,
+    "route": [
+     {
+      "mode": "immediate",
+      "when": "score >= 8"
+     },
+     {
+      "mode": "digest",
+      "when": "score >= 5"
+     },
+     {
+      "mode": "archive",
+      "when": "score < 5"
+     }
+    ],
+    "target": "env:FEISHU_CHAT_ID",
+    "template": "**页面变更 · {{ date }}**\n{% for item in items %}\n- [{{ item.title }}]({{ item.url }})\n{% endfor %}\n",
+    "timeout": 10.0
+   }
+  ],
+  "schedule": "*/15 * * * *",
+  "sources": [
+   {
+    "engine": "direct_api",
+    "extract": {
+     "fields": {
+      "time": "$[*].last_changed",
+      "title": "$[*].label",
+      "url": "$[*].url"
+     },
+     "item": null,
+     "type": "json_path"
+    },
+    "headers": {
+     "X-Api-Key": "keychain:myia/monitor/token"
+    },
+    "method": "GET",
+    "name": "changedetection-watches",
+    "pagination": null,
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 0.0,
+     "qps": 0.5,
+     "respect_robots": true
+    },
+    "retry": 3,
+    "url": "https://my-monitor.example.com/api/v1/watch"
+   }
+  ],
+  "storage": {
+   "retention": "90d",
+   "vacuum": "monthly"
+  },
+  "timezone": "Asia/Shanghai",
+  "watchlist": {
+   "keywords": [],
+   "mute": []
+  }
+ },
+ "plugins/stocks.yaml": {
+  "classify": {
+   "builtin": false,
+   "rules": [
+    {
+     "name": "异动",
+     "tag": "大涨/大跌",
+     "when": "abs(change_pct) >= 3"
+    }
+   ]
+  },
+  "dedup": {
+   "key": "{symbol}-{date}-{slot}"
+  },
+  "enrich": {
+   "api_key": null,
+   "base_url": null,
+   "batch": 20,
+   "budget_per_run": 50000,
+   "cache": true,
+   "enabled": false,
+   "model": "glm-4-flash",
+   "scores": [
+    "value",
+    "relevance",
+    "credibility"
+   ]
+  },
+  "id": "stocks",
+  "name": "股票情报",
+  "push": [
+   {
+    "channel": "feishu_card",
+    "retries": 2,
+    "retry_backoff_seconds": 1.0,
+    "route": [
+     {
+      "mode": "immediate",
+      "when": "score >= 8"
+     },
+     {
+      "mode": "immediate",
+      "when": "abs(change_pct) >= 3"
+     },
+     {
+      "mode": "digest",
+      "when": "abs(change_pct) < 3"
+     }
+    ],
+    "target": "env:FEISHU_CHAT_ID",
+    "template": "**股票情报 · {{ date }}**\n{% for item in items %}\n- {{ item.symbol }} {{ item.change_pct }}% 现价 {{ item.price }} {{ item.currency }}\n{% endfor %}\n",
+    "timeout": 10.0
+   }
+  ],
+  "schedule": "0 9,15 * * 1-5",
+  "sources": [
+   {
+    "engine": "direct_api",
+    "extract": {
+     "fields": {
+      "change_pct": "$.chart.result[0].meta.regularMarketChangePercent",
+      "currency": "$.chart.result[0].meta.currency",
+      "price": "$.chart.result[0].meta.regularMarketPrice",
+      "symbol": "$.chart.result[0].meta.symbol",
+      "title": "$.chart.result[0].meta.longName",
+      "url": "$.chart.result[0].meta.symbol"
+     },
+     "item": null,
+     "type": "json_path"
+    },
+    "headers": {
+     "Accept": "application/json"
+    },
+    "method": "GET",
+    "name": "yahoo-chart",
+    "pagination": null,
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 2.0,
+     "qps": 0.5,
+     "respect_robots": false
+    },
+    "retry": 3,
+    "symbols": [
+     "NVDA",
+     "AAPL",
+     "TSLA",
+     "0700.HK",
+     "600519.SS"
+    ],
+    "url": "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&interval=1d"
+   }
+  ],
+  "storage": {
+   "retention": "90d",
+   "vacuum": "monthly"
+  },
+  "timezone": "Asia/Shanghai",
+  "watchlist": {
+   "keywords": [
+    "NVDA",
+    "英伟达",
+    "特斯拉",
+    "苹果",
+    "腾讯",
+    "AI芯片"
+   ],
+   "mute": [
+    "广告",
+    "中奖"
+   ]
+  }
+ },
+ "plugins/wool.yaml": {
+  "classify": {
+   "builtin": true,
+   "rules": []
+  },
+  "dedup": {
+   "key": "{url}"
+  },
+  "enrich": {
+   "api_key": null,
+   "base_url": null,
+   "batch": 20,
+   "budget_per_run": 50000,
+   "cache": true,
+   "enabled": false,
+   "model": "glm-4-flash",
+   "scores": [
+    "value",
+    "relevance",
+    "credibility"
+   ]
+  },
+  "id": "wool",
+  "name": "羊毛情报",
+  "push": [
+   {
+    "channel": "feishu_card",
+    "retries": 2,
+    "retry_backoff_seconds": 1.0,
+    "route": [
+     {
+      "mode": "immediate",
+      "when": "score >= 8"
+     },
+     {
+      "mode": "immediate",
+      "when": "category in ['freebie', 'proxy-node', 'buying-agent']"
+     },
+     {
+      "mode": "digest",
+      "when": "category in ['server', 'token', 'credit-card', 'channel', 'ai-news']"
+     }
+    ],
+    "target": "env:FEISHU_CHAT_ID",
+    "template": "**羊毛速报 · {{ date }}**\n{% for item in items %}\n- [{{ item.title }}]({{ item.url }})\n{% endfor %}\n",
+    "timeout": 10.0
+   }
+  ],
+  "schedule": "0 8,20 * * *",
+  "sources": [
+   {
+    "engine": "static_html",
+    "extract": {
+     "fields": {
+      "title": "a.post-title",
+      "url": "a.post-title@href"
+     },
+     "item": "div.post-body",
+     "type": "list"
+    },
+    "headers": {
+     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    },
+    "method": "GET",
+    "name": "linuxsb",
+    "pagination": null,
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 2.0,
+     "qps": 0.5,
+     "respect_robots": true
+    },
+    "retry": 3,
+    "url": "https://linux.sb/"
+   },
+   {
+    "engine": "static_html",
+    "extract": {
+     "fields": {
+      "title": "h2",
+      "url": "@href"
+     },
+     "item": "a.min-w-0[href^=\"/posts/\"]",
+     "type": "list"
+    },
+    "headers": {
+     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    },
+    "method": "GET",
+    "name": "bbsbtsb",
+    "pagination": null,
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 2.0,
+     "qps": 0.5,
+     "respect_robots": true
+    },
+    "retry": 3,
+    "url": "https://bbs.bt.sb/latest"
+   },
+   {
+    "engine": "static_html",
+    "extract": {
+     "fields": {
+      "title": "a.raw-topic-link",
+      "url": "a.raw-topic-link@href"
+     },
+     "item": "tr.topic-list-item",
+     "type": "list"
+    },
+    "headers": {
+     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    },
+    "method": "GET",
+    "name": "nodeloc",
+    "pagination": {
+     "max_pages": 2,
+     "mode": "template",
+     "selector": null
+    },
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 2.0,
+     "qps": 0.5,
+     "respect_robots": true
+    },
+    "retry": 3,
+    "url": "https://www.nodeloc.com/latest?page={page}"
+   },
+   {
+    "engine": "static_html",
+    "extract": {
+     "fields": {
+      "title": "a.raw-topic-link",
+      "url": "a.raw-topic-link@href"
+     },
+     "item": "tr.topic-list-item",
+     "type": "list"
+    },
+    "headers": {
+     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    },
+    "method": "GET",
+    "name": "cocoloop",
+    "pagination": {
+     "max_pages": 2,
+     "mode": "template",
+     "selector": null
+    },
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 2.0,
+     "qps": 0.5,
+     "respect_robots": true
+    },
+    "retry": 3,
+    "url": "https://www.cocoloop.cn/latest?page={page}"
+   },
+   {
+    "engine": "static_html",
+    "extract": {
+     "fields": {
+      "title": "a.post-title",
+      "url": "a.post-title@href"
+     },
+     "item": "div.post-body",
+     "type": "list"
+    },
+    "headers": {
+     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    },
+    "method": "GET",
+    "name": "sbsb",
+    "pagination": null,
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 2.0,
+     "qps": 0.5,
+     "respect_robots": true
+    },
+    "retry": 3,
+    "url": "https://sb.sb/"
+   }
+  ],
+  "storage": {
+   "retention": "90d",
+   "vacuum": "monthly"
+  },
+  "timezone": "Asia/Shanghai",
+  "watchlist": {
+   "keywords": [
+    "白嫖",
+    "免费",
+    "0元",
+    "优惠券",
+    "福利",
+    "兑换码"
+   ],
+   "mute": [
+    "广告",
+    "中奖"
+   ]
+  }
+ },
+ "tests/fixtures/stocks.yaml": {
+  "classify": {
+   "builtin": true,
+   "rules": [
+    {
+     "name": "异动",
+     "tag": "大涨/大跌",
+     "when": "abs(change_pct) >= 3"
+    }
+   ]
+  },
+  "dedup": {
+   "key": "{symbol}-{date}"
+  },
+  "enrich": {
+   "api_key": null,
+   "base_url": null,
+   "batch": 20,
+   "budget_per_run": 50000,
+   "cache": true,
+   "enabled": true,
+   "model": "glm-4-flash",
+   "scores": [
+    "value",
+    "relevance",
+    "credibility"
+   ]
+  },
+  "id": "stocks",
+  "name": "股票情报",
+  "push": [
+   {
+    "channel": "feishu_card",
+    "retries": 2,
+    "retry_backoff_seconds": 1.0,
+    "route": [
+     {
+      "mode": "immediate",
+      "when": "score >= 8"
+     },
+     {
+      "mode": "digest",
+      "when": "score >= 5"
+     },
+     {
+      "mode": "archive",
+      "when": "score < 5"
+     }
+    ],
+    "target": "env:FEISHU_CHAT_ID",
+    "template": "**股票异动 · {{ date }}**\n{% for item in items %}\n{{ item.symbol }} {{ item.change_pct }}% 现价 {{ item.price }}\n{% endfor %}\n",
+    "timeout": 10.0
+   }
+  ],
+  "schedule": "0 9,15 * * 1-5",
+  "sources": [
+   {
+    "engine": "auto",
+    "extract": {
+     "fields": {
+      "symbol": "td.symbol",
+      "time": "td.time",
+      "title": "a.title",
+      "url": "a.title@href"
+     },
+     "item": "div.topic-list tr",
+     "type": "list"
+    },
+    "headers": {
+     "Cookie": "keychain:linuxsb_cookie",
+     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    },
+    "method": "GET",
+    "name": "yahoo",
+    "pagination": {
+     "max_pages": 3,
+     "mode": "template",
+     "selector": null
+    },
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 2.0,
+     "qps": 0.5,
+     "respect_robots": true
+    },
+    "retry": 3,
+    "symbols": [
+     "NVDA",
+     "AAPL",
+     "TSLA",
+     "0700.HK"
+    ],
+    "url": "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&page={page}"
+   }
+  ],
+  "storage": {
+   "retention": "90d",
+   "vacuum": "monthly"
+  },
+  "timezone": "Asia/Shanghai",
+  "watchlist": {
+   "keywords": [
+    "NVDA",
+    "AI芯片",
+    "美股"
+   ],
+   "mute": [
+    "广告",
+    "中奖"
+   ]
+  }
+ }
+}

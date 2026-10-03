@@ -1,4 +1,9 @@
-"""Make the in-repo src/ package importable without installing the project."""
+"""Make the in-repo src/ package importable without installing the project.
+
+防回归注记(10-03-ci-gates D3):测试文件一律 `from conftest import …`,
+勿改回 `from tests.conftest import …`——那种写法会让裸 `pytest`(区别于
+`python -m pytest`,不把 CWD 放进 sys.path)假红。历史与双跑法证据见 718d56c。
+"""
 
 import sys
 from pathlib import Path

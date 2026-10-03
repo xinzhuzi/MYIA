@@ -346,7 +346,7 @@ def test_version_flag(capsys):
     with pytest.raises(SystemExit) as excinfo:
         main(["--version"])
     assert excinfo.value.code == 0
-    assert "myia 0.1.0" in capsys.readouterr().out
+    assert "myia 1.1.1" in capsys.readouterr().out
 
 
 def test_help_documents_run_and_exit_codes(capsys):

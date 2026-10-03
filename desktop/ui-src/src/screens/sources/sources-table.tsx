@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-table";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -153,6 +154,23 @@ const COLUMNS: ColumnDef<SourceRow>[] = [
         />
       );
     },
+  },
+  {
+    id: "actions",
+    header: "操作",
+    enableSorting: false,
+    enableGlobalFilter: false,
+    cell: ({ row }) => (
+      // 编辑动作:跳配置编辑屏并预选该品类文件(?file= 由编辑屏 useSearchParams 读)
+      <Button asChild size="sm" variant="outline">
+        <Link
+          to={`/yaml-editor?file=${encodeURIComponent(row.original.pluginFile)}`}
+          title={`在配置编辑屏打开 ${row.original.pluginFile}`}
+        >
+          编辑
+        </Link>
+      </Button>
+    ),
   },
 ];
 

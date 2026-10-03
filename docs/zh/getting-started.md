@@ -6,13 +6,15 @@
 
 ## 1. 安装
 
-MYIA 是纯 Python 包(Python 3.11+),核心零重依赖,`pip install` 即跑:
+MYIA 是纯 Python 包(Python 3.11+),核心零重依赖。注意:根包依赖同仓
+子包 `myia-classifier`(uv workspace 成员,未发布 PyPI),源码安装只能走
+`uv sync`——裸 `pip install -e .` 解析不到该依赖,会直接失败:
 
 ```bash
 git clone https://github.com/xinzhuzi/MYIA
 cd MYIA
-uv sync                     # 或 pip install -e .
-uv run myia --version       # myia 0.1.0
+uv sync                     # 源码安装唯一走法(workspace 依赖仅 uv 可解析)
+uv run myia --version       # 输出 myia x.y.z(x.y.z 为实际安装版本)
 ```
 
 重引擎按需装可选依赖,未安装时流水线会结构化报错(`dependency_missing`)

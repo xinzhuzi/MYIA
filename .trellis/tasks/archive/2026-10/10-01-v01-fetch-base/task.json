@@ -1,0 +1,28 @@
+{
+  "id": "v01-fetch-base",
+  "name": "v01-fetch-base",
+  "title": "fetch_base 公共底座:限速/退避/变更指纹",
+  "description": "引擎公共底座:rate_limit(qps/jitter/backoff/robots)、同域合并限速、ETag/正文哈希变更指纹、headers/method+post_body 与凭据引用解析",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-01",
+  "completedAt": "2026-10-03",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "10-01-myia-v01-skeleton",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P0"
+  }
+}

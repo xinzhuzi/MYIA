@@ -1,0 +1,8 @@
+# Ruff 最小 lint 门禁(10-03-ci-gates D2)。
+# 配置放独立 ruff.toml 而非 pyproject [tool.ruff]:施工时 pyproject.toml 正被
+# v1.1.1 版本对齐任务在途修改(多会话碰撞规避),PRD 的 pyproject 方案以此偏离。
+# 起步集只拦致命错(语法错 E9/F7、未定义名 F82、比较错 F63)——起草期实测
+# ruff 0.16.10 默认规则面 498 错(I001/F401/UP 等),不清存量、不扩集,另行立项。
+# CI 与本地同款命令:uvx ruff@0.16.10 check .(锁版本,防默认规则面漂移)。
+[lint]
+select = ["E9", "F63", "F7", "F82"]

@@ -9,13 +9,16 @@
 ## 1. Install
 
 MYIA is a pure-Python package (Python 3.11+) with zero heavy core
-dependencies — `pip install` is all it takes:
+dependencies. Note: the root package depends on the in-repo subpackage
+`myia-classifier` (a uv workspace member, not published to PyPI), so
+installing from source requires `uv sync` — a bare `pip install -e .`
+cannot resolve that dependency and fails outright:
 
 ```bash
 git clone https://github.com/xinzhuzi/MYIA
 cd MYIA
-uv sync                     # or: pip install -e .
-uv run myia --version       # myia 0.1.0
+uv sync                     # the only from-source install (workspace deps resolve via uv alone)
+uv run myia --version       # prints myia x.y.z (the installed version)
 ```
 
 Heavy fetch engines are optional extras. When one is missing the pipeline

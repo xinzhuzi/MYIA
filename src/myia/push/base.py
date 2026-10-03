@@ -16,9 +16,12 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Literal, Mapping, Protocol, Sequence, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, Mapping, Protocol, Sequence, runtime_checkable
 
 from myia.store import PUSH_SLOTS
+
+if TYPE_CHECKING:  # 运行期无环:targets 仅作类型标注(base ← targets 单向)
+    from myia.push.targets import ChannelTarget
 
 __all__ = [
     "TrendAwareChannel",
@@ -107,6 +110,11 @@ class PushSendError(RuntimeError):
 class SendContext:
     """When/what/for-whom a send happens; built once per dispatch batch.
 
+    ``target``(10-03-messaging-core design D1):可选定向推送对象;支持寻址
+    的通道(:attr:`Channel.supports_targeting`)发送时 ``target.chat_id``
+    优先、退回通道自带单 target(legacy 行为)。派发层用
+    ``dataclasses.replace(context, target=...)`` 派生每对象副本。
+
     Raises:
         ValueError: ``slot`` is not ``am``/``pm`` or ``kind`` is not
             ``digest``/``immediate`` (fail fast on programmer error).
@@ -116,6 +124,7 @@ class SendContext:
     date: str  # local date "YYYY-MM-DD" (grill Q3: slot boundary is local 12:00)
     category: str | None = None
     kind: SendKind = "digest"
+    target: "ChannelTarget | None" = None
 
     def __post_init__(self) -> None:
         if self.slot not in PUSH_SLOTS:
@@ -135,12 +144,18 @@ class SendContext:
 
 @dataclass(frozen=True)
 class SendReport:
-    """One channel-send outcome, aggregated by digest/immediate dispatch."""
+    """One channel-send outcome, aggregated by digest/immediate dispatch.
+
+    ``skipped``(10-03-messaging-core):该报告对应的发送**未尝试**(死信跳过
+    /对象未解析)——``ok=False`` 如实呈现,但派发层把它与真失败区分开
+    (摘要池不做无限重试)。缺省 False:既有全部路径行为不变。
+    """
 
     channel: str
     ok: bool
     item_count: int
     error: str | None = None
+    skipped: bool = False
 
 
 @runtime_checkable
@@ -150,9 +165,21 @@ class Channel(Protocol):
     Implementations render internally (their own ``push[].template`` or the
     built-in layout) and raise :class:`PushSendError` on any failure; they
     never raise for empty item lists (callers skip those beforehand).
+
+    ``supports_targeting``(10-03-messaging-core design D1):通道是否支持目录
+    寻址(定向推送)。缺省 False——stdout/webhook 永不支持;feishu_card/
+    telegram 在各自子任务翻成 True 并实现 ``context.target`` 覆盖。协议外的
+    duck-typed 通道用 ``getattr(channel, "supports_targeting", False)`` 判定。
+    可选能力钩子(支持寻址的通道按需提供,见 targets/delivery 模块):
+
+    - ``parse_direct_ref(ref)``:直达对象解析(类方法;显式 id/@username
+      不经目录,如 feishu ``oc_`` 前缀、telegram 数字 id);
+    - ``discover_directory()``:目录发现(async 实例方法,凭据在实例上)。
     """
 
     name: str
+
+    supports_targeting: bool = False
 
     async def send(
         self, items: Sequence[Mapping[str, Any] | object], context: SendContext

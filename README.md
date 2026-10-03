@@ -13,7 +13,7 @@
 <img src="https://img.shields.io/badge/tests-1300%2B%20passing-2EA44F" alt="tests: 1300+ passing" />
 <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="python 3.11+" />
 <img src="https://img.shields.io/badge/license-MIT-3DA639" alt="MIT license" />
-<img src="https://img.shields.io/badge/status-alpha-orange" alt="status: alpha" />
+<img src="https://img.shields.io/badge/status-1.1%20stable-2EA44F" alt="status: v1.1 stable" />
 </p>
 <p>
 <img src="https://img.shields.io/badge/fetch%20engines-6%20(L1%E2%80%93L6)-22D3EE" alt="6 fetch engines, L1–L6" />
@@ -115,7 +115,7 @@ URL 键去重注册表 + 早/晚摘要槽位 —— 生产验证过的语义;同
 
 🔁 **反馈闭环自我调优**
 对推送标记有价值 / 无价值(CLI 现已可用;Telegram/飞书回调接收已就绪,
-卡片内按钮随桌面版交付)—— 负反馈持续回写,调优盯盘权重与阈值。
+桌面卡片内按钮随 v1.2 交付)—— 负反馈持续回写,调优盯盘权重与阈值。
 
 </td>
 </tr>
@@ -129,9 +129,12 @@ URL 键去重注册表 + 早/晚摘要槽位 —— 生产验证过的语义;同
 ```bash
 git clone https://github.com/xinzhuzi/MYIA
 cd MYIA
-uv sync                     # 或 pip install -e .
-uv run myia --version       # myia 0.1.0
+uv sync                     # uv workspace(主口径):一并装好 myia 与 myia-classifier
+uv run myia --version       # myia 1.1.1
 ```
+
+> 本仓是 uv workspace(`myia-classifier` 是 workspace 成员):裸 `pip install -e .`
+> 装不齐依赖,源码安装请用 `uv sync`;`pip install myia` 待 PyPI 上架后可用。
 
 重型采集引擎是可选 extras;缺引擎时沿梯子优雅降级,给出结构化
 `dependency_missing` 错误而不是崩溃:
@@ -171,7 +174,35 @@ uv run myia run plugins/demo-min.yaml                    # 正式跑;--loop 常�
 
 完整走读:[docs/zh/getting-started.md](docs/zh/getting-started.md)。
 
-> PyPI 包(`myia`、`myia-classifier`)将走手动发布流程;在那之前请如上从源码安装。
+> PyPI 包(`myia`、`myia-classifier`)将走手动发布流程;在那之前请如上从源码安装,
+> 桌面用户可直接用下方安装包。
+
+## 下载安装(桌面应用)
+
+macOS(Apple Silicon)安装包随 GitHub Releases 发布:
+
+1. 从 [Releases](https://github.com/xinzhuzi/MYIA/releases) 下载
+   `MYIA_1.1.1_aarch64.dmg`,把 MYIA 拖入「应用程序」;
+2. 首次打开:**在「应用程序」里右键 MYIA →「打开」→ 再点「打开」**
+   (或双击被拦后到 系统设置 → 隐私与安全性 → 点「仍要打开」);
+3. 安装包未做 Apple 公证(公证需付费开发者账号)—— 代码完全开源可审计,
+   每个安装包由 GitHub Actions 公开构建、日志可溯;右键打开一次即完成
+   Gatekeeper 放行,之后正常双击启动。
+
+装机首跑自动种子官方插件(含零凭据演示件 `myia-demo`:GitHub 新星榜),
+第一次点「运行第一个插件」就出真数据;设置页「检查更新」走签名更新通道。
+
+桌面五屏(截图为 demo 插件真实抓取数据):
+
+<p align="center">
+<img src="docs/screenshots/dashboard.png" width="400" alt="仪表盘:插件运行状态与最近采集概览" />
+<img src="docs/screenshots/feed.png" width="400" alt="信息流:去重后的情报条目" />
+</p>
+<p align="center">
+<img src="docs/screenshots/sources.png" width="260" alt="源管理:插件与源配置" />
+<img src="docs/screenshots/logs.png" width="260" alt="日志:运行日志回溯" />
+<img src="docs/screenshots/settings.png" width="260" alt="设置:凭据入钥匙链 + 软件更新" />
+</p>
 
 ## AI 原生闭环
 
@@ -232,7 +263,9 @@ myia doctor --json                        # 拿 findings;agent 自修后复查
 ## 路线图
 
 核心流水线已实现且有测试覆盖 —— 1300+ 测试跑在 CI 里,无一条碰真实网络。
-仍是 alpha:糙边犹存。
+桌面端自 v1.1.1 起可日常使用(数据通路统一、官方插件随包、开箱 demo、
+签名更新通道);桌面卡片内反馈按钮、设置反馈开关、采集量趋势排 v1.2
+(反馈闭环 CLI 现已可用);Windows 产物为构建级验证,未做装机冒烟。
 
 | 里程碑 | 范围 | 状态 |
 |---|---|---|
@@ -241,7 +274,8 @@ myia doctor --json                        # 拿 findings;agent 自修后复查
 | v0.3 生态 | Agent Skill、插件市场(本地/远端双模)、Scrapling L4、反馈闭环(CLI + 回调接收) | ✅ 已交付 |
 | v0.4 深水区 | stealth_browser L5、llm_browser L6、趋势基线、事件聚合 | ✅ 已交付 |
 | v1.0 发布 | 双语文档、演示物料、GitHub 门面、公开交付 | ✅ 已交付 |
-| v1.1 桌面优先 | Tauri 桌面壳(Python 核心以 sidecar 嵌入)、进程内插件级、卡片内反馈按钮 | 🚧 进行中 |
+| v1.1 桌面优先 | Tauri 桌面壳(Python 核心以 sidecar 嵌入)、五屏 UI、进程内插件级;卡片内反馈按钮/settings 反馈开关/采集量趋势排 v1.2(反馈 CLI 已可用) | ✅ 已交付 |
+| v1.1.1 通路修复 | 桌面数据通路统一(MYIA_HOME/官方插件随包/首跑种子)、开箱 demo 插件、签名更新通道(检查更新 + 自动安装) | ✅ 已交付 |
 | Web UI | 同一核心上的浏览器前端 | 📋 规划中 |
 
 ## 伦理与边界
@@ -375,7 +409,7 @@ not just a human.
 
 🔁 **A feedback loop that tunes itself**
 Mark pushed items valuable / not valuable (CLI today; Telegram/Feishu
-callback receivers ship now, in-card buttons land with the desktop app) —
+callback receivers ship now, in-card buttons land in v1.2) —
 negative feedback retunes watchlist weights and thresholds over time.
 
 </td>
@@ -390,9 +424,13 @@ daemon), retention + auto-VACUUM, in-process scheduling.
 ```bash
 git clone https://github.com/xinzhuzi/MYIA
 cd MYIA
-uv sync                     # or: pip install -e .
-uv run myia --version       # myia 0.1.0
+uv sync                     # uv workspace (primary): installs myia + myia-classifier
+uv run myia --version       # myia 1.1.1
 ```
+
+> This repo is a uv workspace (`myia-classifier` is a workspace member): a bare
+> `pip install -e .` won't pull it in — install from source with `uv sync`;
+> `pip install myia` becomes available once the package lands on PyPI.
 
 Heavy fetch engines are optional extras; a missing engine degrades gracefully
 down the ladder with a structured `dependency_missing` error instead of
@@ -435,7 +473,40 @@ uv run myia run plugins/demo-min.yaml                    # real run; add --loop 
 Full walk-through: [docs/en/getting-started.md](docs/en/getting-started.md).
 
 > PyPI packages (`myia`, `myia-classifier`) will publish via a manual release
-> workflow; until then, install from source as above.
+> workflow; until then, install from source as above — or grab the desktop
+> installer below.
+
+### Download & install (desktop app)
+
+The macOS (Apple Silicon) installer ships via GitHub Releases:
+
+1. Download `MYIA_1.1.1_aarch64.dmg` from
+   [Releases](https://github.com/xinzhuzi/MYIA/releases) and drag MYIA into
+   Applications;
+2. On first launch: **right-click MYIA in Applications → Open → Open**
+   (or, after a blocked double-click: System Settings → Privacy & Security →
+   Open Anyway);
+3. The package is not Apple-notarized (notarization requires a paid developer
+   account) — the code is fully open-source and auditable, and every installer
+   is built in public by GitHub Actions with traceable logs. One right-click
+   open clears Gatekeeper; subsequent launches open normally.
+
+A fresh install auto-seeds the official plugins (including the
+zero-credential demo `myia-demo`: GitHub's new-star board), so the first click
+of "run your first plugin" shows real data; the settings screen offers
+"Check for updates" over a signed update channel.
+
+The five desktop screens (fed by real demo-plugin data):
+
+<p align="center">
+<img src="docs/screenshots/dashboard.png" width="400" alt="Dashboard: plugin run status and recent collection overview" />
+<img src="docs/screenshots/feed.png" width="400" alt="Feed: deduplicated intelligence items" />
+</p>
+<p align="center">
+<img src="docs/screenshots/sources.png" width="260" alt="Sources: plugin and source configuration" />
+<img src="docs/screenshots/logs.png" width="260" alt="Logs: run log tail" />
+<img src="docs/screenshots/settings.png" width="260" alt="Settings: credentials into the keychain + software update" />
+</p>
 
 ### The AI-native loop
 
@@ -497,7 +568,12 @@ Agent-facing condensed reference: [`skill/SKILL.md`](skill/SKILL.md).
 ### Roadmap
 
 The core pipeline is implemented and tested — 1300+ tests run in CI, none of
-them touch the real network. Still alpha: rough edges remain.
+them touch the real network. The desktop app is ready for daily use as of
+v1.1.1 (unified data paths, bundled official plugins, an out-of-the-box demo,
+a signed update channel); in-card feedback buttons, the settings feedback
+toggle and collection trends are scheduled for v1.2 (the feedback loop already
+works via CLI); the Windows build is verified at build level only, not
+smoke-tested on install.
 
 | Milestone | Scope | Status |
 |---|---|---|
@@ -506,7 +582,8 @@ them touch the real network. Still alpha: rough edges remain.
 | v0.3 ecosystem | Agent Skill, plugin market (local/remote dual-mode), Scrapling L4, feedback loop (CLI + callback receivers) | ✅ shipped |
 | v0.4 deep water | stealth_browser L5, llm_browser L6, trend baselines, event aggregation | ✅ shipped |
 | v1.0 launch | Bilingual docs, demo assets, GitHub facade, public delivery | ✅ shipped |
-| v1.1 desktop-first | Tauri desktop shell (Python core as sidecar), in-process plugin tier, in-card feedback buttons | 🚧 in progress |
+| v1.1 desktop-first | Tauri desktop shell (Python core as sidecar), five-screen UI, in-process plugin tier; in-card feedback buttons / settings feedback toggle / collection trends land in v1.2 (feedback works via CLI today) | ✅ shipped |
+| v1.1.1 data paths | Desktop data-path unification (MYIA_HOME / bundled official plugins / first-run seed), out-of-the-box demo plugin, signed update channel (check + install) | ✅ shipped |
 | Web UI | browser front-end on the same core | 📋 planned |
 
 ### Ethics & boundaries

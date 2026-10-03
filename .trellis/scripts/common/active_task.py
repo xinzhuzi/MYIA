@@ -780,6 +780,22 @@ def clear_active_task(
     return previous
 
 
+def clear_session_pointer(repo_root: Path, context_key: str | None) -> bool:
+    """Delete one session's runtime file by its context key.
+
+    The explicit, confirmed cross-session clear path for ``task.py finish
+    --force``. :func:`clear_active_task` resolves through the *current*
+    session identity and can silently land on the single-session fallback —
+    another session's pointer (that silent landing cleared a parallel
+    session's pointer on 2026-10-03). Callers that have already shown the user
+    which session owns the pointer and collected an explicit confirmation
+    clear it here instead, by name.
+    """
+    if not context_key:
+        return False
+    return _remove_file(_context_path(repo_root, context_key))
+
+
 def clear_task_from_sessions(task_path: str, repo_root: Path) -> int:
     """Delete all session runtime files that point at a task."""
     target = _canonical_task_ref(task_path, repo_root) or normalize_task_ref(task_path)

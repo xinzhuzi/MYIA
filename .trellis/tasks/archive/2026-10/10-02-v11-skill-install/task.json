@@ -1,0 +1,28 @@
+{
+  "id": "v11-skill-install",
+  "name": "v11-skill-install",
+  "title": "myia skill install:打通 Agent Skill 最后一公里",
+  "description": "SKILL.md 已写好并有一致性测试,但无安装通路——加 myia skill install 命令把它装进 Claude Code/Cursor 等技能目录",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-02",
+  "completedAt": "2026-10-03",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "10-02-v11-umbrella",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P2"
+  }
+}

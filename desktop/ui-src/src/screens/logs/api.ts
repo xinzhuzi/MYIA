@@ -143,7 +143,12 @@ export function eventToRow(event: SidecarEvent, seq: number): LogRow {
   if (event.type === "progress") {
     return { key: `event:${seq}`, runId: event.run_id, stream: "system", text: progressText(event), ts: event.ts };
   }
-  return { key: `event:${seq}`, runId: event.run_id, stream: "system", text: completedText(event), ts: event.ts };
+  if (event.type === "completed") {
+    return { key: `event:${seq}`, runId: event.run_id, stream: "system", text: completedText(event), ts: event.ts };
+  }
+  // 看图事件(image.progress/image.completed)非 run 域:无 run_id/ts,落一行
+  // 中性 system 摘要(调用方订阅处已按 run 过滤,这里只是穷尽防御,不渲染内容)
+  return { key: `event:${seq}`, runId: null, stream: "system", text: `▸ 看图任务事件(${event.type})`, ts: "" };
 }
 
 // ---------------------------------------------------------------------------

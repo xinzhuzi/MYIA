@@ -218,6 +218,9 @@ class TelegramChannel(TrendAwareChannel):
     """
 
     name = "telegram"
+    #: 目录寻址能力缺省关(telegram 子任务 10-03-messaging-telegram 翻 True
+    #: 并实现 context.target 覆盖);显式声明保住 isinstance(Channel) 判定。
+    supports_targeting = False
 
     def __init__(
         self,

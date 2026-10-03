@@ -86,12 +86,20 @@ uv pip install --python "$PYBIN" --quiet "pyinstaller>=6.10"
 # --collect-submodules myia:registry/push/classify 按字符串名动态 import 引擎
 # 与通道模块,静态分析看不见,须整体收编(spike 实测:漏收时报
 # No module named 'myia.engines.static_html',采集全失败退出码 2)。
+# --add-data keywords.json:myia_classifier/builtin.py 的 DEFAULT_TABLE_PATH 以
+# __file__ 定位 data/keywords.json,onefile 冻结包只收代码不收包内数据文件,
+# 缺失即 classify(builtin: true)构造期 config_error「分类关键词表加载失败」
+# (2026-10-03 真机冒烟实测)。落位 _MEIPASS/myia_classifier/data/,与冻结后
+# __file__ 同基(--add-data 目标分隔符 POSIX ':' / Windows ';')。
+DATA_SEP=":"
+[[ "$HOST_OS" == "windows" ]] && DATA_SEP=";"
 mkdir -p "$DIST" "$BIN_DIR"
 PYINST="$VENV/bin/pyinstaller"
 [[ -x "$PYINST" ]] || PYINST="$VENV/Scripts/pyinstaller.exe"
 "$PYINST" --onefile --name myia --clean --noconfirm \
   --hidden-import myia.secrets \
   --collect-submodules myia \
+  --add-data "$ROOT_DIR/myia-classifier/myia_classifier/data/keywords.json${DATA_SEP}myia_classifier/data" \
   --distpath "$DIST" --workpath "$SPIKE_DIR/build-pyi" \
   --specpath "$SPIKE_DIR" "$SPIKE_DIR/entry.py"
 cp "$DIST/myia$EXT" "$SIDECAR_OUT"

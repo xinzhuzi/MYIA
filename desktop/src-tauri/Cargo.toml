@@ -1,6 +1,6 @@
 [package]
 name = "myia-desktop"
-version = "0.1.0"
+version = "1.1.1"
 description = "MYIA desktop — Tauri 2 shell + PyInstaller sidecar"
 edition = "2021"
 rust-version = "1.77"
@@ -11,6 +11,8 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
+# dialog:看图屏系统文件选择器(拖/贴零权限,选图需插件;10-03-image-input)
+tauri-plugin-dialog = "2"
 # updater:官方更新插件(签名校验 + 静默安装);process:安装后 relaunch。
 # 公钥占位于 tauri.conf.json,真实公钥/签名钥仅经 CI secrets 注入(desktop/UPDATER.md)。
 tauri-plugin-updater = "2"

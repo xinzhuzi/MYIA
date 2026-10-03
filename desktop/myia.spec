@@ -9,7 +9,7 @@ a = Analysis(
     ['/Users/zhengbingjin/Project/Github/MYIA/desktop/entry.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('/Users/zhengbingjin/Project/Github/MYIA/myia-classifier/myia_classifier/data/keywords.json', 'myia_classifier/data')],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

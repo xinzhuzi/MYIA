@@ -1,0 +1,28 @@
+{
+  "id": "v11-desktop-app",
+  "name": "v11-desktop-app",
+  "title": "v1.1 桌面正式版:五大界面 + 打包流水线",
+  "description": "grill Q11 定案的头号 v1.1 交付:在 desktop/ 地基上实现产品级桌面客户端(仪表盘/情报流/源管理/日志/设置 + updater + dmg/exe 流水线)",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-02",
+  "completedAt": "2026-10-03",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "10-02-v11-umbrella",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P1"
+  }
+}

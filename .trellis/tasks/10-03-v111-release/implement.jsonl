@@ -1,0 +1,9 @@
+{"file": ".trellis/tasks/10-03-v111-release/design.md", "reason": "本任务设计:demo 源选型实测证据、myia-demo.yaml 逐字形状、updater UI 接线点、四处版本 bump 清单、流水线注入顺序"}
+{"file": ".trellis/tasks/10-03-v111-release/implement.md", "reason": "有序执行清单:步骤 0-12,每步带验证命令与禁区提醒"}
+{"file": "desktop/fixture/plugin.yaml", "reason": "demo 插件形状对齐的夹具惯例:classify builtin false 直通 + push stdout 零 target、零凭据"}
+{"file": "desktop/src-tauri/tauri.conf.json", "reason": "bundle.resources 需增 myia-demo.yaml 映射(随包+首跑种子);version 为四处 bump 之一"}
+{"file": "desktop/ui-src/src/screens/settings/settings-screen.tsx", "reason": "「检查更新」卡片接线点:三表单+doctor 回显+ErrorBox 组件与状态机惯例"}
+{"file": "desktop/UPDATER.md", "reason": "updater 权威 runbook:三密钥生成/Secrets 配置(R2-1 主人侧硬前置)、签名演示、前端缺口说明"}
+{"file": ".github/workflows/desktop-release.yml", "reason": "tag→release 注入顺序:tauri.release.conf.json 合并片+latest.json 生成,bump 先合入再打 tag 的依据"}
+{"file": ".github/workflows/pypi-publish.yml", "reason": "R2-3 演练开关改造点:增 repository-url dispatch 输入透传 pypa/gh-action-pypi-publish"}
+{"file": ".trellis/spec/python/index.md", "reason": "桌面发行数据根节:首跑种子对 Resources/plugins/*.yaml glob 自动带 demo(无需改 Python);发布前真实安装冒烟口径"}

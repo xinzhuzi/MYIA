@@ -32,6 +32,8 @@ import type { DoctorVerify, SecretSaveRecord } from "./api";
 import { DoctorVerifyPanel } from "./doctor-verify";
 import { ErrorBox } from "./error-box";
 import { FieldInput } from "./field-input";
+import { UpdaterCard } from "./updater-card";
+import { VisionForm } from "./vision-form";
 
 /** 通道 → 规范凭据名缺省(target 语义:feishu 卡的 chat_id / tg 的 bot token / webhook 地址) */
 const PUSH_SECRET_NAME_BY_CHANNEL: Record<string, string> = {
@@ -220,7 +222,7 @@ export function SettingsScreen() {
     <div className="flex flex-col gap-4 pb-6">
       <PageHeader
         title="设置"
-        description="LLM key / 代理池凭据 / 推送通道凭据 —— 全部只入系统钥匙链;doctor 验证回显"
+        description="LLM key / 代理池凭据 / 推送通道凭据 —— 全部只入系统钥匙链;doctor 验证回显;软件更新检查"
         actions={
           <Button size="sm" variant="outline" onClick={() => void runDoctor()} disabled={verifying}>
             <RefreshCw className={verifying ? "size-3.5 animate-spin" : "size-3.5"} />
@@ -434,6 +436,9 @@ export function SettingsScreen() {
           </CardContent>
         </Card>
 
+        {/* 看图(10-03-image-input):通道/引擎结构配置 + 云端 key 入钥匙链 */}
+        <VisionForm secretNames={secretNames} />
+
         {/* 钥匙链名清单 */}
         <Card>
           <CardHeader>
@@ -454,6 +459,9 @@ export function SettingsScreen() {
             )}
           </CardContent>
         </Card>
+
+        {/* 软件更新(官方签名更新通道,updater-card.tsx) */}
+        <UpdaterCard />
       </div>
 
       <div className="px-6">

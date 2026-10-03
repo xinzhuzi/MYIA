@@ -1,0 +1,28 @@
+{
+  "id": "v02-enrich-llm",
+  "name": "v02-enrich-llm",
+  "title": "LLM 精评:批量/缓存/预算护栏+watchlist",
+  "description": "enrich 层:三维打分(value/relevance/credibility)、batch 批量精评、同 URL 缓存、budget_per_run token 预算超限降级、watchlist 相关性画像",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-01",
+  "completedAt": "2026-10-03",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "10-01-myia-v02-usable",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P1"
+  }
+}

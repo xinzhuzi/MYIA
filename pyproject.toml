@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "myia"
-version = "0.1.0"
+version = "1.1.1"
 description = "AI-native intelligence hub — config-driven fetch, classify, analyze, push. 说需求,AI 做其余。"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -20,7 +20,8 @@ dependencies = [
     "keyring>=25",
     # 分类引擎已拆为独立发行(任务 10-01-v10-classifier-pypi);固定版本范围,
     # 语义由 src/myia/classify 兼容 shim 保留,import 路径不变。
-    "myia-classifier>=0.1,<0.2",
+    # 版本窗随 v1.1.1 双包对齐抬到 1.1 主版本(0.1/1.1 不兼容混装)。
+    "myia-classifier>=1.1,<2",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +30,11 @@ scrapling = ["scrapling"]
 firecrawl = ["firecrawl-py"]
 skyvern = ["skyvern"]
 llm = ["openai>=1.30"]
+# 看图(10-03-image-input):双引擎 OCR = ocrmac(macOS Vision,MIT)+
+# rapidocr-onnxruntime(Apache-2.0,内置模型零下载);显式含 llm 的 openai
+# (VisionClient 复用 AsyncOpenAI 模式)。体积影响 ~37MB 下载(onnxruntime
+# 20.5MB + rapidocr 14.2MB),见任务档 design 依赖节。
+vision = ["ocrmac>=1.0", "rapidocr-onnxruntime>=1.3", "openai>=1.30"]
 all = ["crawl4ai", "scrapling", "firecrawl-py", "skyvern", "openai>=1.30"]
 
 [project.scripts]

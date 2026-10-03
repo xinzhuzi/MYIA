@@ -142,6 +142,8 @@ export function LogsScreen() {
     setError(null);
     // 显式标注:订阅链保持 Promise<UnlistenFn>(供清理退订);拒绝单列处理
     const unlisten: Promise<UnlistenFn> = subscribeRunEvents((event: SidecarEvent) => {
+      // 看图事件(image.*)非 run 域(无 run_id):采集日志只续播 run 事件
+      if (event.type !== "log" && event.type !== "progress" && event.type !== "completed") return;
       if (event.type === "completed") {
         // 任意 run 完成都刷新列表;选中 run 另行落一行完成摘要
         void refreshRuns();

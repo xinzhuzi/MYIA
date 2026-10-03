@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/10-03-v111-release/prd.md", "reason": "验收清单权威(9 项):版本对齐/demo 随包出真数据/CHANGELOG/README/updater 闭环/扫描零命中/tag/PyPI/四帖"}
+{"file": ".trellis/spec/python/index.md", "reason": "发布检查红线:真实安装冒烟(cwd=/ 矩阵)必跑,mock 层绿不算数;版本展示与四处版本号一致性核对"}
+{"file": "desktop/UPDATER.md", "reason": "updater 通道闭环验收口径:latest.json 格式/签名校验/9.9.9 演示步骤"}
+{"file": ".github/workflows/desktop-release.yml", "reason": "Release 附件齐全性核对:dmg / MYIA.app.tar.gz+.sig / latest.json(version=1.1.1)"}

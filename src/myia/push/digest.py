@@ -10,6 +10,12 @@ answers 「推不推」 (orthogonal layers, yaml-schema rule 6).
 Partial-failure convention: one failing channel reports a failed
 :class:`SendReport` and the batch continues; a digest whose every channel
 failed stays pooled for the next slot flush.
+
+Targeted delivery (v1.2, PRD 10-03-messaging-core design D2/D5):items may
+carry per-item target specs (rule-level ``targets`` > channel-level); digest
+aggregation granularity rises from one-card-per-channel to
+one-card-per-(channel × target) — legacy items (no specs) keep the merged
+single-card path byte-for-byte.
 """
 
 from __future__ import annotations
@@ -27,6 +33,8 @@ from myia.push.base import (
     SendReport,
     item_view,
 )
+from myia.push.delivery import DeliveryLedger, send_batch_to_targets
+from myia.push.directory import ChannelDirectory
 from myia.store import SLOT_AM, SLOT_PM
 
 __all__ = ["DigestAggregator", "PendingDigestItem", "send_immediate"]
@@ -36,10 +44,15 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class PendingDigestItem:
-    """One pooled digest item plus its dedup key (None → no suppression)."""
+    """One pooled digest item plus its dedup key (None → no suppression).
+
+    ``targets``(10-03-messaging-core design D5):该条目的定向对象 specs
+    (规则级覆盖后的有效值);None = 走通道 legacy 单 target 路径。
+    """
 
     item: Any
     dedup_key: str | None = None
+    targets: list[str] | None = None
 
 
 def _local_now(now: datetime | None, tz: tzinfo | None) -> datetime:
@@ -74,6 +87,56 @@ async def _send_via(channel: Channel, items: Sequence[Any], context: SendContext
     return SendReport(channel.name, ok=True, item_count=len(items))
 
 
+async def _send_via_channel_targets(
+    items: Sequence[Any],
+    *,
+    specs: Sequence[str] | None,
+    channels: Sequence[Channel],
+    context: SendContext,
+    directory: ChannelDirectory | None,
+    ledger: DeliveryLedger | None,
+) -> list[SendReport]:
+    """One batch through every channel:legacy 单卡 or 定向逐对象派发。
+
+    ``specs`` 为 None/空 = legacy 路径(每通道一张卡,行为不变);否则经
+    :func:`myia.push.delivery.send_batch_to_targets` 解析→死信过滤→逐对象
+    发送。定向条目但 ``directory`` 缺席(管线未接线)按失败报告说破,不
+    静默丢卡。
+    """
+    reports: list[SendReport] = []
+    for channel in channels:
+        if not specs:
+            reports.append(await _send_via(channel, items, context))
+            continue
+        if directory is None:
+            logger.error(
+                "定向条目缺少通道目录(管线未接线),按失败报告: channel=%s specs=%s",
+                channel.name,
+                list(specs),
+            )
+            reports.append(
+                SendReport(
+                    channel=channel.name,
+                    ok=False,
+                    item_count=len(items),
+                    error="[targeting_not_configured] 定向条目缺少通道目录(管线未接线)",
+                    skipped=True,
+                )
+            )
+            continue
+        reports.extend(
+            await send_batch_to_targets(
+                items,
+                specs=specs,
+                channel=channel,
+                context=context,
+                directory=directory,
+                ledger=ledger,
+            )
+        )
+    return reports
+
+
 class DigestAggregator:
     """Pools digest items and flushes one merged card per AM/PM slot.
 
@@ -102,16 +165,23 @@ class DigestAggregator:
     def __len__(self) -> int:
         return len(self._pool)
 
-    def add(self, item: Any, *, dedup_key: str | None = None) -> None:
+    def add(
+        self, item: Any, *, dedup_key: str | None = None, targets: list[str] | None = None
+    ) -> None:
         """Append one item to the digest pool (``dedup_key`` enables suppression)."""
-        self._pool.append(PendingDigestItem(item=item, dedup_key=dedup_key))
+        self._pool.append(PendingDigestItem(item=item, dedup_key=dedup_key, targets=targets))
 
     def current_slot(self, now: datetime | None = None) -> str:
         """The AM/PM slot containing ``now`` (local 12:00 boundary, grill Q3)."""
         return _slot_of(_local_now(now, self._tz))
 
     async def flush(
-        self, *, now: datetime | None = None, category: str | None = None
+        self,
+        *,
+        now: datetime | None = None,
+        category: str | None = None,
+        directory: ChannelDirectory | None = None,
+        ledger: DeliveryLedger | None = None,
     ) -> list[SendReport]:
         """Send the whole pool as one merged card per channel; return reports.
 
@@ -119,9 +189,17 @@ class DigestAggregator:
         empty effective pool sends nothing. Items stay pooled when every
         channel failed, so the next flush retries them.
 
+        定向条目(design D5):聚合粒度从「每通道一卡」升为「每(通道×对象)
+        一卡」——同一通道的不同对象各收各的卡,互不串台;legacy 条目(无
+        targets)仍走每通道一卡的原路径,行为逐字节不变。留池判定:全部
+        报告失败且存在**非跳过**的真失败(瞬态错误)才留池;纯死信跳过/
+        未解析(``skipped=True``)是终态,不做无限重试。
+
         Args:
             now: dispatch time (defaults to now; slot/date derive from it).
             category: category label for the card title context.
+            directory: 通道目录(在场才启用定向派发)。
+            ledger: 死信账本(与 directory 一起注入;None = 不做死信跟踪)。
         """
         local_now = _local_now(now, self._tz)
         slot = _slot_of(local_now)
@@ -133,10 +211,36 @@ class DigestAggregator:
         if not keep:
             logger.info("摘要槽位无待发条目,跳过发送: slot=%s date=%s", slot, context.date)
             return []
-        reports = [
-            await _send_via(channel, [pending.item for pending in keep], context)
-            for channel in self._channels
-        ]
+        legacy_items = [pending.item for pending in keep if not pending.targets]
+        targeted = [pending for pending in keep if pending.targets]
+        reports: list[SendReport] = []
+        if legacy_items:
+            # legacy 路径:每通道一张合并卡(现状,零行为变化)。
+            reports.extend(
+                await _send_via_channel_targets(
+                    legacy_items,
+                    specs=None,
+                    channels=self._channels,
+                    context=context,
+                    directory=directory,
+                    ledger=ledger,
+                )
+            )
+        # 定向路径:按 spec 元组分组,每组一张卡、组内对象各收各的(D5)。
+        groups: dict[tuple[str, ...], list[Any]] = {}
+        for pending in targeted:
+            groups.setdefault(tuple(pending.targets), []).append(pending.item)
+        for specs, group_items in groups.items():
+            reports.extend(
+                await _send_via_channel_targets(
+                    group_items,
+                    specs=list(specs),
+                    channels=self._channels,
+                    context=context,
+                    directory=directory,
+                    ledger=ledger,
+                )
+            )
         sent_ok = any(report.ok for report in reports)
         if sent_ok:
             if self._registry is not None:
@@ -144,17 +248,26 @@ class DigestAggregator:
                     if pending.dedup_key:
                         self._registry.record_push(pending.dedup_key, now=local_now)
             logger.info(
-                "摘要已发送: slot=%s date=%s count=%d ok_channels=%d/%d",
+                "摘要已发送: slot=%s date=%s count=%d ok_sends=%d/%d",
                 slot,
                 context.date,
                 len(keep),
                 sum(1 for r in reports if r.ok),
                 len(reports),
             )
-        else:
-            self._pool = keep  # 全通道失败 → 留池,下次 flush 重试
+        elif reports and all(report.skipped for report in reports):
+            # 纯终态(死信跳过/对象未解析):留池只会无限重试,放弃并说破。
             logger.warning(
-                "摘要全部通道发送失败,条目留池待重试: slot=%s count=%d", slot, len(keep)
+                "摘要全部对象为终态不可达(死信/未解析),条目放弃不留池: slot=%s count=%d",
+                slot,
+                len(keep),
+            )
+        else:
+            # 全部发送尝试失败(存在真失败),或无任何报告(如无通道):保守留池,
+            # 下次 flush 重试(legacy 行为不变)。
+            self._pool = keep
+            logger.warning(
+                "摘要全部发送失败,条目留池待重试: slot=%s count=%d", slot, len(keep)
             )
         return reports
 
@@ -184,6 +297,9 @@ async def send_immediate(
     tz: tzinfo | None = None,
     now: datetime | None = None,
     category: str | None = None,
+    item_specs: Sequence[Sequence[str] | None] | None = None,
+    directory: ChannelDirectory | None = None,
+    ledger: DeliveryLedger | None = None,
 ) -> list[SendReport]:
     """Push immediate-bucket items right away, one card per item per channel.
 
@@ -192,8 +308,12 @@ async def send_immediate(
     window are skipped and logged (与摘要共享 AM/PM 防重发注册表). A channel
     failing on one item never stops the remaining items (partial failure).
 
+    定向条目(10-03-messaging-core):``item_specs`` 与 ``items`` 按位对齐,
+    非空 specs 的条目逐对象派发(每对象一张卡);缺省 None/空 = 全 legacy
+    路径,行为逐字节不变。``directory`` 在场才启用定向。
+
     Returns:
-        One :class:`SendReport` per item × channel.
+        One :class:`SendReport` per item × channel(定向条目为 item × 对象)。
     """
     local_now = _local_now(now, tz)
     context = SendContext(
@@ -203,13 +323,21 @@ async def send_immediate(
         kind="immediate",
     )
     reports: list[SendReport] = []
-    for item in items:
+    for index, item in enumerate(items):
         view = item_view(item)
         key = view.get("dedup_key") or view.get("url")
         if registry is not None and key and not registry.should_send(key, now=local_now):
             logger.info("立即推送跳过(同槽位已发过): key=%s slot=%s", key, context.slot)
             continue
-        item_reports = [await _send_via(channel, [item], context) for channel in channels]
+        specs = item_specs[index] if item_specs is not None and index < len(item_specs) else None
+        item_reports = await _send_via_channel_targets(
+            [item],
+            specs=list(specs) if specs else None,
+            channels=channels,
+            context=context,
+            directory=directory,
+            ledger=ledger,
+        )
         reports.extend(item_reports)
         if registry is not None and key and any(report.ok for report in item_reports):
             registry.record_push(key, now=local_now)

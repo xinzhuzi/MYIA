@@ -88,6 +88,7 @@ from .paths import (
 from .active_task import (
     ActiveTask,
     clear_active_task,
+    clear_session_pointer,
     resolve_active_task,
     resolve_context_key,
     set_active_task,

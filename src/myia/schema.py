@@ -85,6 +85,8 @@ from myia import secrets as secrets_store
 from myia.secrets import KeychainBackend
 
 __all__ = [
+    "CATEGORY_ID_RE",
+    "CHANNEL_PLATFORMS",
     "ENGINES",
     "PUSH_CHANNELS",
     "ROUTE_MODES",
@@ -205,7 +207,11 @@ DEFAULT_AGGREGATE_SIMILARITY = 0.6
 #: ``slot`` = am/pm push slot). ``title`` stays banned (永不标题指纹).
 RESERVED_DEDUP_FIELDS = frozenset({"url", "source", "category", "scores", "date", "slot"})
 
-_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
+#: 品类 id 的标识符规则(小写字母/数字/``-``/``_``,字母或数字开头,1-64 字符)。
+#: 公开单一事实源:桌面 sidecar 的 YAML 编辑器把它同时用作**新建文件名 stem**
+#: 规则(路径围栏的一环),前端预检 import 同一常量语义 —— 不复制正则,防两处
+#: 漂移(task 10-03-yaml-editor);manifest 能力名(provides)同源复用。
+CATEGORY_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 #: 场景插件 id(市场 manifest 与品类 plugin 节共用同一 id 空间;惯例 myia-<名称>)。
 _PLUGIN_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{1,63}$")
 _DURATION_RE = re.compile(r"^\s*(\d+(?:\.\d+)?)(ms|s|m|h)?\s*$")
@@ -788,11 +794,55 @@ class EnrichConfig(_StrictModel):
         return self
 
 
+#: 通道名 → 平台前缀的内置字面映射(10-03-messaging-core design D4:targets
+#: 同平台约束;schema 不反依赖 push 层,新平台接入目录寻址时同步登记)。
+CHANNEL_PLATFORMS: dict[str, str] = {
+    "feishu_card": "feishu",
+    "telegram": "telegram",
+}
+
+#: targets 元素形态 ``platform:名称或id``(与 myia.push.targets.SPEC_RE 同源;
+#: schema 层本地定值,避免反向 import)。
+_TARGET_SPEC_RE = re.compile(r"^([a-z][a-z0-9_]*):(.+)$")
+
+
+def _validate_target_specs(value: list[str], label: str) -> list[str]:
+    """targets 列表公共校验:元素格式 + 去重(保序,首个胜出)。
+
+    Raises:
+        SchemaValueError: 元素不是 ``platform:名称或id`` 形态(空串/缺冒号/
+            平台前缀非法/名称为空)。
+    """
+    cleaned: list[str] = []
+    for element in value:
+        spec = element.strip() if isinstance(element, str) else element
+        if not isinstance(spec, str) or _TARGET_SPEC_RE.fullmatch(spec) is None:
+            raise SchemaValueError(
+                "invalid_target_spec",
+                f"{label} 元素必须是 platform:名称或id 形态(如 feishu:AI中转站合伙人群),当前为 {element!r}",
+            )
+        if spec not in cleaned:
+            cleaned.append(spec)
+    return cleaned
+
+
 class RouteRuleConfig(_StrictModel):
-    """One threshold route: ``when`` expression -> ``mode``."""
+    """One threshold route: ``when`` expression -> ``mode``.
+
+    ``targets``(可选)覆盖通道级推送对象(10-03-messaging-core design D4,
+    优先级:规则 ``targets`` > 通道级 ``targets`` > legacy 单 ``target``);
+    元素格式在此校验,同平台约束在 :class:`PushConfig` 层统一执行——规则
+    单独不知道自己挂在哪个通道上。
+    """
 
     when: ExprStr
     mode: RouteMode
+    targets: list[str] = Field(default_factory=list)
+
+    @field_validator("targets")
+    @classmethod
+    def _check_target_specs(cls, value: list[str]) -> list[str]:
+        return _validate_target_specs(value, "push.route[].targets")
 
 
 class PushConfig(_StrictModel):
@@ -808,11 +858,20 @@ class PushConfig(_StrictModel):
     transport contract (PRD 10-01-v02-push-telegram: 超时/重试可配);defaults
     mirror ``myia.push.webhook``. They are rejected on other channels (no
     silent ignore).
+
+    ``targets``(10-03-messaging-core,design D4):定向推送对象列表,元素
+    ``platform:名称或id``。**同平台约束**:元素平台前缀必须与本条目通道
+    对应平台一致(:data:`CHANNEL_PLATFORMS` 字面表,webhook/stdout 不支持
+    目录寻址、配即拒);跨平台 = 写多条 push 条目。**targets 在场时
+    ``target`` 可省**;优先级:规则 ``targets`` > 通道级 ``targets`` >
+    legacy 单 ``target``(高层在场时低层不再投递)。不配 targets = 现行为,
+    零迁移。
     """
 
     #: 与 myia.push.webhook 的缺省一致(schema 不反依赖 push 层,本地定值)。
     channel: PushChannel
     target: str | None = None
+    targets: list[str] = Field(default_factory=list)
     route: list[RouteRuleConfig] = Field(default_factory=list)
     template: str | None = Field(default=None, min_length=1)
     timeout: float = Field(default=10.0, gt=0)
@@ -842,6 +901,11 @@ class PushConfig(_StrictModel):
         parse_secret_value(value, label="push[].target", allow_scheme=False)
         return value
 
+    @field_validator("targets")
+    @classmethod
+    def _check_targets(cls, value: list[str]) -> list[str]:
+        return _validate_target_specs(value, "push[].targets")
+
     @field_validator("template")
     @classmethod
     def _check_template_syntax(cls, value: str | None) -> str | None:
@@ -866,6 +930,7 @@ class PushConfig(_StrictModel):
 
     @model_validator(mode="after")
     def _check_channel_target(self) -> "PushConfig":
+        platform = CHANNEL_PLATFORMS.get(self.channel)
         if self.channel == "stdout":
             if self.target is not None:
                 raise SchemaValueError(
@@ -873,13 +938,68 @@ class PushConfig(_StrictModel):
                     "channel 为 stdout 时不允许配置 target",
                     path_suffix="target",
                 )
-        elif self.target is None:
-            raise SchemaValueError(
-                "missing_target",
-                f"channel 为 {self.channel} 时必须提供 target(env:/keychain: 引用)",
-                path_suffix="target",
-            )
+            if self.targets:
+                raise SchemaValueError(
+                    "targeting_not_supported",
+                    "channel 为 stdout 时不支持定向推送(不能配置 targets)",
+                    path_suffix="targets",
+                )
+        elif platform is None:
+            # webhook 等不支持目录寻址的通道:targets 即拒(fail-fast 于配置)。
+            if self.targets:
+                raise SchemaValueError(
+                    "targeting_not_supported",
+                    f"channel 为 {self.channel} 时不支持配置 targets"
+                    f"(仅目录寻址通道 {sorted(CHANNEL_PLATFORMS)} 支持)",
+                    path_suffix="targets",
+                )
+            if self.target is None:
+                raise SchemaValueError(
+                    "missing_target",
+                    f"channel 为 {self.channel} 时必须提供 target(env:/keychain: 引用)",
+                    path_suffix="target",
+                )
+        else:
+            self._check_same_platform(platform)
+            if self.target is None and not self.targets:
+                # targets 在场时 target 可省(design D4 放宽);两者皆无才拒。
+                raise SchemaValueError(
+                    "missing_target",
+                    f"channel 为 {self.channel} 时必须提供 target(env:/keychain: 引用)"
+                    "或 targets(定向推送对象列表)",
+                    path_suffix="target",
+                )
+        if platform is None:
+            # 不支持寻址的通道:规则级 targets 与通道级同罪(不留静默忽略)。
+            for index, rule in enumerate(self.route):
+                if rule.targets:
+                    raise SchemaValueError(
+                        "targeting_not_supported",
+                        f"channel 为 {self.channel!r} 不支持定向推送"
+                        f"(push.route[{index}].targets 不能配置)",
+                        path_suffix=f"route[{index}].targets",
+                    )
         return self
+
+    def _check_same_platform(self, platform: str) -> None:
+        """同平台约束:通道级与规则级 targets 的平台前缀必须与条目通道一致。"""
+        bad = [spec for spec in self.targets if spec.split(":", 1)[0] != platform]
+        if bad:
+            raise SchemaValueError(
+                "platform_mismatch",
+                f"push[].targets 元素平台前缀必须与通道 {self.channel!r} 对应平台"
+                f" {platform!r} 一致(跨平台 = 写多条 push 条目),越界元素: {bad}",
+                path_suffix="targets",
+            )
+        for index, rule in enumerate(self.route):
+            bad_rules = [spec for spec in rule.targets if spec.split(":", 1)[0] != platform]
+            if bad_rules:
+                raise SchemaValueError(
+                    "platform_mismatch",
+                    f"push.route[{index}].targets 元素平台前缀必须与通道"
+                    f" {self.channel!r} 对应平台 {platform!r} 一致,越界元素: {bad_rules}",
+                    path_suffix=f"route[{index}].targets",
+                )
 
 
 class StorageConfig(_StrictModel):
@@ -1186,7 +1306,7 @@ class CategoryConfig(_StrictModel):
     @field_validator("id")
     @classmethod
     def _check_id(cls, value: str) -> str:
-        if not _ID_RE.match(value):
+        if not CATEGORY_ID_RE.match(value):
             raise SchemaValueError(
                 "invalid_id",
                 f"id 只允许小写字母/数字/连字符/下划线,且以字母或数字开头(1-64 字符),当前为 {value!r}",

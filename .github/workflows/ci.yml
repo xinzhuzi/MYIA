@@ -42,3 +42,37 @@ jobs:
         run: npm test
       - name: Type-check and build (tsc -b && vite build)
         run: npm run build
+
+  # 10-03-ci-gates D1:push/PR 对 desktop/src-tauri 此前零编译检查,
+  # Rust 弄坏要等 tag 发版流水线才第一次暴露。cargo check 先行,
+  # 不加 clippy/fmt/matrix(见该任务 PRD「不做的事」)。
+  rust-check:
+    name: Rust compile check (desktop/src-tauri)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop/src-tauri
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      # tauri-build 的 build.rs 校验 externalBin 存在性,而 binaries/ 被 gitignore
+      # (.gitignore:67),fresh checkout 必须先造占位再 check(不必真跑 PyInstaller;
+      # 起草期实测:无占位必红,占位后全绿)。
+      - name: Create placeholder externalBin
+        run: |
+          mkdir -p binaries
+          touch "myia-$(rustc -vV | sed -n 's/^host: //p')"
+      - name: cargo check
+        run: cargo check --locked
+
+  # 10-03-ci-gates D2:ruff 最小 lint 门禁。select 集在根 ruff.toml
+  # (E9/F63/F7/F82,只拦致命错);版本锁死防默认规则面漂移(0.16.10 默认集
+  # 起草期实测 498 错)。本地同款:uvx ruff@0.16.10 check .
+  ruff:
+    name: Python lint (ruff minimal set)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Ruff check (locked version)
+        run: uvx ruff@0.16.10 check .

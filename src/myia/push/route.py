@@ -82,6 +82,10 @@ class RouteRule:
     fields it references and :attr:`references_score` reports whether it is
     a v0.2 score-threshold rule.
 
+    ``targets``(10-03-messaging-core design D4):规则级定向对象 specs,
+    覆盖通道级 ``targets``/legacy ``target``;格式与同平台约束由 schema
+    加载期校验,这里只透传。
+
     Raises:
         RouteConfigError: unknown mode, or the ``when`` expression violates
             the whitelist grammar (wraps :class:`RuleSyntaxError`).
@@ -89,6 +93,7 @@ class RouteRule:
 
     when: str
     mode: str
+    targets: list[str] | None = None
     _evaluator: Rule = field(init=False, repr=False, compare=False)
     _fields: tuple[str, ...] = field(init=False, repr=False, compare=False)
 
@@ -124,11 +129,14 @@ class RouteDecision:
 
     ``reason``: ``rule`` | ``category_default`` | ``conservative_default`` |
     ``no_rules_default``. ``rule_when`` carries the winning expression.
+    ``targets``(design D4):命中规则声明的定向对象(无则 None——调用方
+    回落通道级 targets / legacy target)。
     """
 
     mode: str
     reason: str
     rule_when: str | None = None
+    targets: list[str] | None = None
 
 
 @dataclass
@@ -168,7 +176,12 @@ def resolve_route(
             continue  # v0.1 无 score:score 阈值规则休眠(v0.2 接口位)
         if rule.matches(item):
             logger.debug("路由命中规则: mode=%s when=%r", rule.mode, rule.when)
-            return RouteDecision(mode=rule.mode, reason="rule", rule_when=rule.when)
+            return RouteDecision(
+                mode=rule.mode,
+                reason="rule",
+                rule_when=rule.when,
+                targets=list(rule.targets) if rule.targets else None,
+            )
     if not has_score:
         category = _item_field(item, "category")
         mode = CATEGORY_DEFAULT_ROUTES.get(category) if isinstance(category, str) else None
@@ -220,8 +233,8 @@ def routes_from_config(
     """Build :class:`RouteRule` list from schema objects or raw mappings.
 
     Accepts pydantic ``RouteRuleConfig`` models (attribute access) or raw
-    mappings (``{"when": ..., "mode": ...}``); unknown mapping fields fail
-    fast (schema 铁律: 未知字段不许静默忽略).
+    mappings (``{"when": ..., "mode": ..., "targets": [...]}``); unknown
+    mapping fields fail fast (schema 铁律: 未知字段不许静默忽略)。
 
     Raises:
         RouteConfigError: entry shape invalid, unknown field, missing
@@ -234,20 +247,24 @@ def routes_from_config(
             rules.append(entry)
             continue
         if isinstance(entry, Mapping):
-            unknown = set(entry) - {"when", "mode"}
+            unknown = set(entry) - {"when", "mode", "targets"}
             if unknown:
                 raise RouteConfigError(f"字段校验失败: {path} 未知字段 {sorted(unknown)}")
             when = entry.get("when")
             mode = entry.get("mode")
+            targets = entry.get("targets") or None
         else:
             when = getattr(entry, "when", None)
             mode = getattr(entry, "mode", None)
+            targets = getattr(entry, "targets", None) or None
         if not isinstance(when, str) or not when.strip():
             raise RouteConfigError(f"字段校验失败: {path} 缺少非空 when 表达式")
         if not isinstance(mode, str) or not mode:
             raise RouteConfigError(f"字段校验失败: {path} 缺少 mode")
+        if targets is not None and not isinstance(targets, list):
+            raise RouteConfigError(f"字段校验失败: {path} targets 必须是字符串列表")
         try:
-            rules.append(RouteRule(when=when, mode=mode))
+            rules.append(RouteRule(when=when, mode=mode, targets=list(targets) if targets else None))
         except RouteConfigError as exc:
             raise RouteConfigError(f"{path}: {exc}") from exc
     return rules

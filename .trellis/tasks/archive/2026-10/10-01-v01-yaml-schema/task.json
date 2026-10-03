@@ -1,0 +1,28 @@
+{
+  "id": "v01-yaml-schema",
+  "name": "v01-yaml-schema",
+  "title": "YAML schema:12 节定义+加载校验",
+  "description": "品类 YAML schema(sources/watchlist/classify/dedup/enrich/push.route/storage 等 12 节)的模型定义、加载与校验,明文凭据拒跑",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-01",
+  "completedAt": "2026-10-03",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "10-01-myia-v01-skeleton",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P0"
+  }
+}

@@ -68,12 +68,13 @@ secret set` 管录入,值不进 shell history(走 stdin)、不进日志、不进
 就能生成品类配置;所有命令带 `--json`,退出码契约 0/1/2/3,`myia doctor
 --json` 的 findings 就是给 agent 自修的行动清单。
 
-安装(git clone + uv sync 三行,PyPI 包发布后可 pip):
+安装(git clone + uv sync;根包依赖同仓子包 `myia-classifier`,裸 pip
+解析不到、装不了,PyPI 包发布后才可 pip):
 
 ```bash
 git clone https://github.com/xinzhuzi/MYIA
 cd MYIA
-uv sync    # 或 pip install -e .
+uv sync    # 源码装法仅此一条(workspace 依赖仅 uv 可解析)
 ```
 
 - 仓库:https://github.com/xinzhuzi/MYIA

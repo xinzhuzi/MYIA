@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/domain/yaml-schema.md", "reason": "品类 YAML 12 节 schema 铁律:load_category 同门校验、未知字段 fail-fast、凭据禁明文(env:/keychain: 引用)——yaml.validate/save 的校验语义来源"}
+{"file": ".trellis/spec/domain/security-baseline.md", "reason": "安全红线:明文凭据拒跑;仓库即公开。路径围栏(design §1)与凭据引用纪律依此"}
+{"file": ".trellis/spec/python/index.md", "reason": "Python 工程约定:核心 6 依赖封顶(本任务 Python 零新依赖)、结构化报错风格、src/ 边界"}
+{"file": ".trellis/spec/python/error-handling.md", "reason": "ProtocolError 结构化错误约定:新 4 方法的 code/path/data 形态沿用"}

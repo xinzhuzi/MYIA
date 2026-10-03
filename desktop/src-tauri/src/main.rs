@@ -148,6 +148,8 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         // process:更新安装完成后的进程重启(relaunch)
         .plugin(tauri_plugin_process::init())
+        // dialog:看图屏系统文件选择器(前端 @tauri-apps/plugin-dialog;权限见 capabilities/default.json)
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![sidecar_request])
         .setup(move |app| {
             // 冷启动打点(沿用 spike 惯例):进程启动 → sidecar spawn 完成。

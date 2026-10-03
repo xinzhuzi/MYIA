@@ -10,7 +10,7 @@ Usage:
     python3 task.py list-context <dir>          # List jsonl entries
     python3 task.py start <dir>                 # Set active task, record current branch
     python3 task.py current [--source] [--json] # Show active task
-    python3 task.py finish                      # Clear active task
+    python3 task.py finish [--force]            # Clear active task (--force: clear another session's pointer)
     python3 task.py set-branch <dir> <branch>   # Set git branch
     python3 task.py set-base-branch <dir> <branch>  # Set PR target branch
     python3 task.py set-scope <dir> <scope>     # Set scope for PR title
@@ -43,6 +43,7 @@ from common.paths import (
 )
 from common.active_task import (
     clear_active_task,
+    clear_session_pointer,
     resolve_active_task,
     resolve_context_key,
     set_active_task,
@@ -273,20 +274,57 @@ def cmd_start(args: argparse.Namespace) -> int:
 
 
 def cmd_finish(args: argparse.Namespace) -> int:
-    """Clear active task."""
-    repo_root = get_repo_root()
-    active = clear_active_task(repo_root)
-    current = active.task_path
+    """Clear active task (cross-session guarded).
 
-    if not current:
+    A session that has no active task of its own can still resolve a "current
+    task" through the single-session fallback — i.e. another session's pointer.
+    Clearing that pointer here is exactly the 2026-10-03 incident (a parallel
+    session's context injection silently broken), so it now refuses and names
+    the owning session unless ``--force`` confirms it.
+    """
+    repo_root = get_repo_root()
+    active = resolve_active_task(repo_root)
+
+    if not active.task_path:
         print(colored("No current task set", Colors.YELLOW))
         return 0
 
-    # Resolve task.json path before clearing
-    task_json_path = repo_root / current / FILE_TASK_JSON
+    if active.source_type == "session-fallback":
+        if not getattr(args, "force", False):
+            print(colored(
+                f"Refused: current task ({active.task_path}) is owned by another "
+                "session; nothing was cleared.",
+                Colors.RED,
+            ))
+            print(f"Source: {active.source}")
+            print()
+            print("This session has no active task of its own, so `finish` resolved")
+            print("the pointer above from the only session file on disk. Clearing it")
+            print("would break that session's context injection.")
+            print(f"Confirm with: python3 {DIR_WORKFLOW}/scripts/task.py finish --force")
+            return 1
+        # --force: clear exactly the session named above, by key, so the
+        # confirmation and the deletion cannot disagree (clear_active_task
+        # would re-resolve and could pick a different fallback mid-race).
+        if not clear_session_pointer(repo_root, active.context_key):
+            print(colored(
+                f"Error: failed to clear session pointer ({active.source}); "
+                "the file may already be gone.",
+                Colors.RED,
+            ))
+            return 1
+    else:
+        active = clear_active_task(repo_root)
+        if not active.task_path:
+            print(colored("No current task set", Colors.YELLOW))
+            return 0
 
+    current = active.task_path
     print(colored(f"✓ Cleared current task (was: {current})", Colors.GREEN))
     print(f"Source: {active.source}")
+
+    # Resolve task.json path after clearing
+    task_json_path = repo_root / current / FILE_TASK_JSON
 
     if task_json_path.is_file():
         run_task_hooks("after_finish", task_json_path, repo_root)
@@ -536,7 +574,7 @@ Usage:
   python3 task.py list-context <dir>                 List jsonl entries
   python3 task.py start <dir>                        Set active task; records the checked-out branch when unset
   python3 task.py current [--source]                 Show active task
-  python3 task.py finish                             Clear active task
+  python3 task.py finish [--force]                   Clear active task; --force also clears another session's pointer
   python3 task.py set-branch <dir> <branch>          Set git branch
   python3 task.py set-base-branch <dir> <branch>     Set PR target branch
   python3 task.py set-scope <dir> <scope>            Set scope for PR title
@@ -553,6 +591,11 @@ Monorepo options:
 
 Rename options:
   --dry-run            Print the change set without writing anything
+
+Finish options:
+  --force              Clear a current-task pointer that belongs to another session
+                       (single-session fallback). The refusal always names the owning
+                       session first; --force is the explicit confirmation.
 
 Archive options:
   --no-commit                Skip the auto git commit after archiving
@@ -579,6 +622,7 @@ Examples:
   python3 task.py start .trellis/tasks/01-21-add-login
   python3 task.py current --source
   python3 task.py finish
+  python3 task.py finish --force               # Clear a pointer owned by another session (confirmed)
   python3 task.py rename add-login add-sso --dry-run  # Preview the change set
   python3 task.py rename add-login add-sso
   python3 task.py archive add-login
@@ -698,7 +742,15 @@ def main() -> int:
                            help="Output machine-readable JSON")
 
     # finish
-    subparsers.add_parser("finish", help="Clear active task")
+    p_finish = subparsers.add_parser("finish", help="Clear active task")
+    p_finish.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "Also clear a current-task pointer owned by another session "
+            "(single-session fallback); the owning session is named before any clear"
+        ),
+    )
 
     # set-branch
     p_branch = subparsers.add_parser("set-branch", help="Set git branch")

@@ -187,7 +187,7 @@ export function DashboardScreen() {
               <EmptyState
                 compact
                 title="暂无品类"
-                description="doctor 未发现品类 YAML;先在插件目录放置品类配置"
+                description="首次启动会自动装载随包官方品类;若仍未出现,重启应用重试初始化,或到「源管理」查看插件目录"
               />
             ) : (
               categories.map((category) => <CategoryCard key={category.file} category={category} />)

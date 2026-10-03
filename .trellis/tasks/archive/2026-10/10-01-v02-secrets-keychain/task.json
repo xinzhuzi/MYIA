@@ -1,0 +1,28 @@
+{
+  "id": "v02-secrets-keychain",
+  "name": "v02-secrets-keychain",
+  "title": "安全底座:钥匙链凭据三态",
+  "description": "env:/keychain: 引用解析、macOS Keychain/Windows DPAPI 写入、UI/CLI 首跑录入,YAML 明文凭据启动即报错",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-01",
+  "completedAt": "2026-10-03",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "10-01-myia-v02-usable",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P1"
+  }
+}

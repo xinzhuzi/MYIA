@@ -1,4 +1,4 @@
-import { Inbox, LayoutDashboard, Rss, Settings, Terminal } from "lucide-react";
+import { FileCode2, Image as ImageIcon, Inbox, LayoutDashboard, Rss, Settings, Terminal } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { cn } from "@/lib/utils";
@@ -7,12 +7,14 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
   { to: "/", label: "仪表盘", icon: LayoutDashboard, end: true },
   { to: "/feed", label: "情报流", icon: Inbox, end: false },
+  { to: "/image", label: "看图", icon: ImageIcon, end: false },
   { to: "/sources", label: "源管理", icon: Rss, end: false },
+  { to: "/yaml-editor", label: "配置编辑", icon: FileCode2, end: false },
   { to: "/logs", label: "采集日志", icon: Terminal, end: false },
   { to: "/settings", label: "设置", icon: Settings, end: false },
 ] as const;
 
-/** 左侧导航:五屏联动导航(NavLink 激活态由路由驱动)。 */
+/** 左侧导航:七屏联动导航(NavLink 激活态由路由驱动;看图=情报流之后,配置编辑=源管理之后)。 */
 export function Sidebar() {
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground">

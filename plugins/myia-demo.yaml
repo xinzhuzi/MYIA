@@ -1,0 +1,46 @@
+# plugins/myia-demo.yaml — 开箱演示件(v1.1.1 随包第五件,grill Q3)。
+# 目的:装机首跑「运行第一个插件」第一次就出真数据,不撞 config_error;
+#      同时是 README 五屏截图的数据来源。
+# 铁律:零凭据(stdout 通道不需要 target)、零环境变量/钥匙串引用(fail-fast
+#      不破)、分类 builtin 关闭直通(夹具惯例)。
+id: myia-demo
+name: 演示 · GitHub 新星
+schedule: "0 9 * * *"          # 仅 --loop 常驻时生效;桌面 run.start 单跑不看它
+
+sources:
+  # GitHub Search API:免凭据 JSON、单请求 30 条(2026-10-03 实测 200)。
+  # q=created:>2026-09-01 为固定日期:URL 模板只支持 {symbol}/{page},不支持
+  # 当日日期;窗口随时间变宽,榜单长期有效,截图翻新时可前移该日期。
+  - name: github-new-stars
+    engine: direct_api
+    url: "https://api.github.com/search/repositories?q=created:%3E2026-09-01&sort=stars&order=desc&per_page=30"
+    method: GET
+    headers:
+      Accept: "application/vnd.github+json"
+    extract:
+      type: json_path
+      fields:                   # 同前缀 $.items[*] → 逐元素配对(fetch_base.py:1173)
+        title: "$.items[*].full_name"
+        url: "$.items[*].html_url"
+        stars: "$.items[*].stargazers_count"
+        desc: "$.items[*].description"
+    rate_limit:
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true      # api.github.com/robots.txt 为 404(无规则),默认无害
+    proxy: direct
+    retry: 3
+
+classify:
+  builtin: false                # 演示条目不属于七大论坛类,关掉内置扫描直通
+
+dedup:
+  key: "{url}"                  # 同一仓库重跑不重复入库/推送
+
+push:
+  - channel: stdout             # 零凭据通道:stdout 不需要 target(desktop/fixture 惯例)
+
+storage:
+  retention: 7d
+  vacuum: monthly

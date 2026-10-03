@@ -1,0 +1,28 @@
+{
+  "id": "v01-cli-basic",
+  "name": "v01-cli-basic",
+  "title": "CLI 基础:run 命令",
+  "description": "cli.py 的 myia run <yaml> 基础命令,串通单品类流水线",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-01",
+  "completedAt": "2026-10-03",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "10-01-myia-v01-skeleton",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P1"
+  }
+}

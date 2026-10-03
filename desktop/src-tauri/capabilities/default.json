@@ -1,11 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "desktop 最小权限:核心事件 + updater/process。sidecar 由 Rust 侧 app.shell().sidecar() 拉起(不经 webview ACL),前端对 shell:execute 零调用 —— 不给 webview 任何 shell 执行授权(v1.1 评审:args 全通配 = 被攻破的 webview 可任意参数驱动 myia 二进制)",
+  "description": "desktop 最小权限:核心事件 + updater/process + dialog(看图屏系统文件选择器,dialog:default 仅含打开/保存/消息对话框,无 fs 权限)。sidecar 由 Rust 侧 app.shell().sidecar() 拉起(不经 webview ACL),前端对 shell:execute 零调用 —— 不给 webview 任何 shell 执行授权(v1.1 评审:args 全通配 = 被攻破的 webview 可任意参数驱动 myia 二进制)",
   "windows": ["main"],
   "permissions": [
     "core:default",
     "updater:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "dialog:default"
   ]
 }

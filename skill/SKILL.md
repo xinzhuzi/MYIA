@@ -188,6 +188,7 @@ stderr(整份 stdout 恒可 `json.load`)。退出码:`0` 成功 / `1` 配置或�
 |---|---|---|
 | `channel` | `必填` | `feishu_card` / `telegram` / `webhook` / `stdout` |
 | `target` | `null` | 推送目标,只能是 `env:`/`keychain:` 引用;`stdout` 禁止配置;其余通道必填 |
+| `targets` | `[]` | 定向推送对象列表,元素 `platform:名称或id`(如 `feishu:AI中转站合伙人群`,自动去重保序);仅 `feishu_card`/`telegram` 支持(webhook/stdout 配即拒),同平台约束:平台前缀须与本条目通道一致,跨平台写多条 push;在场时 `target` 可省;优先级:规则级 `targets` > 通道级 `targets` > legacy `target` |
 | `route` | `[]` | 阈值路由(见 route 节);留空 = 七大类缺省映射(羊毛/节点/代买 → immediate,其余 → digest) |
 | `template` | `null` | Jinja2 卡片模板(沙箱渲染,未知变量报错);省略用通道内置版式 |
 | `timeout` | `10.0` | 发送超时秒数(**仅 `webhook` 生效**,其他通道配置即拒) |
@@ -207,6 +208,7 @@ target = 端点 URL 引用(如 `env:MYIA_WEBHOOK_URL`);`stdout` 零凭据,本地
 |---|---|---|
 | `when` | `必填` | 阈值表达式(语法同 2.10),按声明顺序求值,**首条命中生效**;引用 `score` 的规则在精评分回填前自动休眠(v0.1 无 score 时跳过) |
 | `mode` | `必填` | `immediate`(立即推)/ `digest`(进 AM/PM 摘要)/ `archive`(只归档) |
+| `targets` | `[]` | 规则级定向推送对象,元素 `platform:名称或id` 同 2.13;命中该规则时覆盖通道级推送对象(优先级:规则级 > 通道级 > legacy `target`);同平台约束同 2.13 |
 
 常规三档写法:`score >= 8` → immediate;`score >= 5` → digest;`score < 5` → archive。
 有 score 但无任何规则命中 → 保守 digest;完全没配 route 且有 score → immediate。

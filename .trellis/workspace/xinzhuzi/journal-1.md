@@ -37,6 +37,8 @@
 - 形态决议(推荐待批):独立第六屏「配置编辑」+ 源管理行「编辑」跳转;CodeMirror 6 做编辑器;myia-* 插件系统是数据源场景、无 UI 插件机制,编辑器以 UI 模块 + 协议扩展落地
 - 顺带挖出地雷:sources.write 写回用 yaml.safe_dump(entry.py:687),**启停开关即抹掉品类 YAML 全部注释**(官方件大半是注释)——是否并入本任务修,列待拍板 1
 - 关联普查档:C11(yaml.write 泛化缺失)由 yaml.save 收口;C13 增删改由原文编辑覆盖
+- 追问补范围(同日):「用户自建品类」原 v1 范围真空 → 补 新建(yaml.template + save 的 null-mtime 语义)/删除(yaml.delete 连带清 .disabled.json)/跨文件重复品类 id 拒绝(现状 loader 零守卫,手拷改源忘改 id 会静默混品类——写盘门收口);方法 4→6,C13 增删改全链路收口
+- grill Round 1(同日,主人全按推荐批复并令落实):排期=文档定稿、start 等 release 收尾信号;启停抹注释=止血(.bak)并入本任务+根治拆 10-03-yaml-toggle-comments(已建);.bak 单份滚动;pools config 不纳入;CM6 依赖实锤(npm 实测 peer react>=17,React 19 兼容);单最小模板;保存闭环(自动 doctor 复核+「跑一次」dirty 禁用);keychain 对照 secret.list 出 warning 不拒写(env 不对照);官方件删除只写 confirm 文案(恢复按钮 backlog);dev 模式允许改仓库件+路径可见。三件套已按决议全部更新,任务达「可 start」状态
 
 
 
@@ -52,6 +54,36 @@
 - 执行档全家福(全挂 grill-v112):v111-release(P0)/docs-truth(P1)/v112-desktop-batch(P1)/ci-gates/archive-review/v12-backlog(+B2/B3/B4)/test-baseline-import(已交付 review)
 - 普查档转活清单(D3 ✅718d56c、B1 ✅定向、C10 ✅02a0dce、B5 ✅获批即推),状态归 review
 - 并行会话协调:ui-hints-trim 已交付归档(02a0dce/49e223b),v111-release 的 C10 引用已修注
+
+## 2026-10-03 侧栏品牌头移除(task 10-03-sidebar-brand-trim,review)
+
+- 主人截屏(448×110)点名侧栏品牌头不需要 → 整块删;MyiaWordmark 零引用连带删,MyiaMark 留(empty-state 在用);index.html meta description 同文案属 Tauri 死上下文一并删行;nav 顶部补 pt-4 防贴顶
+- 验证:vitest 40/40 + tsc/vite build 绿(显式退出码);源码+产物 grep「替主人看着世界/MyiaWordmark」零残留;tauri build 重装 /Applications(旧版备份 /tmp/MYIA.app.bak-brand-trim 可删);窗口截屏 OCR 目视:品牌头无、五项导航在序、仪表盘数据正常,孤例「MYIA」为系统标题栏窗口标题非字标残留
+- 冒烟新坑(接 ui-hints-trim 两条):③System Events 窗口计数 0 ≠ 无窗口——CGWindowList(.optionAll) 仍可见,`screencapture -l <winID>` 可直截非当前 Space 窗口;④sips --cropToHeightWidth 是居中裁剪且 --cropOffset 无效,要区域图直接 screencapture -R 指定坐标
+- spec 无涉(纯 UI 布局裁剪);单 commit(仅本任务三文件+任务目录,journal 压着 yaml-editor 两行未随行)
+
+## 2026-10-03 UI 功能对标普查(task 10-03-ui-feature-census,planning 待拍板)
+
+- 主人指示查业界情报/爬虫软件找 UI 缺口 → 三路网调(OSINT 5 件/爬虫平台 6 件/订阅监听 6 件,能力点全带官方 URL,原文留任务 research/)+ MYIA 五屏+顶栏源码实读基线(commit d84ec05 时点)
+- 缺口矩阵 G1-G12:P1=条目搜索/详情与打开原文/数据导出/排程管理+手动触发/推送测试按钮;P2=趋势折线/run 重跑过滤/日志搜索/AI 摘要按钮/告警规则(Rules 式)/就地沉淀关键词(OpenCTI 铃铛式亮点);P3=快捷键批量/代理连通测试/凭据整包迁移
+- F 类延伸四条刻意不做:无代码点选构建器(AI-native 定调冲突)/案件图谱协作域/OPML 模板市场/云端索引类能力
+- 与已有档划界不重复:源编辑→yaml-editor、看图→image-input、检查更新→v111-release、feed 游标分页→gap-census C 类;G1-G4 建议并为 feed-ux 批次、G5 告警规则是否入 v1.2 等 4 项待主人拍板
+- 仅普查未动代码;顶栏品类 Select 死骨架(defaultValue="all" 未接数据)顺带记入基线事实
+
+## 2026-10-03 trellis 任务档补全(9 档 jsonl 清单,commit 8e8337d)
+
+- 主人指示补全任务文档 → 69 个非归档档全量审计:PRD/描述/优先级全齐(工作流写的 messaging 四子档连 design+implement 都有),唯一系统缺口 = 9 档 implement/check.jsonl 还是空占位(grill-v112 决议族:七个执行档+普查档+test-baseline)
+- 18 份清单按各档真实材料源策填:普查证据矩阵、决议档、spec python 红线、yaml-editor design 契约(给 yaml-toggle-comments)、ui-feature-census G 矩阵(给 v112-desktop-batch 防重复立项);task.py validate 全绿、引用存在性零悬空
+- 填写中途并行归档会话把 gap-census 收档(f8664a6,顺带搬走刚填好的 gap-census jsonl),9 处引用即时改锚 archive/2026-10/;v111-release 的 jsonl/task.json 同期也在被并行会话改,未触碰
+- 工程注记:并发会话共享工作区时,填档/引用类操作提交前必须重跑悬空引用检查(这次就真撞上了)
+
+## 2026-10-03 ui-feature-census grill Round 1(主人四问全按推荐;feed-ux 立项)
+
+- grilling 规程一轮收口设计树:Q1 feed-ux 批次立项(10-03-feed-ux,G1 搜索+G2 详情原文含 C9+G3 导出+G4 排程管理/C8 接线/G5 测试按钮搭车;C5/C13 留 v112-batch;G1/G3 与 C1 协议合参、版本统一 +1;tag 后并行;批内 G2→G4→G1/G3)
+- Q2 P2/P3 全部入 v12-backlog 池不加码(v1.2 承诺仍=Windows+L3+proxy_pool+B2/B3/B4);Q3 F 类五条全认可(新增 G11 凭据导出不做,secret set 重录);Q4 v1.2 前置都有(Windows 真机、proxy 服务商预算)——已回写 v12-backlog
+- feed-ux 建档含设计期事实:桌面仅 shell 插件、capabilities 无 fs/dialog/opener JS 权限——G2 打开原文与 G3 导出的通道选型是 design.md 必答项
+- 回写四处:ui-feature-census 拍板注记+状态转 review;v12-backlog 增 G 项入池节+前置已答节;v112-desktop-batch 划界注记;新档 feed-ux(prd+jsonl 齐全,validate 绿)
+- 主人令「按建议落实」→ feed-ux 补齐 design.md+implement.md 达可 start:事实核订五项(capabilities 安全姿势=webview 零 shell 执行授权、dialog 前后端已装、store.items 已有 category 参、sidecar 不驻留调度器→排程管理=可视化+预览+手动触发、PROTOCOL_VERSION=1 与在途 yaml.* 线合并时统一 bump 不抢跑);协议四件=store.items 增 query/before(与 C1 合参)、feed.export(dialog.save 选路径 sidecar 直写)、push.test(真发,stdout 默认)、schedule.preview(build_cron_trigger 纯算);UI 六步+回滚点+守门(shell:allow-open 必须 scope https)
 
 ## 2026-10-03 普查路由落档:三修复任务定稿 + 普查档归档(落档会话)
 

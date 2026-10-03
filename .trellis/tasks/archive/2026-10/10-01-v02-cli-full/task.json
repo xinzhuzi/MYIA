@@ -1,0 +1,28 @@
+{
+  "id": "v02-cli-full",
+  "name": "v02-cli-full",
+  "title": "CLI 完整:init/test/list/doctor",
+  "description": "myia init 结构化向导(AI 可消费)、test 单源试抓、list、doctor 结构化诊断输出供 agent 自修",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-01",
+  "completedAt": "2026-10-03",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "10-01-myia-v02-usable",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "priority": "P1"
+  }
+}

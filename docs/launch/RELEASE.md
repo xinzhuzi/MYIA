@@ -107,7 +107,7 @@ python -c "from myia_classifier import classify_title, ALL_CATEGORIES; \
 
 # 再验主包(会自动拉 myia-classifier 依赖):
 pip install myia
-myia --version          # 预期输出:myia 0.1.0
+myia --version          # 预期输出:myia <刚发布的版本号>(与上一步 PyPI 页面所示一致)
 deactivate
 ```
 

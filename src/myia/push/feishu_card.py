@@ -155,6 +155,9 @@ class FeishuCardChannel(TrendAwareChannel):
     """
 
     name = "feishu_card"
+    #: 目录寻址能力缺省关(feishu 子任务 10-03-messaging-feishu 翻 True 并
+    #: 实现 context.target 覆盖);显式声明保住 isinstance(Channel) 判定。
+    supports_targeting = False
 
     def __init__(
         self,

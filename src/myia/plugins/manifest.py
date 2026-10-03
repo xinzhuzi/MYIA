@@ -52,8 +52,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from myia.plugins.versioning import VersionRange, VersionSpecError
 from myia.schema import (
+    CATEGORY_ID_RE,
     # 私有符号受控复用(与 cli.py 复用 _SECRET_REF_RE 同一先例):防两处漂移。
-    _ID_RE,
     _PLUGIN_ID_RE,
     LoadError,
     LoadErrorDetail,
@@ -239,9 +239,9 @@ class PluginManifest(_StrictManifestModel):
     @field_validator("provides")
     @classmethod
     def _check_provides(cls, value: list[str]) -> list[str]:
-        """能力名走品类 id 同一套标识符规则(_ID_RE 复用,防两处漂移)。"""
+        """能力名走品类 id 同一套标识符规则(CATEGORY_ID_RE 复用,防两处漂移)。"""
         for token in value:
-            if not _ID_RE.match(token):
+            if not CATEGORY_ID_RE.match(token):
                 raise SchemaValueError(
                     "invalid_provides_token",
                     f"provides 取值 {token!r} 应为小写字母/数字/连字符/下划线且字母数字开头(1-64 字符)",

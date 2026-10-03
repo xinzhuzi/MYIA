@@ -2,10 +2,12 @@
 //
 // 源管理组件测试:mock sidecar(壳命令 sidecar_request 的 JS 假实现,
 // 内存态模拟品类 YAML 的 sources 名单),覆盖:表格渲染与健康度三色 /
-// 排序筛选分页 / 启停写回+doctor 往返复核 / 写回失败结构化错误态 / 空态 / 加载错误态。
+// 排序筛选分页 / 启停写回+doctor 往返复核 / 写回失败结构化错误态 / 空态 / 加载错误态 /
+// 行动作「编辑」到配置编辑屏的链接。
 // 协议缺口(method_not_found)也是被测行为之一 —— sources.write 未收编前如实呈现。
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 
 const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: mocks.invoke }));
@@ -174,7 +176,11 @@ describe("源管理:表格渲染与健康度三色", () => {
       ]);
     installSidecar(map);
 
-    render(<SourcesScreen />);
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
 
     expect(await screen.findByText("hacker-news")).toBeTruthy();
     expect(screen.getByText("https://example.com/rsshub")).toBeTruthy();
@@ -199,7 +205,11 @@ describe("源管理:排序/筛选/分页", () => {
 
   it("12 行分两页;下一页/上一页翻动;筛选即时收窄", async () => {
     installSidecar(manyRowsSidecar().map);
-    render(<SourcesScreen />);
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
     expect(await screen.findByText("source-00")).toBeTruthy();
     expect(screen.getByText(/共 12 行/)).toBeTruthy();
     expect(screen.getByText("第 1 / 2 页")).toBeTruthy();
@@ -228,7 +238,11 @@ describe("源管理:排序/筛选/分页", () => {
         ]),
       ]);
     installSidecar(map);
-    render(<SourcesScreen />);
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
     expect(await screen.findByText("beta")).toBeTruthy();
 
     const urlHeader = screen.getByRole("columnheader", { name: /URL/ });
@@ -253,7 +267,11 @@ describe("源管理:启停写回 + doctor 往返复核", () => {
   it("停用:写回 sources.write(disable) → doctor(yamls) 复核一致 → 行随刷新消失并进停用区", async () => {
     const { map, state } = okSidecar(["hacker-news", "rsshub"]);
     installSidecar(map);
-    render(<SourcesScreen />);
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
     expect(await screen.findByText("hacker-news")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("switch", { name: "停用 hacker-news" }));
@@ -276,7 +294,11 @@ describe("源管理:启停写回 + doctor 往返复核", () => {
   it("再启用:停用区按钮写回 enable → doctor 复核一致 → 行回到表格", async () => {
     const { map } = okSidecar(["hacker-news"]);
     installSidecar(map);
-    render(<SourcesScreen />);
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
     expect(await screen.findByText("hacker-news")).toBeTruthy();
     fireEvent.click(screen.getByRole("switch", { name: "停用 hacker-news" }));
     await screen.findByTestId("roundtrip-ok");
@@ -294,7 +316,11 @@ describe("源管理:启停写回 + doctor 往返复核", () => {
     const { map } = okSidecar(["hacker-news"]);
     const withoutWrite: SidecarMap = { health: map.health, doctor: map.doctor };
     installSidecar(withoutWrite);
-    render(<SourcesScreen />);
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
     expect(await screen.findByText("hacker-news")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("switch", { name: "停用 hacker-news" }));
@@ -314,7 +340,11 @@ describe("源管理:空态与错误态", () => {
     const { map } = okSidecar([]);
     map.health = () => healthResult([]);
     installSidecar(map);
-    render(<SourcesScreen />);
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
     expect(await screen.findByText("还没有源数据")).toBeTruthy();
     expect(screen.getByText(/插件目录\(plugins\)下没有可加载的品类 YAML/)).toBeTruthy();
   });
@@ -323,7 +353,11 @@ describe("源管理:空态与错误态", () => {
     mocks.invoke.mockImplementation(async () => {
       throw JSON.stringify({ code: "sidecar_not_running", path: "$", message: "sidecar 进程未运行" });
     });
-    render(<SourcesScreen />);
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("sidecar 进程未运行");
     expect(alert.textContent).toContain("code=sidecar_not_running");
@@ -333,5 +367,20 @@ describe("源管理:空态与错误态", () => {
     await waitFor(() => {
       expect(mocks.invoke.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
+  });
+
+  it("行动作「编辑」:链接到 /yaml-editor?file=…(预选该品类文件)", async () => {
+    const { map } = okSidecar(["hacker-news"]);
+    installSidecar(map);
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText("hacker-news")).toBeTruthy();
+
+    const links = screen.getAllByRole("link", { name: "编辑" });
+    expect(links.length).toBe(1); // 单源品类一行一链接
+    expect(links[0].getAttribute("href")).toBe(`/yaml-editor?file=${encodeURIComponent(FILE)}`);
   });
 });

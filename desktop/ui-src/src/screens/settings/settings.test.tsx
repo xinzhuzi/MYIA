@@ -9,6 +9,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: mocks.invoke }));
+// updater-card 随设置屏挂载:两插件模块也须 mock(真实 plugin-updater 会从
+// core 导入 Resource/Channel,上面的极简 core mock 不提供;本文件不点更新按钮,
+// 行为用例在 updater-card.test.tsx)。
+vi.mock("@tauri-apps/plugin-updater", () => ({ check: vi.fn() }));
+vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn() }));
 
 import { SettingsScreen } from "./settings-screen";
 import type {

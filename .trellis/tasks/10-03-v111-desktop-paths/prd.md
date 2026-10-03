@@ -51,10 +51,15 @@ v1.1 的 UI 测试全部 mock sidecar,未做真实 .app 启动冒烟 → 五屏"
 
 - cwd=/ 无 MYIA_HOME(bundle 探测路):version/health/plugins.list/store.items/logs.tail/secret.list/run.status/doctor 全 OK;health plugins=4 healthy=true
 - 真首跑(清根后 `open -a MYIA`,Rust 注入路):serve 进程 env 带 MYIA_HOME;数据根自动建 + 四件套种子 + `.seeded`
-- run.start dry 闭环:run_id=1 → completed(exit=1 config_error,四件套 push 全引用 `env:FEISHU_CHAT_ID`,无凭据首跑=引导态,doctor warning 如实解释 —— fail-fast 设计)
+- run.start dry 闭环:run_id=1 → completed(exit=1 config_error)。~~归因初记:四件套 push 全引用 `env:FEISHU_CHAT_ID`,无凭据首跑=引导态~~ **勘误(2026-10-03 冒烟复测)**:真因为冻结包缺 `myia_classifier/data/keywords.json`(PyInstaller datas 未收录),classify(builtin: true)构造期即报「分类关键词表加载失败」退出,run 未达 push 段;修复(`build-sidecar.sh --add-data` + 重打 sidecar)后同矩阵复测:dry run exit=0 success,无凭据 real run 为 exit=3 partial(push `ok:false` 凭据引导态,采集与分类全部正常)
 - 旧 ~/.myia 未迁移(桌面从未提供市场 UI 入口,无既有用户数据,design.md D7)
 
 ## Notes
 
 - P0 发布阻断级(已装用户核心屏全断);涉及 desktop/entry.py、src-tauri/main.rs、build-sidecar.sh/tauri.conf resources、ui-src 空态
 - 探查证据:2026-10-03 serve 全方法矩阵(本 PRD 表格即摘要)
+
+## 执行记录(2026-10-03,受主人委托)
+
+- P0 已修:应用数据根统一 + 插件随包 + 首跑种子的修复已交付(修复提交见 task.json notes 记 45639c3,验收全勾,状态对齐仓惯例 review=待归档)。
+- 真机冒烟结果见工作流报告;PRD 内已载 2026-10-03 冒烟复测勘误(冻结包缺 myia_classifier/data/keywords.json 已修,重打 sidecar 后 dry run exit=0 success,无凭据 real run exit=3 partial 凭据引导态)。

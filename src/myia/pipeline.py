@@ -130,7 +130,9 @@ from myia.feedback import ActiveTuning, FeedbackTuner, TuningPolicy, ingest_call
 from myia.push import (
     CHANNELS,
     DEFAULT_POLL_INTERVAL_SECONDS,
+    DeliveryLedger,
     DigestAggregator,
+    PLATFORMS,
     RouteConfigError,
     SendReport,
     TelegramFeedbackError,
@@ -139,13 +141,14 @@ from myia.push import (
     routes_from_config,
     send_immediate,
 )
+from myia.push.directory import REFRESH_STALE_SECONDS, ChannelDirectory
 from myia.push.templates import (
     build_keyword_trends,
     build_trend_table,
     record_item_metrics,
     record_keyword_mentions,
 )
-from myia.schema import CategoryConfig, LoadError, load_category_file
+from myia.schema import CHANNEL_PLATFORMS, CategoryConfig, LoadError, load_category_file
 from myia.store import (
     RUN_STATUS_FAILED,
     RUN_STATUS_PARTIAL,
@@ -814,6 +817,13 @@ class Pipeline:
         # 会连带上次失败条目一起重发;注意:池是进程内的,进程重启即丢,
         # partial 前任也不可续跑——留池条目会永久丢失,见 _flush 摘要告警)。
         self._digest_pools: dict[int, DigestAggregator] = {}
+        # 消息平台定向(v1.2, 10-03-messaging-core design D3):目录与死信账本
+        # 落数据根(db 路径父目录;CLI cwd / 桌面 myia_home(),与任务
+        # 10-03-v111-desktop-paths 收口一致)。读写 best-effort,损坏退化
+        # 内存态,不阻塞推送。
+        _data_root = Path(self._db_path).parent
+        self._channel_directory = ChannelDirectory(_data_root)
+        self._delivery_ledger = DeliveryLedger(_data_root)
 
     def _enrich_settings_from_config(self) -> EnrichSettings:
         """Schema 承载的端点引用 → :class:`EnrichSettings`(PRD: enrich 节承载 base_url)。
@@ -1901,6 +1911,9 @@ class Pipeline:
             report.status = "ok"
             logger.info("未配置 push 通道,条目仅入库 items=%s", len(items))
             return pushes
+        if not dry_run:
+            # Q4 定案:run 前节流懒刷目录(发现属持久化副作用,dry-run 不做)。
+            await self._refresh_directory_if_stale()
         self._prepare_trend_context(items, store, dry_run=dry_run)
         for index, (push, rules) in enumerate(zip(self.config.push, self._push_routes)):
             pushes.append(
@@ -1909,6 +1922,40 @@ class Pipeline:
         report.items_out = len(items)
         report.status = "ok"
         return pushes
+
+    async def _refresh_directory_if_stale(self) -> None:
+        """目录节流懒刷(grill Q4 定案,Hermes housekeeping 的 MYIA 等价物)。
+
+        距上次刷新 > :data:`REFRESH_STALE_SECONDS` 且存在已注册平台
+        (:data:`myia.push.PLATFORMS`)才触发 ``discover_directory``;单平台
+        失败退回旧桶 + 结构化告警(directory.refresh 内隔离),整体失败也
+        不阻塞推送。core 未注册平台时零开销短路。
+        """
+        if not PLATFORMS:
+            return
+        now = self._wall_clock().timestamp()
+        age = self._channel_directory.age_seconds(now=now)
+        if age is not None and age <= REFRESH_STALE_SECONDS:
+            logger.debug("目录尚新鲜,跳过懒刷: age=%.0fs", age)
+            return
+        adapters: dict[str, Any] = {}
+        for platform, platform_cls in PLATFORMS.items():
+            # 平台 → 找到对应通道的 push 条目,用其凭据构建发现适配器。
+            for push in self.config.push:
+                channel_cls = CHANNELS.get(push.channel)
+                if channel_cls is not None and channel_cls is platform_cls:
+                    adapters[platform] = self._build_channel(push)
+                    break
+        if not adapters:
+            logger.debug("无已注册平台的 push 条目,跳过目录懒刷")
+            return
+        try:
+            counts = await self._channel_directory.refresh(adapters, now=now)
+        except Exception as exc:  # noqa: BLE001 - 刷新失败退回旧目录,绝不阻塞推送
+            logger.warning("目录懒刷失败,退回旧目录继续推送: error=%s", exc)
+            return
+        if counts:
+            logger.info("目录懒刷完成: %s", counts)
 
     async def _push_channel(
         self,
@@ -1928,9 +1975,23 @@ class Pipeline:
         """
         out = ChannelPushReport(channel=push.channel, dry_run=dry_run)
         buckets: dict[str, list[Item]] = {"immediate": [], "digest": [], "archive": []}
+        # 定向对象有效值(design D4 优先级):规则 targets > 通道级 targets >
+        # legacy 单 target(最后者不走定向,由通道自带 target 兜底)。
+        channel_specs = list(push.targets) if push.targets else None
+        immediate_specs: list[list[str] | None] = []
+        digest_specs: list[list[str] | None] = []
         for item in items:
             decision = resolve_route(item.view(), rules)
             buckets[decision.mode].append(item)
+            specs: list[str] | None = None
+            if decision.targets:
+                specs = list(decision.targets)
+            elif channel_specs:
+                specs = list(channel_specs)
+            if decision.mode == "immediate":
+                immediate_specs.append(specs)
+            elif decision.mode == "digest":
+                digest_specs.append(specs)
             out.decisions.append(
                 {
                     "url": item.url,
@@ -1964,8 +2025,18 @@ class Pipeline:
                 tz=self._tz,
                 now=now,
                 category=self.config.name,
+                item_specs=immediate_specs,
+                directory=self._channel_directory,
+                ledger=self._delivery_ledger,
             )
-            suppressed = out.immediate - len(immediate_reports)
+            # 抑制计数:与 send_immediate 内部同一判定(should_send 纯读),
+            # 定向条目一条多报告,不能用「条目数 − 报告数」推算。
+            suppressed = sum(
+                1
+                for item in buckets["immediate"]
+                if (key := item.dedup_key or item.url)
+                and not registry.should_send(key, now=now)
+            )
             if suppressed > 0:
                 report.skips["slot_suppressed"] += suppressed
                 logger.info(
@@ -1978,16 +2049,22 @@ class Pipeline:
                 aggregator = DigestAggregator(channels=[channel], registry=registry, tz=self._tz)
                 self._digest_pools[entry_index] = aggregator
             added_keys: list[str] = []
-            for item in buckets["digest"]:
+            digest_items = zip(buckets["digest"], digest_specs)
+            for item, specs in digest_items:
                 key = item.dedup_key or item.url
                 if not registry.should_send(key, now=now):
                     report.skips["slot_suppressed"] += 1
                     logger.info("摘要同槽位拦截 channel=%s key=%s", push.channel, key)
                     continue
-                aggregator.add(item, dedup_key=key)
+                aggregator.add(item, dedup_key=key, targets=specs)
                 added_keys.append(key)
             if len(aggregator):
-                digest_reports = await aggregator.flush(now=now, category=self.config.name)
+                digest_reports = await aggregator.flush(
+                    now=now,
+                    category=self.config.name,
+                    directory=self._channel_directory,
+                    ledger=self._delivery_ledger,
+                )
                 reports.extend(digest_reports)
                 if digest_reports and all(not r.ok for r in digest_reports):
                     # 全通道失败:条目已留池(本进程内下次 flush 重试)。池在

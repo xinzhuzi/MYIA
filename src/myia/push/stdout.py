@@ -34,6 +34,9 @@ class StdoutChannel(TrendAwareChannel):
     """
 
     name = "stdout"
+    #: stdout 永不支持目录寻址(schema 配 targets 即拒);显式声明保住
+    #: isinstance(Channel) 判定。
+    supports_targeting = False
 
     def __init__(
         self,

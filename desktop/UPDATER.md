@@ -17,6 +17,11 @@ Tauri 2 官方 updater 插件的签名/发布/升级流程。**铁律:签名私�
 - 本地普通构建(不打更新包):无需任何签名环境;
 - 本地要出签名更新包:按第四节导出环境变量。
 
+> **本地开发提示(10-03-ci-gates D5)**:`tauri dev` 前先在 desktop/ 下跑
+> `bash build-sidecar.sh`。externalBin 指向被 gitignore 的 `binaries/`
+> (tauri.conf.json `bundle.externalBin`),fresh clone 不先出 sidecar 则
+> `tauri dev` 直接挂且无提示;sidecar 生成后不必每次重跑,改动 entry.py 才需要。
+
 ## 二、一次性配置:生成签名密钥并配 CI Secrets
 
 在 desktop/ 内(npm 本地依赖,不动全局):
