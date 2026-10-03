@@ -161,10 +161,14 @@ def test_ai_news_carries_firecrawl_semantics_and_discourse_list():
     assert config.images is not None and config.images.enabled
     assert config.images.vl == "local", "A1 落地:本地 VL caption 实配(vision.yaml local 节)"
     # enrich 第二层漏斗(10-03-vision-daily A2 实开):端点凭据双引用 —
-    # base_url 走 env:(文档既有约定 MYIA_LLM_BASE_URL,CLI export / 容器
-    # docker/.env 注入),api_key 走钥匙链既有 GLM key(vision.yaml cloud 同链)。
+    # base_url/api_key 均走钥匙链(10-03 桌面零 env 化:base_url 自 env:
+    # MYIA_LLM_BASE_URL 迁 keychain:myia/llm/base_url,桌面 sidecar 无 shell
+    # env,env: 引用会在桌面 run 构造期 fail-fast),api_key 是既有 GLM key
+    # (vision.yaml cloud 同链)。
     assert config.enrich.enabled is True, "A2 落地:精评开通,image_ocr/image_caption 进精评 payload"
-    assert config.enrich.base_url == "env:MYIA_LLM_BASE_URL", "端点 base_url 必须是 env: 引用(grill Q6)"
+    assert config.enrich.base_url == "keychain:myia/llm/base_url", (
+        "端点 base_url 必须是 keychain: 引用(桌面零 env;grill Q6 引用铁律不变)"
+    )
     assert config.enrich.api_key == "keychain:myia/image/api_key", "key 走钥匙链既有 GLM 凭据"
     assert config.enrich.batch == 10, "实测批宽:glm-4-flash 单批 20 条超 60s completion 上限,10 条留余量"
     cocoloop = by_name["cocoloop"]
@@ -180,8 +184,11 @@ def test_ai_news_images_ring_local_hint_comment_ships_startup_guide():
     text = (PLUGINS_DIR / "ai-news.yaml").read_text(encoding="utf-8")
     assert "\n  vl: local" in text, "vl: local 必须是实配行,不是注释示例"
     assert "mlx_vlm.server" in text, "本地 VL 服务启动指引必须在注释里"
-    # A2 端点注记同规:env: 引用的取值方法必须在声明面留一句(export 指引)
-    assert "MYIA_LLM_BASE_URL" in text, "enrich.base_url 的 env: 引用必须注明变量怎么取值"
+    # A2 端点注记同规(10-03 桌面零 env 化后):keychain: 引用的录入方法必须
+    # 在声明面留一句(myia secret set 指引,games 教训同源)
+    assert "myia secret set myia/llm/base_url" in text, (
+        "enrich.base_url 的 keychain: 引用必须注明凭据怎么录入"
+    )
 
 
 def test_wool_declares_seven_source_slots():
@@ -988,20 +995,21 @@ def test_plugin_builds_a_pipeline(name):
     """The category plugs into Pipeline (classify table, rules, routes, tz).
 
     10-03-vision-daily A2:ai-news 实开 enrich 后,构造期就要解析端点双引用
-    (env:MYIA_LLM_BASE_URL + keychain:myia/image/api_key,Pipeline fail-fast
-    契约)。这里注入占位 env 与内存钥匙链——构造面契约是「引用可解析」,
+    (keychain:myia/llm/base_url + keychain:myia/image/api_key,Pipeline
+    fail-fast 契约;10-03 桌面零 env 化后 base_url 也走钥匙链,env 注入
+    不再需要)。这里注入内存钥匙链——构造面契约是「引用可解析」,
     真端点连通由 task 的真跑验收负责,battery 保持 network-free 且不依赖
     宿主机是否真有那把钥匙(CI/无钥匙链机器照常过)。"""
-    monkeypatch = pytest.MonkeyPatch()
-    monkeypatch.setenv("MYIA_LLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
     backend = InMemoryKeychainBackend()
     backend.set_password(secrets_store.SECRET_SERVICE, "myia/image/api_key", "placeholder")
+    backend.set_password(
+        secrets_store.SECRET_SERVICE, "myia/llm/base_url", "https://open.bigmodel.cn/api/paas/v4"
+    )
     secrets_store.set_backend(backend)
     try:
         pipeline = Pipeline(_load(name))
     finally:
         secrets_store.reset_backend()
-        monkeypatch.undo()
     assert pipeline.config.id == name
 
 

@@ -1,0 +1,2298 @@
+[base] version=0.0.1 protocol=5
+[base] image.server.status={"running": true, "base_url": "http://127.0.0.1:8080/v1", "model": "/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx", "healthy": true}
+[base] models=[('qwen3-vl-8b-mlx', True, False)]
+[download] 提交 job_id=1 repo=mlx-community/SmolVLM-256M-Instruct-4bit name=test-vl-256m
+[serve-stderr] Downloading bytes:           |  0.00B
+[serve-stderr] Reconstructing (incomplete total...): |          |  0.00B /  0.00B            [A
+[serve-stderr] Fetching 14 files:   0%|          | 0/14 [00:00<?, ?it/s][A[A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          |  0.00B / 4.74kB            [A
+[event] image.models.progress #1 done=4739 total=150417043
+[serve-stderr] Reconstructing (incomplete total...): 100%|██████████| 4.74kB / 4.74kB            [A
+[serve-stderr] Downloading bytes: ██████████| 4.74kB
+[serve-stderr] Fetching 14 files:   7%|▋         | 1/14 [00:00<00:10,  1.27it/s][A[A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 4.74kB /  145MB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 4.74kB /  145MB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 4.74kB /  145MB            [A
+[event] image.models.progress #2 done=9909 total=150417043
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 4.74kB /  145MB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 6.69kB /  145MB            [A
+[serve-stderr] Downloading bytes:           | 6.69kB
+[serve-stderr] Fetching 14 files:  14%|█▍        | 2/14 [00:01<00:08,  1.35it/s][A[A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 7.17kB /  146MB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 91.1kB /  146MB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 91.9kB /  146MB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          |  102kB /  146MB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          |  102kB /  146MB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          |  102kB /  146MB            [A
+[serve-stderr] Downloading bytes:           |  102kB
+[serve-stderr] Fetching 14 files:  57%|█████▋    | 8/14 [00:02<00:01,  4.62it/s][A[A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          |  102kB /  150MB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          |  102kB /  150MB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          |  103kB /  150MB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          |  132kB /  150MB            [A
+[serve-stderr] Downloading bytes:           |  132kB
+[serve-stderr] Fetching 14 files:  71%|███████▏  | 10/14 [00:02<00:00,  5.64it/s][A[A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          |  598kB /  150MB            [A
+[serve-stderr] Reconstructing (incomplete total...):   1%|          | 1.40MB /  150MB            [A
+[serve-stderr] Downloading bytes:           | 1.40MB
+[serve-stderr] Fetching 14 files:  86%|████████▌ | 12/14 [00:03<00:00,  3.59it/s][A[A
+[serve-stderr] Reconstructing (incomplete total...):   3%|▎         | 4.95MB /  150MB            [A
+[serve-stderr] Downloading bytes: ▎         | 4.95MB
+[serve-stderr] Fetching 14 files:  93%|█████████▎| 13/14 [00:04<00:00,  2.82it/s][A[A
+[serve-stderr] Downloading bytes: ▎         | 5.23MB, 2.16MB/s
+[serve-stderr] Downloading bytes: ▎         | 5.38MB, 1.14MB/s
+[serve-stderr] Downloading bytes: ▎         | 5.58MB, 1.15MB/s
+[serve-stderr] Downloading bytes: ▍         | 5.75MB, 1.19MB/s
+[serve-stderr] Downloading bytes: ▍         | 5.90MB,  984kB/s
+[serve-stderr] Downloading bytes: ▍         | 6.01MB,  806kB/s
+[serve-stderr] Downloading bytes: ▍         | 6.10MB,  701kB/s
+[serve-stderr] Downloading bytes: ▍         | 6.18MB,  640kB/s
+[serve-stderr] Downloading bytes: ▍         | 6.28MB,  594kB/s
+[serve-stderr] Downloading bytes: ▍         | 6.34MB,  565kB/s
+[serve-stderr] Downloading bytes: ▍         | 6.39MB,  498kB/s
+[serve-stderr] Downloading bytes: ▍         | 6.44MB,  492kB/s
+[serve-stderr] Downloading bytes: ▍         | 6.52MB,  488kB/s
+[serve-stderr] Downloading bytes: ▍         | 6.60MB,  456kB/s
+[serve-stderr] Downloading bytes: ▍         | 6.69MB,  435kB/s
+[serve-stderr] Downloading bytes: ▍         | 6.73MB,  415kB/s
+[serve-stderr] Downloading bytes: ▍         | 6.78MB,  421kB/s
+[serve-stderr] Downloading bytes: ▍         | 6.87MB,  428kB/s
+[serve-stderr] Downloading bytes: ▍         | 6.91MB,  416kB/s
+[serve-stderr] Downloading bytes: ▍         | 6.96MB,  422kB/s
+[serve-stderr] Downloading bytes: ▍         | 7.01MB,  351kB/s
+[serve-stderr] Downloading bytes: ▍         | 7.06MB,  372kB/s
+[serve-stderr] Downloading bytes: ▍         | 7.14MB,  390kB/s
+[serve-stderr] Downloading bytes: ▍         | 7.19MB,  384kB/s
+[serve-stderr] Downloading bytes: ▍         | 7.24MB,  398kB/s
+[serve-stderr] Downloading bytes: ▍         | 7.32MB,  417kB/s
+[serve-stderr] Downloading bytes: ▍         | 7.41MB,  409kB/s
+[serve-stderr] Downloading bytes: ▍         | 7.49MB,  395kB/s
+[serve-stderr] Downloading bytes: ▌         | 7.57MB,  395kB/s
+[serve-stderr] Downloading bytes: ▌         | 7.65MB,  388kB/s
+[serve-stderr] Downloading bytes: ▌         | 7.70MB,  388kB/s
+[serve-stderr] Downloading bytes: ▌         | 7.77MB,  399kB/s
+[serve-stderr] Downloading bytes: ▌         | 7.82MB,  364kB/s
+[serve-stderr] Downloading bytes: ▌         | 7.91MB,  387kB/s
+[serve-stderr] Downloading bytes: ▌         | 7.98MB,  420kB/s
+[serve-stderr] Downloading bytes: ▌         | 8.08MB,  378kB/s
+[serve-stderr] Downloading bytes: ▌         | 8.14MB,  411kB/s
+[serve-stderr] Downloading bytes: ▌         | 8.21MB,  378kB/s
+[serve-stderr] Downloading bytes: ▌         | 8.29MB,  420kB/s
+[serve-stderr] Downloading bytes: ▌         | 8.36MB,  410kB/s
+[serve-stderr] Downloading bytes: ▌         | 8.42MB,  382kB/s
+[serve-stderr] Downloading bytes: ▌         | 8.50MB,  424kB/s
+[serve-stderr] Downloading bytes: ▌         | 8.57MB,  408kB/s
+[serve-stderr] Downloading bytes: ▌         | 8.62MB,  376kB/s
+[serve-stderr] Downloading bytes: ▌         | 8.67MB,  390kB/s
+[serve-stderr] Downloading bytes: ▌         | 8.75MB,  403kB/s
+[serve-stderr] Downloading bytes: ▌         | 8.82MB,  399kB/s
+[serve-stderr] Downloading bytes: ▌         | 8.93MB,  365kB/s
+[serve-stderr] Downloading bytes: ▌         | 9.01MB,  313kB/s
+[serve-stderr] Downloading bytes: ▌         | 9.13MB,  382kB/s
+[serve-stderr] Downloading bytes: ▌         | 9.18MB,  425kB/s
+[serve-stderr] Downloading bytes: ▌         | 9.23MB,  369kB/s
+[event] image.models.progress #25 done=14237484 total=150417043
+[serve-stderr] Downloading bytes: ▌         | 9.27MB,  387kB/s
+[serve-stderr] Downloading bytes: ▌         | 9.34MB,  406kB/s
+[serve-stderr] Downloading bytes: ▋         | 9.41MB,  367kB/s
+[serve-stderr] Downloading bytes: ▋         | 9.49MB,  423kB/s
+[serve-stderr] Downloading bytes: ▋         | 9.57MB,  409kB/s
+[serve-stderr] Downloading bytes: ▋         | 9.63MB,  396kB/s
+[serve-stderr] Downloading bytes: ▋         | 9.70MB,  368kB/s
+[serve-stderr] Downloading bytes: ▋         | 9.77MB,  413kB/s
+[serve-stderr] Downloading bytes: ▋         | 9.83MB,  380kB/s
+[serve-stderr] Downloading bytes: ▋         | 9.91MB,  424kB/s
+[serve-stderr] Downloading bytes: ▋         | 9.96MB,  405kB/s
+[serve-stderr] Downloading bytes: ▋         | 10.0MB,  414kB/s
+[serve-stderr] Downloading bytes: ▋         | 10.1MB,  398kB/s
+[serve-stderr] Downloading bytes: ▋         | 10.2MB,  389kB/s
+[serve-stderr] Downloading bytes: ▋         | 10.3MB,  383kB/s
+[serve-stderr] Downloading bytes: ▋         | 10.3MB,  395kB/s
+[serve-stderr] Downloading bytes: ▋         | 10.4MB,  392kB/s
+[serve-stderr] Downloading bytes: ▋         | 10.5MB,  386kB/s
+[serve-stderr] Downloading bytes: ▋         | 10.6MB,  391kB/s
+[serve-stderr] Downloading bytes: ▋         | 10.7MB,  386kB/s
+[serve-stderr] Downloading bytes: ▋         | 10.7MB,  362kB/s
+[serve-stderr] Downloading bytes: ▋         | 10.8MB,  378kB/s
+[serve-stderr] Downloading bytes: ▋         | 10.9MB,  379kB/s
+[serve-stderr] Downloading bytes: ▋         | 10.9MB,  383kB/s
+[serve-stderr] Downloading bytes: ▋         | 11.0MB,  379kB/s
+[serve-stderr] Reconstructing (incomplete total...):   3%|▎         | 4.95MB /  150MB            [A
+[serve-stderr] Downloading bytes: ▋         | 11.1MB,  392kB/s
+[serve-stderr] Downloading bytes: ▋         | 11.2MB,  385kB/s
+[serve-stderr] Downloading bytes: ▋         | 11.2MB,  381kB/s
+[serve-stderr] Downloading bytes: ▋         | 11.3MB,  393kB/s
+[serve-stderr] Downloading bytes: ▊         | 11.3MB,  405kB/s
+[serve-stderr] Downloading bytes: ▊         | 11.4MB,  397kB/s
+[serve-stderr] Downloading bytes: ▊         | 11.4MB,  410kB/s
+[serve-stderr] Downloading bytes: ▊         | 11.5MB,  426kB/s
+[serve-stderr] Downloading bytes: ▊         | 11.6MB,  380kB/s
+[serve-stderr] Downloading bytes: ▊         | 11.6MB,  403kB/s
+[serve-stderr] Downloading bytes: ▊         | 11.7MB,  397kB/s
+[serve-stderr] Downloading bytes: ▊         | 11.8MB,  371kB/s
+[serve-stderr] Downloading bytes: ▊         | 11.8MB,  418kB/s
+[serve-stderr] Downloading bytes: ▊         | 11.9MB,  405kB/s
+[serve-stderr] Downloading bytes: ▊         | 12.0MB,  373kB/s
+[serve-stderr] Downloading bytes: ▊         | 12.0MB,  375kB/s
+[serve-stderr] Downloading bytes: ▊         | 12.1MB,  396kB/s
+[serve-stderr] Downloading bytes: ▊         | 12.2MB,  390kB/s
+[serve-stderr] Downloading bytes: ▊         | 12.3MB,  384kB/s
+[serve-stderr] Downloading bytes: ▊         | 12.3MB,  400kB/s
+[serve-stderr] Downloading bytes: ▊         | 12.4MB,  363kB/s
+[serve-stderr] Downloading bytes: ▊         | 12.4MB,  380kB/s
+[serve-stderr] Downloading bytes: ▊         | 12.5MB,  395kB/s
+[serve-stderr] Downloading bytes: ▊         | 12.6MB,  386kB/s
+[serve-stderr] Downloading bytes: ▊         | 12.6MB,  399kB/s
+[serve-stderr] Downloading bytes: ▊         | 12.7MB,  410kB/s
+[serve-stderr] Downloading bytes: ▊         | 12.7MB,  397kB/s
+[serve-stderr] Downloading bytes: ▊         | 12.8MB,  415kB/s
+[serve-stderr] Downloading bytes: ▊         | 12.9MB,  373kB/s
+[serve-stderr] Downloading bytes: ▊         | 13.0MB,  406kB/s
+[serve-stderr] Downloading bytes: ▊         | 13.1MB,  399kB/s
+[serve-stderr] Downloading bytes: ▊         | 13.1MB,  397kB/s
+[serve-stderr] Downloading bytes: ▉         | 13.2MB,  367kB/s
+[serve-stderr] Downloading bytes: ▉         | 13.2MB,  388kB/s
+[serve-stderr] Downloading bytes: ▉         | 13.3MB,  408kB/s
+[serve-stderr] Downloading bytes: ▉         | 13.4MB,  407kB/s
+[serve-stderr] Downloading bytes: ▉         | 13.4MB,  367kB/s
+[serve-stderr] Downloading bytes: ▉         | 13.5MB,  414kB/s
+[serve-stderr] Downloading bytes: ▉         | 13.6MB,  426kB/s
+[serve-stderr] Downloading bytes: ▉         | 13.6MB,  376kB/s
+[serve-stderr] Downloading bytes: ▉         | 13.7MB,  381kB/s
+[serve-stderr] Downloading bytes: ▉         | 13.8MB,  394kB/s
+[serve-stderr] Downloading bytes: ▉         | 13.8MB,  389kB/s
+[serve-stderr] Downloading bytes: ▉         | 13.9MB,  365kB/s
+[serve-stderr] Downloading bytes: ▉         | 13.9MB,  382kB/s
+[serve-stderr] Downloading bytes: ▉         | 14.0MB,  397kB/s
+[serve-stderr] Downloading bytes: ▉         | 14.0MB,  361kB/s
+[serve-stderr] Downloading bytes: ▉         | 14.1MB,  386kB/s
+[serve-stderr] Downloading bytes: ▉         | 14.2MB,  387kB/s
+[serve-stderr] Downloading bytes: ▉         | 14.3MB,  406kB/s
+[serve-stderr] Downloading bytes: ▉         | 14.3MB,  400kB/s
+[serve-stderr] Downloading bytes: ▉         | 14.4MB,  393kB/s
+[event] image.models.progress #50 done=19480364 total=150417043
+[serve-stderr] Downloading bytes: ▉         | 14.5MB,  389kB/s
+[serve-stderr] Downloading bytes: ▉         | 14.5MB,  364kB/s
+[serve-stderr] Downloading bytes: ▉         | 14.6MB,  386kB/s
+[serve-stderr] Downloading bytes: ▉         | 14.7MB,  354kB/s
+[serve-stderr] Downloading bytes: ▉         | 14.7MB,  338kB/s
+[serve-stderr] Downloading bytes: ▉         | 14.8MB,  366kB/s
+[serve-stderr] Downloading bytes: ▉         | 14.8MB,  383kB/s
+[serve-stderr] Downloading bytes: ▉         | 14.9MB,  386kB/s
+[serve-stderr] Downloading bytes: ▉         | 15.0MB,  303kB/s
+[serve-stderr] Downloading bytes: █         | 15.1MB,  259kB/s
+[serve-stderr] Downloading bytes: █         | 15.2MB,  355kB/s
+[serve-stderr] Downloading bytes: █         | 15.3MB,  461kB/s
+[serve-stderr] Downloading bytes: █         | 15.3MB,  399kB/s
+[serve-stderr] Downloading bytes: █         | 15.4MB,  465kB/s
+[serve-stderr] Downloading bytes: █         | 15.5MB,  397kB/s
+[serve-stderr] Downloading bytes: █         | 15.5MB,  295kB/s
+[serve-stderr] Downloading bytes: █         | 15.6MB,  351kB/s
+[serve-stderr] Downloading bytes: █         | 15.7MB,  345kB/s
+[serve-stderr] Downloading bytes: █         | 15.8MB,  356kB/s
+[serve-stderr] Downloading bytes: █         | 15.9MB,  425kB/s
+[serve-stderr] Downloading bytes: █         | 15.9MB,  433kB/s
+[serve-stderr] Downloading bytes: █         | 16.0MB,  395kB/s
+[serve-stderr] Downloading bytes: █         | 16.0MB,  410kB/s
+[serve-stderr] Downloading bytes: █         | 16.1MB,  399kB/s
+[serve-stderr] Downloading bytes: █         | 16.1MB,  411kB/s
+[serve-stderr] Downloading bytes: █         | 16.2MB,  424kB/s
+[serve-stderr] Downloading bytes: █         | 16.2MB,  371kB/s
+[serve-stderr] Downloading bytes: █         | 16.3MB,  396kB/s
+[serve-stderr] Downloading bytes: █         | 16.3MB,  413kB/s
+[serve-stderr] Downloading bytes: █         | 16.4MB,  421kB/s
+[serve-stderr] Downloading bytes: █         | 16.5MB,  378kB/s
+[serve-stderr] Downloading bytes: █         | 16.5MB,  428kB/s
+[serve-stderr] Downloading bytes: █         | 16.7MB,  372kB/s
+[serve-stderr] Downloading bytes: █         | 16.7MB,  369kB/s
+[serve-stderr] Downloading bytes: █         | 16.8MB,  383kB/s
+[serve-stderr] Downloading bytes: █         | 16.9MB,  307kB/s
+[serve-stderr] Downloading bytes: █▏        | 17.0MB,  403kB/s
+[serve-stderr] Downloading bytes: █▏        | 17.0MB,  410kB/s
+[serve-stderr] Downloading bytes: █▏        | 17.1MB,  361kB/s
+[serve-stderr] Downloading bytes: █▏        | 17.2MB,  346kB/s
+[serve-stderr] Downloading bytes: █▏        | 17.3MB,  472kB/s
+[serve-stderr] Downloading bytes: █▏        | 17.4MB,  436kB/s
+[serve-stderr] Downloading bytes: █▏        | 17.4MB,  394kB/s
+[serve-stderr] Downloading bytes: █▏        | 17.5MB,  404kB/s
+[serve-stderr] Downloading bytes: █▏        | 17.6MB,  365kB/s
+[serve-stderr] Downloading bytes: █▏        | 17.6MB,  383kB/s
+[serve-stderr] Downloading bytes: █▏        | 17.7MB,  400kB/s
+[serve-stderr] Downloading bytes: █▏        | 17.7MB,  360kB/s
+[serve-stderr] Downloading bytes: █▏        | 17.8MB,  381kB/s
+[serve-stderr] Downloading bytes: █▏        | 17.9MB,  383kB/s
+[serve-stderr] Downloading bytes: █▏        | 17.9MB,  397kB/s
+[serve-stderr] Downloading bytes: █▏        | 18.0MB,  393kB/s
+[serve-stderr] Downloading bytes: █▏        | 18.1MB,  416kB/s
+[serve-stderr] Downloading bytes: █▏        | 18.2MB,  378kB/s
+[serve-stderr] Downloading bytes: █▏        | 18.2MB,  398kB/s
+[serve-stderr] Downloading bytes: █▏        | 18.3MB,  333kB/s
+[serve-stderr] Downloading bytes: █▏        | 18.4MB,  349kB/s
+[serve-stderr] Downloading bytes: █▏        | 18.4MB,  337kB/s
+[serve-stderr] Downloading bytes: █▏        | 18.5MB,  385kB/s
+[serve-stderr] Downloading bytes: █▏        | 18.6MB,  355kB/s
+[serve-stderr] Downloading bytes: █▏        | 18.6MB,  341kB/s
+[serve-stderr] Downloading bytes: █▏        | 18.7MB,  361kB/s
+[serve-stderr] Downloading bytes: █▏        | 18.7MB,  343kB/s
+[serve-stderr] Downloading bytes: █▎        | 18.8MB,  370kB/s
+[serve-stderr] Downloading bytes: █▎        | 18.9MB,  380kB/s
+[serve-stderr] Downloading bytes: █▎        | 19.0MB,  430kB/s
+[serve-stderr] Downloading bytes: █▎        | 19.0MB,  413kB/s
+[serve-stderr] Downloading bytes: █▎        | 19.1MB,  407kB/s
+[serve-stderr] Downloading bytes: █▎        | 19.2MB,  415kB/s
+[serve-stderr] Downloading bytes: █▎        | 19.2MB,  376kB/s
+[serve-stderr] Downloading bytes: █▎        | 19.3MB,  391kB/s
+[serve-stderr] Downloading bytes: █▎        | 19.4MB,  393kB/s
+[serve-stderr] Downloading bytes: █▎        | 19.4MB,  392kB/s
+[serve-stderr] Downloading bytes: █▎        | 19.5MB,  404kB/s
+[serve-stderr] Downloading bytes: █▎        | 19.5MB,  344kB/s
+[serve-stderr] Downloading bytes: █▎        | 19.6MB,  371kB/s
+[serve-stderr] Downloading bytes: █▎        | 19.6MB,  353kB/s
+[serve-stderr] Downloading bytes: █▎        | 19.7MB,  338kB/s
+[event] image.models.progress #75 done=24772396 total=150417043
+[serve-stderr] Downloading bytes: █▎        | 19.8MB,  361kB/s
+[serve-stderr] Downloading bytes: █▎        | 19.9MB,  398kB/s
+[serve-stderr] Downloading bytes: █▎        | 19.9MB,  389kB/s
+[serve-stderr] Downloading bytes: █▎        | 20.0MB,  359kB/s
+[serve-stderr] Downloading bytes: █▎        | 20.1MB,  365kB/s
+[serve-stderr] Downloading bytes: █▎        | 20.1MB,  386kB/s
+[serve-stderr] Downloading bytes: █▎        | 20.2MB,  402kB/s
+[serve-stderr] Downloading bytes: █▎        | 20.3MB,  397kB/s
+[serve-stderr] Downloading bytes: █▎        | 20.3MB,  367kB/s
+[serve-stderr] Downloading bytes: █▎        | 20.4MB,  383kB/s
+[serve-stderr] Downloading bytes: █▎        | 20.4MB,  397kB/s
+[serve-stderr] Downloading bytes: █▎        | 20.5MB,  409kB/s
+[serve-stderr] Downloading bytes: █▎        | 20.5MB,  395kB/s
+[serve-stderr] Downloading bytes: █▎        | 20.6MB,  415kB/s
+[serve-stderr] Downloading bytes: █▎        | 20.7MB,  423kB/s
+[serve-stderr] Downloading bytes: █▍        | 20.8MB,  406kB/s
+[serve-stderr] Downloading bytes: █▍        | 20.8MB,  404kB/s
+[serve-stderr] Downloading bytes: █▍        | 20.9MB,  372kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.0MB,  350kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.0MB,  334kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.1MB,  355kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.1MB,  375kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.2MB,  374kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.3MB,  379kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.3MB,  393kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.4MB,  410kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.4MB,  420kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.5MB,  371kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.6MB,  405kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.7MB,  367kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.7MB,  413kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.8MB,  383kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.8MB,  401kB/s
+[serve-stderr] Downloading bytes: █▍        | 21.9MB,  372kB/s
+[serve-stderr] Downloading bytes: █▍        | 22.0MB,  391kB/s
+[serve-stderr] Downloading bytes: █▍        | 22.1MB,  395kB/s
+[serve-stderr] Downloading bytes: █▍        | 22.1MB,  387kB/s
+[serve-stderr] Downloading bytes: █▍        | 22.2MB,  382kB/s
+[serve-stderr] Downloading bytes: █▍        | 22.3MB,  355kB/s
+[serve-stderr] Downloading bytes: █▍        | 22.4MB,  362kB/s
+[serve-stderr] Downloading bytes: █▍        | 22.4MB,  365kB/s
+[serve-stderr] Downloading bytes: █▍        | 22.5MB,  374kB/s
+[serve-stderr] Downloading bytes: █▌        | 22.6MB,  382kB/s
+[serve-stderr] Downloading bytes: █▌        | 22.7MB,  394kB/s
+[serve-stderr] Downloading bytes: █▌        | 22.7MB,  389kB/s
+[serve-stderr] Downloading bytes: █▌        | 22.8MB,  388kB/s
+[serve-stderr] Downloading bytes: █▌        | 22.9MB,  367kB/s
+[serve-stderr] Downloading bytes: █▌        | 23.0MB,  385kB/s
+[serve-stderr] Downloading bytes: █▌        | 23.0MB,  407kB/s
+[serve-stderr] Downloading bytes: █▌        | 23.1MB,  354kB/s
+[serve-stderr] Downloading bytes: █▌        | 23.2MB,  340kB/s
+[serve-stderr] Downloading bytes: █▌        | 23.3MB,  379kB/s
+[serve-stderr] Downloading bytes: █▌        | 23.3MB,  377kB/s
+[serve-stderr] Downloading bytes: █▌        | 23.4MB,  385kB/s
+[serve-stderr] Downloading bytes: █▌        | 23.5MB,  385kB/s
+[serve-stderr] Downloading bytes: █▌        | 23.5MB,  362kB/s
+[serve-stderr] Downloading bytes: █▌        | 23.6MB,  382kB/s
+[serve-stderr] Downloading bytes: █▌        | 23.7MB,  383kB/s
+[serve-stderr] Downloading bytes: █▌        | 23.7MB,  379kB/s
+[serve-stderr] Downloading bytes: █▌        | 23.8MB,  392kB/s
+[serve-stderr] Downloading bytes: █▌        | 23.9MB,  391kB/s
+[serve-stderr] Downloading bytes: █▌        | 24.0MB,  393kB/s
+[serve-stderr] Downloading bytes: █▌        | 24.0MB,  404kB/s
+[serve-stderr] Downloading bytes: █▌        | 24.1MB,  413kB/s
+[serve-stderr] Downloading bytes: █▌        | 24.2MB,  379kB/s
+[serve-stderr] Downloading bytes: █▌        | 24.3MB,  414kB/s
+[serve-stderr] Downloading bytes: █▌        | 24.3MB,  403kB/s
+[serve-stderr] Downloading bytes: █▌        | 24.4MB,  403kB/s
+[serve-stderr] Downloading bytes: █▋        | 24.5MB,  394kB/s
+[serve-stderr] Downloading bytes: █▋        | 24.6MB,  394kB/s
+[serve-stderr] Downloading bytes: █▋        | 24.6MB,  347kB/s
+[serve-stderr] Downloading bytes: █▋        | 24.7MB,  332kB/s
+[serve-stderr] Downloading bytes: █▋        | 24.7MB,  353kB/s
+[serve-stderr] Downloading bytes: █▋        | 24.8MB,  374kB/s
+[serve-stderr] Downloading bytes: █▋        | 24.8MB,  391kB/s
+[event] image.models.progress #100 done=29873702 total=150417043
+[serve-stderr] Downloading bytes: █▋        | 24.9MB,  405kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.0MB,  394kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.0MB,  358kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.1MB,  383kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.1MB,  398kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.2MB,  410kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.2MB,  425kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.3MB,  431kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.3MB,  372kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.4MB,  390kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.4MB,  406kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.5MB,  367kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.5MB,  386kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.6MB,  401kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.7MB,  361kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.7MB,  341kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.8MB,  364kB/s
+[serve-stderr] Downloading bytes: █▋        | 25.9MB,  367kB/s
+[serve-stderr] Downloading bytes: █▋        | 26.0MB,  375kB/s
+[serve-stderr] Downloading bytes: █▋        | 26.0MB,  374kB/s
+[serve-stderr] Downloading bytes: █▋        | 26.1MB,  388kB/s
+[serve-stderr] Downloading bytes: █▋        | 26.1MB,  401kB/s
+[serve-stderr] Downloading bytes: █▋        | 26.2MB,  391kB/s
+[serve-stderr] Downloading bytes: █▋        | 26.3MB,  388kB/s
+[serve-stderr] Downloading bytes: █▊        | 26.3MB,  401kB/s
+[serve-stderr] Downloading bytes: █▊        | 26.4MB,  365kB/s
+[serve-stderr] Downloading bytes: █▊        | 26.5MB,  382kB/s
+[serve-stderr] Downloading bytes: █▊        | 26.5MB,  383kB/s
+[serve-stderr] Downloading bytes: █▊        | 26.6MB,  399kB/s
+[serve-stderr] Downloading bytes: █▊        | 26.7MB,  396kB/s
+[serve-stderr] Downloading bytes: █▊        | 26.8MB,  393kB/s
+[serve-stderr] Downloading bytes: █▊        | 26.8MB,  388kB/s
+[serve-stderr] Downloading bytes: █▊        | 26.9MB,  404kB/s
+[serve-stderr] Downloading bytes: █▊        | 26.9MB,  404kB/s
+[serve-stderr] Downloading bytes: █▊        | 27.0MB,  418kB/s
+[serve-stderr] Downloading bytes: █▊        | 27.1MB,  400kB/s
+[serve-stderr] Downloading bytes: █▊        | 27.2MB,  390kB/s
+[serve-stderr] Downloading bytes: █▊        | 27.2MB,  389kB/s
+[serve-stderr] Downloading bytes: █▊        | 27.3MB,  405kB/s
+[serve-stderr] Downloading bytes: █▊        | 27.4MB,  371kB/s
+[serve-stderr] Downloading bytes: █▊        | 27.4MB,  391kB/s
+[serve-stderr] Downloading bytes: █▊        | 27.5MB,  412kB/s
+[serve-stderr] Downloading bytes: █▊        | 27.6MB,  378kB/s
+[serve-stderr] Downloading bytes: █▊        | 27.7MB,  399kB/s
+[serve-stderr] Downloading bytes: █▊        | 27.7MB,  423kB/s
+[serve-stderr] Downloading bytes: █▊        | 27.8MB,  389kB/s
+[serve-stderr] Downloading bytes: █▊        | 27.8MB,  401kB/s
+[serve-stderr] Downloading bytes: █▊        | 27.9MB,  371kB/s
+[serve-stderr] Downloading bytes: █▊        | 28.0MB,  374kB/s
+[serve-stderr] Downloading bytes: █▊        | 28.1MB,  389kB/s
+[serve-stderr] Downloading bytes: █▊        | 28.1MB,  390kB/s
+[serve-stderr] Downloading bytes: █▊        | 28.2MB,  384kB/s
+[serve-stderr] Downloading bytes: █▉        | 28.2MB,  396kB/s
+[serve-stderr] Downloading bytes: █▉        | 28.3MB,  407kB/s
+[serve-stderr] Downloading bytes: █▉        | 28.4MB,  400kB/s
+[serve-stderr] Downloading bytes: █▉        | 28.5MB,  367kB/s
+[serve-stderr] Downloading bytes: █▉        | 28.6MB,  401kB/s
+[serve-stderr] Downloading bytes: █▉        | 28.6MB,  398kB/s
+[serve-stderr] Downloading bytes: █▉        | 28.7MB,  394kB/s
+[serve-stderr] Downloading bytes: █▉        | 28.8MB,  416kB/s
+[serve-stderr] Downloading bytes: █▉        | 28.9MB,  378kB/s
+[serve-stderr] Downloading bytes: █▉        | 28.9MB,  391kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.0MB,  402kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.1MB,  395kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.1MB,  387kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.2MB,  402kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.3MB,  423kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.4MB,  386kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.4MB,  361kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.5MB,  373kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.5MB,  391kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.6MB,  410kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.6MB,  366kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.7MB,  391kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.8MB,  365kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.8MB,  383kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.9MB,  405kB/s
+[serve-stderr] Downloading bytes: █▉        | 29.9MB,  373kB/s
+[serve-stderr] Downloading bytes: █▉        | 30.0MB,  390kB/s
+[event] image.models.progress #125 done=35067430 total=150417043
+[serve-stderr] Downloading bytes: █▉        | 30.0MB,  356kB/s
+[serve-stderr] Downloading bytes: ██        | 30.1MB,  380kB/s
+[serve-stderr] Downloading bytes: ██        | 30.2MB,  382kB/s
+[serve-stderr] Downloading bytes: ██        | 30.3MB,  382kB/s
+[serve-stderr] Downloading bytes: ██        | 30.3MB,  398kB/s
+[serve-stderr] Downloading bytes: ██        | 30.4MB,  393kB/s
+[serve-stderr] Downloading bytes: ██        | 30.4MB,  364kB/s
+[serve-stderr] Downloading bytes: ██        | 30.5MB,  382kB/s
+[serve-stderr] Downloading bytes: ██        | 30.6MB,  432kB/s
+[serve-stderr] Downloading bytes: ██        | 30.6MB,  382kB/s
+[serve-stderr] Downloading bytes: ██        | 30.7MB,  399kB/s
+[serve-stderr] Downloading bytes: ██        | 30.8MB,  410kB/s
+[serve-stderr] Downloading bytes: ██        | 30.8MB,  402kB/s
+[serve-stderr] Downloading bytes: ██        | 30.9MB,  398kB/s
+[serve-stderr] Downloading bytes: ██        | 30.9MB,  409kB/s
+[serve-stderr] Downloading bytes: ██        | 31.0MB,  347kB/s
+[serve-stderr] Downloading bytes: ██        | 31.1MB,  404kB/s
+[serve-stderr] Downloading bytes: ██        | 31.1MB,  418kB/s
+[serve-stderr] Downloading bytes: ██        | 31.2MB,  405kB/s
+[serve-stderr] Downloading bytes: ██        | 31.3MB,  399kB/s
+[serve-stderr] Downloading bytes: ██        | 31.3MB,  373kB/s
+[serve-stderr] Downloading bytes: ██        | 31.4MB,  395kB/s
+[serve-stderr] Downloading bytes: ██        | 31.5MB,  388kB/s
+[serve-stderr] Downloading bytes: ██        | 31.5MB,  408kB/s
+[serve-stderr] Downloading bytes: ██        | 31.6MB,  403kB/s
+[serve-stderr] Downloading bytes: ██        | 31.7MB,  420kB/s
+[serve-stderr] Downloading bytes: ██        | 31.7MB,  373kB/s
+[serve-stderr] Downloading bytes: ██        | 31.8MB,  421kB/s
+[serve-stderr] Downloading bytes: ██        | 31.9MB,  407kB/s
+[serve-stderr] Downloading bytes: ██        | 31.9MB,  404kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.0MB,  344kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.1MB,  364kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.2MB,  367kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.2MB,  372kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.3MB,  347kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.3MB,  368kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.4MB,  385kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.4MB,  399kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.5MB,  362kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.6MB,  414kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.6MB,  374kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.7MB,  390kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.8MB,  405kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.8MB,  425kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.9MB,  430kB/s
+[serve-stderr] Downloading bytes: ██▏       | 32.9MB,  381kB/s
+[serve-stderr] Downloading bytes: ██▏       | 33.0MB,  400kB/s
+[serve-stderr] Downloading bytes: ██▏       | 33.0MB,  365kB/s
+[serve-stderr] Downloading bytes: ██▏       | 33.1MB,  387kB/s
+[serve-stderr] Downloading bytes: ██▏       | 33.2MB,  382kB/s
+[serve-stderr] Downloading bytes: ██▏       | 33.2MB,  398kB/s
+[serve-stderr] Downloading bytes: ██▏       | 33.3MB,  409kB/s
+[serve-stderr] Downloading bytes: ██▏       | 33.3MB,  365kB/s
+[serve-stderr] Downloading bytes: ██▏       | 33.4MB,  389kB/s
+[serve-stderr] Downloading bytes: ██▏       | 33.5MB,  403kB/s
+[serve-stderr] Downloading bytes: ██▏       | 33.5MB,  404kB/s
+[serve-stderr] Downloading bytes: ██▏       | 33.6MB,  369kB/s
+[serve-stderr] Downloading bytes: ██▏       | 33.7MB,  390kB/s
+[serve-stderr] Downloading bytes: ██▏       | 33.7MB,  389kB/s
+[serve-stderr] Downloading bytes: ██▏       | 33.8MB,  365kB/s
+[serve-stderr] Downloading bytes: ██▎       | 33.9MB,  381kB/s
+[serve-stderr] Downloading bytes: ██▎       | 33.9MB,  381kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.0MB,  381kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.1MB,  394kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.1MB,  367kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.2MB,  373kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.2MB,  387kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.3MB,  400kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.4MB,  394kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.4MB,  364kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.5MB,  384kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.6MB,  383kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.6MB,  403kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.7MB,  369kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.7MB,  386kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.8MB,  400kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.9MB,  359kB/s
+[serve-stderr] Downloading bytes: ██▎       | 34.9MB,  412kB/s
+[serve-stderr] Downloading bytes: ██▎       | 35.0MB,  377kB/s
+[serve-stderr] Downloading bytes: ██▎       | 35.1MB,  392kB/s
+[serve-stderr] Downloading bytes: ██▎       | 35.1MB,  385kB/s
+[serve-stderr] Downloading bytes: ██▎       | 35.2MB,  404kB/s
+[serve-stderr] Downloading bytes: ██▎       | 35.2MB,  372kB/s
+[event] image.models.progress #150 done=40228390 total=150417043
+[serve-stderr] Downloading bytes: ██▎       | 35.3MB,  394kB/s
+[serve-stderr] Downloading bytes: ██▎       | 35.3MB,  358kB/s
+[serve-stderr] Downloading bytes: ██▎       | 35.4MB,  377kB/s
+[serve-stderr] Downloading bytes: ██▎       | 35.5MB,  375kB/s
+[serve-stderr] Downloading bytes: ██▎       | 35.6MB,  410kB/s
+[serve-stderr] Downloading bytes: ██▎       | 35.7MB,  399kB/s
+[serve-stderr] Downloading bytes: ██▍       | 35.8MB,  390kB/s
+[serve-stderr] Downloading bytes: ██▍       | 35.8MB,  387kB/s
+[serve-stderr] Downloading bytes: ██▍       | 35.9MB,  388kB/s
+[serve-stderr] Downloading bytes: ██▍       | 36.0MB,  414kB/s
+[serve-stderr] Downloading bytes: ██▍       | 36.1MB,  350kB/s
+[serve-stderr] Downloading bytes: ██▍       | 36.2MB,  380kB/s
+[serve-stderr] Downloading bytes: ██▍       | 36.3MB,  421kB/s
+[serve-stderr] Downloading bytes: ██▍       | 36.3MB,  405kB/s
+[serve-stderr] Downloading bytes: ██▍       | 36.4MB,  348kB/s
+[serve-stderr] Downloading bytes: ██▍       | 36.4MB,  372kB/s
+[serve-stderr] Downloading bytes: ██▍       | 36.5MB,  349kB/s
+[serve-stderr] Downloading bytes: ██▍       | 36.6MB,  338kB/s
+[serve-stderr] Downloading bytes: ██▍       | 36.6MB,  391kB/s
+[serve-stderr] Downloading bytes: ██▍       | 36.7MB,  366kB/s
+[serve-stderr] Downloading bytes: ██▍       | 36.7MB,  384kB/s
+[serve-stderr] Downloading bytes: ██▍       | 36.8MB,  398kB/s
+[serve-stderr] Downloading bytes: ██▍       | 36.8MB,  410kB/s
+[serve-stderr] Downloading bytes: ██▍       | 36.9MB,  420kB/s
+[serve-stderr] Downloading bytes: ██▍       | 37.0MB,  375kB/s
+[serve-stderr] Downloading bytes: ██▍       | 37.1MB,  378kB/s
+[serve-stderr] Downloading bytes: ██▍       | 37.1MB,  381kB/s
+[serve-stderr] Downloading bytes: ██▍       | 37.2MB,  410kB/s
+[serve-stderr] Downloading bytes: ██▍       | 37.3MB,  375kB/s
+[serve-stderr] Downloading bytes: ██▍       | 37.3MB,  394kB/s
+[serve-stderr] Downloading bytes: ██▍       | 37.4MB,  412kB/s
+[serve-stderr] Downloading bytes: ██▍       | 37.4MB,  425kB/s
+[serve-stderr] Downloading bytes: ██▍       | 37.5MB,  382kB/s
+[serve-stderr] Downloading bytes: ██▍       | 37.6MB,  409kB/s
+[serve-stderr] Downloading bytes: ██▌       | 37.7MB,  370kB/s
+[serve-stderr] Downloading bytes: ██▌       | 37.7MB,  415kB/s
+[serve-stderr] Downloading bytes: ██▌       | 37.8MB,  381kB/s
+[serve-stderr] Downloading bytes: ██▌       | 37.8MB,  429kB/s
+[serve-stderr] Downloading bytes: ██▌       | 37.9MB,  361kB/s
+[serve-stderr] Downloading bytes: ██▌       | 38.0MB,  419kB/s
+[serve-stderr] Downloading bytes: ██▌       | 38.0MB,  379kB/s
+[serve-stderr] Downloading bytes: ██▌       | 38.1MB,  399kB/s
+[serve-stderr] Downloading bytes: ██▌       | 38.2MB,  419kB/s
+[serve-stderr] Downloading bytes: ██▌       | 38.2MB,  409kB/s
+[serve-stderr] Downloading bytes: ██▌       | 38.3MB,  399kB/s
+[serve-stderr] Downloading bytes: ██▌       | 38.4MB,  421kB/s
+[serve-stderr] Downloading bytes: ██▌       | 38.4MB,  386kB/s
+[serve-stderr] Downloading bytes: ██▌       | 38.5MB,  398kB/s
+[serve-stderr] Downloading bytes: ██▌       | 38.6MB,  389kB/s
+[serve-stderr] Downloading bytes: ██▌       | 38.7MB,  405kB/s
+[serve-stderr] Downloading bytes: ██▌       | 38.8MB,  393kB/s
+[serve-stderr] Downloading bytes: ██▌       | 38.8MB,  416kB/s
+[serve-stderr] Downloading bytes: ██▌       | 38.9MB,  402kB/s
+[serve-stderr] Downloading bytes: ██▌       | 39.0MB,  370kB/s
+[serve-stderr] Downloading bytes: ██▌       | 39.0MB,  386kB/s
+[serve-stderr] Downloading bytes: ██▌       | 39.1MB,  385kB/s
+[serve-stderr] Downloading bytes: ██▌       | 39.2MB,  385kB/s
+[serve-stderr] Downloading bytes: ██▌       | 39.2MB,  403kB/s
+[serve-stderr] Downloading bytes: ██▌       | 39.3MB,  420kB/s
+[serve-stderr] Downloading bytes: ██▌       | 39.3MB,  349kB/s
+[serve-stderr] Downloading bytes: ██▌       | 39.4MB,  377kB/s
+[serve-stderr] Downloading bytes: ██▌       | 39.4MB,  394kB/s
+[serve-stderr] Downloading bytes: ██▌       | 39.5MB,  407kB/s
+[serve-stderr] Downloading bytes: ██▋       | 39.5MB,  364kB/s
+[serve-stderr] Downloading bytes: ██▋       | 39.6MB,  423kB/s
+[serve-stderr] Downloading bytes: ██▋       | 39.6MB,  351kB/s
+[serve-stderr] Downloading bytes: ██▋       | 39.7MB,  377kB/s
+[serve-stderr] Downloading bytes: ██▋       | 39.7MB,  397kB/s
+[serve-stderr] Downloading bytes: ██▋       | 39.8MB,  415kB/s
+[serve-stderr] Downloading bytes: ██▋       | 39.9MB,  371kB/s
+[serve-stderr] Downloading bytes: ██▋       | 39.9MB,  389kB/s
+[serve-stderr] Downloading bytes: ██▋       | 40.0MB,  359kB/s
+[serve-stderr] Downloading bytes: ██▋       | 40.0MB,  384kB/s
+[serve-stderr] Downloading bytes: ██▋       | 40.1MB,  401kB/s
+[serve-stderr] Downloading bytes: ██▋       | 40.1MB,  360kB/s
+[serve-stderr] Downloading bytes: ██▋       | 40.2MB,  385kB/s
+[serve-stderr] Downloading bytes: ██▋       | 40.3MB,  382kB/s
+[serve-stderr] Downloading bytes: ██▋       | 40.4MB,  430kB/s
+[event] image.models.progress #175 done=45427002 total=150417043
+[serve-stderr] Downloading bytes: ██▋       | 40.4MB,  415kB/s
+[serve-stderr] Downloading bytes: ██▋       | 40.5MB,  399kB/s
+[serve-stderr] Downloading bytes: ██▋       | 40.6MB,  368kB/s
+[serve-stderr] Downloading bytes: ██▋       | 40.6MB,  380kB/s
+[serve-stderr] Downloading bytes: ██▋       | 40.7MB,  381kB/s
+[serve-stderr] Downloading bytes: ██▋       | 40.7MB,  394kB/s
+[serve-stderr] Downloading bytes: ██▋       | 40.8MB,  406kB/s
+[serve-stderr] Downloading bytes: ██▋       | 40.9MB,  363kB/s
+[serve-stderr] Downloading bytes: ██▋       | 41.0MB,  414kB/s
+[serve-stderr] Downloading bytes: ██▋       | 41.0MB,  404kB/s
+[serve-stderr] Downloading bytes: ██▋       | 41.1MB,  392kB/s
+[serve-stderr] Downloading bytes: ██▋       | 41.1MB,  362kB/s
+[serve-stderr] Downloading bytes: ██▋       | 41.2MB,  379kB/s
+[serve-stderr] Downloading bytes: ██▋       | 41.3MB,  377kB/s
+[serve-stderr] Downloading bytes: ██▋       | 41.4MB,  391kB/s
+[serve-stderr] Downloading bytes: ██▊       | 41.4MB,  384kB/s
+[serve-stderr] Downloading bytes: ██▊       | 41.5MB,  436kB/s
+[serve-stderr] Downloading bytes: ██▊       | 41.5MB,  386kB/s
+[serve-stderr] Downloading bytes: ██▊       | 41.6MB,  401kB/s
+[serve-stderr] Downloading bytes: ██▊       | 41.7MB,  361kB/s
+[serve-stderr] Downloading bytes: ██▊       | 41.7MB,  381kB/s
+[serve-stderr] Downloading bytes: ██▊       | 41.8MB,  397kB/s
+[serve-stderr] Downloading bytes: ██▊       | 41.8MB,  409kB/s
+[serve-stderr] Downloading bytes: ██▊       | 41.9MB,  396kB/s
+[serve-stderr] Downloading bytes: ██▊       | 42.0MB,  390kB/s
+[serve-stderr] Downloading bytes: ██▊       | 42.1MB,  385kB/s
+[serve-stderr] Downloading bytes: ██▊       | 42.2MB,  381kB/s
+[serve-stderr] Downloading bytes: ██▊       | 42.2MB,  380kB/s
+[serve-stderr] Downloading bytes: ██▊       | 42.3MB,  397kB/s
+[serve-stderr] Downloading bytes: ██▊       | 42.4MB,  394kB/s
+[serve-stderr] Downloading bytes: ██▊       | 42.5MB,  395kB/s
+[serve-stderr] Downloading bytes: ██▊       | 42.5MB,  389kB/s
+[serve-stderr] Downloading bytes: ██▊       | 42.6MB,  384kB/s
+[serve-stderr] Downloading bytes: ██▊       | 42.7MB,  380kB/s
+[serve-stderr] Downloading bytes: ██▊       | 42.7MB,  336kB/s
+[serve-stderr] Downloading bytes: ██▊       | 42.8MB,  356kB/s
+[serve-stderr] Downloading bytes: ██▊       | 42.9MB,  375kB/s
+[serve-stderr] Downloading bytes: ██▊       | 42.9MB,  378kB/s
+[serve-stderr] Downloading bytes: ██▊       | 43.0MB,  352kB/s
+[serve-stderr] Downloading bytes: ██▊       | 43.0MB,  377kB/s
+[serve-stderr] Downloading bytes: ██▊       | 43.1MB,  392kB/s
+[serve-stderr] Downloading bytes: ██▊       | 43.1MB,  405kB/s
+[serve-stderr] Downloading bytes: ██▊       | 43.2MB,  392kB/s
+[serve-stderr] Downloading bytes: ██▉       | 43.3MB,  404kB/s
+[serve-stderr] Downloading bytes: ██▉       | 43.4MB,  398kB/s
+[serve-stderr] Downloading bytes: ██▉       | 43.4MB,  394kB/s
+[serve-stderr] Downloading bytes: ██▉       | 43.5MB,  421kB/s
+[serve-stderr] Downloading bytes: ██▉       | 43.6MB,  404kB/s
+[serve-stderr] Downloading bytes: ██▉       | 43.6MB,  394kB/s
+[serve-stderr] Downloading bytes: ██▉       | 43.7MB,  404kB/s
+[serve-stderr] Downloading bytes: ██▉       | 43.8MB,  396kB/s
+[serve-stderr] Downloading bytes: ██▉       | 43.8MB,  392kB/s
+[serve-stderr] Downloading bytes: ██▉       | 43.9MB,  405kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.0MB,  399kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.0MB,  373kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.1MB,  324kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.1MB,  348kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.2MB,  375kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.3MB,  407kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.4MB,  373kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.4MB,  393kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.5MB,  408kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.5MB,  370kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.6MB,  387kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.6MB,  404kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.7MB,  417kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.7MB,  366kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.8MB,  385kB/s
+[serve-stderr] Downloading bytes: ██▉       | 44.9MB,  400kB/s
+[serve-stderr] Downloading bytes: ██▉       | 45.0MB,  402kB/s
+[serve-stderr] Downloading bytes: ██▉       | 45.0MB,  422kB/s
+[serve-stderr] Downloading bytes: ██▉       | 45.1MB,  383kB/s
+[serve-stderr] Downloading bytes: ███       | 45.2MB,  389kB/s
+[serve-stderr] Downloading bytes: ███       | 45.3MB,  369kB/s
+[serve-stderr] Downloading bytes: ███       | 45.3MB,  365kB/s
+[serve-stderr] Downloading bytes: ███       | 45.4MB,  378kB/s
+[serve-stderr] Downloading bytes: ███       | 45.5MB,  356kB/s
+[serve-stderr] Downloading bytes: ███       | 45.5MB,  373kB/s
+[serve-stderr] Downloading bytes: ███       | 45.6MB,  393kB/s
+[serve-stderr] Downloading bytes: ███       | 45.6MB,  362kB/s
+[event] image.models.progress #200 done=50609951 total=150417043
+[serve-stderr] Downloading bytes: ███       | 45.7MB,  381kB/s
+[serve-stderr] Downloading bytes: ███       | 45.7MB,  396kB/s
+[serve-stderr] Downloading bytes: ███       | 45.8MB,  386kB/s
+[serve-stderr] Downloading bytes: ███       | 45.8MB,  400kB/s
+[serve-stderr] Downloading bytes: ███       | 45.9MB,  417kB/s
+[serve-stderr] Downloading bytes: ███       | 46.0MB,  400kB/s
+[serve-stderr] Downloading bytes: ███       | 46.1MB,  416kB/s
+[serve-stderr] Downloading bytes: ███       | 46.1MB,  405kB/s
+[serve-stderr] Downloading bytes: ███       | 46.2MB,  394kB/s
+[serve-stderr] Downloading bytes: ███       | 46.3MB,  387kB/s
+[serve-stderr] Downloading bytes: ███       | 46.3MB,  405kB/s
+[serve-stderr] Downloading bytes: ███       | 46.4MB,  367kB/s
+[serve-stderr] Downloading bytes: ███       | 46.4MB,  384kB/s
+[serve-stderr] Downloading bytes: ███       | 46.5MB,  402kB/s
+[serve-stderr] Downloading bytes: ███       | 46.5MB,  419kB/s
+[serve-stderr] Downloading bytes: ███       | 46.6MB,  371kB/s
+[serve-stderr] Downloading bytes: ███       | 46.8MB,  374kB/s
+[serve-stderr] Downloading bytes: ███       | 46.9MB,  347kB/s
+[serve-stderr] Downloading bytes: ███       | 46.9MB,  375kB/s
+[serve-stderr] Downloading bytes: ███▏      | 47.0MB,  358kB/s
+[serve-stderr] Downloading bytes: ███▏      | 47.1MB,  366kB/s
+[serve-stderr] Downloading bytes: ███▏      | 47.1MB,  379kB/s
+[serve-stderr] Downloading bytes: ███▏      | 47.2MB,  379kB/s
+[serve-stderr] Downloading bytes: ███▏      | 47.3MB,  393kB/s
+[serve-stderr] Downloading bytes: ███▏      | 47.3MB,  397kB/s
+[serve-stderr] Downloading bytes: ███▏      | 47.4MB,  407kB/s
+[serve-stderr] Downloading bytes: ███▏      | 47.4MB,  416kB/s
+[serve-stderr] Downloading bytes: ███▏      | 47.5MB,  375kB/s
+[serve-stderr] Downloading bytes: ███▏      | 47.5MB,  347kB/s
+[serve-stderr] Downloading bytes: ███▏      | 47.6MB,  367kB/s
+[serve-stderr] Downloading bytes: ███▏      | 47.7MB,  374kB/s
+[serve-stderr] Downloading bytes: ███▏      | 47.8MB,  351kB/s
+[serve-stderr] Downloading bytes: ███▏      | 47.9MB,  385kB/s
+[serve-stderr] Downloading bytes: ███▏      | 48.0MB,  405kB/s
+[serve-stderr] Downloading bytes: ███▏      | 48.1MB,  395kB/s
+[serve-stderr] Downloading bytes: ███▏      | 48.1MB,  388kB/s
+[serve-stderr] Downloading bytes: ███▏      | 48.2MB,  392kB/s
+[serve-stderr] Downloading bytes: ███▏      | 48.3MB,  386kB/s
+[serve-stderr] Downloading bytes: ███▏      | 48.4MB,  387kB/s
+[serve-stderr] Downloading bytes: ███▏      | 48.4MB,  383kB/s
+[serve-stderr] Downloading bytes: ███▏      | 48.5MB,  400kB/s
+[serve-stderr] Downloading bytes: ███▏      | 48.6MB,  398kB/s
+[serve-stderr] Downloading bytes: ███▏      | 48.6MB,  368kB/s
+[serve-stderr] Downloading bytes: ███▏      | 48.7MB,  384kB/s
+[serve-stderr] Downloading bytes: ███▏      | 48.7MB,  401kB/s
+[serve-stderr] Downloading bytes: ███▏      | 48.8MB,  340kB/s
+[serve-stderr] Downloading bytes: ███▏      | 48.8MB,  370kB/s
+[serve-stderr] Downloading bytes: ███▎      | 48.9MB,  349kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.0MB,  373kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.0MB,  373kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.1MB,  346kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.2MB,  397kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.2MB,  339kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.3MB,  362kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.3MB,  381kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.3MB,  397kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.4MB,  412kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.5MB,  421kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.5MB,  374kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.6MB,  397kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.6MB,  416kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.7MB,  397kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.8MB,  387kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.9MB,  382kB/s
+[serve-stderr] Downloading bytes: ███▎      | 49.9MB,  395kB/s
+[serve-stderr] Downloading bytes: ███▎      | 50.0MB,  386kB/s
+[serve-stderr] Downloading bytes: ███▎      | 50.1MB,  356kB/s
+[serve-stderr] Downloading bytes: ███▎      | 50.2MB,  361kB/s
+[serve-stderr] Downloading bytes: ███▎      | 50.2MB,  342kB/s
+[serve-stderr] Downloading bytes: ███▎      | 50.3MB,  361kB/s
+[serve-stderr] Downloading bytes: ███▎      | 50.3MB,  414kB/s
+[serve-stderr] Downloading bytes: ███▎      | 50.4MB,  407kB/s
+[serve-stderr] Downloading bytes: ███▎      | 50.5MB,  394kB/s
+[serve-stderr] Downloading bytes: ███▎      | 50.6MB,  387kB/s
+[serve-stderr] Downloading bytes: ███▎      | 50.7MB,  407kB/s
+[serve-stderr] Downloading bytes: ███▍      | 50.8MB,  396kB/s
+[event] image.models.progress #225 done=55836447 total=150417043
+[serve-stderr] Downloading bytes: ███▍      | 50.8MB,  390kB/s
+[serve-stderr] Downloading bytes: ███▍      | 50.9MB,  405kB/s
+[serve-stderr] Downloading bytes: ███▍      | 51.0MB,  370kB/s
+[serve-stderr] Downloading bytes: ███▍      | 51.0MB,  414kB/s
+[serve-stderr] Downloading bytes: ███▍      | 51.1MB,  405kB/s
+[serve-stderr] Downloading bytes: ███▍      | 51.2MB,  372kB/s
+[serve-stderr] Downloading bytes: ███▍      | 51.2MB,  387kB/s
+[serve-stderr] Downloading bytes: ███▍      | 51.3MB,  382kB/s
+[serve-stderr] Downloading bytes: ███▍      | 51.3MB,  329kB/s
+[serve-stderr] Downloading bytes: ███▍      | 51.4MB,  352kB/s
+[serve-stderr] Downloading bytes: ███▍      | 51.5MB,  359kB/s
+[serve-stderr] Downloading bytes: ███▍      | 51.6MB,  381kB/s
+[serve-stderr] Downloading bytes: ███▍      | 51.6MB,  408kB/s
+[serve-stderr] Downloading bytes: ███▍      | 51.7MB,  395kB/s
+[serve-stderr] Downloading bytes: ███▍      | 51.8MB,  392kB/s
+[serve-stderr] Downloading bytes: ███▍      | 51.9MB,  388kB/s
+[serve-stderr] Downloading bytes: ███▍      | 52.0MB,  388kB/s
+[serve-stderr] Downloading bytes: ███▍      | 52.0MB,  388kB/s
+[serve-stderr] Downloading bytes: ███▍      | 52.1MB,  403kB/s
+[serve-stderr] Downloading bytes: ███▍      | 52.2MB,  392kB/s
+[serve-stderr] Downloading bytes: ███▍      | 52.2MB,  345kB/s
+[serve-stderr] Downloading bytes: ███▍      | 52.3MB,  333kB/s
+[serve-stderr] Downloading bytes: ███▍      | 52.3MB,  355kB/s
+[serve-stderr] Downloading bytes: ███▍      | 52.4MB,  365kB/s
+[serve-stderr] Downloading bytes: ███▍      | 52.5MB,  375kB/s
+[serve-stderr] Downloading bytes: ███▍      | 52.6MB,  396kB/s
+[serve-stderr] Downloading bytes: ███▍      | 52.6MB,  391kB/s
+[serve-stderr] Downloading bytes: ███▌      | 52.7MB,  392kB/s
+[serve-stderr] Downloading bytes: ███▌      | 52.8MB,  389kB/s
+[serve-stderr] Downloading bytes: ███▌      | 52.9MB,  383kB/s
+[serve-stderr] Downloading bytes: ███▌      | 52.9MB,  402kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.0MB,  397kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.1MB,  391kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.2MB,  402kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.2MB,  394kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.3MB,  387kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.3MB,  398kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.4MB,  362kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.5MB,  340kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.5MB,  361kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.6MB,  379kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.7MB,  377kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.7MB,  376kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.8MB,  390kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.8MB,  402kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.9MB,  362kB/s
+[serve-stderr] Downloading bytes: ███▌      | 53.9MB,  380kB/s
+[serve-stderr] Downloading bytes: ███▌      | 54.0MB,  396kB/s
+[serve-stderr] Downloading bytes: ███▌      | 54.1MB,  408kB/s
+[serve-stderr] Downloading bytes: ███▌      | 54.1MB,  362kB/s
+[serve-stderr] Downloading bytes: ███▌      | 54.2MB,  417kB/s
+[serve-stderr] Downloading bytes: ███▌      | 54.2MB,  340kB/s
+[serve-stderr] Downloading bytes: ███▌      | 54.3MB,  368kB/s
+[serve-stderr] Downloading bytes: ███▌      | 54.3MB,  387kB/s
+[serve-stderr] Downloading bytes: ███▌      | 54.4MB,  353kB/s
+[serve-stderr] Downloading bytes: ███▌      | 54.5MB,  391kB/s
+[serve-stderr] Downloading bytes: ███▋      | 54.6MB,  389kB/s
+[serve-stderr] Downloading bytes: ███▋      | 54.6MB,  405kB/s
+[serve-stderr] Downloading bytes: ███▋      | 54.7MB,  393kB/s
+[serve-stderr] Downloading bytes: ███▋      | 54.8MB,  361kB/s
+[serve-stderr] Downloading bytes: ███▋      | 54.8MB,  378kB/s
+[serve-stderr] Downloading bytes: ███▋      | 54.9MB,  393kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.0MB,  385kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.0MB,  383kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.1MB,  397kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.2MB,  393kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.2MB,  388kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.3MB,  405kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.3MB,  366kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.4MB,  385kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.5MB,  355kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.5MB,  380kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.6MB,  382kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.7MB,  363kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.7MB,  380kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.8MB,  382kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.9MB,  389kB/s
+[serve-stderr] Downloading bytes: ███▋      | 55.9MB,  361kB/s
+[event] image.models.progress #250 done=60964639 total=150417043
+[serve-stderr] Downloading bytes: ███▋      | 56.0MB,  384kB/s
+[serve-stderr] Downloading bytes: ███▋      | 56.1MB,  406kB/s
+[serve-stderr] Downloading bytes: ███▋      | 56.1MB,  363kB/s
+[serve-stderr] Downloading bytes: ███▋      | 56.2MB,  381kB/s
+[serve-stderr] Downloading bytes: ███▋      | 56.2MB,  439kB/s
+[serve-stderr] Downloading bytes: ███▋      | 56.3MB,  381kB/s
+[serve-stderr] Downloading bytes: ███▋      | 56.3MB,  403kB/s
+[serve-stderr] Downloading bytes: ███▊      | 56.4MB,  422kB/s
+[serve-stderr] Downloading bytes: ███▊      | 56.5MB,  405kB/s
+[serve-stderr] Downloading bytes: ███▊      | 56.6MB,  401kB/s
+[serve-stderr] Downloading bytes: ███▊      | 56.6MB,  390kB/s
+[serve-stderr] Downloading bytes: ███▊      | 56.7MB,  404kB/s
+[serve-stderr] Downloading bytes: ███▊      | 56.8MB,  366kB/s
+[serve-stderr] Downloading bytes: ███▊      | 56.9MB,  394kB/s
+[serve-stderr] Downloading bytes: ███▊      | 56.9MB,  391kB/s
+[serve-stderr] Downloading bytes: ███▊      | 57.0MB,  407kB/s
+[serve-stderr] Downloading bytes: ███▊      | 57.0MB,  401kB/s
+[serve-stderr] Downloading bytes: ███▊      | 57.1MB,  410kB/s
+[serve-stderr] Downloading bytes: ███▊      | 57.2MB,  396kB/s
+[serve-stderr] Downloading bytes: ███▊      | 57.3MB,  391kB/s
+[serve-stderr] Downloading bytes: ███▊      | 57.4MB,  387kB/s
+[serve-stderr] Downloading bytes: ███▊      | 57.5MB,  382kB/s
+[serve-stderr] Downloading bytes: ███▊      | 57.5MB,  379kB/s
+[serve-stderr] Downloading bytes: ███▊      | 57.6MB,  397kB/s
+[serve-stderr] Downloading bytes: ███▊      | 57.7MB,  394kB/s
+[serve-stderr] Downloading bytes: ███▊      | 57.7MB,  389kB/s
+[serve-stderr] Downloading bytes: ███▊      | 57.8MB,  405kB/s
+[serve-stderr] Downloading bytes: ███▊      | 57.8MB,  342kB/s
+[serve-stderr] Downloading bytes: ███▊      | 57.9MB,  368kB/s
+[serve-stderr] Downloading bytes: ███▊      | 58.0MB,  360kB/s
+[serve-stderr] Downloading bytes: ███▊      | 58.1MB,  316kB/s
+[serve-stderr] Downloading bytes: ███▊      | 58.1MB,  291kB/s
+[serve-stderr] Downloading bytes: ███▊      | 58.2MB,  296kB/s
+[serve-stderr] Downloading bytes: ███▊      | 58.2MB,  300kB/s
+[serve-stderr] Downloading bytes: ███▊      | 58.3MB,  300kB/s
+[serve-stderr] Downloading bytes: ███▉      | 58.4MB,  333kB/s
+[serve-stderr] Downloading bytes: ███▉      | 58.4MB,  300kB/s
+[serve-stderr] Downloading bytes: ███▉      | 58.5MB,  280kB/s
+[serve-stderr] Downloading bytes: ███▉      | 58.5MB,  312kB/s
+[serve-stderr] Downloading bytes: ███▉      | 58.6MB,  282kB/s
+[serve-stderr] Downloading bytes: ███▉      | 58.6MB,  314kB/s
+[serve-stderr] Downloading bytes: ███▉      | 58.7MB,  339kB/s
+[serve-stderr] Downloading bytes: ███▉      | 58.8MB,  324kB/s
+[serve-stderr] Downloading bytes: ███▉      | 58.9MB,  317kB/s
+[serve-stderr] Downloading bytes: ███▉      | 58.9MB,  340kB/s
+[serve-stderr] Downloading bytes: ███▉      | 59.0MB,  328kB/s
+[serve-stderr] Downloading bytes: ███▉      | 59.0MB,  351kB/s
+[serve-stderr] Downloading bytes: ███▉      | 59.1MB,  332kB/s
+[serve-stderr] Downloading bytes: ███▉      | 59.1MB,  326kB/s
+[serve-stderr] Downloading bytes: ███▉      | 59.2MB,  354kB/s
+[serve-stderr] Downloading bytes: ███▉      | 59.3MB,  336kB/s
+[serve-stderr] Downloading bytes: ███▉      | 59.4MB,  426kB/s
+[serve-stderr] Downloading bytes: ███▉      | 59.5MB,  365kB/s
+[serve-stderr] Downloading bytes: ███▉      | 59.5MB,  367kB/s
+[serve-stderr] Downloading bytes: ███▉      | 59.6MB,  346kB/s
+[serve-stderr] Downloading bytes: ███▉      | 59.7MB,  396kB/s
+[serve-stderr] Downloading bytes: ███▉      | 59.8MB,  341kB/s
+[serve-stderr] Downloading bytes: ███▉      | 59.9MB,  459kB/s
+[serve-stderr] Downloading bytes: ███▉      | 59.9MB,  388kB/s
+[serve-stderr] Downloading bytes: ███▉      | 60.0MB,  361kB/s
+[serve-stderr] Downloading bytes: ███▉      | 60.0MB,  376kB/s
+[serve-stderr] Downloading bytes: ███▉      | 60.1MB,  390kB/s
+[serve-stderr] Downloading bytes: ███▉      | 60.1MB,  410kB/s
+[serve-stderr] Downloading bytes: ████      | 60.2MB,  337kB/s
+[serve-stderr] Downloading bytes: ████      | 60.3MB,  435kB/s
+[serve-stderr] Downloading bytes: ████      | 60.4MB,  400kB/s
+[serve-stderr] Downloading bytes: ████      | 60.5MB,  443kB/s
+[serve-stderr] Downloading bytes: ████      | 60.5MB,  509kB/s
+[serve-stderr] Downloading bytes: ████      | 60.6MB,  530kB/s
+[serve-stderr] Downloading bytes: ████      | 60.7MB,  470kB/s
+[serve-stderr] Downloading bytes: ████      | 60.8MB,  438kB/s
+[serve-stderr] Downloading bytes: ████      | 60.9MB,  415kB/s
+[serve-stderr] Downloading bytes: ████      | 60.9MB,  405kB/s
+[serve-stderr] Downloading bytes: ████      | 61.0MB,  413kB/s
+[serve-stderr] Downloading bytes: ████      | 61.0MB,  378kB/s
+[serve-stderr] Downloading bytes: ████      | 61.1MB,  392kB/s
+[event] image.models.progress #275 done=66092831 total=150417043
+[serve-stderr] Downloading bytes: ████      | 61.1MB,  411kB/s
+[serve-stderr] Downloading bytes: ████      | 61.2MB,  426kB/s
+[serve-stderr] Downloading bytes: ████      | 61.3MB,  416kB/s
+[serve-stderr] Downloading bytes: ████      | 61.3MB,  400kB/s
+[serve-stderr] Downloading bytes: ████      | 61.4MB,  367kB/s
+[serve-stderr] Downloading bytes: ████      | 61.5MB,  383kB/s
+[serve-stderr] Downloading bytes: ████      | 61.6MB,  379kB/s
+[serve-stderr] Downloading bytes: ████      | 61.6MB,  377kB/s
+[serve-stderr] Downloading bytes: ████      | 61.7MB,  391kB/s
+[serve-stderr] Downloading bytes: ████      | 61.7MB,  403kB/s
+[serve-stderr] Downloading bytes: ████      | 61.8MB,  374kB/s
+[serve-stderr] Downloading bytes: ████      | 61.9MB,  391kB/s
+[serve-stderr] Downloading bytes: ████      | 61.9MB,  389kB/s
+[serve-stderr] Downloading bytes: ████      | 62.0MB,  386kB/s
+[serve-stderr] Downloading bytes: ████▏     | 62.1MB,  412kB/s
+[serve-stderr] Downloading bytes: ████▏     | 62.2MB,  399kB/s
+[serve-stderr] Downloading bytes: ████▏     | 62.3MB,  398kB/s
+[serve-stderr] Downloading bytes: ████▏     | 62.4MB,  391kB/s
+[serve-stderr] Downloading bytes: ████▏     | 62.4MB,  386kB/s
+[serve-stderr] Downloading bytes: ████▏     | 62.5MB,  386kB/s
+[serve-stderr] Downloading bytes: ████▏     | 62.6MB,  400kB/s
+[serve-stderr] Downloading bytes: ████▏     | 62.6MB,  367kB/s
+[serve-stderr] Downloading bytes: ████▏     | 62.7MB,  384kB/s
+[serve-stderr] Downloading bytes: ████▏     | 62.8MB,  385kB/s
+[serve-stderr] Downloading bytes: ████▏     | 62.8MB,  357kB/s
+[serve-stderr] Downloading bytes: ████▏     | 62.8MB,  378kB/s
+[serve-stderr] Downloading bytes: ████▏     | 62.9MB,  393kB/s
+[serve-stderr] Downloading bytes: ████▏     | 63.0MB,  356kB/s
+[serve-stderr] Downloading bytes: ████▏     | 63.0MB,  408kB/s
+[serve-stderr] Downloading bytes: ████▏     | 63.1MB,  366kB/s
+[serve-stderr] Downloading bytes: ████▏     | 63.2MB,  383kB/s
+[serve-stderr] Downloading bytes: ████▏     | 63.3MB,  384kB/s
+[serve-stderr] Downloading bytes: ████▏     | 63.4MB,  380kB/s
+[serve-stderr] Downloading bytes: ████▏     | 63.4MB,  402kB/s
+[serve-stderr] Downloading bytes: ████▏     | 63.5MB,  395kB/s
+[serve-stderr] Downloading bytes: ████▏     | 63.6MB,  388kB/s
+[serve-stderr] Downloading bytes: ████▏     | 63.7MB,  384kB/s
+[serve-stderr] Downloading bytes: ████▏     | 63.7MB,  401kB/s
+[serve-stderr] Downloading bytes: ████▏     | 63.8MB,  410kB/s
+[serve-stderr] Downloading bytes: ████▏     | 63.8MB,  377kB/s
+[serve-stderr] Downloading bytes: ████▏     | 63.9MB,  392kB/s
+[serve-stderr] Downloading bytes: ████▎     | 63.9MB,  386kB/s
+[serve-stderr] Downloading bytes: ████▎     | 64.0MB,  404kB/s
+[serve-stderr] Downloading bytes: ████▎     | 64.1MB,  399kB/s
+[serve-stderr] Downloading bytes: ████▎     | 64.2MB,  395kB/s
+[serve-stderr] Downloading bytes: ████▎     | 64.2MB,  406kB/s
+[serve-stderr] Downloading bytes: ████▎     | 64.3MB,  399kB/s
+[serve-stderr] Downloading bytes: ████▎     | 64.4MB,  400kB/s
+[serve-stderr] Downloading bytes: ████▎     | 64.5MB,  411kB/s
+[serve-stderr] Downloading bytes: ████▎     | 64.5MB,  396kB/s
+[serve-stderr] Downloading bytes: ████▎     | 64.6MB,  367kB/s
+[serve-stderr] Downloading bytes: ████▎     | 64.7MB,  413kB/s
+[serve-stderr] Downloading bytes: ████▎     | 64.8MB,  401kB/s
+[serve-stderr] Downloading bytes: ████▎     | 64.8MB,  396kB/s
+[serve-stderr] Downloading bytes: ████▎     | 64.9MB,  368kB/s
+[serve-stderr] Downloading bytes: ████▎     | 64.9MB,  383kB/s
+[serve-stderr] Downloading bytes: ████▎     | 65.0MB,  398kB/s
+[serve-stderr] Downloading bytes: ████▎     | 65.1MB,  388kB/s
+[serve-stderr] Downloading bytes: ████▎     | 65.1MB,  360kB/s
+[serve-stderr] Downloading bytes: ████▎     | 65.2MB,  364kB/s
+[serve-stderr] Downloading bytes: ████▎     | 65.3MB,  369kB/s
+[serve-stderr] Downloading bytes: ████▎     | 65.4MB,  375kB/s
+[serve-stderr] Downloading bytes: ████▎     | 65.4MB,  350kB/s
+[serve-stderr] Downloading bytes: ████▎     | 65.5MB,  370kB/s
+[serve-stderr] Downloading bytes: ████▎     | 65.6MB,  417kB/s
+[serve-stderr] Downloading bytes: ████▎     | 65.6MB,  379kB/s
+[serve-stderr] Downloading bytes: ████▎     | 65.7MB,  359kB/s
+[serve-stderr] Downloading bytes: ████▎     | 65.7MB,  377kB/s
+[serve-stderr] Downloading bytes: ████▎     | 65.8MB,  393kB/s
+[serve-stderr] Downloading bytes: ████▍     | 65.9MB,  385kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.0MB,  380kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.0MB,  386kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.1MB,  359kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.1MB,  380kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.2MB,  330kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.2MB,  354kB/s
+[event] image.models.progress #300 done=71237407 total=150417043
+[serve-stderr] Downloading bytes: ████▍     | 66.3MB,  337kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.4MB,  360kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.4MB,  370kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.5MB,  387kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.6MB,  389kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.7MB,  390kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.7MB,  365kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.7MB,  384kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.8MB,  400kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.9MB,  412kB/s
+[serve-stderr] Downloading bytes: ████▍     | 66.9MB,  372kB/s
+[serve-stderr] Downloading bytes: ████▍     | 67.0MB,  397kB/s
+[serve-stderr] Downloading bytes: ████▍     | 67.0MB,  366kB/s
+[serve-stderr] Downloading bytes: ████▍     | 67.1MB,  384kB/s
+[serve-stderr] Downloading bytes: ████▍     | 67.2MB,  384kB/s
+[serve-stderr] Downloading bytes: ████▍     | 67.2MB,  355kB/s
+[serve-stderr] Downloading bytes: ████▍     | 67.3MB,  344kB/s
+[serve-stderr] Downloading bytes: ████▍     | 67.3MB,  311kB/s
+[serve-stderr] Downloading bytes: ████▍     | 67.4MB,  249kB/s
+[serve-stderr] Downloading bytes: ████▍     | 67.5MB,  308kB/s
+[serve-stderr] Downloading bytes: ████▍     | 67.5MB,  337kB/s
+[serve-stderr] Downloading bytes: ████▍     | 67.6MB,  400kB/s
+[serve-stderr] Downloading bytes: ████▍     | 67.6MB,  416kB/s
+[serve-stderr] Downloading bytes: ████▌     | 67.7MB,  463kB/s
+[serve-stderr] Downloading bytes: ████▌     | 67.8MB,  456kB/s
+[serve-stderr] Downloading bytes: ████▌     | 67.9MB,  431kB/s
+[serve-stderr] Downloading bytes: ████▌     | 67.9MB,  437kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.0MB,  417kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.1MB,  381kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.1MB,  378kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.2MB,  393kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.3MB,  408kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.3MB,  399kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.4MB,  409kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.4MB,  374kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.5MB,  394kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.5MB,  330kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.6MB,  356kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.6MB,  379kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.7MB,  398kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.8MB,  392kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.9MB,  390kB/s
+[serve-stderr] Downloading bytes: ████▌     | 68.9MB,  357kB/s
+[serve-stderr] Downloading bytes: ████▌     | 69.0MB,  367kB/s
+[serve-stderr] Downloading bytes: ████▌     | 69.1MB,  383kB/s
+[serve-stderr] Downloading bytes: ████▌     | 69.2MB,  408kB/s
+[serve-stderr] Downloading bytes: ████▌     | 69.2MB,  370kB/s
+[serve-stderr] Downloading bytes: ████▌     | 69.3MB,  391kB/s
+[serve-stderr] Downloading bytes: ████▌     | 69.3MB,  403kB/s
+[serve-stderr] Downloading bytes: ████▌     | 69.4MB,  365kB/s
+[serve-stderr] Downloading bytes: ████▌     | 69.5MB,  415kB/s
+[serve-stderr] Downloading bytes: ████▌     | 69.5MB,  376kB/s
+[serve-stderr] Downloading bytes: ████▌     | 69.6MB,  396kB/s
+[serve-stderr] Downloading bytes: ████▋     | 69.6MB,  365kB/s
+[serve-stderr] Downloading bytes: ████▋     | 69.7MB,  382kB/s
+[serve-stderr] Downloading bytes: ████▋     | 69.7MB,  398kB/s
+[serve-stderr] Downloading bytes: ████▋     | 69.8MB,  362kB/s
+[serve-stderr] Downloading bytes: ████▋     | 69.8MB,  383kB/s
+[serve-stderr] Downloading bytes: ████▋     | 69.9MB,  398kB/s
+[serve-stderr] Downloading bytes: ████▋     | 70.0MB,  411kB/s
+[serve-stderr] Downloading bytes: ████▋     | 70.0MB,  394kB/s
+[serve-stderr] Downloading bytes: ████▋     | 70.1MB,  386kB/s
+[serve-stderr] Downloading bytes: ████▋     | 70.2MB,  399kB/s
+[serve-stderr] Downloading bytes: ████▋     | 70.3MB,  388kB/s
+[serve-stderr] Downloading bytes: ████▋     | 70.3MB,  383kB/s
+[serve-stderr] Downloading bytes: ████▋     | 70.4MB,  396kB/s
+[serve-stderr] Downloading bytes: ████▋     | 70.4MB,  407kB/s
+[serve-stderr] Downloading bytes: ████▋     | 70.5MB,  394kB/s
+[serve-stderr] Downloading bytes: ████▋     | 70.6MB,  360kB/s
+[serve-stderr] Downloading bytes: ████▋     | 70.6MB,  368kB/s
+[serve-stderr] Downloading bytes: ████▋     | 70.7MB,  350kB/s
+[serve-stderr] Downloading bytes: ████▋     | 70.8MB,  397kB/s
+[serve-stderr] Downloading bytes: ████▋     | 70.9MB,  388kB/s
+[serve-stderr] Downloading bytes: ████▋     | 70.9MB,  384kB/s
+[serve-stderr] Downloading bytes: ████▋     | 71.0MB,  401kB/s
+[serve-stderr] Downloading bytes: ████▋     | 71.0MB,  366kB/s
+[serve-stderr] Downloading bytes: ████▋     | 71.1MB,  383kB/s
+[serve-stderr] Downloading bytes: ████▋     | 71.2MB,  381kB/s
+[serve-stderr] Downloading bytes: ████▋     | 71.2MB,  396kB/s
+[serve-stderr] Downloading bytes: ████▋     | 71.3MB,  363kB/s
+[event] image.models.progress #325 done=76365599 total=150417043
+[serve-stderr] Downloading bytes: ████▋     | 71.3MB,  380kB/s
+[serve-stderr] Downloading bytes: ████▋     | 71.4MB,  396kB/s
+[serve-stderr] Downloading bytes: ████▊     | 71.5MB,  388kB/s
+[serve-stderr] Downloading bytes: ████▊     | 71.5MB,  355kB/s
+[serve-stderr] Downloading bytes: ████▊     | 71.6MB,  340kB/s
+[serve-stderr] Downloading bytes: ████▊     | 71.6MB,  361kB/s
+[serve-stderr] Downloading bytes: ████▊     | 71.7MB,  382kB/s
+[serve-stderr] Downloading bytes: ████▊     | 71.8MB,  384kB/s
+[serve-stderr] Downloading bytes: ████▊     | 71.9MB,  398kB/s
+[serve-stderr] Downloading bytes: ████▊     | 71.9MB,  392kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.0MB,  388kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.1MB,  404kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.1MB,  364kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.2MB,  382kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.2MB,  378kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.3MB,  392kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.4MB,  385kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.4MB,  332kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.5MB,  356kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.5MB,  377kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.6MB,  354kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.7MB,  380kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.7MB,  384kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.8MB,  380kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.9MB,  393kB/s
+[serve-stderr] Downloading bytes: ████▊     | 72.9MB,  363kB/s
+[serve-stderr] Downloading bytes: ████▊     | 73.0MB,  386kB/s
+[serve-stderr] Downloading bytes: ████▊     | 73.1MB,  387kB/s
+[serve-stderr] Downloading bytes: ████▊     | 73.2MB,  382kB/s
+[serve-stderr] Downloading bytes: ████▊     | 73.2MB,  378kB/s
+[serve-stderr] Downloading bytes: ████▊     | 73.3MB,  379kB/s
+[serve-stderr] Downloading bytes: ████▉     | 73.4MB,  393kB/s
+[serve-stderr] Downloading bytes: ████▉     | 73.4MB,  369kB/s
+[serve-stderr] Downloading bytes: ████▉     | 73.5MB,  389kB/s
+[serve-stderr] Downloading bytes: ████▉     | 73.6MB,  412kB/s
+[serve-stderr] Downloading bytes: ████▉     | 73.6MB,  376kB/s
+[serve-stderr] Downloading bytes: ████▉     | 73.7MB,  378kB/s
+[serve-stderr] Downloading bytes: ████▉     | 73.8MB,  392kB/s
+[serve-stderr] Downloading bytes: ████▉     | 73.8MB,  358kB/s
+[serve-stderr] Downloading bytes: ████▉     | 73.9MB,  376kB/s
+[serve-stderr] Downloading bytes: ████▉     | 73.9MB,  352kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.0MB,  374kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.1MB,  404kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.2MB,  393kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.2MB,  386kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.3MB,  398kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.4MB,  370kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.4MB,  416kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.5MB,  377kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.5MB,  391kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.6MB,  404kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.7MB,  391kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.7MB,  362kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.8MB,  380kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.8MB,  395kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.9MB,  356kB/s
+[serve-stderr] Downloading bytes: ████▉     | 74.9MB,  380kB/s
+[serve-stderr] Downloading bytes: ████▉     | 75.0MB,  397kB/s
+[serve-stderr] Downloading bytes: ████▉     | 75.0MB,  409kB/s
+[serve-stderr] Downloading bytes: ████▉     | 75.1MB,  420kB/s
+[serve-stderr] Downloading bytes: ████▉     | 75.2MB,  402kB/s
+[serve-stderr] Downloading bytes: █████     | 75.3MB,  390kB/s
+[serve-stderr] Downloading bytes: █████     | 75.3MB,  402kB/s
+[serve-stderr] Downloading bytes: █████     | 75.4MB,  416kB/s
+[serve-stderr] Downloading bytes: █████     | 75.5MB,  398kB/s
+[serve-stderr] Downloading bytes: █████     | 75.6MB,  416kB/s
+[serve-stderr] Downloading bytes: █████     | 75.6MB,  403kB/s
+[serve-stderr] Downloading bytes: █████     | 75.7MB,  372kB/s
+[serve-stderr] Downloading bytes: █████     | 75.7MB,  388kB/s
+[serve-stderr] Downloading bytes: █████     | 75.8MB,  401kB/s
+[serve-stderr] Downloading bytes: █████     | 75.8MB,  366kB/s
+[serve-stderr] Downloading bytes: █████     | 75.9MB,  384kB/s
+[serve-stderr] Downloading bytes: █████     | 76.0MB,  272kB/s
+[serve-stderr] Downloading bytes: █████     | 76.0MB,  285kB/s
+[serve-stderr] Downloading bytes: █████     | 76.1MB,  344kB/s
+[serve-stderr] Downloading bytes: █████     | 76.1MB,  367kB/s
+[serve-stderr] Downloading bytes: █████     | 76.2MB,  389kB/s
+[serve-stderr] Downloading bytes: █████     | 76.3MB,  450kB/s
+[serve-stderr] Downloading bytes: █████     | 76.4MB,  421kB/s
+[serve-stderr] Downloading bytes: █████     | 76.4MB,  406kB/s
+[serve-stderr] Downloading bytes: █████     | 76.5MB,  399kB/s
+[event] image.models.progress #350 done=81510175 total=150417043
+[serve-stderr] Downloading bytes: █████     | 76.5MB,  408kB/s
+[serve-stderr] Downloading bytes: █████     | 76.6MB,  423kB/s
+[serve-stderr] Downloading bytes: █████     | 76.6MB,  380kB/s
+[serve-stderr] Downloading bytes: █████     | 76.7MB,  400kB/s
+[serve-stderr] Downloading bytes: █████     | 76.8MB,  411kB/s
+[serve-stderr] Downloading bytes: █████     | 76.8MB,  364kB/s
+[serve-stderr] Downloading bytes: █████     | 76.9MB,  417kB/s
+[serve-stderr] Downloading bytes: █████     | 76.9MB,  370kB/s
+[serve-stderr] Downloading bytes: █████     | 77.0MB,  391kB/s
+[serve-stderr] Downloading bytes: █████▏    | 77.1MB,  389kB/s
+[serve-stderr] Downloading bytes: █████▏    | 77.2MB,  383kB/s
+[serve-stderr] Downloading bytes: █████▏    | 77.3MB,  408kB/s
+[serve-stderr] Downloading bytes: █████▏    | 77.3MB,  378kB/s
+[serve-stderr] Downloading bytes: █████▏    | 77.4MB,  394kB/s
+[serve-stderr] Downloading bytes: █████▏    | 77.4MB,  407kB/s
+[serve-stderr] Downloading bytes: █████▏    | 77.5MB,  370kB/s
+[serve-stderr] Downloading bytes: █████▏    | 77.6MB,  386kB/s
+[serve-stderr] Downloading bytes: █████▏    | 77.6MB,  381kB/s
+[serve-stderr] Downloading bytes: █████▏    | 77.7MB,  378kB/s
+[serve-stderr] Downloading bytes: █████▏    | 77.8MB,  391kB/s
+[serve-stderr] Downloading bytes: █████▏    | 77.9MB,  384kB/s
+[serve-stderr] Downloading bytes: █████▏    | 77.9MB,  380kB/s
+[serve-stderr] Downloading bytes: █████▏    | 78.0MB,  354kB/s
+[serve-stderr] Downloading bytes: █████▏    | 78.0MB,  376kB/s
+[serve-stderr] Downloading bytes: █████▏    | 78.1MB,  391kB/s
+[serve-stderr] Downloading bytes: █████▏    | 78.2MB,  388kB/s
+[serve-stderr] Downloading bytes: █████▏    | 78.2MB,  390kB/s
+[serve-stderr] Downloading bytes: █████▏    | 78.3MB,  408kB/s
+[serve-stderr] Downloading bytes: █████▏    | 78.3MB,  377kB/s
+[serve-stderr] Downloading bytes: █████▏    | 78.4MB,  393kB/s
+[serve-stderr] Downloading bytes: █████▏    | 78.5MB,  391kB/s
+[serve-stderr] Downloading bytes: █████▏    | 78.6MB,  385kB/s
+[serve-stderr] Downloading bytes: █████▏    | 78.6MB,  384kB/s
+[serve-stderr] Downloading bytes: █████▏    | 78.7MB,  397kB/s
+[serve-stderr] Downloading bytes: █████▏    | 78.8MB,  407kB/s
+[serve-stderr] Downloading bytes: █████▏    | 78.8MB,  367kB/s
+[serve-stderr] Downloading bytes: █████▏    | 78.9MB,  390kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.0MB,  390kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.0MB,  390kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.1MB,  402kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.1MB,  374kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.2MB,  396kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.3MB,  408kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.3MB,  395kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.4MB,  408kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.4MB,  418kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.5MB,  375kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.5MB,  392kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.6MB,  328kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.7MB,  354kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.7MB,  368kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.8MB,  345kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.8MB,  310kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.9MB,  367kB/s
+[serve-stderr] Downloading bytes: █████▎    | 79.9MB,  388kB/s
+[serve-stderr] Downloading bytes: █████▎    | 80.0MB,  411kB/s
+[serve-stderr] Downloading bytes: █████▎    | 80.1MB,  407kB/s
+[serve-stderr] Downloading bytes: █████▎    | 80.2MB,  404kB/s
+[serve-stderr] Downloading bytes: █████▎    | 80.2MB,  397kB/s
+[serve-stderr] Downloading bytes: █████▎    | 80.3MB,  407kB/s
+[serve-stderr] Downloading bytes: █████▎    | 80.3MB,  416kB/s
+[serve-stderr] Downloading bytes: █████▎    | 80.4MB,  371kB/s
+[serve-stderr] Downloading bytes: █████▎    | 80.4MB,  388kB/s
+[serve-stderr] Downloading bytes: █████▎    | 80.5MB,  405kB/s
+[serve-stderr] Downloading bytes: █████▎    | 80.6MB,  366kB/s
+[serve-stderr] Downloading bytes: █████▎    | 80.7MB,  384kB/s
+[serve-stderr] Downloading bytes: █████▎    | 80.7MB,  409kB/s
+[serve-stderr] Downloading bytes: █████▎    | 80.8MB,  369kB/s
+[serve-stderr] Downloading bytes: █████▍    | 80.9MB,  385kB/s
+[serve-stderr] Downloading bytes: █████▍    | 80.9MB,  385kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.0MB,  397kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.0MB,  409kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.1MB,  418kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.1MB,  399kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.2MB,  410kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.2MB,  419kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.3MB,  369kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.4MB,  420kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.5MB,  405kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.5MB,  393kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.6MB,  404kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.6MB,  413kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.7MB,  422kB/s
+[event] image.models.progress #375 done=86720287 total=150417043
+[serve-stderr] Downloading bytes: █████▍    | 81.7MB,  378kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.8MB,  395kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.9MB,  392kB/s
+[serve-stderr] Downloading bytes: █████▍    | 81.9MB,  406kB/s
+[serve-stderr] Downloading bytes: █████▍    | 82.0MB,  416kB/s
+[serve-stderr] Downloading bytes: █████▍    | 82.1MB,  404kB/s
+[serve-stderr] Downloading bytes: █████▍    | 82.1MB,  365kB/s
+[serve-stderr] Downloading bytes: █████▍    | 82.2MB,  382kB/s
+[serve-stderr] Downloading bytes: █████▍    | 82.2MB,  431kB/s
+[serve-stderr] Downloading bytes: █████▍    | 82.3MB,  380kB/s
+[serve-stderr] Downloading bytes: █████▍    | 82.3MB,  395kB/s
+[serve-stderr] Downloading bytes: █████▍    | 82.4MB,  407kB/s
+[serve-stderr] Downloading bytes: █████▍    | 82.5MB,  417kB/s
+[serve-stderr] Downloading bytes: █████▍    | 82.5MB,  400kB/s
+[serve-stderr] Downloading bytes: █████▍    | 82.6MB,  365kB/s
+[serve-stderr] Downloading bytes: █████▍    | 82.7MB,  386kB/s
+[serve-stderr] Downloading bytes: █████▌    | 82.8MB,  387kB/s
+[serve-stderr] Downloading bytes: █████▌    | 82.8MB,  383kB/s
+[serve-stderr] Downloading bytes: █████▌    | 82.9MB,  356kB/s
+[serve-stderr] Downloading bytes: █████▌    | 83.0MB,  374kB/s
+[serve-stderr] Downloading bytes: █████▌    | 83.0MB,  380kB/s
+[serve-stderr] Downloading bytes: █████▌    | 83.1MB,  394kB/s
+[serve-stderr] Downloading bytes: █████▌    | 83.1MB,  390kB/s
+[serve-stderr] Downloading bytes: █████▌    | 83.2MB,  408kB/s
+[serve-stderr] Downloading bytes: █████▌    | 83.3MB,  394kB/s
+[serve-stderr] Downloading bytes: █████▌    | 83.3MB,  364kB/s
+[serve-stderr] Downloading bytes: █████▌    | 83.4MB,  384kB/s
+[serve-stderr] Downloading bytes: █████▌    | 83.5MB,  399kB/s
+[serve-stderr] Downloading bytes: █████▌    | 83.5MB,  394kB/s
+[serve-stderr] Downloading bytes: █████▌    | 83.6MB,  391kB/s
+[serve-stderr] Downloading bytes: █████▌    | 83.7MB,  402kB/s
+[serve-stderr] Downloading bytes: █████▌    | 83.7MB,  395kB/s
+[serve-stderr] Downloading bytes: █████▌    | 83.8MB,  371kB/s
+[serve-stderr] Downloading bytes: █████▌    | 83.9MB,  386kB/s
+[serve-stderr] Downloading bytes: █████▌    | 84.0MB,  390kB/s
+[serve-stderr] Downloading bytes: █████▌    | 84.0MB,  383kB/s
+[serve-stderr] Downloading bytes: █████▌    | 84.1MB,  383kB/s
+[serve-stderr] Downloading bytes: █████▌    | 84.1MB,  397kB/s
+[serve-stderr] Downloading bytes: █████▌    | 84.2MB,  366kB/s
+[serve-stderr] Downloading bytes: █████▌    | 84.3MB,  388kB/s
+[serve-stderr] Downloading bytes: █████▌    | 84.3MB,  383kB/s
+[serve-stderr] Downloading bytes: █████▌    | 84.4MB,  333kB/s
+[serve-stderr] Downloading bytes: █████▌    | 84.4MB,  358kB/s
+[serve-stderr] Downloading bytes: █████▌    | 84.5MB,  378kB/s
+[serve-stderr] Downloading bytes: █████▌    | 84.5MB,  394kB/s
+[serve-stderr] Downloading bytes: █████▌    | 84.6MB,  367kB/s
+[serve-stderr] Downloading bytes: █████▋    | 84.7MB,  385kB/s
+[serve-stderr] Downloading bytes: █████▋    | 84.7MB,  383kB/s
+[serve-stderr] Downloading bytes: █████▋    | 84.8MB,  430kB/s
+[serve-stderr] Downloading bytes: █████▋    | 84.9MB,  382kB/s
+[serve-stderr] Downloading bytes: █████▋    | 84.9MB,  402kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.0MB,  365kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.1MB,  418kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.1MB,  379kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.2MB,  409kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.3MB,  374kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.3MB,  390kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.4MB,  244kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.4MB,  279kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.5MB,  311kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.5MB,  344kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.6MB,  370kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.6MB,  427kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.7MB,  435kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.8MB,  480kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.8MB,  440kB/s
+[serve-stderr] Downloading bytes: █████▋    | 85.9MB,  445kB/s
+[serve-stderr] Downloading bytes: █████▋    | 86.0MB,  392kB/s
+[serve-stderr] Downloading bytes: █████▋    | 86.0MB,  390kB/s
+[serve-stderr] Downloading bytes: █████▋    | 86.1MB,  405kB/s
+[serve-stderr] Downloading bytes: █████▋    | 86.2MB,  400kB/s
+[serve-stderr] Downloading bytes: █████▋    | 86.2MB,  390kB/s
+[serve-stderr] Downloading bytes: █████▋    | 86.3MB,  406kB/s
+[serve-stderr] Downloading bytes: █████▋    | 86.4MB,  394kB/s
+[serve-stderr] Downloading bytes: █████▋    | 86.5MB,  391kB/s
+[serve-stderr] Downloading bytes: █████▊    | 86.5MB,  360kB/s
+[serve-stderr] Downloading bytes: █████▊    | 86.6MB,  340kB/s
+[serve-stderr] Downloading bytes: █████▊    | 86.6MB,  362kB/s
+[serve-stderr] Downloading bytes: █████▊    | 86.7MB,  343kB/s
+[serve-stderr] Downloading bytes: █████▊    | 86.7MB,  370kB/s
+[event] image.models.progress #400 done=91848479 total=150417043
+[serve-stderr] Downloading bytes: █████▊    | 86.8MB,  387kB/s
+[serve-stderr] Downloading bytes: █████▊    | 86.9MB,  381kB/s
+[serve-stderr] Downloading bytes: █████▊    | 87.0MB,  385kB/s
+[serve-stderr] Downloading bytes: █████▊    | 87.0MB,  398kB/s
+[serve-stderr] Downloading bytes: █████▊    | 87.1MB,  410kB/s
+[serve-stderr] Downloading bytes: █████▊    | 87.1MB,  369kB/s
+[serve-stderr] Downloading bytes: █████▊    | 87.2MB,  391kB/s
+[serve-stderr] Downloading bytes: █████▊    | 87.2MB,  407kB/s
+[serve-stderr] Downloading bytes: █████▊    | 87.3MB,  367kB/s
+[serve-stderr] Downloading bytes: █████▊    | 87.4MB,  344kB/s
+[serve-stderr] Downloading bytes: █████▊    | 87.4MB,  356kB/s
+[serve-stderr] Downloading bytes: █████▊    | 87.5MB,  345kB/s
+[serve-stderr] Downloading bytes: █████▊    | 87.6MB,  395kB/s
+[serve-stderr] Downloading bytes: █████▊    | 87.7MB,  387kB/s
+[serve-stderr] Downloading bytes: █████▊    | 87.8MB,  386kB/s
+[serve-stderr] Downloading bytes: █████▊    | 87.8MB,  388kB/s
+[serve-stderr] Downloading bytes: █████▊    | 87.9MB,  388kB/s
+[serve-stderr] Downloading bytes: █████▊    | 88.0MB,  403kB/s
+[serve-stderr] Downloading bytes: █████▊    | 88.0MB,  392kB/s
+[serve-stderr] Downloading bytes: █████▊    | 88.1MB,  388kB/s
+[serve-stderr] Downloading bytes: █████▊    | 88.2MB,  387kB/s
+[serve-stderr] Downloading bytes: █████▊    | 88.3MB,  387kB/s
+[serve-stderr] Downloading bytes: █████▊    | 88.3MB,  361kB/s
+[serve-stderr] Downloading bytes: █████▉    | 88.4MB,  407kB/s
+[serve-stderr] Downloading bytes: █████▉    | 88.5MB,  369kB/s
+[serve-stderr] Downloading bytes: █████▉    | 88.5MB,  414kB/s
+[serve-stderr] Downloading bytes: █████▉    | 88.6MB,  424kB/s
+[serve-stderr] Downloading bytes: █████▉    | 88.7MB,  383kB/s
+[serve-stderr] Downloading bytes: █████▉    | 88.7MB,  354kB/s
+[serve-stderr] Downloading bytes: █████▉    | 88.8MB,  339kB/s
+[serve-stderr] Downloading bytes: █████▉    | 88.9MB,  359kB/s
+[serve-stderr] Downloading bytes: █████▉    | 88.9MB,  344kB/s
+[serve-stderr] Downloading bytes: █████▉    | 89.0MB,  392kB/s
+[serve-stderr] Downloading bytes: █████▉    | 89.1MB,  390kB/s
+[serve-stderr] Downloading bytes: █████▉    | 89.2MB,  384kB/s
+[serve-stderr] Downloading bytes: █████▉    | 89.2MB,  380kB/s
+[serve-stderr] Downloading bytes: █████▉    | 89.3MB,  394kB/s
+[serve-stderr] Downloading bytes: █████▉    | 89.4MB,  389kB/s
+[serve-stderr] Downloading bytes: █████▉    | 89.4MB,  404kB/s
+[serve-stderr] Downloading bytes: █████▉    | 89.5MB,  393kB/s
+[serve-stderr] Downloading bytes: █████▉    | 89.6MB,  409kB/s
+[serve-stderr] Downloading bytes: █████▉    | 89.7MB,  400kB/s
+[serve-stderr] Downloading bytes: █████▉    | 89.7MB,  393kB/s
+[serve-stderr] Downloading bytes: █████▉    | 89.8MB,  390kB/s
+[serve-stderr] Downloading bytes: █████▉    | 89.9MB,  412kB/s
+[serve-stderr] Downloading bytes: █████▉    | 90.0MB,  380kB/s
+[serve-stderr] Downloading bytes: █████▉    | 90.0MB,  382kB/s
+[serve-stderr] Downloading bytes: █████▉    | 90.1MB,  396kB/s
+[serve-stderr] Downloading bytes: █████▉    | 90.2MB,  393kB/s
+[serve-stderr] Downloading bytes: ██████    | 90.3MB,  388kB/s
+[serve-stderr] Downloading bytes: ██████    | 90.3MB,  386kB/s
+[serve-stderr] Downloading bytes: ██████    | 90.4MB,  397kB/s
+[serve-stderr] Downloading bytes: ██████    | 90.5MB,  366kB/s
+[serve-stderr] Downloading bytes: ██████    | 90.5MB,  413kB/s
+[serve-stderr] Downloading bytes: ██████    | 90.6MB,  371kB/s
+[serve-stderr] Downloading bytes: ██████    | 90.6MB,  389kB/s
+[serve-stderr] Downloading bytes: ██████    | 90.8MB,  405kB/s
+[serve-stderr] Downloading bytes: ██████    | 90.8MB,  355kB/s
+[serve-stderr] Downloading bytes: ██████    | 90.9MB,  402kB/s
+[serve-stderr] Downloading bytes: ██████    | 91.0MB,  417kB/s
+[serve-stderr] Downloading bytes: ██████    | 91.0MB,  382kB/s
+[serve-stderr] Downloading bytes: ██████    | 91.1MB,  394kB/s
+[serve-stderr] Downloading bytes: ██████    | 91.2MB,  335kB/s
+[serve-stderr] Downloading bytes: ██████    | 91.2MB,  385kB/s
+[serve-stderr] Downloading bytes: ██████    | 91.3MB,  329kB/s
+[serve-stderr] Downloading bytes: ██████    | 91.4MB,  383kB/s
+[serve-stderr] Downloading bytes: ██████    | 91.5MB,  413kB/s
+[serve-stderr] Downloading bytes: ██████    | 91.5MB,  404kB/s
+[serve-stderr] Downloading bytes: ██████    | 91.6MB,  370kB/s
+[serve-stderr] Downloading bytes: ██████    | 91.6MB,  386kB/s
+[serve-stderr] Downloading bytes: ██████    | 91.7MB,  399kB/s
+[serve-stderr] Downloading bytes: ██████    | 91.8MB,  410kB/s
+[serve-stderr] Downloading bytes: ██████    | 91.8MB,  370kB/s
+[serve-stderr] Downloading bytes: ██████    | 91.9MB,  408kB/s
+[event] image.models.progress #425 done=97009439 total=150417043
+[serve-stderr] Downloading bytes: ██████    | 92.0MB,  416kB/s
+[serve-stderr] Downloading bytes: ██████    | 92.1MB,  401kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 92.1MB,  403kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 92.2MB,  395kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 92.3MB,  387kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 92.3MB,  399kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 92.4MB,  368kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 92.5MB,  384kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 92.5MB,  352kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 92.6MB,  333kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 92.7MB,  356kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 92.7MB,  365kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 92.8MB,  382kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 92.8MB,  326kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 92.9MB,  372kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.0MB,  387kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.0MB,  433kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.1MB,  410kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.2MB,  418kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.2MB,  377kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.3MB,  396kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.4MB,  392kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.4MB,  394kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.5MB,  368kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.6MB,  377kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.7MB,  420kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.7MB,  377kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.8MB,  391kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.8MB,  403kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.9MB,  365kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 93.9MB,  322kB/s
+[serve-stderr] Downloading bytes: ██████▏   | 94.0MB,  350kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 94.0MB,  376kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 94.1MB,  350kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 94.2MB,  368kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 94.3MB,  375kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 94.4MB,  375kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 94.4MB,  379kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 94.5MB,  381kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 94.6MB,  394kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 94.6MB,  396kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 94.7MB,  406kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 94.7MB,  370kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 94.8MB,  388kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 94.9MB,  403kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 94.9MB,  394kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 95.0MB,  407kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 95.0MB,  365kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 95.1MB,  347kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 95.2MB,  367kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 95.2MB,  343kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 95.3MB,  364kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 95.3MB,  373kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 95.4MB,  388kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 95.5MB,  382kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 95.6MB,  384kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 95.6MB,  396kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 95.7MB,  392kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 95.7MB,  405kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 95.8MB,  366kB/s
+[serve-stderr] Downloading bytes: ██████▎   | 95.9MB,  414kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 95.9MB,  370kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 96.0MB,  392kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 96.1MB,  389kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 96.1MB,  408kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 96.2MB,  417kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 96.2MB,  372kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 96.3MB,  396kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 96.4MB,  390kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 96.5MB,  385kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 96.5MB,  357kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 96.6MB,  365kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 96.7MB,  347kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 96.8MB,  386kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 96.9MB,  382kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 96.9MB,  382kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 97.0MB,  364kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 97.1MB,  379kB/s
+[event] image.models.progress #450 done=102104863 total=150417043
+[serve-stderr] Downloading bytes: ██████▍   | 97.2MB,  378kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 97.2MB,  402kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 97.3MB,  368kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 97.4MB,  387kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 97.4MB,  387kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 97.5MB,  399kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 97.5MB,  409kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 97.6MB,  378kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 97.6MB,  393kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 97.7MB,  410kB/s
+[serve-stderr] Downloading bytes: ██████▍   | 97.7MB,  394kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 97.8MB,  406kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 97.9MB,  416kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.0MB,  398kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.0MB,  389kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.1MB,  401kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.1MB,  390kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.2MB,  402kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.3MB,  403kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.4MB,  419kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.4MB,  404kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.5MB,  366kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.5MB,  351kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.6MB,  371kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.6MB,  348kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.7MB,  371kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.8MB,  376kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.9MB,  383kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 98.9MB,  381kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 99.0MB,  394kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 99.1MB,  386kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 99.2MB,  383kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 99.2MB,  384kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 99.3MB,  254kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 99.4MB,  304kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 99.4MB,  356kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 99.5MB,  380kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 99.6MB,  396kB/s
+[serve-stderr] Downloading bytes: ██████▌   | 99.6MB,  484kB/s
+[serve-stderr] Downloading bytes: ██████▋   | 99.7MB,  513kB/s
+[serve-stderr] Downloading bytes: ██████▋   | 99.8MB,  454kB/s
+[serve-stderr] Downloading bytes: ██████▋   | 99.8MB,  423kB/s
+[serve-stderr] Downloading bytes: ██████▋   | 99.9MB,  428kB/s
+[serve-stderr] Downloading bytes: ██████▋   | 99.9MB,  435kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  100MB,  438kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  100MB,  383kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  100MB,  404kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  100MB,  399kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  100MB,  411kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  100MB,  429kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  100MB,  387kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  100MB,  408kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  100MB,  393kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  407kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  372kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  392kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  405kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  416kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  424kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  373kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  390kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  405kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  421kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  400kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  411kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  395kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  414kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  399kB/s
+[serve-stderr] Downloading bytes: ██████▋   |  101MB,  409kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  396kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  388kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  399kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  390kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  406kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  394kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  389kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  401kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  411kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  367kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  384kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  401kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  400kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  393kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  404kB/s
+[event] image.models.progress #475 done=107478815 total=150417043
+[serve-stderr] Downloading bytes: ██████▊   |  102MB,  397kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  103MB,  413kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  103MB,  398kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  103MB,  419kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  103MB,  378kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  103MB,  391kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  103MB,  403kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  103MB,  402kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  103MB,  419kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  103MB,  405kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  103MB,  395kB/s
+[serve-stderr] Downloading bytes: ██████▊   |  103MB,  397kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  103MB,  394kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  103MB,  395kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  104MB,  405kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  104MB,  371kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  104MB,  244kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  104MB,  279kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  104MB,  337kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  104MB,  390kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  104MB,  445kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  104MB,  557kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  104MB,  485kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  104MB,  476kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  104MB,  439kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  104MB,  440kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  104MB,  422kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  104MB,  413kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  105MB,  405kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  105MB,  394kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  105MB,  365kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  105MB,  383kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  105MB,  427kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  105MB,  378kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  105MB,  400kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  105MB,  413kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  105MB,  403kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  105MB,  371kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  105MB,  423kB/s
+[serve-stderr] Downloading bytes: ██████▉   |  105MB,  375kB/s
+[serve-stderr] Downloading bytes: ███████   |  105MB,  391kB/s
+[serve-stderr] Downloading bytes: ███████   |  105MB,  391kB/s
+[serve-stderr] Downloading bytes: ███████   |  105MB,  385kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  398kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  425kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  387kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  402kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  414kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  398kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  411kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  370kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  419kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  403kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  403kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  413kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  404kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  367kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  383kB/s
+[serve-stderr] Downloading bytes: ███████   |  106MB,  397kB/s
+[serve-stderr] Downloading bytes: ███████   |  107MB,  409kB/s
+[serve-stderr] Downloading bytes: ███████   |  107MB,  394kB/s
+[serve-stderr] Downloading bytes: ███████   |  107MB,  358kB/s
+[serve-stderr] Downloading bytes: ███████   |  107MB,  377kB/s
+[serve-stderr] Downloading bytes: ███████   |  107MB,  398kB/s
+[serve-stderr] Downloading bytes: ███████   |  107MB,  369kB/s
+[serve-stderr] Downloading bytes: ███████   |  107MB,  375kB/s
+[serve-stderr] Downloading bytes: ███████   |  107MB,  351kB/s
+[serve-stderr] Downloading bytes: ███████   |  107MB,  370kB/s
+[serve-stderr] Downloading bytes: ███████   |  107MB,  387kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  107MB,  352kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  107MB,  405kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  107MB,  366kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  107MB,  368kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  107MB,  369kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  108MB,  389kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  108MB,  383kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  108MB,  400kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  108MB,  389kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  108MB,  401kB/s
+[event] image.models.progress #500 done=112869151 total=150417043
+[serve-stderr] Downloading bytes: ███████▏  |  108MB,  390kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  108MB,  389kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  108MB,  414kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  108MB,  409kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  108MB,  402kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  108MB,  379kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  108MB,  398kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  108MB,  411kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  108MB,  428kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  109MB,  387kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  109MB,  401kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  109MB,  411kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  109MB,  367kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  109MB,  402kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  109MB,  371kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  109MB,  386kB/s
+[serve-stderr] Downloading bytes: ███████▏  |  109MB,  391kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  109MB,  386kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  109MB,  398kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  109MB,  361kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  109MB,  372kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  109MB,  352kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  109MB,  364kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  110MB,  390kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  110MB,  388kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  110MB,  386kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  110MB,  401kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  110MB,  371kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  110MB,  397kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  110MB,  407kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  110MB,  368kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  110MB,  372kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  110MB,  415kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  110MB,  400kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  110MB,  390kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  110MB,  401kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  110MB,  369kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  111MB,  391kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  111MB,  387kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  111MB,  403kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  111MB,  391kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  111MB,  390kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  111MB,  401kB/s
+[serve-stderr] Downloading bytes: ███████▎  |  111MB,  413kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  111MB,  402kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  111MB,  392kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  111MB,  385kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  111MB,  397kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  111MB,  408kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  111MB,  417kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  111MB,  399kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  111MB,  389kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  387kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  406kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  290kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  318kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  376kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  325kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  322kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  351kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  360kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  369kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  384kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  353kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  379kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  359kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  378kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  319kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  318kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  112MB,  287kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  113MB,  292kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  113MB,  297kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  113MB,  302kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  113MB,  272kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  113MB,  256kB/s
+[serve-stderr] Downloading bytes: ███████▍  |  113MB,  294kB/s
+[event] image.models.progress #525 done=117751583 total=150417043
+[serve-stderr] Downloading bytes: ███████▍  |  113MB,  246kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  113MB,  241kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  113MB,  235kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  113MB,  248kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  113MB,  269kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  113MB,  259kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  113MB,  298kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  113MB,  298kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  113MB,  334kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  113MB,  349kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  113MB,  358kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  113MB,  378kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  113MB,  385kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  114MB,  400kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  114MB,  365kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  114MB,  383kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  114MB,  350kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  114MB,  375kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  114MB,  379kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  114MB,  403kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  114MB,  373kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  114MB,  392kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  114MB,  406kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  114MB,  373kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  114MB,  381kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  114MB,  395kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  114MB,  407kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  114MB,  393kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  115MB,  391kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  115MB,  396kB/s
+[serve-stderr] Downloading bytes: ███████▌  |  115MB,  406kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  115MB,  422kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  115MB,  405kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  115MB,  414kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  115MB,  401kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  115MB,  391kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  115MB,  402kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  115MB,  412kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  115MB,  420kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  115MB,  370kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  115MB,  371kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  115MB,  393kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  115MB,  415kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  384kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  380kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  393kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  409kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  425kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  375kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  391kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  360kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  387kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  357kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  336kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  358kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  336kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  302kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  301kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  306kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  304kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  116MB,  281kB/s
+[serve-stderr] Downloading bytes: ███████▋  |  117MB,  291kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  270kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  286kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  297kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  253kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  264kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  304kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  302kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  302kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  307kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  305kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  272kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  278kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  286kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  322kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  342kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  357kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  378kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  117MB,  385kB/s
+[event] image.models.progress #550 done=122519327 total=150417043
+[serve-stderr] Downloading bytes: ███████▊  |  118MB,  380kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  118MB,  382kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  118MB,  386kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  118MB,  397kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  118MB,  393kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  118MB,  407kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  118MB,  373kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  118MB,  388kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  118MB,  386kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  118MB,  399kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  118MB,  369kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  118MB,  386kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  118MB,  400kB/s
+[serve-stderr] Downloading bytes: ███████▊  |  118MB,  389kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  118MB,  404kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  425kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  385kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  408kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  352kB/s
+[serve-stderr] Reconstructing (incomplete total...):  48%|████▊     | 72.0MB /  150MB            [A
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  317kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  304kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  259kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  268kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  255kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  264kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  252kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  261kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  305kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  303kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  306kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  344kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  373kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  398kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  420kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  119MB,  429kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  120MB,  490kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  120MB,  514kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  120MB,  582kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  120MB,  625kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  120MB,  631kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  120MB,  719kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  120MB,  606kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  120MB,  528kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  120MB,  476kB/s
+[serve-stderr] Downloading bytes: ███████▉  |  120MB,  452kB/s
+[serve-stderr] Downloading bytes: ████████  |  120MB,  451kB/s
+[serve-stderr] Downloading bytes: ████████  |  120MB,  423kB/s
+[serve-stderr] Downloading bytes: ████████  |  120MB,  411kB/s
+[serve-stderr] Downloading bytes: ████████  |  121MB,  418kB/s
+[serve-stderr] Downloading bytes: ████████  |  121MB,  412kB/s
+[serve-stderr] Downloading bytes: ████████  |  121MB,  400kB/s
+[serve-stderr] Downloading bytes: ████████  |  121MB,  391kB/s
+[serve-stderr] Downloading bytes: ████████  |  121MB,  403kB/s
+[serve-stderr] Downloading bytes: ████████  |  121MB,  370kB/s
+[serve-stderr] Downloading bytes: ████████  |  121MB,  416kB/s
+[serve-stderr] Downloading bytes: ████████  |  121MB,  401kB/s
+[serve-stderr] Downloading bytes: ████████  |  121MB,  391kB/s
+[serve-stderr] Downloading bytes: ████████  |  121MB,  402kB/s
+[serve-stderr] Downloading bytes: ████████  |  121MB,  399kB/s
+[serve-stderr] Downloading bytes: ████████  |  121MB,  409kB/s
+[serve-stderr] Downloading bytes: ████████  |  121MB,  398kB/s
+[serve-stderr] Downloading bytes: ████████  |  121MB,  408kB/s
+[serve-stderr] Downloading bytes: ████████  |  122MB,  396kB/s
+[serve-stderr] Downloading bytes: ████████  |  122MB,  416kB/s
+[serve-stderr] Downloading bytes: ████████  |  122MB,  381kB/s
+[serve-stderr] Downloading bytes: ████████  |  122MB,  394kB/s
+[serve-stderr] Downloading bytes: ████████  |  122MB,  407kB/s
+[serve-stderr] Downloading bytes: ████████  |  122MB,  417kB/s
+[serve-stderr] Downloading bytes: ████████  |  122MB,  380kB/s
+[serve-stderr] Downloading bytes: ████████  |  122MB,  397kB/s
+[serve-stderr] Downloading bytes: ████████  |  122MB,  413kB/s
+[serve-stderr] Downloading bytes: ████████  |  122MB,  378kB/s
+[serve-stderr] Downloading bytes: ████████  |  122MB,  399kB/s
+[serve-stderr] Downloading bytes: ████████  |  122MB,  399kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  122MB,  417kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  122MB,  405kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  122MB,  415kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  122MB,  405kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  123MB,  394kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  123MB,  392kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  123MB,  402kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  123MB,  412kB/s
+[event] image.models.progress #575 done=194924345 total=150417043
+[serve-stderr] Downloading bytes: ████████▏ |  123MB,  399kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  123MB,  395kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  123MB,  387kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  123MB,  399kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  123MB,  390kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  123MB,  403kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  123MB,  413kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  123MB,  397kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  123MB,  415kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  123MB,  398kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  123MB,  413kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  124MB,  377kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  124MB,  228kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  124MB,  260kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  124MB,  296kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  124MB,  331kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  124MB,  350kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  124MB,  370kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  124MB,  389kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  124MB,  440kB/s
+[serve-stderr] Downloading bytes: ████████▏ |  124MB,  442kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  124MB,  490kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  124MB,  521kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  124MB,  585kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  124MB,  601kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  124MB,  504kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  125MB,  451kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  125MB,  429kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  125MB,  440kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  125MB,  415kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  125MB,  427kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  125MB,  393kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  125MB,  403kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  125MB,  413kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  125MB,  397kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  125MB,  408kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  125MB,  402kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  125MB,  391kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  125MB,  410kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  125MB,  398kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  126MB,  392kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  126MB,  402kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  126MB,  397kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  126MB,  394kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  126MB,  387kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  126MB,  403kB/s
+[serve-stderr] Downloading bytes: ████████▎ |  126MB,  413kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  126MB,  400kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  126MB,  395kB/s
+[serve-stderr] Reconstructing (incomplete total...):  48%|████▊     | 72.0MB /  150MB,  235kB/s  [A
+[serve-stderr] Downloading bytes: ████████▍ |  126MB,  392kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  126MB,  388kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  126MB,  399kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  126MB,  398kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  126MB,  408kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  127MB,  404kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  127MB,  396kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  127MB,  409kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  127MB,  398kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  127MB,  394kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  127MB,  396kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  127MB,  406kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  127MB,  399kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  127MB,  396kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  127MB,  390kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  127MB,  400kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  127MB,  393kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  127MB,  391kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  127MB,  403kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  128MB,  398kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  128MB,  389kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  128MB,  401kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  128MB,  411kB/s
+[serve-stderr] Downloading bytes: ████████▍ |  128MB,  406kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  128MB,  395kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  128MB,  406kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  128MB,  393kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  128MB,  404kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  128MB,  394kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  128MB,  405kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  128MB,  415kB/s
+[event] image.models.progress #600 done=200412985 total=150417043
+[serve-stderr] Downloading bytes: ████████▌ |  128MB,  400kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  128MB,  398kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  128MB,  392kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  129MB,  407kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  129MB,  402kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  129MB,  399kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  129MB,  396kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  129MB,  410kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  129MB,  401kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  129MB,  391kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  129MB,  402kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  129MB,  391kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  129MB,  402kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  129MB,  391kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  129MB,  403kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  129MB,  391kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  129MB,  408kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  129MB,  417kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  130MB,  405kB/s
+[serve-stderr] Downloading bytes: ████████▌ |  130MB,  393kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  130MB,  390kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  130MB,  384kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  130MB,  397kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  130MB,  396kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  130MB,  409kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  130MB,  402kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  130MB,  391kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  130MB,  408kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  130MB,  398kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  130MB,  415kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  130MB,  400kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  130MB,  410kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  131MB,  374kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  131MB,  396kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  131MB,  399kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  131MB,  392kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  131MB,  392kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  131MB,  406kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  131MB,  401kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  131MB,  403kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  131MB,  411kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  131MB,  400kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  131MB,  411kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  131MB,  404kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  131MB,  393kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  131MB,  395kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  132MB,  406kB/s
+[serve-stderr] Downloading bytes: ████████▋ |  132MB,  397kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  132MB,  389kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  132MB,  386kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  132MB,  404kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  132MB,  416kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  132MB,  407kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  132MB,  397kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  132MB,  390kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  132MB,  392kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  132MB,  369kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  132MB,  390kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  132MB,  410kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  132MB,  403kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  133MB,  393kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  133MB,  386kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  133MB,  399kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  133MB,  414kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  133MB,  409kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  133MB,  396kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  133MB,  406kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  133MB,  398kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  133MB,  390kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  133MB,  404kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  133MB,  395kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  133MB,  412kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  133MB,  399kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  133MB,  389kB/s
+[serve-stderr] Downloading bytes: ████████▊ |  133MB,  407kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  134MB,  394kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  134MB,  405kB/s
+[event] image.models.progress #625 done=205737785 total=150417043
+[serve-stderr] Downloading bytes: ████████▉ |  134MB,  393kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  134MB,  404kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  134MB,  371kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  134MB,  393kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  134MB,  414kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  134MB,  405kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  134MB,  393kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  134MB,  405kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  134MB,  399kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  134MB,  409kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  134MB,  395kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  134MB,  406kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  134MB,  393kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  135MB,  386kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  135MB,  398kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  135MB,  414kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  135MB,  368kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  135MB,  392kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  135MB,  412kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  135MB,  421kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  135MB,  407kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  135MB,  399kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  135MB,  397kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  135MB,  394kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  135MB,  405kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  135MB,  415kB/s
+[serve-stderr] Downloading bytes: ████████▉ |  135MB,  400kB/s
+[serve-stderr] Downloading bytes: █████████ |  135MB,  414kB/s
+[serve-stderr] Downloading bytes: █████████ |  135MB,  370kB/s
+[serve-stderr] Downloading bytes: █████████ |  135MB,  392kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  405kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  365kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  388kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  409kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  420kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  407kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  394kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  405kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  229kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  259kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  290kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  320kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  347kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  405kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  452kB/s
+[serve-stderr] Downloading bytes: █████████ |  136MB,  500kB/s
+[serve-stderr] Downloading bytes: █████████ |  137MB,  486kB/s
+[serve-stderr] Downloading bytes: █████████ |  137MB,  512kB/s
+[serve-stderr] Downloading bytes: █████████ |  137MB,  541kB/s
+[serve-stderr] Downloading bytes: █████████ |  137MB,  556kB/s
+[serve-stderr] Downloading bytes: █████████ |  137MB,  484kB/s
+[serve-stderr] Downloading bytes: █████████ |  137MB,  448kB/s
+[serve-stderr] Downloading bytes: █████████ |  137MB,  448kB/s
+[serve-stderr] Downloading bytes: █████████ |  137MB,  456kB/s
+[serve-stderr] Downloading bytes: █████████ |  137MB,  427kB/s
+[serve-stderr] Downloading bytes: █████████ |  137MB,  414kB/s
+[serve-stderr] Downloading bytes: █████████▏|  137MB,  405kB/s
+[serve-stderr] Downloading bytes: █████████▏|  137MB,  402kB/s
+[serve-stderr] Downloading bytes: █████████▏|  137MB,  413kB/s
+[serve-stderr] Downloading bytes: █████████▏|  137MB,  403kB/s
+[serve-stderr] Downloading bytes: █████████▏|  138MB,  412kB/s
+[serve-stderr] Downloading bytes: █████████▏|  138MB,  397kB/s
+[serve-stderr] Downloading bytes: █████████▏|  138MB,  415kB/s
+[serve-stderr] Downloading bytes: █████████▏|  138MB,  398kB/s
+[serve-stderr] Downloading bytes: █████████▏|  138MB,  398kB/s
+[serve-stderr] Downloading bytes: █████████▏|  138MB,  390kB/s
+[serve-stderr] Downloading bytes: █████████▏|  138MB,  389kB/s
+[serve-stderr] Downloading bytes: █████████▏|  138MB,  395kB/s
+[serve-stderr] Downloading bytes: █████████▏|  138MB,  404kB/s
+[serve-stderr] Downloading bytes: █████████▏|  138MB,  399kB/s
+[serve-stderr] Downloading bytes: █████████▏|  138MB,  396kB/s
+[serve-stderr] Downloading bytes: █████████▏|  138MB,  388kB/s
+[serve-stderr] Downloading bytes: █████████▏|  138MB,  387kB/s
+[serve-stderr] Downloading bytes: █████████▏|  138MB,  398kB/s
+[serve-stderr] Downloading bytes: █████████▏|  139MB,  408kB/s
+[serve-stderr] Downloading bytes: █████████▏|  139MB,  400kB/s
+[serve-stderr] Downloading bytes: █████████▏|  139MB,  401kB/s
+[serve-stderr] Downloading bytes: █████████▏|  139MB,  370kB/s
+[serve-stderr] Downloading bytes: █████████▏|  139MB,  385kB/s
+[serve-stderr] Downloading bytes: █████████▏|  139MB,  400kB/s
+[serve-stderr] Downloading bytes: █████████▏|  139MB,  411kB/s
+[serve-stderr] Downloading bytes: █████████▏|  139MB,  400kB/s
+[event] image.models.progress #650 done=211144505 total=150417043
+[serve-stderr] Downloading bytes: █████████▏|  139MB,  395kB/s
+[serve-stderr] Downloading bytes: █████████▎|  139MB,  406kB/s
+[serve-stderr] Downloading bytes: █████████▎|  139MB,  399kB/s
+[serve-stderr] Downloading bytes: █████████▎|  139MB,  410kB/s
+[serve-stderr] Downloading bytes: █████████▎|  139MB,  396kB/s
+[serve-stderr] Downloading bytes: █████████▎|  139MB,  407kB/s
+[serve-stderr] Downloading bytes: █████████▎|  139MB,  398kB/s
+[serve-stderr] Downloading bytes: █████████▎|  140MB,  409kB/s
+[serve-stderr] Downloading bytes: █████████▎|  140MB,  395kB/s
+[serve-stderr] Downloading bytes: █████████▎|  140MB,  407kB/s
+[serve-stderr] Downloading bytes: █████████▎|  140MB,  400kB/s
+[serve-stderr] Downloading bytes: █████████▎|  140MB,  394kB/s
+[serve-stderr] Downloading bytes: █████████▎|  140MB,  392kB/s
+[serve-stderr] Downloading bytes: █████████▎|  140MB,  403kB/s
+[serve-stderr] Downloading bytes: █████████▎|  140MB,  392kB/s
+[serve-stderr] Downloading bytes: █████████▎|  140MB,  403kB/s
+[serve-stderr] Downloading bytes: █████████▎|  140MB,  413kB/s
+[serve-stderr] Downloading bytes: █████████▎|  140MB,  397kB/s
+[serve-stderr] Downloading bytes: █████████▎|  140MB,  392kB/s
+[serve-stderr] Downloading bytes: █████████▎|  140MB,  393kB/s
+[serve-stderr] Downloading bytes: █████████▎|  140MB,  408kB/s
+[serve-stderr] Downloading bytes: █████████▎|  141MB,  401kB/s
+[serve-stderr] Downloading bytes: █████████▎|  141MB,  397kB/s
+[serve-stderr] Downloading bytes: █████████▎|  141MB,  392kB/s
+[serve-stderr] Downloading bytes: █████████▎|  141MB,  403kB/s
+[serve-stderr] Downloading bytes: █████████▎|  141MB,  414kB/s
+[serve-stderr] Downloading bytes: █████████▎|  141MB,  398kB/s
+[serve-stderr] Downloading bytes: █████████▎|  141MB,  408kB/s
+[serve-stderr] Downloading bytes: █████████▎|  141MB,  397kB/s
+[serve-stderr] Downloading bytes: █████████▍|  141MB,  394kB/s
+[serve-stderr] Downloading bytes: █████████▍|  141MB,  405kB/s
+[serve-stderr] Downloading bytes: █████████▍|  141MB,  398kB/s
+[serve-stderr] Downloading bytes: █████████▍|  141MB,  390kB/s
+[serve-stderr] Downloading bytes: █████████▍|  141MB,  401kB/s
+[serve-stderr] Downloading bytes: █████████▍|  141MB,  391kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  391kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  388kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  405kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  414kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  405kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  401kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  393kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  405kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  400kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  409kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  403kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  401kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  400kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  376kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  390kB/s
+[serve-stderr] Downloading bytes: █████████▍|  142MB,  402kB/s
+[serve-stderr] Downloading bytes: █████████▍|  143MB,  412kB/s
+[serve-stderr] Downloading bytes: █████████▍|  143MB,  396kB/s
+[serve-stderr] Downloading bytes: █████████▍|  143MB,  419kB/s
+[serve-stderr] Downloading bytes: █████████▍|  143MB,  403kB/s
+[serve-stderr] Downloading bytes: █████████▍|  143MB,  393kB/s
+[serve-stderr] Downloading bytes: █████████▌|  143MB,  408kB/s
+[serve-stderr] Downloading bytes: █████████▌|  143MB,  397kB/s
+[serve-stderr] Downloading bytes: █████████▌|  143MB,  407kB/s
+[serve-stderr] Downloading bytes: █████████▌|  143MB,  406kB/s
+[serve-stderr] Downloading bytes: █████████▌|  143MB,  398kB/s
+[serve-stderr] Downloading bytes: █████████▌|  143MB,  394kB/s
+[serve-stderr] Downloading bytes: █████████▌|  143MB,  393kB/s
+[serve-stderr] Downloading bytes: █████████▌|  143MB,  403kB/s
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  398kB/s
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  395kB/s
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  410kB/s
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  374kB/s
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  389kB/s
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  402kB/s
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  413kB/s
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  396kB/s
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  399kB/s
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  389kB/s
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  403kB/s
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  413kB/s
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  397kB/s
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  408kB/s
+[event] image.models.progress #675 done=216502073 total=150417043
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  366kB/s
+[serve-stderr] Downloading bytes: █████████▌|  144MB,  386kB/s
+[serve-stderr] Downloading bytes: █████████▌|  145MB,  403kB/s
+[serve-stderr] Downloading bytes: █████████▌|  145MB,  396kB/s
+[serve-stderr] Downloading bytes: █████████▌|  145MB,  388kB/s
+[serve-stderr] Downloading bytes: █████████▌|  145MB,  400kB/s
+[serve-stderr] Downloading bytes: █████████▋|  145MB,  390kB/s
+[serve-stderr] Downloading bytes: █████████▋|  145MB,  402kB/s
+[serve-stderr] Downloading bytes: █████████▋|  145MB,  417kB/s
+[serve-stderr] Downloading bytes: █████████▋|  145MB,  375kB/s
+[serve-stderr] Downloading bytes: █████████▋|  145MB,  391kB/s
+[serve-stderr] Downloading bytes: █████████▋|  145MB,  412kB/s
+[serve-stderr] Downloading bytes: █████████▋|  145MB,  376kB/s
+[serve-stderr] Downloading bytes: █████████▋|  145MB,  427kB/s
+[serve-stderr] Downloading bytes: █████████▋|  145MB,  385kB/s
+[serve-stderr] Downloading bytes: █████████▋|  145MB,  387kB/s
+[serve-stderr] Downloading bytes: █████████▋|  145MB,  400kB/s
+[serve-stderr] Downloading bytes: █████████▋|  145MB,  411kB/s
+[serve-stderr] Downloading bytes: █████████▋|  146MB,  402kB/s
+[serve-stderr] Downloading bytes: █████████▋|  146MB,  414kB/s
+[serve-stderr] Downloading bytes: █████████▋|  146MB,  397kB/s
+[serve-stderr] Downloading bytes: █████████▋|  146MB,  408kB/s
+[serve-stderr] Downloading bytes: █████████▋|  146MB,  394kB/s
+[serve-stderr] Downloading bytes: █████████▋|  146MB,  405kB/s
+[serve-stderr] Downloading bytes: █████████▋|  146MB,  415kB/s
+[serve-stderr] Downloading bytes: █████████▋|  146MB,  398kB/s
+[serve-stderr] Downloading bytes: █████████▋|  146MB,  389kB/s
+[serve-stderr] Downloading bytes: █████████▋|  146MB,  401kB/s
+[serve-stderr] Downloading bytes: █████████▋|  146MB,  396kB/s
+[serve-stderr] Downloading bytes: █████████▋|  146MB,  392kB/s
+[serve-stderr] Downloading bytes: █████████▋|  146MB,  407kB/s
+[serve-stderr] Downloading bytes: █████████▋|  146MB,  399kB/s
+[serve-stderr] Downloading bytes: █████████▋|  147MB,  398kB/s
+[serve-stderr] Downloading bytes: █████████▋|  147MB,  389kB/s
+[serve-stderr] Downloading bytes: █████████▋|  147MB,  400kB/s
+[serve-stderr] Downloading bytes: █████████▊|  147MB,  398kB/s
+[serve-stderr] Downloading bytes: █████████▊|  147MB,  408kB/s
+[serve-stderr] Downloading bytes: █████████▊|  147MB,  399kB/s
+[serve-stderr] Downloading bytes: █████████▊|  147MB,  410kB/s
+[serve-stderr] Downloading bytes: █████████▊|  147MB,  396kB/s
+[serve-stderr] Downloading bytes: █████████▊|  147MB,  406kB/s
+[serve-stderr] Downloading bytes: █████████▊|  147MB,  403kB/s
+[serve-stderr] Downloading bytes: █████████▊|  147MB,  401kB/s
+[serve-stderr] Downloading bytes: █████████▊|  147MB,  393kB/s
+[serve-stderr] Downloading bytes: █████████▊|  147MB,  410kB/s
+[serve-stderr] Downloading bytes: █████████▊|  147MB,  396kB/s
+[serve-stderr] Downloading bytes: █████████▊|  147MB,  415kB/s
+[serve-stderr] Downloading bytes: █████████▊|  148MB,  385kB/s
+[serve-stderr] Downloading bytes: █████████▊|  148MB,  397kB/s
+[serve-stderr] Downloading bytes: █████████▊|  148MB,  408kB/s
+[serve-stderr] Downloading bytes: █████████▊|  148MB,  394kB/s
+[serve-stderr] Downloading bytes: █████████▊|  148MB,  408kB/s
+[serve-stderr] Downloading bytes: █████████▊|  148MB,  397kB/s
+[serve-stderr] Downloading bytes: █████████▊|  148MB,  397kB/s
+[serve-stderr] Downloading bytes: █████████▊|  148MB,  407kB/s
+[serve-stderr] Downloading bytes: █████████▊|  148MB,  398kB/s
+[serve-stderr] Downloading bytes: █████████▊|  148MB,  394kB/s
+[serve-stderr] Downloading bytes: █████████▊|  148MB,  395kB/s
+[serve-stderr] Downloading bytes: █████████▊|  148MB,  405kB/s
+[serve-stderr] Downloading bytes: █████████▊|  148MB,  396kB/s
+[serve-stderr] Downloading bytes: █████████▊|  148MB,  409kB/s
+[serve-stderr] Downloading bytes: █████████▊|  149MB,  396kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  398kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  395kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  411kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  397kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  225kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  256kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  291kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  346kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  366kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  383kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  380kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  400kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  413kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  424kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  440kB/s
+[serve-stderr] Downloading bytes: █████████▉|  149MB,  442kB/s
+[serve-stderr] Downloading bytes: █████████▉|  150MB,  486kB/s
+[serve-stderr] Downloading bytes: █████████▉|  150MB,  471kB/s
+[event] image.models.progress #700 done=221843257 total=150417043
+[serve-stderr] Downloading bytes: █████████▉|  150MB,  504kB/s
+[serve-stderr] Downloading bytes: █████████▉|  150MB,  527kB/s
+[serve-stderr] Downloading bytes: █████████▉|  150MB,  499kB/s
+[serve-stderr] Downloading bytes: █████████▉|  150MB,  451kB/s
+[serve-stderr] Downloading bytes: █████████▉|  150MB,  450kB/s
+[serve-stderr] Downloading bytes: █████████▉|  150MB,  449kB/s
+[serve-stderr] Downloading bytes: █████████▉|  150MB,  421kB/s
+[serve-stderr] Downloading bytes: █████████▉|  150MB,  427kB/s
+[serve-stderr] Reconstructing (incomplete total...): 100%|██████████|  150MB /  150MB,  235kB/s  [A
+[serve-stderr] Fetching 14 files: 100%|██████████| 14/14 [06:20<00:00, 74.20s/it][A[A
+[serve-stderr] Fetching 14 files: 100%|██████████| 14/14 [06:20<00:00, 27.18s/it]
+[serve-stderr] Downloading bytes: ██████████|  150MB,  431kB/s
+[serve-stderr] Download complete: ██████████|  150MB,  431kB/s
+[event] {"type": "image.models.completed", "job_id": 1, "ok": true, "ts": "2026-10-03T15:11:34.746+00:00"}
+[event] {"type": "image.models.completed", "job_id": 1, "ok": true, "ts": "2026-10-03T15:11:34.746+00:00"}
+[download] completed ok=True error=None 耗时=382.6s
+[list] test-vl-256m={"name": "test-vl-256m", "path": "/Users/zhengbingjin/Library/Application Support/MYIA/models/test-vl-256m", "bytes": 150415524, "active": false, "incomplete": false}
+[activate] test-vl-256m -> {"ok": true}
+[switch] 停 8080: PID=31787 cmd=/Users/zhengbingjin/.cache/uv/archive-v0/n6owMImNZnhyuPqO5WZA_/bin/python /Users/zhengbingjin/.cache/uv/archive-v0/n6owMImNZnhyuPqO5WZA_/bin/mlx_vlm.server --model /Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx --host 127.0.0.1 --port 8080
+[switch] 8080 已释放( PID 31787 退出)
+[ensure] 应答={"running": false, "base_url": "http://127.0.0.1:8080/v1", "model": "/Users/zhengbingjin/Library/Application Support/MYIA/models/test-vl-256m", "healthy": false, "started": false, "ensuring": true, "job_id": 1}
+[event] {"type": "image.server.completed", "job_id": 1, "ok": true, "ts": "2026-10-03T15:11:47.406+00:00", "status": {"running": true, "base_url": "http://127.0.0.1:8080/v1", "model": "/Users/zhengbingjin/Library/Application Support/MYIA/models/test-vl-256m", "healthy": true, "started": true}}
+[event] {"type": "image.server.completed", "job_id": 1, "ok": true, "ts": "2026-10-03T15:11:47.406+00:00", "status": {"running": true, "base_url": "http://127.0.0.1:8080/v1", "model": "/Users/zhengbingjin/Library/Application Support/MYIA/models/test-vl-256m", "healthy": true, "started": true}}
+[ensure] completed ok=True status={"running": true, "base_url": "http://127.0.0.1:8080/v1", "model": "/Users/zhengbingjin/Library/Application Support/MYIA/models/test-vl-256m", "healthy": true, "started": true}
+[ensure] status={"running": true, "base_url": "http://127.0.0.1:8080/v1", "model": "/Users/zhengbingjin/Library/Application Support/MYIA/models/test-vl-256m", "healthy": true}
+[caption] http=200 model=/Users/zhengbingjin/Library/Application Support/MYIA/models/test-vl-256m
+[caption] text='Screen shows duplicate VHS install detected.'
+CHAIN_OK 总耗时=398.1s
+[restore] activate qwen3-vl-8b-mlx -> {"ok": true}
+[restore] 停 8080: PID=40119 cmd=/Users/zhengbingjin/.cache/uv/archive-v0/piM9JBXuHmBJqFnPsENKM/bin/python /Users/zhengbingjin/.cache/uv/archive-v0/piM9JBXuHmBJqFnPsENKM/bin/mlx_vlm.server --model /Users/zhengbingjin/Library/Application Support/MYIA/models/test-vl-256m --host 127.0.0.1 --port 8080
+[restore] 8080 已释放( PID 40119 退出)
+[restore] ensure 应答={"running": false, "base_url": "http://127.0.0.1:8080/v1", "model": "/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx", "healthy": false, "started": false, "ensuring": true, "job_id": 2}
+[serve-stderr] Reconstruction complete: 100%|██████████|  150MB /  150MB,  443kB/s               [A
+[serve-stderr] Download complete: ██████████|  150MB,  431kB/s
+[event] {"type": "image.server.completed", "job_id": 2, "ok": true, "ts": "2026-10-03T15:12:06.768+00:00", "status": {"running": true, "base_url": "http://127.0.0.1:8080/v1", "model": "/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx", "healthy": true, "started": true}}
+[event] {"type": "image.server.completed", "job_id": 2, "ok": true, "ts": "2026-10-03T15:12:06.768+00:00", "status": {"running": true, "base_url": "http://127.0.0.1:8080/v1", "model": "/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx", "healthy": true, "started": true}}
+[restore] completed ok=True status={"running": true, "base_url": "http://127.0.0.1:8080/v1", "model": "/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx", "healthy": true, "started": true}
+[restore] status={"running": true, "base_url": "http://127.0.0.1:8080/v1", "model": "/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx", "healthy": true}
+[restore] /health loaded_model=/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx
+[restore] RESTORED=True
+[cleanup] delete test-vl-256m -> {"ok": true}
+[cleanup] delete test-vl-2b 失败: image.models.delete error: {"code": "model_not_found", "path": "params.name", "message": "模型不存在: /Users/zhengbingjin/Library/Application Support/MYIA/models/test-vl-2b", "data": {"error_type": "model_not_found", "message": "模型不存在: /Users/zhengbingjin/Library/Application Support/MYIA/models/test-vl-2b", "name": "test-vl-2b", "path": "/Users/zhengbingjin/Library/Application Support/MYIA/models/test-vl-2b"}}
+[cleanup] 末态 models=[('qwen3-vl-8b-mlx', True)]
+DONE failure=False restored=True 总耗时=415.2s

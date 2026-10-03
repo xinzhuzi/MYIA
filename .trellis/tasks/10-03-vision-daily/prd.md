@@ -45,6 +45,18 @@
    yaml 且 env 缺失,run 构造期 fail-fast(exit 1)。CLI(shell export)与
    docker(docker/.env 已有段)两形态不受影响。
 
+> **A2 终局注记(2026-10-03 深夜,Run C 收口;证据 `evidence/run-c-*` +
+> SUMMARY.md「Run C」节)**:上条「留主人」已拍板落地——**base_url 入钥匙链**
+> (`myia/llm/base_url`,产品路径 `secret.set` 写入、写前查旧值 `secret_not_found`
+> 全新写入、写后读回一致;钥匙链名字索引实证在场)。`plugins/ai-news.yaml`
+> `enrich.base_url` 自 `env:MYIA_LLM_BASE_URL` 改 `keychain:myia/llm/base_url`
+> (api_key 不动),golden 三处同步(tests/test_plugins.py;定向门禁复跑
+> 115 passed / 6 skipped)。**零 env 真跑两发**:`env -u MYIA_LLM_BASE_URL`
+> 仓内副本 178.3s、桌面副本(`<home>/plugins` 同步后,旧副本 .bak)169.2s,
+> 均 45/45 items with scores + enrich_cache 45 行(glm-4-flash)+ 6 卡片带
+> `enrich_model`,零批超时零降级(batch=10 生效)——**桌面 sidecar 无 shell
+> env 不再构造期 fail-fast,风险解除**;CLI/桌面/容器三形态同链钥匙链供凭据。
+
 ## 待拍板(开工前一句)
 
 1. enrich 端点:云端 GLM(推荐,现成凭据链)vs 本地;2. 开工时机(可与 vision-v2 解耦,先做 A1 也行)

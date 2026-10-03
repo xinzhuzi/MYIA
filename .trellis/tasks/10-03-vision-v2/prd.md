@@ -39,6 +39,23 @@
 > TG sendPhoto 真发 / 飞书开 im:resource 后真发 = mock 无法替代,待主人
 > (push/notes.md「待主人实证」节)。
 
+> **实证补笔(2026-10-03 夜,`evidence/proofs/`;详见 model-chain-summary.md /
+> tg-sendphoto-blocked.md / feishu-images-probe.log)**:
+> AC1「真下载」manual 子句**以小模型全链 PASSED 落地**:ask 拍板「优先
+> Qwen2-VL-2B ~1.7GB 或更小」——2B 实测直连/Clash 代理/hf-mirror 三路
+> 325-400kB/s 同帽(4 路分片不聚合),1.26GB ≈ 60min 超 20 分钟帽 3 倍,
+> 按「或更小」换 `mlx-community/SmolVLM-256M-Instruct-4bit`(~150MB):
+> 下载 384s(700+ progress 事件)→ list → activate → 停旧起新(ensure)
+> → 真图 caption HTTP 200 → 收尾全复原(RESTORED=True,测试模型已删,
+> 末态 models 仅 8B)。断点续传经 attempt1/2 残件 `.incomplete` +
+> list `incomplete=true` 间接实证;~16GB 8B 本尊未下(小模型同链等价)。
+> AC4 真发子句两探:**TG sendPhoto BLOCKED**——bot token/chat_id 双件
+> 全机缺席(keychain 名字索引/env/launchctl/shell profiles/~/.hermes/.env
+> 均无;唯 games.yaml 纯 env: 声明且两变量未设),待主人 BotFather 建 bot
+> 补凭据后重跑;**飞书 im:resource 已开**——tenant token 200 +
+> `im/v1/images` 上传 code=0、image_key 取得(纯 Python PNG 探针,token
+> 零落盘),但 probe 止于上传,带图卡真发到真实会话一步仍未走。
+
 ## 已拍板决议(自决,主人授权按建议执行;终检落档)
 
 1. **persist(落图)缺省 false**:隐私/体积优先,品类 YAML 显式开

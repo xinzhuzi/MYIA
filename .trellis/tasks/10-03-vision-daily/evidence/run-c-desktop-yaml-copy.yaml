@@ -132,8 +132,8 @@ enrich:
                                 # myia secret set myia/image/api_key 录入)
 
 push:
-  - channel: feishu_card
-    target: env:FEISHU_CHAT_ID  # bot token comes from env:FEISHU_BOT_TOKEN
+  # 桌面副本验收:feishu_card → stdout(零凭据零出网;--json 下卡片行改写 stderr)
+  - channel: stdout
     route:
       - when: "score >= 9"      # v0.2 slot: only breakout news (scored) pushes now
         mode: immediate

@@ -1,0 +1,10 @@
+# Run C enrich_cache 查证(零 env:keychain base_url)
+# db: /tmp/myia-zeroenv-a2c/dbroot/store.db(shishi run --json,env -u MYIA_LLM_BASE_URL)
+items: 45; items with scores: 45
+enrich_cache rows: 45; models: [('glm-4-flash', 45)]; scores_key: [('value+relevance+credibility@p2',)]
+--- sample rows (url | model | scores_key | result) ---
+https://aihot.news/items/uwm1ml1igd8k2u81g14uf8pc3 | glm-4-flash | value+relevance+credibility@p2 | {"scores": {"value": 7, "relevance": 8, "credibility": 8}, "score": 7.7, "reason": "LLM 性能对比，高度相关"}
+https://aihot.news/items/cw97qi7nc5ucehymkc1k9s6zk | glm-4-flash | value+relevance+credibility@p2 | {"scores": {"value": 7, "relevance": 7, "credibility": 7}, "score": 7.0, "reason": "GPT-6 家族指南，相关度高"}
+https://www.cocoloop.cn/t/topic/15943 | glm-4-flash | value+relevance+credibility@p2 | {"scores": {"value": 7, "relevance": 8, "credibility": 6}, "score": 7.0, "reason": "涉及大模型与隐私保护"}
+https://www.cocoloop.cn/t/topic/18666 | glm-4-flash | value+relevance+credibility@p2 | {"scores": {"value": 7, "relevance": 7, "credibility": 6}, "score": 6.7, "reason": "GPT-6在游戏中的应用，相关度一般"}
+https://www.cocoloop.cn/t/topic/20499 | glm-4-flash | value+relevance+credibility@p2 | {"scores": {"value": 6, "relevance": 8, "credibility": 6}, "score": 6.7, "reason": "LLM猜年龄实验，相关度高"}

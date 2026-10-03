@@ -1,0 +1,5 @@
+[probe] FEISHU_APP_ID present=True FEISHU_APP_SECRET present=True
+[probe] FEISHU_DOMAIN=feishu → host=open.feishu.cn
+[probe] tenant_access_token http=200 code=0 msg=ok
+[probe] im/v1/images http=200 code=0 msg=success image_key=<present>
+[probe] RESULT=uploaded(code=0, image_key 已取得;值不落日志)

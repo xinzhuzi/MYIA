@@ -65,3 +65,35 @@ SSRF 拒环回)。yaml 副本仅改 aihot url + 去 cocoloop 源(run-b-yaml-copy
 ## 密钥安全
 
 keychain:myia/image/api_key 全程由管线解析;证据文件已扫,key 值零出现。
+
+## Run C — base_url 入钥匙链,桌面零 env 收口(run-c-*,2026-10-03 晚)
+
+上节「同步前需拍板」已拍板并落地:**base_url 入钥匙链**。
+
+- 钥匙链写入(产品路径):`.venv/bin/python desktop/entry.py serve` 收
+  `secret.set {name: myia/llm/base_url, value: https://open.bigmodel.cn/api/paas/v4}`
+  → `{"stored": true}` exit 0;写入前 `get_secret` 查旧值 = `secret_not_found`
+  (全新写入,无旧值冲突);写后读回一致(值非密钥,端点 URL 明文记此无碍)。
+- `plugins/ai-news.yaml`:`enrich.base_url` 自 `env:MYIA_LLM_BASE_URL` 改
+  `keychain:myia/llm/base_url`(api_key 不动);注释同步(录入指引
+  `myia secret set myia/llm/base_url`)。golden 同步:`tests/test_plugins.py`
+  三处(env→keychain 断言、声明面录入指引断言、`test_plugin_builds_a_pipeline`
+  改纯内存钥匙链注入,去 env monkeypatch)。定向 pytest
+  `tests/test_plugins.py -q` = **115 passed, 6 skipped**(skip 为底部 opt-in
+  网络 smoke)。push_targets_golden 冻结副本只断言 push 子树,enrich 改动不涉。
+- **零 env 真跑(仓内副本)**:`env -u MYIA_LLM_BASE_URL shishi run
+  /tmp/myia-zeroenv-a2c/ai-news-stdout.yaml --db .../dbroot/store.db --json`
+  (printenv 证 absence;push 剥 stdout;vision.yaml 拷 db 同目录)。178.3s,
+  status=partial(exit 3,仅 aihot 零命中卡 invalid_item,Run A 同形已知行为);
+  analyze ok 45/45,**items with scores 45/45,enrich_cache 45 行
+  (glm-4-flash,value+relevance+credibility@p2)**,零批超时零降级
+  (batch=10 生效;Run A 的 2×60s 超时损耗不再);6 张 stdout 卡片带
+  `enrich_model: glm-4-flash` + scores + 中文 score_reason(run-c-log.txt)。
+- **桌面副本同法零 env 跑**:`cp` 仓内 yaml →
+  `<home>/Library/Application Support/MYIA/plugins/ai-news.yaml`(旧副本先
+  .bak;旧副本还是 v0.1 形态,enrich 关闭无 base_url),再用该副本同法跑:
+  169.2s 同形结果——45/45 scores、enrich_cache 45 行、6 卡片带 enrich_model
+  (run-c-desktop-*)。**桌面场景等价成立:sidecar 无 shell env 也不再
+  构造期 fail-fast,钥匙链同链供 CLI/桌面。**
+
+

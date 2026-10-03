@@ -1,0 +1,958 @@
+[base] version=0.0.1 protocol=5
+[base] image.server.status={"running": true, "base_url": "http://127.0.0.1:8080/v1", "model": "/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx", "healthy": true}
+[base] models=[('qwen3-vl-8b-mlx', True, False)]
+[download] 提交 job_id=1 repo=mlx-community/Qwen2-VL-2B-Instruct-4bit name=test-vl-2b
+[serve-stderr] Downloading bytes:           |  0.00B
+[serve-stderr] Reconstructing (incomplete total...): |          |  0.00B /  0.00B            [A
+[serve-stderr] Fetching 13 files:   0%|          | 0/13 [00:00<?, ?it/s][A[A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          |  0.00B / 1.67MB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          |  0.00B / 1.25GB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          |  0.00B / 1.25GB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 1.05kB / 1.25GB            [A
+[serve-stderr] Downloading bytes:           | 1.05kB
+[serve-stderr] Fetching 13 files:   8%|▊         | 1/13 [00:01<00:20,  1.68s/it][A[A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 1.05kB / 1.25GB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 2.46kB / 1.25GB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 4.03kB / 1.26GB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 4.03kB / 1.26GB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 4.59kB / 1.26GB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 4.98kB / 1.26GB            [A
+[serve-stderr] Downloading bytes:           | 4.98kB
+[serve-stderr] Fetching 13 files:  38%|███▊      | 5/13 [00:01<00:02,  3.46it/s][A[A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 1.68MB / 1.26GB            [A
+[serve-stderr] Downloading bytes:           | 1.68MB
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 1.68MB / 1.26GB            [A
+[serve-stderr] Fetching 13 files:  54%|█████▍    | 7/13 [00:02<00:01,  3.26it/s][A[A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 1.68MB / 1.26GB            [A
+[serve-stderr] Fetching 13 files:  62%|██████▏   | 8/13 [00:02<00:01,  3.74it/s][A[A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 1.68MB / 1.26GB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 1.79MB / 1.26GB            [A
+[serve-stderr] Fetching 13 files:  77%|███████▋  | 10/13 [00:03<00:00,  3.88it/s][A[A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 1.79MB / 1.26GB            [A
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 4.57MB / 1.26GB            [A
+[serve-stderr] Downloading bytes:           | 4.60MB, 1.44MB/s
+[serve-stderr] Fetching 13 files:  85%|████████▍ | 11/13 [00:05<00:01,  1.41it/s][A[A
+[serve-stderr] Downloading bytes:           | 4.91MB,  962kB/s
+[serve-stderr] Downloading bytes:           | 5.09MB,  799kB/s
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 5.04MB / 1.26GB            [A
+[serve-stderr] Downloading bytes:           | 5.26MB,  751kB/s
+[serve-stderr] Downloading bytes:           | 5.37MB,  693kB/s
+[serve-stderr] Downloading bytes:           | 5.45MB,  644kB/s
+[serve-stderr] Downloading bytes:           | 5.55MB,  614kB/s
+[serve-stderr] Downloading bytes:           | 5.63MB,  558kB/s
+[serve-stderr] Downloading bytes:           | 5.71MB,  527kB/s
+[serve-stderr] Downloading bytes:           | 5.77MB,  501kB/s
+[serve-stderr] Downloading bytes:           | 5.83MB,  505kB/s
+[serve-stderr] Downloading bytes:           | 5.91MB,  452kB/s
+[serve-stderr] Downloading bytes:           | 5.97MB,  436kB/s
+[serve-stderr] Downloading bytes:           | 6.02MB,  401kB/s
+[serve-stderr] Downloading bytes:           | 6.09MB,  415kB/s
+[serve-stderr] Downloading bytes:           | 6.15MB,  384kB/s
+[serve-stderr] Downloading bytes:           | 6.22MB,  363kB/s
+[serve-stderr] Downloading bytes:           | 6.27MB,  350kB/s
+[serve-stderr] Downloading bytes:           | 6.33MB,  371kB/s
+[serve-stderr] Downloading bytes:           | 6.40MB,  409kB/s
+[serve-stderr] Downloading bytes:           | 6.44MB,  379kB/s
+[serve-stderr] Downloading bytes:           | 6.50MB,  380kB/s
+[serve-stderr] Downloading bytes:           | 6.54MB,  349kB/s
+[serve-stderr] Downloading bytes:           | 6.61MB,  359kB/s
+[serve-stderr] Downloading bytes:           | 6.67MB,  341kB/s
+[serve-stderr] Downloading bytes:           | 6.71MB,  327kB/s
+[serve-stderr] Downloading bytes:           | 6.75MB,  343kB/s
+[serve-stderr] Downloading bytes:           | 6.79MB,  346kB/s
+[serve-stderr] Downloading bytes:           | 6.83MB,  369kB/s
+[serve-stderr] Downloading bytes:           | 6.90MB,  370kB/s
+[serve-stderr] Downloading bytes:           | 6.93MB,  343kB/s
+[serve-stderr] Downloading bytes:           | 6.99MB,  346kB/s
+[serve-stderr] Downloading bytes:           | 7.05MB,  317kB/s
+[serve-stderr] Downloading bytes:           | 7.11MB,  364kB/s
+[serve-stderr] Downloading bytes:           | 7.15MB,  340kB/s
+[serve-stderr] Downloading bytes:           | 7.20MB,  343kB/s
+[serve-stderr] Downloading bytes:           | 7.24MB,  304kB/s
+[serve-stderr] Downloading bytes:           | 7.31MB,  340kB/s
+[serve-stderr] Downloading bytes:           | 7.37MB,  332kB/s
+[serve-stderr] Downloading bytes:           | 7.46MB,  325kB/s
+[serve-stderr] Downloading bytes:           | 7.54MB,  260kB/s
+[serve-stderr] Downloading bytes:           | 7.63MB,  342kB/s
+[serve-stderr] Downloading bytes:           | 7.67MB,  362kB/s
+[serve-stderr] Downloading bytes:           | 7.76MB,  383kB/s
+[serve-stderr] Downloading bytes:           | 7.82MB,  386kB/s
+[serve-stderr] Downloading bytes:           | 7.90MB,  364kB/s
+[serve-stderr] Downloading bytes:           | 7.97MB,  369kB/s
+[serve-stderr] Downloading bytes:           | 8.01MB,  361kB/s
+[serve-stderr] Downloading bytes:           | 8.08MB,  370kB/s
+[serve-stderr] Downloading bytes:           | 8.17MB,  357kB/s
+[serve-stderr] Downloading bytes:           | 8.23MB,  369kB/s
+[serve-stderr] Downloading bytes:           | 8.30MB,  353kB/s
+[serve-stderr] Downloading bytes:           | 8.38MB,  404kB/s
+[serve-stderr] Downloading bytes:           | 8.46MB,  402kB/s
+[serve-stderr] Downloading bytes:           | 8.53MB,  403kB/s
+[serve-stderr] Downloading bytes:           | 8.57MB,  375kB/s
+[serve-stderr] Downloading bytes:           | 8.64MB,  394kB/s
+[serve-stderr] Downloading bytes:           | 8.69MB,  368kB/s
+[serve-stderr] Downloading bytes:           | 8.76MB,  391kB/s
+[serve-stderr] Downloading bytes:           | 8.81MB,  364kB/s
+[serve-stderr] Downloading bytes:           | 8.89MB,  405kB/s
+[serve-stderr] Downloading bytes:           | 8.95MB,  387kB/s
+[serve-stderr] Downloading bytes:           | 9.03MB,  364kB/s
+[serve-stderr] Downloading bytes:           | 9.12MB,  373kB/s
+[serve-stderr] Downloading bytes:           | 9.16MB,  382kB/s
+[serve-stderr] Downloading bytes:           | 9.21MB,  399kB/s
+[serve-stderr] Downloading bytes:           | 9.30MB,  416kB/s
+[serve-stderr] Downloading bytes:           | 9.36MB,  409kB/s
+[serve-stderr] Downloading bytes:           | 9.41MB,  380kB/s
+[serve-stderr] Downloading bytes:           | 9.49MB,  401kB/s
+[serve-stderr] Downloading bytes:           | 9.57MB,  402kB/s
+[serve-stderr] Downloading bytes:           | 9.64MB,  401kB/s
+[serve-stderr] Downloading bytes:           | 9.71MB,  374kB/s
+[serve-stderr] Downloading bytes:           | 9.75MB,  357kB/s
+[serve-stderr] Downloading bytes:           | 9.80MB,  379kB/s
+[serve-stderr] Downloading bytes:           | 9.87MB,  399kB/s
+[serve-stderr] Reconstructing (incomplete total...):   0%|          | 5.04MB / 1.26GB,  703kB/s  [A
+[serve-stderr] Downloading bytes:           | 9.95MB,  371kB/s
+[serve-stderr] Downloading bytes:           | 10.0MB,  381kB/s
+[serve-stderr] Downloading bytes:           | 10.1MB,  359kB/s
+[serve-stderr] Downloading bytes:           | 10.2MB,  374kB/s
+[serve-stderr] Downloading bytes:           | 10.2MB,  361kB/s
+[serve-stderr] Downloading bytes:           | 10.3MB,  382kB/s
+[serve-stderr] Downloading bytes:           | 10.4MB,  385kB/s
+[serve-stderr] Downloading bytes:           | 10.4MB,  365kB/s
+[serve-stderr] Downloading bytes:           | 10.5MB,  388kB/s
+[serve-stderr] Downloading bytes:           | 10.6MB,  394kB/s
+[serve-stderr] Downloading bytes:           | 10.6MB,  366kB/s
+[serve-stderr] Downloading bytes:           | 10.7MB,  377kB/s
+[serve-stderr] Downloading bytes:           | 10.8MB,  361kB/s
+[serve-stderr] Downloading bytes:           | 10.8MB,  414kB/s
+[serve-stderr] Downloading bytes:           | 10.9MB,  383kB/s
+[serve-stderr] Downloading bytes:           | 11.0MB,  404kB/s
+[serve-stderr] Downloading bytes:           | 11.0MB,  373kB/s
+[serve-stderr] Downloading bytes:           | 11.1MB,  381kB/s
+[serve-stderr] Downloading bytes:           | 11.1MB,  391kB/s
+[serve-stderr] Downloading bytes:           | 11.2MB,  362kB/s
+[serve-stderr] Downloading bytes:           | 11.3MB,  384kB/s
+[serve-stderr] Downloading bytes:           | 11.3MB,  359kB/s
+[serve-stderr] Downloading bytes:           | 11.4MB,  345kB/s
+[serve-stderr] Downloading bytes:           | 11.5MB,  391kB/s
+[serve-stderr] Downloading bytes:           | 11.5MB,  340kB/s
+[serve-stderr] Downloading bytes:           | 11.6MB,  365kB/s
+[serve-stderr] Downloading bytes:           | 11.7MB,  346kB/s
+[serve-stderr] Downloading bytes:           | 11.7MB,  402kB/s
+[serve-stderr] Downloading bytes:           | 11.8MB,  399kB/s
+[serve-stderr] Downloading bytes:           | 11.9MB,  369kB/s
+[serve-stderr] Downloading bytes:           | 11.9MB,  378kB/s
+[serve-stderr] Downloading bytes:           | 12.0MB,  397kB/s
+[serve-stderr] Downloading bytes:           | 12.1MB,  401kB/s
+[serve-stderr] Downloading bytes:           | 12.1MB,  416kB/s
+[serve-stderr] Downloading bytes:           | 12.2MB,  362kB/s
+[serve-stderr] Downloading bytes:           | 12.2MB,  346kB/s
+[serve-stderr] Downloading bytes:           | 12.3MB,  370kB/s
+[serve-stderr] Downloading bytes:           | 12.4MB,  378kB/s
+[serve-stderr] Downloading bytes:           | 12.5MB,  387kB/s
+[serve-stderr] Downloading bytes:           | 12.5MB,  365kB/s
+[serve-stderr] Downloading bytes:           | 12.6MB,  350kB/s
+[serve-stderr] Downloading bytes:           | 12.6MB,  316kB/s
+[serve-stderr] Downloading bytes:           | 12.7MB,  317kB/s
+[serve-stderr] Downloading bytes:           | 12.7MB,  316kB/s
+[serve-stderr] Downloading bytes:           | 12.8MB,  343kB/s
+[serve-stderr] Downloading bytes:           | 12.8MB,  299kB/s
+[serve-stderr] Downloading bytes:           | 12.9MB,  309kB/s
+[serve-stderr] Downloading bytes:           | 12.9MB,  344kB/s
+[serve-stderr] Downloading bytes:           | 13.0MB,  363kB/s
+[serve-stderr] Downloading bytes:           | 13.0MB,  341kB/s
+[serve-stderr] Downloading bytes:           | 13.1MB,  347kB/s
+[serve-stderr] Downloading bytes:           | 13.1MB,  291kB/s
+[serve-stderr] Downloading bytes:           | 13.2MB,  328kB/s
+[serve-stderr] Downloading bytes:           | 13.2MB,  273kB/s
+[serve-stderr] Downloading bytes:           | 13.3MB,  280kB/s
+[serve-stderr] Downloading bytes:           | 13.3MB,  259kB/s
+[serve-stderr] Downloading bytes:           | 13.4MB,  270kB/s
+[serve-stderr] Downloading bytes:           | 13.4MB,  313kB/s
+[serve-stderr] Downloading bytes:           | 13.5MB,  318kB/s
+[serve-stderr] Downloading bytes:           | 13.5MB,  317kB/s
+[serve-stderr] Downloading bytes:           | 13.6MB,  290kB/s
+[serve-stderr] Downloading bytes:           | 13.6MB,  274kB/s
+[serve-stderr] Downloading bytes:           | 13.7MB,  281kB/s
+[serve-stderr] Downloading bytes:           | 13.7MB,  297kB/s
+[serve-stderr] Downloading bytes:           | 13.8MB,  331kB/s
+[serve-stderr] Downloading bytes:           | 13.8MB,  365kB/s
+[serve-stderr] Downloading bytes:           | 13.9MB,  314kB/s
+[serve-stderr] Downloading bytes:           | 14.0MB,  314kB/s
+[serve-stderr] Downloading bytes:           | 14.0MB,  319kB/s
+[serve-stderr] Downloading bytes:           | 14.1MB,  311kB/s
+[serve-stderr] Downloading bytes:           | 14.1MB,  306kB/s
+[serve-stderr] Downloading bytes:           | 14.2MB,  271kB/s
+[serve-stderr] Downloading bytes:           | 14.2MB,  278kB/s
+[serve-stderr] Downloading bytes:           | 14.2MB,  283kB/s
+[serve-stderr] Downloading bytes:           | 14.3MB,  242kB/s
+[serve-stderr] Downloading bytes:           | 14.3MB,  262kB/s
+[serve-stderr] Downloading bytes:           | 14.4MB,  273kB/s
+[serve-stderr] Downloading bytes:           | 14.4MB,  307kB/s
+[serve-stderr] Downloading bytes:           | 14.5MB,  313kB/s
+[serve-stderr] Downloading bytes:           | 14.5MB,  332kB/s
+[serve-stderr] Downloading bytes:           | 14.6MB,  315kB/s
+[serve-stderr] Downloading bytes:           | 14.6MB,  343kB/s
+[serve-stderr] Downloading bytes:           | 14.7MB,  354kB/s
+[serve-stderr] Downloading bytes:           | 14.7MB,  323kB/s
+[serve-stderr] Downloading bytes:           | 14.8MB,  305kB/s
+[serve-stderr] Downloading bytes:           | 14.9MB,  308kB/s
+[serve-stderr] Downloading bytes:           | 14.9MB,  299kB/s
+[serve-stderr] Downloading bytes:           | 15.0MB,  325kB/s
+[serve-stderr] Downloading bytes:           | 15.1MB,  321kB/s
+[serve-stderr] Downloading bytes:           | 15.1MB,  346kB/s
+[serve-stderr] Downloading bytes:           | 15.2MB,  331kB/s
+[serve-stderr] Downloading bytes:           | 15.3MB,  318kB/s
+[serve-stderr] Downloading bytes:           | 15.3MB,  305kB/s
+[serve-stderr] Downloading bytes:           | 15.4MB,  306kB/s
+[serve-stderr] Downloading bytes:           | 15.4MB,  301kB/s
+[serve-stderr] Downloading bytes:           | 15.5MB,  331kB/s
+[serve-stderr] Downloading bytes:           | 15.5MB,  341kB/s
+[serve-stderr] Downloading bytes:           | 15.5MB,  281kB/s
+[serve-stderr] Downloading bytes:           | 15.6MB,  312kB/s
+[serve-stderr] Downloading bytes:           | 15.6MB,  283kB/s
+[serve-stderr] Downloading bytes:           | 15.7MB,  289kB/s
+[serve-stderr] Downloading bytes:           | 15.7MB,  261kB/s
+[serve-stderr] Downloading bytes:           | 15.7MB,  233kB/s
+[serve-stderr] Downloading bytes:           | 15.8MB,  214kB/s
+[serve-stderr] Downloading bytes: ▏         | 15.8MB,  229kB/s
+[serve-stderr] Downloading bytes: ▏         | 15.8MB,  199kB/s
+[serve-stderr] Downloading bytes: ▏         | 15.9MB,  169kB/s
+[serve-stderr] Downloading bytes: ▏         | 15.9MB,  208kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.0MB,  233kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.0MB,  201kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.0MB,  215kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.0MB,  199kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.1MB,  223kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.1MB,  272kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.2MB,  284kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.2MB,  257kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.3MB,  275kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.3MB,  296kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.4MB,  312kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.5MB,  302kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.5MB,  336kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.6MB,  344kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.6MB,  363kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.7MB,  389kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.7MB,  326kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.8MB,  349kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.9MB,  381kB/s
+[serve-stderr] Downloading bytes: ▏         | 16.9MB,  357kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.0MB,  373kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.0MB,  397kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.1MB,  370kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.1MB,  391kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.2MB,  403kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.3MB,  398kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.4MB,  360kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.4MB,  394kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.5MB,  340kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.5MB,  320kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.6MB,  293kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.6MB,  298kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.6MB,  250kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.7MB,  264kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.8MB,  251kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.8MB,  247kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.8MB,  258kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.9MB,  171kB/s
+[serve-stderr] Downloading bytes: ▏         | 17.9MB,  241kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.0MB,  239kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.1MB,  261kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.1MB,  348kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.2MB,  232kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.3MB,  259kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.4MB,  303kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.4MB,  286kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.5MB,  314kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.6MB,  385kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.6MB,  343kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.7MB,  367kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.7MB,  349kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.8MB,  314kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.8MB,  339kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.9MB,  328kB/s
+[serve-stderr] Downloading bytes: ▏         | 18.9MB,  317kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.0MB,  347kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.0MB,  351kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.1MB,  262kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.2MB,  250kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.2MB,  281kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.3MB,  251kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.3MB,  179kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.3MB,  197kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.4MB,  212kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.4MB,  252kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.5MB,  247kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.5MB,  163kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.6MB,  143kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.7MB,  248kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.8MB,  272kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.9MB,  331kB/s
+[serve-stderr] Downloading bytes: ▏         | 19.9MB,  335kB/s
+[serve-stderr] Downloading bytes: ▏         | 20.0MB,  307kB/s
+[serve-stderr] Downloading bytes: ▏         | 20.0MB,  336kB/s
+[serve-stderr] Downloading bytes: ▏         | 20.1MB,  318kB/s
+[serve-stderr] Downloading bytes: ▏         | 20.2MB,  310kB/s
+[serve-stderr] Downloading bytes: ▏         | 20.2MB,  375kB/s
+[serve-stderr] Downloading bytes: ▏         | 20.2MB,  327kB/s
+[serve-stderr] Downloading bytes: ▏         | 20.3MB,  280kB/s
+[serve-stderr] Downloading bytes: ▏         | 20.4MB,  346kB/s
+[serve-stderr] Downloading bytes: ▏         | 20.5MB,  324kB/s
+[serve-stderr] Downloading bytes: ▏         | 20.5MB,  248kB/s
+[serve-stderr] Downloading bytes: ▏         | 20.6MB,  278kB/s
+[serve-stderr] Downloading bytes: ▏         | 20.7MB,  219kB/s
+[serve-stderr] Downloading bytes: ▏         | 20.8MB,  239kB/s
+[serve-stderr] Downloading bytes: ▏         | 21.0MB,  266kB/s
+[serve-stderr] Downloading bytes: ▏         | 21.1MB,  238kB/s
+[serve-stderr] Downloading bytes: ▏         | 21.2MB,  259kB/s
+[serve-stderr] Downloading bytes: ▏         | 21.2MB,  290kB/s
+[serve-stderr] Downloading bytes: ▏         | 21.3MB,  304kB/s
+[serve-stderr] Downloading bytes: ▏         | 21.4MB,  309kB/s
+[serve-stderr] Downloading bytes: ▏         | 21.4MB,  310kB/s
+[serve-stderr] Downloading bytes: ▏         | 21.5MB,  313kB/s
+[serve-stderr] Downloading bytes: ▏         | 21.5MB,  333kB/s
+[serve-stderr] Downloading bytes: ▏         | 21.6MB,  334kB/s
+[serve-stderr] Downloading bytes: ▏         | 21.7MB,  348kB/s
+[serve-stderr] Downloading bytes: ▏         | 21.7MB,  328kB/s
+[serve-stderr] Downloading bytes: ▏         | 21.8MB,  362kB/s
+[serve-stderr] Downloading bytes: ▏         | 21.9MB,  396kB/s
+[serve-stderr] Downloading bytes: ▏         | 21.9MB,  357kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.0MB,  321kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.0MB,  345kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.0MB,  350kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.1MB,  360kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.2MB,  355kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.2MB,  334kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.3MB,  335kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.3MB,  319kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.4MB,  359kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.5MB,  332kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.5MB,  369kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.6MB,  359kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.7MB,  364kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.7MB,  350kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.8MB,  372kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.8MB,  323kB/s
+[serve-stderr] Downloading bytes: ▏         | 22.9MB,  353kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.0MB,  360kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.0MB,  331kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.1MB,  330kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.1MB,  356kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.2MB,  310kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.3MB,  329kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.3MB,  319kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.4MB,  341kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.5MB,  348kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.5MB,  352kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.6MB,  337kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.7MB,  365kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.7MB,  353kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.8MB,  336kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.8MB,  318kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.9MB,  343kB/s
+[serve-stderr] Downloading bytes: ▏         | 23.9MB,  310kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.0MB,  338kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.1MB,  356kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.1MB,  349kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.1MB,  365kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.2MB,  311kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.3MB,  299kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.3MB,  293kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.4MB,  303kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.4MB,  314kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.5MB,  334kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.5MB,  289kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.6MB,  291kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.6MB,  313kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.7MB,  311kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.7MB,  323kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.8MB,  342kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.8MB,  259kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.9MB,  269kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.9MB,  309kB/s
+[serve-stderr] Downloading bytes: ▏         | 24.9MB,  274kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.0MB,  244kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.0MB,  215kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.1MB,  218kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.1MB,  190kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.2MB,  200kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.2MB,  233kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.2MB,  227kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.3MB,  246kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.3MB,  265kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.4MB,  281kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.4MB,  304kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.5MB,  305kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.5MB,  392kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.6MB,  326kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.6MB,  354kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.7MB,  398kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.8MB,  310kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.8MB,  346kB/s
+[serve-stderr] Downloading bytes: ▏         | 25.9MB,  307kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.0MB,  364kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.0MB,  368kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.1MB,  345kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.1MB,  327kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.2MB,  306kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.3MB,  344kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.3MB,  376kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.4MB,  354kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.4MB,  340kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.5MB,  349kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.6MB,  370kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.6MB,  351kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.7MB,  357kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.7MB,  374kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.8MB,  333kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.9MB,  353kB/s
+[serve-stderr] Downloading bytes: ▏         | 26.9MB,  326kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.0MB,  344kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.0MB,  312kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.1MB,  321kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.2MB,  363kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.2MB,  316kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.3MB,  362kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.3MB,  385kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.4MB,  402kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.5MB,  283kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.5MB,  309kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.6MB,  328kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.6MB,  322kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.7MB,  381kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.7MB,  329kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.8MB,  358kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.9MB,  408kB/s
+[serve-stderr] Downloading bytes: ▏         | 27.9MB,  297kB/s
+[serve-stderr] Downloading bytes: ▏         | 28.0MB,  359kB/s
+[serve-stderr] Downloading bytes: ▏         | 28.1MB,  316kB/s
+[serve-stderr] Downloading bytes: ▏         | 28.1MB,  316kB/s
+[serve-stderr] Downloading bytes: ▏         | 28.2MB,  369kB/s
+[serve-stderr] Downloading bytes: ▏         | 28.3MB,  355kB/s
+[serve-stderr] Downloading bytes: ▏         | 28.4MB,  341kB/s
+[serve-stderr] Downloading bytes: ▏         | 28.5MB,  333kB/s
+[serve-stderr] Downloading bytes: ▏         | 28.5MB,  352kB/s
+[serve-stderr] Downloading bytes: ▏         | 28.6MB,  318kB/s
+[serve-stderr] Downloading bytes: ▏         | 28.7MB,  405kB/s
+[serve-stderr] Downloading bytes: ▏         | 28.8MB,  413kB/s
+[serve-stderr] Downloading bytes: ▏         | 28.8MB,  358kB/s
+[serve-stderr] Downloading bytes: ▏         | 28.9MB,  406kB/s
+[serve-stderr] Downloading bytes: ▏         | 28.9MB,  327kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.0MB,  301kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.0MB,  281kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.1MB,  317kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.2MB,  337kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.2MB,  368kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.3MB,  327kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.3MB,  350kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.4MB,  326kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.4MB,  284kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.5MB,  316kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.5MB,  285kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.6MB,  296kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.6MB,  299kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.7MB,  368kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.7MB,  274kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.8MB,  323kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.9MB,  409kB/s
+[serve-stderr] Downloading bytes: ▏         | 29.9MB,  378kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.0MB,  403kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.0MB,  425kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.1MB,  366kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.1MB,  388kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.2MB,  403kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.2MB,  417kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.3MB,  343kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.3MB,  294kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.4MB,  352kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.5MB,  354kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.5MB,  370kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.6MB,  294kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.7MB,  385kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.7MB,  352kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.8MB,  406kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.9MB,  318kB/s
+[serve-stderr] Downloading bytes: ▏         | 30.9MB,  359kB/s
+[serve-stderr] Downloading bytes: ▏         | 31.0MB,  303kB/s
+[serve-stderr] Downloading bytes: ▏         | 31.1MB,  306kB/s
+[serve-stderr] Downloading bytes: ▏         | 31.1MB,  358kB/s
+[serve-stderr] Downloading bytes: ▏         | 31.2MB,  412kB/s
+[serve-stderr] Downloading bytes: ▏         | 31.2MB,  366kB/s
+[serve-stderr] Downloading bytes: ▏         | 31.3MB,  321kB/s
+[serve-stderr] Downloading bytes: ▏         | 31.4MB,  353kB/s
+[serve-stderr] Downloading bytes: ▏         | 31.5MB,  333kB/s
+[serve-stderr] Downloading bytes: ▎         | 31.5MB,  331kB/s
+[serve-stderr] Downloading bytes: ▎         | 31.6MB,  369kB/s
+[serve-stderr] Downloading bytes: ▎         | 31.7MB,  350kB/s
+[serve-stderr] Downloading bytes: ▎         | 31.7MB,  367kB/s
+[serve-stderr] Downloading bytes: ▎         | 31.8MB,  388kB/s
+[serve-stderr] Downloading bytes: ▎         | 31.8MB,  339kB/s
+[serve-stderr] Downloading bytes: ▎         | 31.9MB,  388kB/s
+[serve-stderr] Downloading bytes: ▎         | 31.9MB,  298kB/s
+[serve-stderr] Downloading bytes: ▎         | 32.0MB,  333kB/s
+[serve-stderr] Downloading bytes: ▎         | 32.1MB,  319kB/s
+[serve-stderr] Downloading bytes: ▎         | 32.1MB,  336kB/s
+[serve-stderr] Downloading bytes: ▎         | 32.2MB,  284kB/s
+[serve-stderr] Downloading bytes: ▎         | 32.3MB,  358kB/s
+[serve-stderr] Downloading bytes: ▎         | 32.4MB,  391kB/s
+[serve-stderr] Downloading bytes: ▎         | 32.5MB,  323kB/s
+[serve-stderr] Downloading bytes: ▎         | 32.5MB,  345kB/s
+[serve-stderr] Downloading bytes: ▎         | 32.6MB,  327kB/s
+[serve-stderr] Downloading bytes: ▎         | 32.7MB,  323kB/s
+[serve-stderr] Downloading bytes: ▎         | 32.8MB,  423kB/s
+[serve-stderr] Downloading bytes: ▎         | 32.9MB,  380kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.0MB,  423kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.1MB,  342kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.1MB,  361kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.2MB,  385kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.2MB,  421kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.3MB,  306kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.4MB,  350kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.4MB,  336kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.6MB,  406kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.6MB,  378kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.7MB,  347kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.7MB,  303kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.7MB,  321kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.8MB,  350kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.9MB,  430kB/s
+[serve-stderr] Downloading bytes: ▎         | 33.9MB,  319kB/s
+[serve-stderr] Downloading bytes: ▎         | 34.0MB,  377kB/s
+[serve-stderr] Downloading bytes: ▎         | 34.1MB,  428kB/s
+[serve-stderr] Downloading bytes: ▎         | 34.1MB,  443kB/s
+[serve-stderr] Downloading bytes: ▎         | 34.2MB,  483kB/s
+[serve-stderr] Downloading bytes: ▎         | 34.3MB,  507kB/s
+[serve-stderr] Downloading bytes: ▎         | 34.4MB,  412kB/s
+[serve-stderr] Downloading bytes: ▎         | 34.5MB,  407kB/s
+[serve-stderr] Downloading bytes: ▎         | 34.5MB,  396kB/s
+[serve-stderr] Downloading bytes: ▎         | 34.6MB,  358kB/s
+[serve-stderr] Downloading bytes: ▎         | 34.6MB,  378kB/s
+[serve-stderr] Downloading bytes: ▎         | 34.7MB,  354kB/s
+[serve-stderr] Downloading bytes: ▎         | 34.7MB,  392kB/s
+[serve-stderr] Downloading bytes: ▎         | 34.8MB,  353kB/s
+[serve-stderr] Downloading bytes: ▎         | 34.9MB,  356kB/s
+[serve-stderr] Downloading bytes: ▎         | 34.9MB,  359kB/s
+[serve-stderr] Downloading bytes: ▎         | 35.0MB,  381kB/s
+[serve-stderr] Downloading bytes: ▎         | 35.1MB,  345kB/s
+[serve-stderr] Downloading bytes: ▎         | 35.2MB,  388kB/s
+[serve-stderr] Downloading bytes: ▎         | 35.2MB,  416kB/s
+[serve-stderr] Downloading bytes: ▎         | 35.3MB,  344kB/s
+[serve-stderr] Downloading bytes: ▎         | 35.4MB,  466kB/s
+[serve-stderr] Downloading bytes: ▎         | 35.5MB,  441kB/s
+[serve-stderr] Downloading bytes: ▎         | 35.5MB,  382kB/s
+[serve-stderr] Downloading bytes: ▎         | 35.6MB,  317kB/s
+[serve-stderr] Downloading bytes: ▎         | 35.7MB,  357kB/s
+[serve-stderr] Downloading bytes: ▎         | 35.7MB,  344kB/s
+[serve-stderr] Downloading bytes: ▎         | 35.8MB,  375kB/s
+[serve-stderr] Downloading bytes: ▎         | 35.8MB,  384kB/s
+[serve-stderr] Downloading bytes: ▎         | 35.9MB,  405kB/s
+[serve-stderr] Downloading bytes: ▎         | 35.9MB,  413kB/s
+[serve-stderr] Downloading bytes: ▎         | 36.0MB,  331kB/s
+[serve-stderr] Downloading bytes: ▎         | 36.0MB,  353kB/s
+[serve-stderr] Downloading bytes: ▎         | 36.1MB,  326kB/s
+[serve-stderr] Downloading bytes: ▎         | 36.2MB,  386kB/s
+[serve-stderr] Downloading bytes: ▎         | 36.3MB,  398kB/s
+[serve-stderr] Downloading bytes: ▎         | 36.3MB,  371kB/s
+[serve-stderr] Downloading bytes: ▎         | 36.4MB,  379kB/s
+[serve-stderr] Downloading bytes: ▎         | 36.5MB,  277kB/s
+[serve-stderr] Downloading bytes: ▎         | 36.6MB,  426kB/s
+[serve-stderr] Downloading bytes: ▎         | 36.6MB,  414kB/s
+[serve-stderr] Downloading bytes: ▎         | 36.7MB,  353kB/s
+[serve-stderr] Downloading bytes: ▎         | 36.8MB,  358kB/s
+[serve-stderr] Downloading bytes: ▎         | 36.8MB,  381kB/s
+[serve-stderr] Downloading bytes: ▎         | 36.9MB,  357kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.0MB,  362kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.1MB,  382kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.1MB,  357kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.2MB,  317kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.2MB,  347kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.3MB,  436kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.4MB,  387kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.4MB,  336kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.5MB,  330kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.5MB,  350kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.6MB,  338kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.6MB,  353kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.7MB,  287kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.8MB,  377kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.8MB,  396kB/s
+[serve-stderr] Downloading bytes: ▎         | 37.9MB,  377kB/s
+[serve-stderr] Downloading bytes: ▎         | 38.0MB,  375kB/s
+[serve-stderr] Downloading bytes: ▎         | 38.1MB,  371kB/s
+[serve-stderr] Downloading bytes: ▎         | 38.1MB,  421kB/s
+[serve-stderr] Downloading bytes: ▎         | 38.2MB,  322kB/s
+[serve-stderr] Downloading bytes: ▎         | 38.3MB,  389kB/s
+[serve-stderr] Downloading bytes: ▎         | 38.4MB,  412kB/s
+[serve-stderr] Downloading bytes: ▎         | 38.4MB,  412kB/s
+[serve-stderr] Downloading bytes: ▎         | 38.5MB,  357kB/s
+[serve-stderr] Downloading bytes: ▎         | 38.6MB,  356kB/s
+[serve-stderr] Downloading bytes: ▎         | 38.6MB,  407kB/s
+[serve-stderr] Downloading bytes: ▎         | 38.7MB,  408kB/s
+[serve-stderr] Downloading bytes: ▎         | 38.8MB,  377kB/s
+[serve-stderr] Downloading bytes: ▎         | 38.8MB,  284kB/s
+[serve-stderr] Downloading bytes: ▎         | 38.9MB,  355kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.0MB,  377kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.0MB,  367kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.1MB,  325kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.2MB,  293kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.2MB,  298kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.3MB,  310kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.3MB,  308kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.4MB,  302kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.5MB,  386kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.5MB,  400kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.6MB,  409kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.7MB,  440kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.7MB,  511kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.8MB,  398kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.8MB,  312kB/s
+[serve-stderr] Downloading bytes: ▎         | 39.9MB,  326kB/s
+[serve-stderr] Downloading bytes: ▎         | 40.0MB,  350kB/s
+[serve-stderr] Downloading bytes: ▎         | 40.0MB,  410kB/s
+[serve-stderr] Downloading bytes: ▎         | 40.1MB,  367kB/s
+[serve-stderr] Downloading bytes: ▎         | 40.2MB,  390kB/s
+[serve-stderr] Downloading bytes: ▎         | 40.2MB,  447kB/s
+[serve-stderr] Downloading bytes: ▎         | 40.3MB,  380kB/s
+[serve-stderr] Downloading bytes: ▎         | 40.4MB,  325kB/s
+[serve-stderr] Downloading bytes: ▎         | 40.4MB,  325kB/s
+[serve-stderr] Downloading bytes: ▎         | 40.5MB,  371kB/s
+[serve-stderr] Downloading bytes: ▎         | 40.6MB,  394kB/s
+[serve-stderr] Downloading bytes: ▎         | 40.6MB,  408kB/s
+[serve-stderr] Downloading bytes: ▎         | 40.7MB,  429kB/s
+[serve-stderr] Downloading bytes: ▎         | 40.8MB,  355kB/s
+[serve-stderr] Downloading bytes: ▎         | 40.9MB,  425kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.0MB,  367kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.1MB,  456kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.2MB,  467kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.2MB,  434kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.3MB,  435kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.3MB,  382kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.4MB,  372kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.4MB,  383kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.5MB,  327kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.5MB,  359kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.6MB,  386kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.7MB,  301kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.7MB,  305kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.8MB,  277kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.9MB,  340kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.9MB,  350kB/s
+[serve-stderr] Downloading bytes: ▎         | 41.9MB,  373kB/s
+[serve-stderr] Downloading bytes: ▎         | 42.0MB,  384kB/s
+[serve-stderr] Downloading bytes: ▎         | 42.1MB,  407kB/s
+[serve-stderr] Downloading bytes: ▎         | 42.2MB,  426kB/s
+[serve-stderr] Downloading bytes: ▎         | 42.2MB,  422kB/s
+[serve-stderr] Downloading bytes: ▎         | 42.3MB,  350kB/s
+[serve-stderr] Downloading bytes: ▎         | 42.4MB,  362kB/s
+[serve-stderr] Downloading bytes: ▎         | 42.5MB,  428kB/s
+[serve-stderr] Downloading bytes: ▎         | 42.5MB,  408kB/s
+[serve-stderr] Downloading bytes: ▎         | 42.6MB,  415kB/s
+[serve-stderr] Downloading bytes: ▎         | 42.7MB,  473kB/s
+[serve-stderr] Downloading bytes: ▎         | 42.8MB,  480kB/s
+[serve-stderr] Downloading bytes: ▎         | 42.9MB,  426kB/s
+[serve-stderr] Downloading bytes: ▎         | 42.9MB,  397kB/s
+[serve-stderr] Downloading bytes: ▎         | 43.0MB,  403kB/s
+[serve-stderr] Downloading bytes: ▎         | 43.1MB,  359kB/s
+[serve-stderr] Downloading bytes: ▎         | 43.2MB,  415kB/s
+[serve-stderr] Downloading bytes: ▎         | 43.2MB,  461kB/s
+[serve-stderr] Downloading bytes: ▎         | 43.3MB,  499kB/s
+[serve-stderr] Downloading bytes: ▎         | 43.4MB,  354kB/s
+[serve-stderr] Downloading bytes: ▎         | 43.5MB,  348kB/s
+[serve-stderr] Downloading bytes: ▎         | 43.5MB,  361kB/s
+[serve-stderr] Downloading bytes: ▎         | 43.6MB,  378kB/s
+[serve-stderr] Downloading bytes: ▎         | 43.7MB,  347kB/s
+[serve-stderr] Downloading bytes: ▎         | 43.7MB,  334kB/s
+[serve-stderr] Downloading bytes: ▎         | 43.8MB,  316kB/s
+[serve-stderr] Downloading bytes: ▎         | 43.9MB,  405kB/s
+[serve-stderr] Downloading bytes: ▎         | 44.0MB,  380kB/s
+[serve-stderr] Downloading bytes: ▎         | 44.0MB,  407kB/s
+[serve-stderr] Downloading bytes: ▎         | 44.1MB,  366kB/s
+[serve-stderr] Downloading bytes: ▎         | 44.2MB,  466kB/s
+[serve-stderr] Downloading bytes: ▎         | 44.3MB,  403kB/s
+[serve-stderr] Downloading bytes: ▎         | 44.4MB,  388kB/s
+[serve-stderr] Downloading bytes: ▎         | 44.5MB,  400kB/s
+[serve-stderr] Downloading bytes: ▎         | 44.5MB,  377kB/s
+[serve-stderr] Downloading bytes: ▎         | 44.6MB,  386kB/s
+[serve-stderr] Downloading bytes: ▎         | 44.7MB,  412kB/s
+[serve-stderr] Downloading bytes: ▎         | 44.7MB,  372kB/s
+[serve-stderr] Downloading bytes: ▎         | 44.8MB,  355kB/s
+[serve-stderr] Downloading bytes: ▎         | 44.8MB,  332kB/s
+[serve-stderr] Downloading bytes: ▎         | 44.9MB,  379kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.0MB,  399kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.0MB,  394kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.1MB,  399kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.1MB,  409kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.2MB,  424kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.3MB,  346kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.3MB,  519kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.4MB,  429kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.5MB,  415kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.6MB,  454kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.6MB,  496kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.7MB,  470kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.7MB,  340kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.8MB,  354kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.8MB,  378kB/s
+[serve-stderr] Downloading bytes: ▎         | 45.9MB,  326kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.0MB,  356kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.0MB,  341kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.1MB,  310kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.1MB,  342kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.1MB,  307kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.2MB,  330kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.2MB,  366kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.3MB,  391kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.4MB,  455kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.5MB,  564kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.5MB,  374kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.6MB,  395kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.7MB,  382kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.8MB,  377kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.8MB,  381kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.9MB,  405kB/s
+[serve-stderr] Downloading bytes: ▎         | 46.9MB,  267kB/s
+[serve-stderr] Downloading bytes: ▎         | 47.0MB,  323kB/s
+[serve-stderr] Downloading bytes: ▎         | 47.1MB,  341kB/s
+[serve-stderr] Downloading bytes: ▎         | 47.1MB,  405kB/s
+[serve-stderr] Downloading bytes: ▎         | 47.3MB,  373kB/s
+[serve-stderr] Downloading bytes: ▍         | 47.3MB,  433kB/s
+[serve-stderr] Downloading bytes: ▍         | 47.4MB,  487kB/s
+[serve-stderr] Downloading bytes: ▍         | 47.5MB,  362kB/s
+[serve-stderr] Downloading bytes: ▍         | 47.5MB,  334kB/s
+[serve-stderr] Downloading bytes: ▍         | 47.6MB,  307kB/s
+[serve-stderr] Downloading bytes: ▍         | 47.7MB,  352kB/s
+[serve-stderr] Downloading bytes: ▍         | 47.7MB,  341kB/s
+[serve-stderr] Downloading bytes: ▍         | 47.8MB,  323kB/s
+[serve-stderr] Downloading bytes: ▍         | 47.9MB,  364kB/s
+[serve-stderr] Downloading bytes: ▍         | 48.0MB,  410kB/s
+[serve-stderr] Downloading bytes: ▍         | 48.0MB,  451kB/s
+[serve-stderr] Downloading bytes: ▍         | 48.1MB,  455kB/s
+[serve-stderr] Downloading bytes: ▍         | 48.2MB,  348kB/s
+[serve-stderr] Downloading bytes: ▍         | 48.3MB,  354kB/s
+[serve-stderr] Downloading bytes: ▍         | 48.3MB,  364kB/s
+[serve-stderr] Downloading bytes: ▍         | 48.4MB,  373kB/s
+[serve-stderr] Downloading bytes: ▍         | 48.5MB,  374kB/s
+[serve-stderr] Downloading bytes: ▍         | 48.6MB,  322kB/s
+[serve-stderr] Downloading bytes: ▍         | 48.6MB,  334kB/s
+[serve-stderr] Downloading bytes: ▍         | 48.7MB,  358kB/s
+[serve-stderr] Downloading bytes: ▍         | 48.7MB,  381kB/s
+[serve-stderr] Downloading bytes: ▍         | 48.8MB,  337kB/s
+[serve-stderr] Downloading bytes: ▍         | 48.9MB,  303kB/s
+[serve-stderr] Downloading bytes: ▍         | 48.9MB,  307kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.0MB,  390kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.1MB,  408kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.1MB,  375kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.2MB,  392kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.3MB,  408kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.3MB,  400kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.4MB,  337kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.4MB,  323kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.5MB,  319kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.6MB,  248kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.7MB,  345kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.7MB,  318kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.8MB,  359kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.8MB,  335kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.9MB,  350kB/s
+[serve-stderr] Downloading bytes: ▍         | 49.9MB,  375kB/s
+[serve-stderr] Downloading bytes: ▍         | 50.0MB,  432kB/s
+[serve-stderr] Downloading bytes: ▍         | 50.1MB,  307kB/s
+[serve-stderr] Downloading bytes: ▍         | 50.1MB,  399kB/s
+[serve-stderr] Downloading bytes: ▍         | 50.2MB,  447kB/s
+[serve-stderr] Downloading bytes: ▍         | 50.3MB,  333kB/s
+[serve-stderr] Downloading bytes: ▍         | 50.3MB,  337kB/s
+[serve-stderr] Downloading bytes: ▍         | 50.4MB,  306kB/s
+[serve-stderr] Downloading bytes: ▍         | 50.5MB,  390kB/s
+[serve-stderr] Downloading bytes: ▍         | 50.6MB,  355kB/s
+[serve-stderr] Downloading bytes: ▍         | 50.6MB,  355kB/s
+[serve-stderr] Downloading bytes: ▍         | 50.7MB,  313kB/s
+[serve-stderr] Downloading bytes: ▍         | 50.8MB,  343kB/s
+[serve-stderr] Downloading bytes: ▍         | 50.9MB,  419kB/s
+[serve-stderr] Downloading bytes: ▍         | 51.0MB,  484kB/s
+[serve-stderr] Downloading bytes: ▍         | 51.1MB,  381kB/s
+[serve-stderr] Downloading bytes: ▍         | 51.2MB,  381kB/s
+[serve-stderr] Downloading bytes: ▍         | 51.2MB,  394kB/s
+[serve-stderr] Downloading bytes: ▍         | 51.3MB,  414kB/s
+[serve-stderr] Downloading bytes: ▍         | 51.3MB,  398kB/s
+[serve-stderr] Downloading bytes: ▍         | 51.4MB,  345kB/s
+[serve-stderr] Downloading bytes: ▍         | 51.5MB,  357kB/s
+[serve-stderr] Downloading bytes: ▍         | 51.5MB,  356kB/s
+[serve-stderr] Downloading bytes: ▍         | 51.6MB,  359kB/s
+[serve-stderr] Downloading bytes: ▍         | 51.7MB,  331kB/s
+[serve-stderr] Downloading bytes: ▍         | 51.7MB,  328kB/s
+[serve-stderr] Downloading bytes: ▍         | 51.8MB,  347kB/s
+[serve-stderr] Downloading bytes: ▍         | 51.9MB,  313kB/s
+[serve-stderr] Downloading bytes: ▍         | 51.9MB,  398kB/s
+[serve-stderr] Downloading bytes: ▍         | 52.1MB,  363kB/s
+[serve-stderr] Downloading bytes: ▍         | 52.1MB,  454kB/s
+[serve-stderr] Downloading bytes: ▍         | 52.2MB,  417kB/s
+[serve-stderr] Downloading bytes: ▍         | 52.3MB,  387kB/s
+[serve-stderr] Downloading bytes: ▍         | 52.3MB,  404kB/s
+[serve-stderr] Downloading bytes: ▍         | 52.4MB,  340kB/s
+[serve-stderr] Downloading bytes: ▍         | 52.4MB,  365kB/s
+[serve-stderr] Downloading bytes: ▍         | 52.5MB,  417kB/s
+[serve-stderr] Downloading bytes: ▍         | 52.5MB,  429kB/s
+[serve-stderr] Downloading bytes: ▍         | 52.6MB,  439kB/s
+[serve-stderr] Downloading bytes: ▍         | 52.6MB,  385kB/s
+[serve-stderr] Downloading bytes: ▍         | 52.7MB,  422kB/s
+[serve-stderr] Downloading bytes: ▍         | 52.8MB,  420kB/s
+[serve-stderr] Downloading bytes: ▍         | 52.9MB,  423kB/s
+[serve-stderr] Downloading bytes: ▍         | 52.9MB,  429kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.0MB,  438kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.0MB,  384kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.1MB,  369kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.2MB,  368kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.2MB,  384kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.3MB,  424kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.4MB,  389kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.5MB,  367kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.5MB,  374kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.6MB,  325kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.6MB,  337kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.7MB,  352kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.8MB,  414kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.8MB,  405kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.9MB,  418kB/s
+[serve-stderr] Downloading bytes: ▍         | 53.9MB,  374kB/s
+[serve-stderr] Downloading bytes: ▍         | 54.0MB,  394kB/s
+[serve-stderr] Downloading bytes: ▍         | 54.0MB,  302kB/s
+[serve-stderr] Downloading bytes: ▍         | 54.1MB,  325kB/s
+[serve-stderr] Downloading bytes: ▍         | 54.1MB,  355kB/s
+[serve-stderr] Downloading bytes: ▍         | 54.2MB,  427kB/s
+[serve-stderr] Downloading bytes: ▍         | 54.3MB,  381kB/s
+[serve-stderr] Downloading bytes: ▍         | 54.4MB,  348kB/s
+[serve-stderr] Downloading bytes: ▍         | 54.5MB,  357kB/s
+[serve-stderr] Downloading bytes: ▍         | 54.6MB,  394kB/s
+[serve-stderr] Downloading bytes: ▍         | 54.6MB,  393kB/s
+[serve-stderr] Downloading bytes: ▍         | 54.7MB,  407kB/s
+[serve-stderr] Downloading bytes: ▍         | 54.7MB,  376kB/s
+[serve-stderr] Downloading bytes: ▍         | 54.8MB,  357kB/s
+[serve-stderr] Downloading bytes: ▍         | 54.9MB,  438kB/s
+[serve-stderr] Downloading bytes: ▍         | 55.0MB,  394kB/s
+[serve-stderr] Downloading bytes: ▍         | 55.0MB,  428kB/s
+[serve-stderr] Downloading bytes: ▍         | 55.1MB,  350kB/s
+[serve-stderr] Downloading bytes: ▍         | 55.3MB,  397kB/s
+[serve-stderr] Downloading bytes: ▍         | 55.4MB,  444kB/s
+[serve-stderr] Downloading bytes: ▍         | 55.4MB,  392kB/s
+[serve-stderr] Downloading bytes: ▍         | 55.5MB,  404kB/s
+[serve-stderr] Downloading bytes: ▍         | 55.5MB,  349kB/s
+[serve-stderr] Downloading bytes: ▍         | 55.6MB,  314kB/s
+[serve-stderr] Downloading bytes: ▍         | 55.6MB,  363kB/s
+[serve-stderr] Downloading bytes: ▍         | 55.7MB,  383kB/s
+[serve-stderr] Downloading bytes: ▍         | 55.7MB,  405kB/s
+[serve-stderr] Downloading bytes: ▍         | 55.8MB,  420kB/s
+[serve-stderr] Downloading bytes: ▍         | 55.9MB,  352kB/s
+[serve-stderr] Downloading bytes: ▍         | 56.0MB,  360kB/s
+[serve-stderr] Downloading bytes: ▍         | 56.0MB,  384kB/s
+[serve-stderr] Downloading bytes: ▍         | 56.1MB,  399kB/s
+[serve-stderr] Downloading bytes: ▍         | 56.1MB,  339kB/s
+[serve-stderr] Downloading bytes: ▍         | 56.2MB,  363kB/s
+[serve-stderr] Downloading bytes: ▍         | 56.3MB,  347kB/s
+[serve-stderr] Downloading bytes: ▍         | 56.4MB,  483kB/s
+[serve-stderr] Downloading bytes: ▍         | 56.5MB,  424kB/s
+[serve-stderr] Downloading bytes: ▍         | 56.5MB,  413kB/s
+[serve-stderr] Downloading bytes: ▍         | 56.6MB,  358kB/s
+[serve-stderr] Downloading bytes: ▍         | 56.7MB,  374kB/s
+[serve-stderr] Downloading bytes: ▍         | 56.8MB,  349kB/s
+[serve-stderr] Downloading bytes: ▍         | 56.8MB,  387kB/s
+[serve-stderr] Downloading bytes: ▍         | 57.0MB,  384kB/s
+[serve-stderr] Downloading bytes: ▍         | 57.0MB,  388kB/s
+[serve-stderr] Downloading bytes: ▍         | 57.1MB,  362kB/s
+[serve-stderr] Downloading bytes: ▍         | 57.2MB,  350kB/s
+[serve-stderr] Downloading bytes: ▍         | 57.3MB,  420kB/s
+[serve-stderr] Downloading bytes: ▍         | 57.3MB,  412kB/s
+[serve-stderr] Downloading bytes: ▍         | 57.4MB,  406kB/s
+[serve-stderr] Downloading bytes: ▍         | 57.5MB,  427kB/s
+[serve-stderr] Downloading bytes: ▍         | 57.6MB,  339kB/s
+[serve-stderr] Downloading bytes: ▍         | 57.7MB,  422kB/s
+[serve-stderr] Downloading bytes: ▍         | 57.8MB,  313kB/s
+[serve-stderr] Downloading bytes: ▍         | 57.9MB,  361kB/s
+[serve-stderr] Downloading bytes: ▍         | 57.9MB,  369kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.0MB,  357kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.1MB,  424kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.1MB,  380kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.2MB,  354kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.2MB,  377kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.3MB,  331kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.4MB,  326kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.5MB,  392kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.5MB,  359kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.6MB,  392kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.6MB,  339kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.7MB,  305kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.7MB,  335kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.8MB,  256kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.8MB,  322kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.9MB,  335kB/s
+[serve-stderr] Downloading bytes: ▍         | 58.9MB,  285kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.0MB,  323kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.1MB,  430kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.1MB,  383kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.2MB,  402kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.2MB,  347kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.3MB,  374kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.3MB,  417kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.4MB,  423kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.5MB,  370kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.6MB,  378kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.6MB,  413kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.7MB,  375kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.7MB,  322kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.8MB,  377kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.9MB,  382kB/s
+[serve-stderr] Downloading bytes: ▍         | 59.9MB,  359kB/s
+[serve-stderr] Downloading bytes: ▍         | 60.0MB,  346kB/s
+[serve-stderr] Downloading bytes: ▍         | 60.0MB,  361kB/s
+[serve-stderr] Downloading bytes: ▍         | 60.1MB,  379kB/s
+[serve-stderr] Downloading bytes: ▍         | 60.2MB,  341kB/s
+[serve-stderr] Downloading bytes: ▍         | 60.3MB,  403kB/s
+[serve-stderr] Downloading bytes: ▍         | 60.3MB,  353kB/s
+[serve-stderr] Downloading bytes: ▍         | 60.4MB,  396kB/s
+[serve-stderr] Downloading bytes: ▍         | 60.5MB,  444kB/s
+[serve-stderr] Downloading bytes: ▍         | 60.5MB,  359kB/s
+[serve-stderr] Downloading bytes: ▍         | 60.6MB,  379kB/s
+[serve-stderr] Downloading bytes: ▍         | 60.7MB,  391kB/s
+[serve-stderr] Downloading bytes: ▍         | 60.7MB,  416kB/s
+[serve-stderr] Downloading bytes: ▍         | 60.8MB,  361kB/s
+[serve-stderr] Downloading bytes: ▍         | 60.9MB,  348kB/s
+[serve-stderr] Downloading bytes: ▍         | 60.9MB,  337kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.0MB,  325kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.0MB,  298kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.1MB,  326kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.1MB,  362kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.2MB,  315kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.3MB,  350kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.3MB,  404kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.4MB,  353kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.4MB,  313kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.5MB,  332kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.6MB,  389kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.6MB,  406kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.7MB,  365kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.7MB,  414kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.8MB,  422kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.9MB,  408kB/s
+[serve-stderr] Downloading bytes: ▍         | 61.9MB,  367kB/s
+[serve-stderr] Downloading bytes: ▍         | 62.0MB,  353kB/s
+[serve-stderr] Downloading bytes: ▍         | 62.0MB,  314kB/s
+[serve-stderr] Downloading bytes: ▍         | 62.1MB,  343kB/s
+[serve-stderr] Downloading bytes: ▍         | 62.2MB,  305kB/s
+[serve-stderr] Downloading bytes: ▍         | 62.2MB,  357kB/s
+[serve-stderr] Downloading bytes: ▍         | 62.3MB,  343kB/s
+[serve-stderr] Downloading bytes: ▍         | 62.4MB,  370kB/s
+[serve-stderr] Downloading bytes: ▍         | 62.5MB,  384kB/s
+[serve-stderr] Downloading bytes: ▍         | 62.5MB,  387kB/s
+[serve-stderr] Downloading bytes: ▍         | 62.6MB,  439kB/s
+[serve-stderr] Downloading bytes: ▍         | 62.7MB,  404kB/s
+[serve-stderr] Downloading bytes: ▍         | 62.8MB,  340kB/s
+[serve-stderr] Downloading bytes: ▍         | 62.8MB,  386kB/s
+[serve-stderr] Downloading bytes: ▍         | 62.9MB,  423kB/s
+[serve-stderr] Downloading bytes: ▍         | 63.0MB,  369kB/s
+[serve-stderr] Downloading bytes: ▍         | 63.1MB,  414kB/s
+[serve-stderr] Downloading bytes: ▌         | 63.2MB,  357kB/s
+[serve-stderr] Downloading bytes: ▌         | 63.3MB,  457kB/s
+[serve-stderr] Downloading bytes: ▌         | 63.4MB,  397kB/s
+[serve-stderr] Downloading bytes: ▌         | 63.4MB,  364kB/s
+[serve-stderr] Downloading bytes: ▌         | 63.5MB,  398kB/s
+[serve-stderr] Downloading bytes: ▌         | 63.6MB,  406kB/s
+[serve-stderr] Downloading bytes: ▌         | 63.7MB,  424kB/s
