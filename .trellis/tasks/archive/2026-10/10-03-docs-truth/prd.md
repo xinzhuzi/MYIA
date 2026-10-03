@@ -82,6 +82,10 @@ tests/test_docs.py——锁 yaml 块/zh-en 结构对齐/凭据 env 引用/相对
       失败全数归属改名波、非本任务面——波平后复跑勾选
 - [x] 合批提交+journal:原批随 fbba437 链入库+journal 已记;E7/本收注为收尾补笔
 
+## 验收记录(2026-10-03,受主人委托代验)
+
+**verdict: accepted** —— A3:docker/env.example 含 TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID,`grep TG_BOT_TOKEN|TG_CHAT_ID docker/` 零命中(代验实跑);A4:MYIA_LLM_BASE_URL=/MYIA_LLM_KEY= 两行在档,`grep OPENAI_API_KEY docker/` 零命中,「对齐后调整」自注已消;A1:docs 三页裸 pip 指引零命中(docs/zh:11、docs/en:14 仅存两处允许的警示句,linuxdo.md 零命中,代验 grep);Q8:finish 跨会话防护在码(source==session-fallback 无 --force 拒清并打印 Source,task.py:276-301),隔离演示记录在 task.json notes;B5:845f64a/fbba437 链已入库(当前 origin 前置 2 条系并行会话归档 chores a44c2ba/b1cdadd,非本任务积压);E7:osint_stderr.log/.coverage 已清(myia.db 系后续任务本机真跑再生的 gitignored 残料,非本任务回归,卫生项);双跑法:等价性记录在档,压住它的「世事更名」波已平(test_cli 断言已随新横幅改齐 `shishi 1.1.1`,代验实跑 test_cli 21 passed + test_docs 80 passed + ruff 全绿;74e6e24 门禁复绿收口在案)——原「波平后复跑勾选」实质已兑现,代验按规未跑全量套件。
+
 ## 关联
 
 - 事实源:`.trellis/tasks/archive/2026-10/10-03-gap-census/prd.md`(A 组、§6 路由、拍板注记)
