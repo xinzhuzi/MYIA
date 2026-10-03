@@ -1,0 +1,62 @@
+MYIA
+品类
+全部品类
+2 仪表盘
+四
+情报流
+看图
+源管理
+配置编辑
+> 采集日志
+设置
+仪表盘
+品类运行状态、源健康度（ok / degraded / dead）与近期 run 成功率
+◎ 品类状态
+已载品类、
+调度与诊断评级
+（0 error / N warning）
+Al资讯
+2源•08,20**
+*．有排程
+显卡行情
+1源•010***
+•有排程
+演示•GitHub..
+1源 09***
+有排程
+股票情报
+1源•09,15**
+1-5•有排程
+羊毛情报
+5源•08,20**
+*．有排程
+正常
+正常
+正常
+正常
+正常
+源健康度
+ok /degraded / dead /
+unknown 四态分布
+ok
+degraded
+dead
+unknown
+共10个源•诊断健康
+1
+0
+9
+刷新
+～ 近期 run 成功率
+最近 0次采集的完成与成功
+分布
+— 0/0次成功
+～还没有run记录；跑一次来
+集后这里会列出最近结果
+KEYWORD_HIT 仪表盘 YES
+KEYWORD_HIT 情报流 YES
+KEYWORD_HIT 看图 YES
+KEYWORD_HIT 源管理 YES
+KEYWORD_HIT 配置编辑 YES
+KEYWORD_HIT 采集日志 YES
+KEYWORD_HIT 设置 YES

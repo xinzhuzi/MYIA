@@ -3,7 +3,7 @@
   "name": "yaml-toggle-comments",
   "title": "启停写回保注释:sources.write 文本手术(根治)",
   "description": "缺口:源管理启停写回用 yaml.safe_dump 重写整份品类 YAML,注释全灭(官方件大半是注释)。止血(写回前存 .bak)已并入 10-03-yaml-editor 决议 2;本任务根治:在原文文本上按行搬运 sources 节点(启停语义不变、契约不变),注释/顺序逐字节保真,零新依赖。独立于 yaml-editor 可并行。",
-  "status": "planning",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,

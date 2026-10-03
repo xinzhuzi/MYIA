@@ -21,7 +21,7 @@
   "children": [],
   "parent": "10-03-grill-v112",
   "relatedFiles": [],
-  "notes": " 2026-10-03:修复已交付(718d56c),两跑法 1397 绿,状态对齐仓惯例(review=待归档)。",
+  "notes": " 2026-10-03:修复已交付(718d56c),两跑法 1397 绿,状态对齐仓惯例(review=待归档)。 复核 2026-10-03:缺口确认闭环——test_baseline.py:789 已是 from conftest import(718d56c 在 HEAD 链上),单文件裸/模块双跑法 58 绿,全量收集 1718 无错;当日全量唯一红为并行 WIP(test_desktop_sidecar_protocol.py::test_sources_write_backup_stops_comment_loss,双跑法均败、禁碰),PRD 三项已带证勾选,字面全绿待并行收口后门禁复验。",
   "meta": {
     "priority": "P1"
   }

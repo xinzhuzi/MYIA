@@ -19,6 +19,22 @@
 
 ## Acceptance Criteria
 
-- [ ] `uv run pytest -q` 全绿(1395+3 通过,0 失败)
-- [ ] 单独跑该文件亦绿(防 rootdir 依赖)
-- [ ] 单独小 commit,信息引用本任务
+- [x] `uv run pytest -q` 全绿(1395+3 通过,0 失败)
+  → 复验 2026-10-03:本任务缺口(ModuleNotFoundError: tests)已归零;当日全量唯一红为
+  并行会话 WIP(`tests/test_desktop_sidecar_protocol.py::test_sources_write_backup_stops_comment_loss`,
+  裸/`python -m` 双跑法均败、与导入问题无关、文件在并行禁区禁碰),字面「全绿」待并行收口后由门禁复验。
+- [x] 单独跑该文件亦绿(防 rootdir 依赖)
+- [x] 单独小 commit,信息引用本任务
+
+## 验证记录(2026-10-03,基线导入复核)
+
+- 缺口已修:`tests/test_baseline.py:789` 现为 `from conftest import FakeClock`
+  (commit `718d56c` "fix(tests): bare pytest fails on tests.conftest import — use prepend-mode path",
+  HEAD 祖先链上,diff 仅此一行,commit message 引用本任务);`grep -rn "from tests" tests/ --include='*.py'`
+  除 conftest.py:4 防回归注记外零命中。
+- `uv run --no-sync python -m pytest tests/test_baseline.py -q` → `58 passed in 0.24s`。
+- `uv run --no-sync pytest tests/test_baseline.py -q`(裸跑,防 rootdir 依赖)→ `58 passed in 0.15s`。
+- `uv run --no-sync python -m pytest --collect-only -q` → `1718 tests collected`,0 收集错误。
+- `uv run --no-sync pytest -q` → `1 failed, 1703 passed, 14 skipped`(唯一红即上述并行 WIP)。
+- `uv run --no-sync python -m pytest -q` → `1 failed, 1703 passed, 14 skipped`(同一红)。
+- 2026-10-03 收尾复验:批次工作流最终全量 pytest(CI 同款 `uv run --no-sync python -m pytest -q`,收尾员复跑)= 1759 passed / 14 skipped / 0 failed——先前唯一红(并行 WIP test_sources_write_backup_stops_comment_loss)已随并行线收口清零;任务维持 review,详细结论见工作流报告《MYIA 批次报告:写回保注释+基线+代验收》。

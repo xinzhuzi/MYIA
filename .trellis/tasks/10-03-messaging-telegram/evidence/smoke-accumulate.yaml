@@ -1,0 +1,38 @@
+# 真机冒烟步骤 A(10-03-messaging-telegram AC2 前半):被动目录积累。
+# 用途:myia run --loop 常驻 → feedback 轮询带 on_chat sink → 主人给机器人
+# 发消息 → 目录出现该私聊。push 路由 when "url == ''" 永不命中(条目 url
+# 非空),轮询期间零发送、零死信;telegram push 条目的存在只为满足
+# _build_feedback_poller 的「配置含 telegram 通道」启用条件。
+id: telegram-smoke-accumulate
+name: TG被动目录冒烟
+
+schedule: "0 4 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  - name: spaceflight
+    engine: direct_api
+    url: "https://api.spaceflightnewsapi.net/v4/articles/?limit=3"
+    method: GET
+    headers:
+      Accept: "application/json"
+    rate_limit:
+      qps: 1.0
+    retry: 1
+    extract:
+      type: json_path
+      fields:
+        title: "$.results[*].title"
+        url: "$.results[*].url"
+
+push:
+  - channel: telegram
+    # targets 占位:schema 要求 telegram 通道必须带 target(s);本冒烟只
+    # 用轮询积累,路由 when "url == ''" 永不命中 → 占位 id 永不被发送。
+    targets: ["telegram:0"]
+    route:
+      - when: "url == ''"
+        mode: immediate
+
+storage:
+  retention: 90d

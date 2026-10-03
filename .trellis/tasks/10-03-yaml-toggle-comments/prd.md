@@ -25,3 +25,15 @@
 ## 边界(刻意不做)
 
 - 不改启停语义/暂存格式;不做编辑器功能(那是 yaml-editor);流式风格(`{a: 1}` 单行源)支持与否以实现实测定,不支持即走 AC3 拒写
+
+## 执行记录
+
+- 2026-10-03:文本手术落地(desktop/entry.py `_sources_surgical_rewrite`,新测试 tests/test_sources_write_surgery.py 24 条),经批次工作流「实现→全量门禁→写回保真专项评审→确认项修复→回归」收口;最终全量 pytest(CI 同款 `uv run --no-sync python -m pytest -q`,收尾员复跑)= 1759 passed / 14 skipped / 0 failed,任务转 review;详细结论见工作流报告《MYIA 批次报告:写回保注释+基线+代验收》。
+
+
+## 评审遗留(2026-10-03 批次专项评审,4 条确认;high/medium 已修回归,以下为留痕)
+
+- [medium·已修+留痕] AC4「既有用例零改动」与 AC1 字面矛盾:旧断言钉死 safe_dump 抹注释行为(正是本任务根治对象),实现必然使其失败——断言改写方向正确且更强,此处记录豁免;后续修订 PRD 模板时避免自相矛盾条款。
+- [low·待修] 暂存保留键泄漏:_myia_toggle.raw_block 缺失/非字符串时兜底 safe_dump 把内部键写进主 YAML,该源此后停用被拒(触发需手编损坏暂存,现网零路径)——排 v1.1.2 批次顺手修(兜底前剥离 _myia_toggle 再 dump)。
+- [low·待修] 列 0 节间注释被末条目吸收:紧贴末条目(无空行)的列 0 分节注释随停用整体离开主文件,启用还原;中间态一节注释不可见(16 份现网 YAML 零命中)——排 v1.1.2(块尾判定对列 0 注释设界)。
+- 回归测试:无主注释块夹缝场景已入 tests/test_sources_write_surgery.py(36 测);两 low 的触发布局用例随修随补。

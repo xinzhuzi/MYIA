@@ -1,7 +1,0 @@
-{"file": "desktop/entry.py", "reason": "sidecar 协议与路径解析现状;本任务主改点(上下文+种子+first_run)"}
-{"file": "desktop/src-tauri/src/main.rs", "reason": "Rust spawn sidecar;注入 MYIA_HOME"}
-{"file": "desktop/src-tauri/tauri.conf.json", "reason": "bundle resources 官方插件随包"}
-{"file": "desktop/ui-src/src/lib/api/types.ts", "reason": "HealthResult 增 first_run"}
-{"file": "desktop/ui-src/src/screens/feed/feed-screen.tsx", "reason": "空态分叉 + 运行第一个插件 CTA"}
-{"file": "tests/test_desktop_sidecar_protocol.py", "reason": "sidecar 协议测试形态;增补上下文/种子/first_run 用例"}
-{"file": ".trellis/spec/python/error-handling.md", "reason": "结构化错误约定"}

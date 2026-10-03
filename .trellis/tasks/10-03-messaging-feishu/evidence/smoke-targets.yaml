@@ -1,0 +1,40 @@
+# 真机冒烟(10-03-messaging-feishu 步骤 4):targets 定向端到端。
+# 源:GitHub 公共 API(稳定 JSON 列表);push:feishu_card + targets 定向
+# 到「AI中转站合伙人群」(grill Q6 定案对象)。route url != '' → immediate。
+id: feishu-smoke
+name: 飞书冒烟
+
+schedule: "0 8 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  - name: spaceflight
+    engine: direct_api
+    url: "https://api.spaceflightnewsapi.net/v4/articles/?limit=3"
+    method: GET
+    headers:
+      Accept: "application/json"
+    rate_limit:
+      qps: 1.0
+    retry: 1
+    extract:
+      type: json_path
+      fields:
+        title: "$.results[*].title"
+        url: "$.results[*].url"
+
+push:
+  - channel: feishu_card
+    targets: ["feishu:AI中转站合伙人群"]
+    route:
+      - when: "url != ''"
+        mode: immediate
+    template: |
+      **飞书定向冒烟 · {{ date }}**
+
+      {% for item in items %}
+      - [{{ item.title }}]({{ item.url }})
+      {% endfor %}
+
+storage:
+  retention: 90d

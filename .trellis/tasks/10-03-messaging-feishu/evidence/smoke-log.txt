@@ -1,0 +1,43 @@
+# 10-03-messaging-feishu AC2 真机冒烟记录(重跑于 2026-10-03 10:10:53,机器: Darwin arm64)
+# 令牌:由 ~/.hermes/.env 的 FEISHU_APP_ID/SECRET 现换 tenant_access_token(feishu_card.py:54 约定仓库无换取代码,手工换取;令牌不落盘不回显)
+[OK] token mint (code=0)
+
+== 步骤 1: myia channels refresh feishu(目录自动发现)==
+$ FEISHU_BOT_TOKEN=*** uv run myia channels refresh feishu --db /tmp/feishu-smoke2/myia.db
+2026-10-03 10:11:01,707 INFO myia.push.directory: 目录刷新完成: {'feishu': 1}
+已刷新 feishu 目录:发现 1 个可达对象(数据根 /private/tmp/feishu-smoke2)
+通道目录(最近刷新 2026-10-03T10:11:01.706825):
+  [feishu] 1 个可达对象:
+    AI中转站合伙人群 (oc_f38a491eae5baf19898de28107087f05) type=group
+EXIT_CODE=0
+
+
+== 步骤 2: 别名登记私聊 oc_9a79…(取自 ~/.hermes/.env FEISHU_HOME_CHANNEL)+ myia channels list ==
+$ printf '{"feishu": {"oc_9a79***": "老板私聊"}}' > /tmp/feishu-smoke2/channel_aliases.json
+$ uv run myia channels list --db /tmp/feishu-smoke2/myia.db
+通道目录(最近刷新 2026-10-03T10:11:01.706825):
+  [feishu] 2 个可达对象:
+    AI中转站合伙人群 (oc_f38a491eae5baf19898de28107087f05) type=group
+    老板私聊 (oc_9a79a91b3e48cfb44f8313dfd998f9c0) type=dm
+EXIT_CODE=0
+
+== 步骤 3: targets 端到端收卡(targets: ["feishu:AI中转站合伙人群"],grill Q6 定案对象)==
+配置: /tmp/feishu-smoke/smoke-targets.yaml(direct_api 源 spaceflight API + immediate 路由;全文见 evidence/smoke-targets.yaml)
+$ FEISHU_BOT_TOKEN=*** uv run myia run smoke-targets.yaml --db /tmp/feishu-smoke2/targets.db --json
+EXIT_CODE=0
+status=success run_id=1 source_items=3 source_failures=0
+push channel=feishu_card immediate=1 digest=0
+report ok=True items=1 error=None
+dead-letter ledger: 无(零死信)
+
+== 步骤 4(负对照): targets: ["feishu:NoSuchChatXYZ"] — 证明名解析真实走目录,非静默回退 ==
+$ uv run myia run smoke-neg.yaml --db /tmp/feishu-smoke2/neg.db --json
+EXIT_CODE=3
+report ok=False error=[target_unresolved] 无法解析推送对象 'feishu:NoSuchChatXYZ';候选: AI中转站合伙人群 (oc_f38a491eae5baf19898de28107087f05), 老板私聊 (oc_9a79a91b3e48cfb44f8313dfd998f9c0)
+
+== 步骤 5(AC3 回归): 同配置去 targets,legacy target=env:FEISHU_CHAT_ID(值=私聊 oc_9a79***)==
+$ FEISHU_BOT_TOKEN=*** FEISHU_CHAT_ID=oc_9a79*** uv run myia run smoke-legacy.yaml --db /tmp/feishu-smoke2/legacy.db --json
+EXIT_CODE=0
+status=success
+push immediate=1 digest=0
+report ok=True items=1 error=None

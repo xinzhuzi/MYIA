@@ -1,0 +1,15 @@
+frontmost_before=WeChat
+app_pid=92222
+app_alive=YES
+children=92245 
+sidecar_child_pid=92245
+MYIA_HOME=/tmp/myia-app-smoke-home
+ax_window_count=0
+onscreen_MYIA_windows=0
+frontmost_after=WeChat
+app_exit=CLEAN
+sandbox_leftover_procs=0
+53795 /Applications/世事.app/Contents/MacOS/myia-core serve
+53817 /Applications/世事.app/Contents/MacOS/myia-core serve
+sandbox_home_content=myia.db plugins 
+frontmost_final=WeChat

@@ -1,2 +1,3 @@
 {"file": ".trellis/tasks/10-03-yaml-editor/prd.md", "reason": "止血(.bak 单份滚动)与本根治任务的分工边界;grill Round 1 决议 2 出处"}
 {"file": ".trellis/tasks/10-03-yaml-editor/design.md", "reason": "sources.write 现契约(请求/应答/错误码/往返一致语义)——文本手术须零变更的契约基准"}
+{"file": "tests/test_desktop_sidecar_protocol.py", "reason": "AC4 豁免留痕(修复通道 2026-10-03):既有用例 test_sources_write_backup_stops_comment_loss 的断言由「主文件不含顶部注释」改为「主文件保注释 + drop-me 摘除」。AC4 要求 sources.write 现有用例零改动通过,但旧断言钉死的正是 AC1/Req 1 要根治的 safe_dump 抹注释 缺陷——AC1(往返逐字节一致/注释保留)与 AC4(零改动)字面不可同时满足,PRD 内部矛盾。 按 AC1 执行:断言更新为根治后契约(.bak 止血契约原样保留),新断言严格更强(同时钉注释 保真与目标条目摘除),非放松。其余 sources.write 用例(roundtrip/refusals/mutex)零改动。"}

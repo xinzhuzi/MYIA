@@ -49,7 +49,7 @@ webview 全程不出网(CSP 已锁);出网只发生在 sidecar 进程。缩略�
 |---|---|
 | `__init__.py` | 导出 |
 | `ocr.py` | **双引擎统一接口**(10-03 修订:两个都要)`run_ocr(path, engine) -> lines[{text, conf}]`:`vision` = ocrmac 封装(zh-Hans+en-US、accurate、逐行置信度;宽<1000px 先 `sips -Z 2000` 放大,临时文件 /tmp 即弃;`usesLanguageCorrection` 保持关——报错码/ID 场景开了会毁证据);`rapidocr` = rapidocr-onnxruntime(内置默认 det/rec/cls 模型零下载;置信度刻度普遍 ≥0.9,与 Vision 不可直接互比);两引擎输出统一 `{text, conf}` 形状 |
-| `client.py` | `VisionClient`:复用 `enrich/client.py:40` 的 AsyncOpenAI 模式,新增 image content part 消息(`{type:"image_url", image_url:{url:"data:<mime>;base64,..."}}` + text part,local-ocr 实证配方);发送前长边 >2048 先 sips 压缩再 base64(VL 输入提速);本地通道无 Authorization,云端带 Bearer;读图侧写超时(60s 请求级 + 整体交给事件流不受壳 120s 限制) |
+| `client.py` | `VisionClient`:复用 `enrich/client.py:40` 的 AsyncOpenAI 模式,新增 image content part 消息(`{type:"image_url", image_url:{url:"data:<mime>;base64,..."}}` + text part,local-ocr 实证配方);发送前长边 >2048 先 sips 压缩再 base64(VL 输入提速);本地通道无 Authorization,云端带 Bearer;读图侧写超时(180s 请求级,装机冒烟实测 60s 在 Metal JIT 首请求/长 describe/低速主机下越线 + 整体交给事件流不受壳 120s 限制) |
 | `settings.py` | `VisionConfig` dataclass + load/save:结构落 `MYIA_HOME/vision.yaml`,门校验照 `EnrichSettings`(`enrich/settings.py:41` 模式)——`api_key` 只收 `keychain:` 引用;缺省 `{channel_default: local, local: {base_url: "http://127.0.0.1:8080/v1", model: ""}, cloud: {base_url: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4.6v"(grill 已拍板), api_key: null}, ocr: {enabled: true, engine_default: "vision"}}` |
 
 entry.py 侧 handler 薄封装注册进 `_HANDLERS`;`image.analyze` 后台线程仿 `run.start`(`entry.py:835`);`image_busy` 单飞守卫照抄 `run_busy`。

@@ -1,0 +1,34 @@
+# 真机冒烟步骤 C(10-03-messaging-telegram AC3):旧配置(无 targets)行为不变。
+# 与 smoke-targets.yaml 唯一差别:push 寻址回 legacy target: env:TELEGRAM_CHAT_ID
+# (发送期解析;不设 targets 的旧 YAML 零变化——单测已钉,真机再对一次)。
+id: telegram-smoke-legacy
+name: TG旧配置回归冒烟
+
+schedule: "0 4 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  - name: spaceflight
+    engine: direct_api
+    url: "https://api.spaceflightnewsapi.net/v4/articles/?limit=3"
+    method: GET
+    headers:
+      Accept: "application/json"
+    rate_limit:
+      qps: 1.0
+    retry: 1
+    extract:
+      type: json_path
+      fields:
+        title: "$.results[*].title"
+        url: "$.results[*].url"
+
+push:
+  - channel: telegram
+    target: env:TELEGRAM_CHAT_ID
+    route:
+      - when: "url != ''"
+        mode: immediate
+
+storage:
+  retention: 90d

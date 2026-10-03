@@ -1,0 +1,41 @@
+# 真机冒烟步骤 B(10-03-messaging-telegram AC2 后半):按 chat_id 定向端到端。
+# 前置:步骤 A 后从 `myia channels list` 抄下主人私聊的数字 chat_id,
+# 替换 <CHAT_ID>(形如 8位以上纯数字;telegram:<纯数字> 直达不经目录)。
+id: telegram-smoke-targets
+name: TG定向冒烟
+
+schedule: "0 4 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  - name: spaceflight
+    engine: direct_api
+    url: "https://api.spaceflightnewsapi.net/v4/articles/?limit=3"
+    method: GET
+    headers:
+      Accept: "application/json"
+    rate_limit:
+      qps: 1.0
+    retry: 1
+    extract:
+      type: json_path
+      fields:
+        title: "$.results[*].title"
+        url: "$.results[*].url"
+
+push:
+  - channel: telegram
+    targets: ["telegram:<CHAT_ID>"]
+    route:
+      - when: "url != ''"
+        mode: immediate
+    template: |
+      TG定向冒烟 · {{ date }}
+
+      {% for item in items %}
+      - {{ item.title }}
+        {{ item.url }}
+      {% endfor %}
+
+storage:
+  retention: 90d
