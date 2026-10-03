@@ -199,3 +199,15 @@
 - 质检 8/8 过,顺手修 2 中:弹窗保存后源管理表自动刷新(onSaved→reload)、beforeunload 防丢稿从屏移入共享 hook(弹窗同享);登记 1 中 2 低(SPA 导航 dirty 守卫需 useBlocker 耦合拍板/遮罩拖选误关/焦点陷阱)进 prd Backlog
 - vitest 105/105(dialog 8 新增+sources 扩展)、tsc/build 绿;协议零改动;工作树并行波(protocol 1→2、myia→shishi 改名、main.rs UU 冲突)一律未碰
 - 提交披露:d359a3e 意外捎带 docs/demo 三件旧品牌素材删除(myia-demo.gif/mp4/srt)——并行 shishi 改名会话预暂存在共享 index,我 commit 收走了整个 index(家规漏了提交后 git reset 归位,已补);删除方向与其更名意图一致(shishi-demo.gif 已在盘),零数据丢失,归属注记在此;后续提交前先查 git diff --cached 非空即甄别
+
+## 2026-10-03 games v3 立项(task 10-03-games-v3,grill 收口→可 start 等开工令)
+
+- 主人令「Grill 针对trellis文档进行补全」→ grilling 一轮清前沿 7 问,主人「按推荐」全批(commit 4cbfd9d 落档);事实自查先行的三个新发现:①**CS robots 明文 Disallow /api/1.0/** → 决议①有据推翻循 stocks/Yahoo 判例(respect_robots:false+注释+回退条件),不批则任务作废的前置已解除;②**三店 0 元 deal=0 条**——CS 只收付费折扣,不是限免通道,v3 定位随之清晰(限免仍归 Epic 官方);③redirect 双域分野:`.net` 本机两次 SSL 拒连、`.com` 200 正常 → url_template 用 .com
+- 七决议:robots 推翻/并入 games 第三源(独立品类否决)/storeID=7,11,15(GOG·Humble·Fanatical,与 Steam 源零重叠)/美元字段独立 sale_price·savings_pct 不进 final_price 基线+路由零改动全 digest(跳楼价 96% off 一堆,immediate 即噪音)/.com redirect/zol·smzdm 不搭车/等主人开工令(决议⑨模式,test_plugins.py+golden 是共享热点)
+- PRD 含实现要点($[*] 顶层数组前缀与 Epic/Steam 嵌套前缀不同/dealID 已 URL-encoded 直拼/规则 float(savings_pct)>=50)与**开工前置红字:games.yaml 源数变化必须同步 golden 基件**(v2 教训写进验收);证据三件(stores/多店 deals/0 元空集)入档;validate 绿;状态 planning 未 start 不抢指针
+
+## 2026-10-03 MYStudio 有用内容迁入 MYIA(task 10-03-spec-discipline-sop-gitnexus,review 休止)
+
+- 主人令三轮定范围:三纪律+搜索SOP+.gitnexus;逐段评估否掉 macOS 打包/ComfyUI 知识库(MYStudio 专属)。产出:engineering-discipline.md(长任务监控/先报量查改分家/高星参考)+ MYIA 版 search-sop.md + 双 index 接线 + AGENTS.md 块外指针段;commit 1ff1058
+- **GitNexus 落地关键教训**:裸 `analyze` 会改写 AGENTS.md 的 gitnexus 管理块(markers 间是工具领地,手写内容会被替换)并生成 `.claude/`+`CLAUDE.md` 副本——对策=块外引言段声明「以本段为准」+ 日常刷新一律 `analyze --index-only`(实测无副作用)+ 副本 gitignore;本机 MCP 未注册,CLI 是唯一通道(查询必须 `-r MYIA` 多仓消歧);技能真身在 `~/.agents/skills/gitnexus-*` 非 `~/.zcode/skills`
+- trellis-check 两轮:首轮 FAIL(副作用残留违 PRD+MCP 声明失实+中文举例误带入)→ 修复 → 复验 PASS;索引 7154 节点/15449 边,query 实测可用
