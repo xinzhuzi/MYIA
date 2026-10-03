@@ -51,27 +51,51 @@ ci.yml 新增 job(如 `rust-check`):ubuntu-latest → rust toolchain → **先�
 
 ## 验收标准
 
-- [ ] ci.yml 新增 rust-check job(push+PR 触发),含占位 externalBin 前置与
+- [x] ci.yml 新增 rust-check job(push+PR 触发),含占位 externalBin 前置与
       `cargo check`;在本机干净克隆或试验分支注入一处 Rust 语法错可验其变红、
       撤错复绿(证明门禁真拦得住,不是永远绿)
-- [ ] ci.yml 新增 ruff 门禁(push+PR 触发),显式最小 select + 锁版本;本地同款
+      ✅ 三态实证见收口补记:/tmp 干净克隆占位后 exit 0 → 注入未闭合定界符
+      exit 101 → 撤错 exit 0;CI `rust-check` job 全部近期 run 绿(含最新
+      37101247124,binaries/ 被 gitignore 即 CI 检出天然无 binaries/,不误红)
+- [x] ci.yml 新增 ruff 门禁(push+PR 触发),显式最小 select + 锁版本;本地同款
       命令(写入任务档,如 `uv run ruff check .`)0 错
-- [ ] **改完后 push 上 ci.yml 真实跑过一次全绿**:推 origin/main 后
+      ✅ CI ruff job 绿;本地同款 `uvx ruff@0.16.10 check .` 全工作树(含并行
+      在途未跟踪 .py)All checks passed exit 0;select 集落根 ruff.toml(独立于
+      pyproject 的偏离缘由见 ruff.toml 文件头与 journal)
+- [x] **改完后 push 上 ci.yml 真实跑过一次全绿**:推 origin/main 后
       `gh run list --workflow=ci.yml` 可见该 commit 的 run 为 success,链接/输出贴
       任务档;若按流程走 PR,则 PR checks 全绿并在合并后的 push 上补一次绿 run 记录
-- [ ] D3 防回归:tests/conftest.py 顶部(或 test_baseline.py:789 现注释旁)补一句
+      ✅ run 37097686620(push 0a9f83f,2026-10-03T04:47:06Z,含 845f64a 之后
+      全部四 job:test/ui-test/rust-check/ruff ✓);附注:05:33:42Z 起 test job
+      连续红 10 run,根因 60022ff(crawl4ai L3 批次)删 entry.py image.* 未同步
+      协议测试 + ai-news golden 漂移,修复分别在并行会话工作区在途与 c958597,
+      归属他线——ci-gates 两道门禁在全部红 run 上依旧 ✓(见收口补记)
+- [x] D3 防回归:tests/conftest.py 顶部(或 test_baseline.py:789 现注释旁)补一句
       「勿改回 `from tests.conftest import`,裸 pytest 会假红」;本地
       `uv run pytest -q` 与 `uv run python -m pytest -q` 双跑双绿并记录
       (以开工时实测基线为准——普查时点 1397 passed/14 skipped,期间
       v111-release/yaml-editor 会移动总数,以零失败为准)
-- [ ] mypy 评估结论(错误条数 + 是否值得立项)写入任务档;若未跑,如实标注未跑
-- [ ] (可选,D4)desktop/myia.spec 已删;`bash desktop/build-sidecar.sh` 正常走完、
+      ✅ conftest.py:1-5 docstring 注记 + test_baseline.py:789 行旁注释;
+      双跑各 1836 passed / 14 skipped / exit 0(2026-10-03 收口会话)
+- [x] mypy 评估结论(错误条数 + 是否值得立项)写入任务档;若未跑,如实标注未跑
+      ✅ 实跑 45 errors / 12 files / 58 checked(命令与分布见收口补记);
+      结论:全为注解严格性形态、零运行期 bug 形态,清零+门禁是独立工程量,
+      不立项搭车;将来若做建议新文件先行渐进,不进 ci.yml
+- [x] (可选,D4)desktop/myia.spec 已删;`bash desktop/build-sidecar.sh` 正常走完、
       spec 随之重新生成,构建不受影响
-- [ ] (可选,D5)择一落地:tauri.conf.json 加 beforeDevCommand(在任务档注明对
+      ✅ 以演化形态关闭(不删):845f64a 将其更名为 myia-core.spec 并相对路径化
+      (SPECPATH 推 _REPO_ROOT,零绝对路径,任何 checkout 可复跑),入库副本由
+      噪声变可复跑模板;build-sidecar.sh:112-120 每次构建照常重新生成
+- [x] (可选,D5)择一落地:tauri.conf.json 加 beforeDevCommand(在任务档注明对
       dev 启动耗时的影响),或 desktop 文档(README/UPDATER.md 相应小节)写明
       「tauri dev 前先 `bash build-sidecar.sh`」
-- [ ] 普查档活清单(已归档:`.trellis/tasks/archive/2026-10/10-03-gap-census/prd.md`
+      ✅ 文档路线:desktop/UPDATER.md:20-23(含「sidecar 生成后不必每次重跑」;
+      未加 beforeDevCommand,dev 启动零额外耗时)
+- [x] 普查档活清单(已归档:`.trellis/tasks/archive/2026-10/10-03-gap-census/prd.md`
       文末注记)回标 D1/D2/D4/D5 状态;journal 记一笔
+      ✅ census prd 文末注记已补 D1/D2/D4/D5 终态标;journal「CI 门禁补全」节
+      在库(原实现会话落);收口 journal 增笔留编排/文档线(实现代理工作流
+      纪律不动 journal)
 
 ## 收口补记(2026-10-03 下午,接手会话;原实现偏离③④两笔在此补齐)
 

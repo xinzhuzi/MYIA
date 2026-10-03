@@ -123,3 +123,13 @@
 >   [task.json 标注 superseded] 与 10-03-v12-backlog 第 4 项;v111-release 的 B2/B3/B4 改口指向已回标至该档)、
 >   `10-03-ci-gates`(路由④:D1/D2 核心,D4/D5 顺风车)。活清单收口,本档归档。
 > - 其余条目:A 组 README 半边 / A2 / B1 → 10-03-v111-release;E4/E5 随 v112 批次做或裁;E6 → 归档会话。
+> - 2026-10-03 ci-gates 收口回标(终态,证据全文见
+>   `.trellis/tasks/archive/2026-10/10-03-ci-gates/prd.md` 收口补记):
+>   **D1 ✅** ci.yml rust-check job 落库,CI 全近期 run 绿;/tmp 干净克隆
+>   占位→exit 0、注入语法错→101、撤错→0 三态实证;
+>   **D2 ✅** ci.yml ruff job + 根 ruff.toml 最小集 E9/F63/F7/F82 锁
+>   0.16.10,本地全树 0 错(pyproject 方案因当时在途碰撞改独立 ruff.toml,
+>   缘由在文件头);
+>   **D4 ✅ 演化关闭** myia.spec 未删——845f64a 更名 myia-core.spec 并
+>   相对路径化,由噪声变可复跑模板;
+>   **D5 ✅** UPDATER.md:20-23 文档提示路线,未加 beforeDevCommand。
