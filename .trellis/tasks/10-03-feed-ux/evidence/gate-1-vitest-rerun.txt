@@ -1,0 +1,36 @@
+
+> myia-desktop-ui@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/zhengbingjin/Project/Github/MYIA/desktop/ui-src
+
+ ✓ src/screens/yaml-editor/editor-pane.test.tsx (2 tests) 131ms
+ ✓ src/hooks/use-sidecar-status.test.tsx (5 tests) 356ms
+ ✓ src/screens/settings/updater-card.test.tsx (4 tests) 259ms
+ ✓ src/components/ui/ui-base.test.tsx (10 tests) 216ms
+ ✓ src/components/layout/top-bar.test.tsx (7 tests) 477ms
+ ✓ src/screens/yaml-editor/yaml-editor-dialog.test.tsx (8 tests) 482ms
+ ✓ src/screens/settings/vision-form.test.tsx (5 tests) 568ms
+ ✓ src/screens/settings/vision-models.test.tsx (17 tests) 716ms
+ ✓ src/screens/dashboard/dashboard-screen.test.tsx (13 tests) 764ms
+ ✓ src/screens/logs/logs-screen.test.tsx (10 tests) 890ms
+ ✓ src/screens/messaging/platform-icons.test.tsx (8 tests) 86ms
+ ✓ src/components/layout/global-run.test.tsx (6 tests) 62ms
+ ✓ src/screens/feed/feed-card-feedback.test.tsx (6 tests) 57ms
+ ✓ src/lib/api/client.test.ts (6 tests) 4ms
+ ✓ src/screens/messaging/messaging-screen.test.tsx (31 tests) 994ms
+ ✓ src/screens/dashboard/trend-card.test.tsx (11 tests) 48ms
+ ✓ src/screens/sources/sources.test.tsx (17 tests) 937ms
+ ✓ src/screens/yaml-editor/yaml-editor-screen.test.tsx (17 tests) 1039ms
+ ✓ src/screens/settings/settings.test.tsx (30 tests) 1139ms
+ ✓ src/screens/feed/feed-screen.test.tsx (49 tests) 1972ms
+     ✓ 分页加载:首页 50 条出「加载更早」按钮,翻页带 before/before_id 复合游标,取尽后按钮消失  706ms
+     ✓ 分页判停:翻页全为已加载条目(游标停滞)时按钮消失,且不出现重复卡  355ms
+
+ Test Files  20 passed (20)
+      Tests  262 passed (262)
+   Start at  00:20:25
+   Duration  3.00s (transform 3.04s, setup 0ms, import 6.90s, tests 11.20s, environment 9.07s)
+
+EXIT=0

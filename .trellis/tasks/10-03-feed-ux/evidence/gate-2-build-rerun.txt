@@ -1,0 +1,21 @@
+
+> myia-desktop-ui@0.1.0 build
+> tsc -b && vite build
+
+vite v7.3.6 building client environment for production...
+transforming...
+✓ 1755 modules transformed.
+rendering chunks...
+computing gzip size...
+../ui/index.html                     0.51 kB │ gzip:   0.33 kB
+../ui/assets/index-CpAVmfkJ.css     53.32 kB │ gzip:   9.69 kB
+../ui/assets/index-CrXwvXVA.js       1.25 kB │ gzip:   0.48 kB
+../ui/assets/index-ChQiIWvH.js       2.20 kB │ gzip:   0.81 kB
+../ui/assets/index-bP-RZMiq.js   1,157.71 kB │ gzip: 370.48 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1.64s
+EXIT=0
