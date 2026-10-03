@@ -1556,16 +1556,21 @@ def test_channels_list_empty_state_is_legal(tmp_path, monkeypatch):
 
 
 def test_channels_refresh_unknown_platform_structured(tmp_path, monkeypatch):
-    """refresh 未知平台:unknown_platform + allowed 名单,旧目录不动。"""
+    """refresh 未知平台:unknown_platform + allowed 名单,旧目录不动。
+
+    样例平台名用 icq(从未注册);原用 slack,但 W3 长尾接线
+    (10-03-messaging-w3-longtail)后 slack 已注册进 PLATFORMS——注册平台
+    走 discover_not_supported 族,不再是 unknown_platform。
+    """
     home = _messaging_home(tmp_path, monkeypatch, yaml_text=None)
     _write_directory(home, {"feishu": []})
     code, responses, _ = rpc(
-        {"id": 1, "method": "channels.refresh", "params": {"platform": "slack"}},
+        {"id": 1, "method": "channels.refresh", "params": {"platform": "icq"}},
     )
     assert code == 0
     error = responses[0]["error"]
     assert error["code"] == "unknown_platform"
-    assert "slack" in error["message"]
+    assert "icq" in error["message"]
     assert "feishu" in error["data"]["allowed"]
     # 旧目录文件未被触碰
     assert json.loads((home / "channel_directory.json").read_text("utf-8"))["platforms"] == {"feishu": []}

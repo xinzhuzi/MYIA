@@ -1,1 +1,12 @@
 {"file": ".trellis/spec/python/index.md", "reason": "MYIA Python 红线"}
+{"file": ".trellis/spec/domain/yaml-schema.md", "reason": "schema 词表扩展纪律(PUSH_CHANNELS/CHANNEL_PLATFORMS 四处同步)"}
+{"file": ".trellis/spec/domain/security-baseline.md", "reason": "通道凭据引用基线(接线零明文凭据、引用发送期解析不变)"}
+{"file": "src/myia/push/__init__.py", "reason": "终局接线:22 家入 CHANNELS(30)/PLATFORMS(28),平台名=通道名"}
+{"file": "src/myia/schema.py", "reason": "PUSH_CHANNELS/PushChannel Literal/CHANNEL_PLATFORMS 同步扩 22 家"}
+{"file": "src/myia/push/{yuanbao,buzz,photon,raft}.py", "reason": "接线缺口:4 壳通道补 target/template 最小构造面(pipeline._build_channel 契约)"}
+{"file": "tests/test_push_channels.py", "reason": "集成测试 TestW3LongtailRegistry(注册表/计数/构建契约)+钉死集扩 22"}
+{"file": "tests/test_push_schema_targets.py", "reason": "集成测试 TestW3LongtailSchema(词表/平台映射/22 家 targets 全量加载/跨平台拒)"}
+{"file": "tests/test_push.py", "reason": "CHANNELS 钉死集扩 22 家(30 通道)"}
+{"file": "tests/test_desktop_sidecar_protocol.py", "reason": "unknown_platform 样例 slack→icq(slack 已注册,改走 discover_not_supported 族)"}
+{"file": "skill/SKILL.md", "reason": "PUSH_CHANNELS 枚举行同步 30 值(test_skill_doc 反漂移)"}
+{"file": "docs/write-a-plugin.md", "reason": "push 节通道词表同步 30 值(test_skill_doc 反漂移)"}

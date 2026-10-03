@@ -3,7 +3,7 @@
   "name": "messaging-w3-longtail",
   "title": "消息平台 W3 伞:长尾平台登记与开工门(待续标记)",
   "description": "22 家长尾平台(slack/discord/whatsapp_cloud/signal/line/matrix/mattermost/google_chat/teams/email/sms/irc/simplex/bluebubbles/msgraph_webhook/qqbot/yuanbao/a2a/buzz/photon/raft/homeassistant)的登记锚与开工门;等主人排期+并行战场安静后按蓝本范式分批实装",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -21,6 +21,6 @@
   "children": [],
   "parent": null,
   "relatedFiles": [],
-  "notes": "",
+  "notes": "2026-10-03 主人令「都做了」;终局工作流(Amend dwfrun-f2fad2e7)接管:侦察分组+三路并行适配器+集成接线",
   "meta": {}
 }

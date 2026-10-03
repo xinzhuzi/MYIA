@@ -26,13 +26,16 @@ Feedback receiving (v0.3, PRD 10-01-v03-feedback-loop, grill Q7 分形态):
 :mod:`myia.push.feishu_callback` (server/compose — card callback endpoint,
 default off, token 鉴权 + 仅内网).
 
-Messaging-platform targeting (v1.2, PRD 10-03-hermes-messaging /
-10-03-messaging-core, 蓝本移植自 NousResearch/Hermes-Agent,MIT):通道目录
-(:mod:`myia.push.directory`)、对象解析(:mod:`myia.push.targets`)、定向
-派发 + 死信账本(:mod:`myia.push.delivery`)。:data:`PLATFORMS` 是平台名 →
-支持寻址的通道类的 dict 注册表(core 交付空表契约;feishu 已于
-10-03-messaging-feishu 登记,telegram 于 10-03-messaging-telegram 登记
-——直达解析 + 定向发送,目录为被动积累)。蓝本对照表见任务档 prd。
+ Messaging-platform targeting (v1.2, PRD 10-03-hermes-messaging /
+ 10-03-messaging-core, 蓝图移植自 NousResearch/Hermes-Agent,MIT):通道目录
+ (:mod:`myia.push.directory`)、对象解析(:mod:`myia.push.targets`)、定向
+ 派发 + 死信账本(:mod:`myia.push.delivery`)。:data:`PLATFORMS` 是平台名 →
+ 支持寻址的通道类的 dict 注册表(core 交付空表契约;feishu 已于
+ 10-03-messaging-feishu 登记,telegram 于 10-03-messaging-telegram 登记
+ ——直达解析 + 定向发送,目录为被动积累)。W3 长尾伞
+ (10-03-messaging-w3-longtail)一次性登记 22 家:CHANNELS 30 条、
+ PLATFORMS 28 条(仅 simplex 有目录发现;4 家壳通道发送期如实
+ ``dependency_missing``)。蓝本对照表见任务档 prd。
 """
 
 from __future__ import annotations
@@ -100,12 +103,71 @@ from myia.push.telegram_feedback import (
 )
 from myia.push.wecom import WecomChannel
 from myia.push.weixin import WeixinChannel
+# W3 长尾三组(10-03-messaging-w3-longtail 终局接线:组一 Slack 系 8 家、
+# 组二 Matrix 系 8 家、组三长尾壳 6 家;集成会话一处收口注册)。
+from myia.push.slack import SlackChannel
+from myia.push.discord import DiscordChannel
+from myia.push.whatsapp_cloud import WhatsAppCloudChannel
+from myia.push.line import LineChannel
+from myia.push.qqbot import QQBotChannel
+from myia.push.google_chat import GoogleChatChannel
+from myia.push.teams import TeamsChannel
+from myia.push.msgraph_webhook import MSGraphWebhookChannel
+from myia.push.matrix import MatrixChannel
+from myia.push.mattermost import MattermostChannel
+from myia.push.irc import IrcChannel
+from myia.push.simplex import SimplexChannel
+from myia.push.signal import SignalChannel
+from myia.push.bluebubbles import BlueBubblesChannel
+from myia.push.email import EmailChannel
+from myia.push.sms import SmsChannel
+from myia.push.homeassistant import HomeAssistantChannel
+from myia.push.a2a import A2aChannel
+from myia.push.yuanbao import YuanbaoChannel
+from myia.push.buzz import BuzzChannel
+from myia.push.photon import PhotonChannel
+from myia.push.raft import RaftChannel
 from myia.push.templates import (
     STOCKS_EXAMPLE_TEMPLATE,
     TemplateRenderer,
     TemplateRenderError,
 )
 from myia.push.webhook import WebhookChannel
+
+#: Channel-name → implementation registry (dict registry + constructor
+#: injection; no factory inheritance). All four channels are fully
+#: implemented (telegram/webhook landed in v0.2); ntfy/dingtalk/wecom land
+#: with 10-03-messaging-w2-platforms(蓝本形态:one-shot POST / 静态 webhook /
+#: 自建应用 token)。
+#: W3 长尾 22 家(10-03-messaging-w3-longtail):组一 Slack 系 8 家 + 组二
+#: Matrix 系 8 家 + 组三长尾壳 6 家。壳通道(yuanbao/buzz/photon/raft)配置
+#: 可加载、寻址可解析,发送期如实 ``dependency_missing``(蓝本无 one-shot
+#: HTTP 出站,不硬造);其余 16 家均有 one-shot HTTP 出站(逐家专测见
+#: tests/test_messaging_<平台>.py)。
+_W3_LONGTAIL_CHANNELS: dict[str, type] = {
+    "slack": SlackChannel,
+    "discord": DiscordChannel,
+    "whatsapp_cloud": WhatsAppCloudChannel,
+    "line": LineChannel,
+    "qqbot": QQBotChannel,
+    "google_chat": GoogleChatChannel,
+    "teams": TeamsChannel,
+    "msgraph_webhook": MSGraphWebhookChannel,
+    "matrix": MatrixChannel,
+    "mattermost": MattermostChannel,
+    "irc": IrcChannel,
+    "simplex": SimplexChannel,
+    "signal": SignalChannel,
+    "bluebubbles": BlueBubblesChannel,
+    "email": EmailChannel,
+    "sms": SmsChannel,
+    "homeassistant": HomeAssistantChannel,
+    "a2a": A2aChannel,
+    "yuanbao": YuanbaoChannel,
+    "buzz": BuzzChannel,
+    "photon": PhotonChannel,
+    "raft": RaftChannel,
+}
 
 #: Channel-name → implementation registry (dict registry + constructor
 #: injection; no factory inheritance). All four channels are fully
@@ -121,6 +183,7 @@ CHANNELS: dict[str, type] = {
     "weixin": WeixinChannel,
     "webhook": WebhookChannel,
     "stdout": StdoutChannel,
+    **_W3_LONGTAIL_CHANNELS,
 }
 
 #: Platform-name → targeting-capable channel class(10-03-messaging-core
@@ -142,6 +205,33 @@ PLATFORMS: dict[str, type] = {
     "dingtalk": DingTalkChannel,
     "wecom": WecomChannel,
     "weixin": WeixinChannel,
+    # W3 长尾 22 家:全部 supports_targeting=True(平台名 = 通道名,与各适配器
+    # parse_direct_ref 的 platform= 字面一致)。仅 simplex 有目录发现;其余
+    # 无发现(DirectoryDiscoverUnsupported),条目来源 = 直达 id + 别名手工
+    # 登记。raft 有意不设 parse_direct_ref(蓝本 chat_id 形态无公开成文
+    # 约束,寻址全走别名;targets._parse_direct_ref 的 getattr 守卫容忍)。
+    "slack": SlackChannel,
+    "discord": DiscordChannel,
+    "whatsapp_cloud": WhatsAppCloudChannel,
+    "line": LineChannel,
+    "qqbot": QQBotChannel,
+    "google_chat": GoogleChatChannel,
+    "teams": TeamsChannel,
+    "msgraph_webhook": MSGraphWebhookChannel,
+    "matrix": MatrixChannel,
+    "mattermost": MattermostChannel,
+    "irc": IrcChannel,
+    "simplex": SimplexChannel,
+    "signal": SignalChannel,
+    "bluebubbles": BlueBubblesChannel,
+    "email": EmailChannel,
+    "sms": SmsChannel,
+    "homeassistant": HomeAssistantChannel,
+    "a2a": A2aChannel,
+    "yuanbao": YuanbaoChannel,
+    "buzz": BuzzChannel,
+    "photon": PhotonChannel,
+    "raft": RaftChannel,
 }
 
 __all__ = [
@@ -187,6 +277,29 @@ __all__ = [
     "WebhookChannel",
     "WecomChannel",
     "WeixinChannel",
+    # W3 长尾(10-03-messaging-w3-longtail)
+    "A2aChannel",
+    "BlueBubblesChannel",
+    "BuzzChannel",
+    "DiscordChannel",
+    "EmailChannel",
+    "GoogleChatChannel",
+    "HomeAssistantChannel",
+    "IrcChannel",
+    "LineChannel",
+    "MatrixChannel",
+    "MattermostChannel",
+    "MSGraphWebhookChannel",
+    "PhotonChannel",
+    "QQBotChannel",
+    "RaftChannel",
+    "SignalChannel",
+    "SimplexChannel",
+    "SlackChannel",
+    "SmsChannel",
+    "TeamsChannel",
+    "WhatsAppCloudChannel",
+    "YuanbaoChannel",
     "also_seen_list",
     "build_card",
     "build_markdown_card",

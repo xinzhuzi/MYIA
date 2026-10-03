@@ -163,7 +163,43 @@ ENGINES = (
 PAGINATION_MODES = ("template", "selector", "scroll")
 EXTRACT_TYPES = ("list", "item", "json_path", "rss")
 BACKOFF_POLICIES = ("exponential", "linear", "none")
-PUSH_CHANNELS = ("feishu_card", "telegram", "ntfy", "dingtalk", "wecom", "weixin", "webhook", "stdout")
+# W3 长尾 22 家(10-03-messaging-w3-longtail):组一 Slack 系 + 组二 Matrix 系
+# + 组三长尾壳;与 myia.push.CHANNELS 的 _W3_LONGTAIL_CHANNELS 一一对应。
+_W3_LONGTAIL = (
+    "slack",
+    "discord",
+    "whatsapp_cloud",
+    "line",
+    "qqbot",
+    "google_chat",
+    "teams",
+    "msgraph_webhook",
+    "matrix",
+    "mattermost",
+    "irc",
+    "simplex",
+    "signal",
+    "bluebubbles",
+    "email",
+    "sms",
+    "homeassistant",
+    "a2a",
+    "yuanbao",
+    "buzz",
+    "photon",
+    "raft",
+)
+PUSH_CHANNELS = (
+    "feishu_card",
+    "telegram",
+    "ntfy",
+    "dingtalk",
+    "wecom",
+    "weixin",
+    "webhook",
+    "stdout",
+    *_W3_LONGTAIL,
+)
 ROUTE_MODES = ("immediate", "digest", "archive")
 ENRICH_SCORES = ("value", "relevance", "credibility")
 VACUUM_CADENCES = ("daily", "weekly", "monthly", "never")
@@ -181,7 +217,13 @@ EngineName = Literal[
 PaginationMode = Literal["template", "selector", "scroll"]
 ExtractType = Literal["list", "item", "json_path", "rss"]
 BackoffPolicy = Literal["exponential", "linear", "none"]
-PushChannel = Literal["feishu_card", "telegram", "ntfy", "dingtalk", "wecom", "weixin", "webhook", "stdout"]
+PushChannel = Literal[
+    "feishu_card", "telegram", "ntfy", "dingtalk", "wecom", "weixin", "webhook", "stdout",
+    "slack", "discord", "whatsapp_cloud", "line", "qqbot", "google_chat", "teams",
+    "msgraph_webhook", "matrix", "mattermost", "irc", "simplex", "signal",
+    "bluebubbles", "email", "sms", "homeassistant", "a2a", "yuanbao", "buzz",
+    "photon", "raft",
+]
 RouteMode = Literal["immediate", "digest", "archive"]
 ScoreName = Literal["value", "relevance", "credibility"]
 VacuumCadence = Literal["daily", "weekly", "monthly", "never"]
@@ -908,7 +950,9 @@ class EnrichConfig(_StrictModel):
 #: 通道名 → 平台前缀的内置字面映射(10-03-messaging-core design D4:targets
 #: 同平台约束;schema 不反依赖 push 层,新平台接入目录寻址时同步登记;
 #: ntfy/dingtalk/wecom 三行随 10-03-messaging-w2-platforms 登记;weixin 随
-#: 10-03-messaging-weixin-bridge 登记)。
+#: 10-03-messaging-weixin-bridge 登记;W3 长尾 22 家随
+#: 10-03-messaging-w3-longtail 终局接线登记——平台名 = 通道名,与各适配器
+#: parse_direct_ref 的 platform= 字面一致)。
 CHANNEL_PLATFORMS: dict[str, str] = {
     "feishu_card": "feishu",
     "telegram": "telegram",
@@ -916,6 +960,7 @@ CHANNEL_PLATFORMS: dict[str, str] = {
     "dingtalk": "dingtalk",
     "wecom": "wecom",
     "weixin": "weixin",
+    **{channel: channel for channel in _W3_LONGTAIL},
 }
 
 #: targets 元素形态 ``platform:名称或id``(与 myia.push.targets.SPEC_RE 同源;

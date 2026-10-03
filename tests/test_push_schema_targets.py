@@ -48,6 +48,7 @@ class TestChannelPlatformMap:
         # design D4:内置字面表 feishu_card→feishu、telegram→telegram;
         # W2(10-03-messaging-w2-platforms)增 ntfy/dingtalk/wecom 三行;
         # weixin(10-03-messaging-weixin-bridge,可选 Hermes 桥接)再增一行;
+        # W3 长尾 22 家(10-03-messaging-w3-longtail)平台名 = 通道名;
         # webhook/stdout 不在表内(不支持目录寻址)。
         assert CHANNEL_PLATFORMS == {
             "feishu_card": "feishu",
@@ -56,6 +57,7 @@ class TestChannelPlatformMap:
             "dingtalk": "dingtalk",
             "wecom": "wecom",
             "weixin": "weixin",
+            **{name: name for name in W3_LONGTAIL_NAMES},
         }
 
 
@@ -455,3 +457,133 @@ class TestWeixinBridgeChannels:
         assert cfg.push[0].target == "env:WEIXIN_PEER_ID"
         assert cfg.push[0].targets == []
         assert cfg.push[0].weixin_hermes_bin is None  # 不配 = 缺省路径
+
+
+# ---------------------------------------------------------------------------
+# W3 长尾 22 家(10-03-messaging-w3-longtail):词表 + targets 校验 + 同平台约束
+# ---------------------------------------------------------------------------
+
+#: W3 长尾 22 家通道名;与 myia.push._W3_LONGTAIL_CHANNELS、schema._W3_LONGTAIL
+#: 一一对应(集成面注册表专测在 tests/test_push_channels.py)。
+W3_LONGTAIL_NAMES = (
+    "slack",
+    "discord",
+    "whatsapp_cloud",
+    "line",
+    "qqbot",
+    "google_chat",
+    "teams",
+    "msgraph_webhook",
+    "matrix",
+    "mattermost",
+    "irc",
+    "simplex",
+    "signal",
+    "bluebubbles",
+    "email",
+    "sms",
+    "homeassistant",
+    "a2a",
+    "yuanbao",
+    "buzz",
+    "photon",
+    "raft",
+)
+
+#: 每家一条直达形态 targets 样例(形态取自各适配器 parse_direct_ref 的成文
+#: 约束;schema 层只校验 ``platform:ref`` 格式,直达命中与否是解析期的事)。
+W3_LONGTAIL_TARGET_SAMPLES = {
+    "slack": "slack:C0123ABCDEF",
+    "discord": "discord:1234567890123456789",
+    "whatsapp_cloud": "whatsapp_cloud:8613800138000",
+    "line": "line:U1234567890abcdef1234567890abcdef",
+    "qqbot": "qqbot:123456789",
+    "google_chat": "google_chat:spaces/AAAA1234",
+    "teams": "teams:19:meeting_ZGVmYXVsdA==",
+    "msgraph_webhook": "msgraph_webhook:19:chats/11111111-2222-3333-4444-555555555555",
+    "matrix": "matrix:!roomid:example.com",
+    "mattermost": "mattermost:abcdefghijklmnopqrstuvwxyz",
+    "irc": "irc:#myia-channel",
+    "simplex": "simplex:#+/abc123def456",
+    "signal": "signal:+8613800138000",
+    "bluebubbles": "bluebubbles:+8613800138000",
+    "email": "email:user@example.com",
+    "sms": "sms:+8613800138000",
+    "homeassistant": "homeassistant:notify.mobile_app_pixel",
+    "a2a": "a2a:https://agent.example.com/a2a/v1",
+    "yuanbao": "yuanbao:direct:123456",
+    "buzz": "buzz:00000000-1111-2222-3333-444444444444",
+    "photon": "photon:+8613800138000",
+    "raft": "raft:主工作区别名",  # 无直达形态约束(蓝本 chat_id 形态未成文),别名登记
+}
+
+
+class TestW3LongtailSchema:
+    """22 家:入 PUSH_CHANNELS 词表、CHANNEL_PLATFORMS 全行、targets 全量加载。"""
+
+    def test_push_channel_vocabulary_contains_all_w3(self):
+        from myia.schema import PUSH_CHANNELS
+
+        assert set(W3_LONGTAIL_NAMES) <= set(PUSH_CHANNELS)
+        assert len(PUSH_CHANNELS) == 30  # 8 既有 + 22 长尾,计数如实
+
+    def test_channel_platforms_rows_are_identity_for_w3(self):
+        for name in W3_LONGTAIL_NAMES:
+            assert CHANNEL_PLATFORMS.get(name) == name
+
+    def test_all_w3_targets_specs_load(self):
+        """22 家各一条直达形态 targets:全部加载成功、target 可省、spec 原样落位。"""
+        data = _minimal_data()
+        data["push"] = [
+            {"channel": name, "targets": [spec]}
+            for name, spec in W3_LONGTAIL_TARGET_SAMPLES.items()
+        ]
+
+        cfg = load_category(data)
+
+        assert len(cfg.push) == 22
+        for push in cfg.push:
+            assert push.target is None  # targets 在场时 target 可省
+            assert push.targets == [W3_LONGTAIL_TARGET_SAMPLES[push.channel]]
+
+    def test_w3_cross_platform_targets_rejected(self):
+        """同平台约束对 W3 生效:slack 条目混 telegram 前缀 = platform_mismatch。"""
+        error = _load_error({
+            **_minimal_data(),
+            "push": [
+                {"channel": "slack", "targets": ["slack:C0123ABCDEF", "telegram:12345"]}
+            ],
+        })
+        detail = _error_of_type(error, "platform_mismatch")
+        assert detail.path == "$.push[0].targets"
+        assert "telegram:12345" in detail.message
+
+    def test_w3_rule_level_targets_load_and_constrain(self):
+        """规则级 targets 同样放行 W3 平台前缀;跨平台同样拒。"""
+        cfg = load_category({
+            **_minimal_data(),
+            "push": [
+                {
+                    "channel": "matrix",
+                    "target": "env:MATRIX_ROOM",
+                    "route": [
+                        {"when": "score >= 8", "mode": "immediate", "targets": ["matrix:!room:example.com"]}
+                    ],
+                }
+            ],
+        })
+        assert cfg.push[0].route[0].targets == ["matrix:!room:example.com"]
+
+        error = _load_error({
+            **_minimal_data(),
+            "push": [
+                {
+                    "channel": "email",
+                    "target": "env:EMAIL_TO",
+                    "route": [
+                        {"when": "score >= 8", "mode": "immediate", "targets": ["sms:+8613800138000"]}
+                    ],
+                }
+            ],
+        })
+        _error_of_type(error, "platform_mismatch")

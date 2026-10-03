@@ -26,6 +26,7 @@ from myia.dedup import DedupRegistry
 from myia.push import telegram as _module
 from myia.push import (
     CHANNELS,
+    PLATFORMS,
     Channel,
     DigestAggregator,
     PushSendError,
@@ -516,6 +517,8 @@ def test_new_channels_conform_to_channel_protocol_and_registry():
     # weixin 随 10-03-messaging-weixin-bridge 落地(可选桥接:出站经本机
     # Hermes CLI,无目录发现)——钉死集随通道注册表演进同步(新通道协议
     # 符合性由 tests/test_messaging_{ntfy,dingtalk,wecom,weixin_bridge}.py 专测)。
+    # W3 长尾 22 家随 10-03-messaging-w3-longtail 终局接线落地(见下方
+    # TestW3LongtailRegistry;逐家协议/发送专测在 tests/test_messaging_<平台>.py)。
     assert set(CHANNELS) == {
         "feishu_card",
         "telegram",
@@ -525,9 +528,84 @@ def test_new_channels_conform_to_channel_protocol_and_registry():
         "dingtalk",
         "wecom",
         "weixin",
+        *W3_LONGTAIL_NAMES,
     }
     assert TelegramChannel.name == "telegram"
     assert WebhookChannel.name == "webhook"
+
+
+# ---------------------------------------------------------------------------
+# W3 长尾 22 家终局接线(10-03-messaging-w3-longtail):注册表 + 协议 + 构建契约
+# ---------------------------------------------------------------------------
+
+#: W3 长尾 22 家通道名(组一 Slack 系 8 + 组二 Matrix 系 8 + 组三长尾壳 6);
+#: 与 myia.push._W3_LONGTAIL_CHANNELS、schema._W3_LONGTAIL 一一对应。
+W3_LONGTAIL_NAMES = (
+    "slack",
+    "discord",
+    "whatsapp_cloud",
+    "line",
+    "qqbot",
+    "google_chat",
+    "teams",
+    "msgraph_webhook",
+    "matrix",
+    "mattermost",
+    "irc",
+    "simplex",
+    "signal",
+    "bluebubbles",
+    "email",
+    "sms",
+    "homeassistant",
+    "a2a",
+    "yuanbao",
+    "buzz",
+    "photon",
+    "raft",
+)
+
+
+class TestW3LongtailRegistry:
+    """22 家全量入表:CHANNELS/PLATFORMS 注册、通道计数、管线构建契约。"""
+
+    def test_all_w3_channels_in_channels_registry(self):
+        for name in W3_LONGTAIL_NAMES:
+            channel_cls = CHANNELS.get(name)
+            assert channel_cls is not None, f"{name} 未注册进 CHANNELS"
+            assert channel_cls.name == name
+            # 22 家全量开目录寻址(壳通道可解析寻址,发送能力另论)
+            assert channel_cls.supports_targeting is True
+
+    def test_all_w3_channels_in_platforms_registry(self):
+        for name in W3_LONGTAIL_NAMES:
+            assert PLATFORMS.get(name) is CHANNELS.get(name), (
+                f"{name} 的 PLATFORMS 条目与 CHANNELS 条目不是同一类"
+            )
+
+    def test_registry_counts_after_w3_wiring(self):
+        # 通道计数如实:8 既有 + 22 长尾 = 30 通道;28 家支持目录寻址
+        # (webhook/stdout 不支持;feishu_card 通道名经 schema 的
+        # CHANNEL_PLATFORMS 映射到平台名 feishu,其余 29+27 家平台名 = 通道名)。
+        from myia.schema import CHANNEL_PLATFORMS
+
+        assert len(CHANNELS) == 30
+        assert len(PLATFORMS) == 28
+        assert set(CHANNELS) - set(CHANNEL_PLATFORMS) == {"webhook", "stdout"}
+        assert set(CHANNEL_PLATFORMS.values()) == set(PLATFORMS)
+
+    def test_w3_channels_buildable_under_pipeline_contract(self):
+        """pipeline._build_channel 对所有非 stdout 通道下传 target/template。
+
+        回归背景:4 家壳通道(yuanbao/buzz/photon/raft)原为无参构造,配置
+        legacy ``target:`` 会在管线构建期裸抛 TypeError;终局接线为它们补了
+        收下备档的最小构造面。其余 18 家构造期不做网络 I/O(凭据发送期才解析)。
+        """
+        for name in W3_LONGTAIL_NAMES:
+            channel = CHANNELS[name](target="env:W3_TEST_REF", template="{{ date }}")
+            assert channel.name == name
+            bare = CHANNELS[name]()  # targets-only 配置路径(不下传任何 kwargs)
+            assert bare.name == name
 
 
 # ---------------------------------------------------------------------------

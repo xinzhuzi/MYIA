@@ -684,6 +684,8 @@ def test_feishu_and_stdout_channels_conform_to_channel_protocol(monkeypatch):
     # Hermes CLI,无目录发现)——钉死集随通道注册表演进同步(蓝图注记见
     # push/__init__.py CHANNELS 定义处;新通道自身的协议符合性由
     # tests/test_messaging_{ntfy,dingtalk,wecom,weixin_bridge}.py 专测覆盖)。
+    # W3 长尾 22 家随 10-03-messaging-w3-longtail 终局接线落地(集成面专测
+    # 在 tests/test_push_channels.py TestW3LongtailRegistry)。
     assert set(CHANNELS) == {
         "feishu_card",
         "telegram",
@@ -693,6 +695,29 @@ def test_feishu_and_stdout_channels_conform_to_channel_protocol(monkeypatch):
         "dingtalk",
         "wecom",
         "weixin",
+        # ---- W3 长尾(10-03-messaging-w3-longtail)----
+        "slack",
+        "discord",
+        "whatsapp_cloud",
+        "line",
+        "qqbot",
+        "google_chat",
+        "teams",
+        "msgraph_webhook",
+        "matrix",
+        "mattermost",
+        "irc",
+        "simplex",
+        "signal",
+        "bluebubbles",
+        "email",
+        "sms",
+        "homeassistant",
+        "a2a",
+        "yuanbao",
+        "buzz",
+        "photon",
+        "raft",
     }
 
 
