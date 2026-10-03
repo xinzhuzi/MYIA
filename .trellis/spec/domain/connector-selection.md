@@ -18,4 +18,4 @@
 
 ## 相关
 
-- 候选池与免费层快照:`.trellis/tasks/10-03-free-tier-supplier-map/research.md`(引用时核机制见其末节)
+- 候选池与免费层快照:`.trellis/tasks/archive/2026-10/10-03-free-tier-supplier-map/research.md`(引用时核机制见其末节)

@@ -2,7 +2,7 @@
 
 ## Goal
 
-产出 `docs/zh/zero-cost.md` 与 `docs/en/zero-cost.md`(中文先行,英文随后):零成本接入指引 = 本地 mlx-vlm/Ollama(默认)→ OpenRouter `:free` / 智谱 GLM-4V-Flash(云端免费)→ Gemini 轻量批;从 getting-started.md 链入。素材源:`.trellis/tasks/10-03-free-tier-supplier-map/research.md`(决策面三)。
+产出 `docs/zh/zero-cost.md` 与 `docs/en/zero-cost.md`(中文先行,英文随后):零成本接入指引 = 本地 mlx-vlm/Ollama(默认)→ OpenRouter `:free` / 智谱 GLM-4V-Flash(云端免费)→ Gemini 轻量批;从 getting-started.md 链入。素材源:`.trellis/tasks/archive/2026-10/10-03-free-tier-supplier-map/research.md`(决策面三)。
 
 ## Requirements
 
