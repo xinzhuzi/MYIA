@@ -152,3 +152,9 @@ screens/yaml-editor/
 - **UI(vitest,jsdom)**:list 渲染 + 坏文件徽标;选中读文件渲染原文(mock api);dirty 守卫拦截切换;保存失败结构化错误态;源管理「编辑」链接带 file 参数;**新建流**(stem 预检/模板渲染/草稿态标记)、**删除 confirm 与列表刷新**(含官方件提示文案)、**保存后自动 doctor 复核调用与展示**、**「跑一次」dirty 禁用与发起**、**完整路径展示**
 - **回归**:`uv run --no-sync python -m pytest -q` + `desktop/ui-src` `npm run test` + `npm run build`(tsc -b)——基线数字以开工时实测为准(prd AC9)
 - 手工冒烟(dev 模式):改 schedule → doctor 识别;注释逐字节保留(diff);跑一次 → 日志屏有流
+
+### §7 手工冒烟证据落档(2026-10-03 收口)
+
+- 执行方式:GUI 无头冒烟(真实 tauri dev 渲染,驱动走 DevTools 协议,零人工点击;commit cf0eb32)。证据本机 `.zcode/smoke/yaml-editor/`,git 忽略不入库(`.gitignore` ac04246);结论同源落 prd.md AC1/AC2/AC14。
+- 本节「手工冒烟(dev 模式)」前两项 ✅:改 schedule → Meta+S 保存 →「doctor 复核通过:识别「股票情报」」(`04-saved-doctor-recheck.png` + `transcript.json` 含 doctor/复核/已保存/mtime 记录);注释逐字节保留 = diff 恰 1 增 1 删仅 schedule 行、注释全为上下文未动(`git-diff-stocks.txt` 本轮复读核实)。新建/源管理/删除往返:`05-my-smoke-created.png` / `06-sources-my-smoke.png`(**保存后源管理屏即时可见新品类,零重启零刷新**——上方「手工冒烟补」项的源管理面证据)/ `07-my-smoke-deleted.png`,`transcript.json` 含 my-smoke 建删全流。弹窗编辑流 9/9(增补批):`10-12*.png` + `transcript-dialog.json` + `git-diff-dialog.txt`。
+- **未冒烟项(如实登记)**:「跑一次 → 日志屏有流」的 GUI 实跑未入冒烟脚本(两份 transcript 均无 run.start 记录)——按钮机制有 vitest 兜底(`yaml-editor-screen.test.tsx:595`:dirty 禁用/title 提示/发起 run.start/引导日志屏),run.start 复用 feed 空态既有封装;「仪表屏即时可见」未单独截图(机制同源 = health 逐请求目录扫描,源管理面已证);两项留待主人日常使用面验证。
