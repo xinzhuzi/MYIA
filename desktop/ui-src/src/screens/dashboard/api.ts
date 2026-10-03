@@ -20,6 +20,9 @@ import type {
   TrendDay,
 } from "@/lib/api";
 
+/** 本屏组件从 ./api 统一取类型(趋势窗视图模型的日行形状与 @/lib/api 同源) */
+export type { TrendDay };
+
 /**
  * 仪表盘 run 行视图模型:历史行(runs.list)+ 活跃叠加(run.status 内存态)。
  * active = 当前会话内进行中(run.status state=running);history 行里
@@ -295,6 +298,16 @@ export function toTrendWindow(result: StoreTrendResult, days: number, today: str
   return fillDailyCounts(result.days, days, today);
 }
 
+/**
+ * 拉一个补零趋势窗口(D4 概览条「今日采集」与趋势卡共用:窗口右端即今天,
+ * 一次拉数两处消费)。失败上抛,由调用侧降级 —— 趋势不可用时概览格显 —,
+ * 不拖垮 doctor/runs 驱动的其余区块。
+ */
+export async function fetchTrendWindow(days: number): Promise<TrendDay[]> {
+  const result = await api.storeTrend({ days });
+  return toTrendWindow(result, days, utcToday());
+}
+
 // ---------------------------------------------------------------------------
 // 小格式化(本屏私有;跨屏抽取属共享层,不在本任务边界)
 // ---------------------------------------------------------------------------
@@ -313,3 +326,131 @@ export function runItemCount(run: DashboardRun): number | null {
   const raw = run.stats?.["items_retained"];
   return typeof raw === "number" ? raw : null;
 }
+
+// ---------------------------------------------------------------------------
+// D4 概览条(10-03-ui-deep-imitation;teardown-vercel-dashboard #2:一行四格
+// = 小标签(大写+弱色)+ 大数字(tnum)):今日采集 / 活跃源 / 推送成功 / 告警
+// ---------------------------------------------------------------------------
+
+/** 概览条四格视图模型(全部零协议改动:既有 doctor/runs.list/store.trend 装配) */
+export interface OverviewStats {
+  /** 今日采集:store.trend 补零窗口右端(UTC 日口径,与趋势卡一致,不伪称本地时区) */
+  todayItems: number | null;
+  /** 活跃源 = 健康度活着(ok + degraded;dead/unknown 不计) */
+  activeSources: number;
+  totalSources: number;
+  /** 推送成功:今日(UTC)启动的 run 里 stats.push[].ok=true 计数;无数据 = null(不虚构 0) */
+  pushOkToday: number | null;
+  /** 告警:doctor findings 总数(error + warning 两级都在内) */
+  alerts: number;
+}
+
+/** run 的 stats.push[] 里 ok=true 的个数(pipeline.py `stats_dict` 的 push 段) */
+export function countPushOk(run: DashboardRun): number {
+  const push = run.stats?.["push"];
+  if (!Array.isArray(push)) return 0;
+  return push.filter(
+    (entry) => typeof entry === "object" && entry !== null && (entry as { ok?: unknown }).ok === true,
+  ).length;
+}
+
+/** ISO 串的 UTC 日(YYYY-MM-DD);缺失/不可解析 = null */
+export function utcDateOf(iso: string | null): string | null {
+  if (!iso) return null;
+  const date = iso.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+}
+
+/**
+ * 概览条装配:doctor(源/告警)+ runs(今日推送)+ trend 窗口(今日采集)。
+ * trend 独立拉取可失败(与品类/健康卡解耦):null = 「今日采集」格显 —,
+ * 不拖垮整屏;today 显式传入(纯函数可测)。
+ */
+export function buildOverviewStats(
+  doctor: DoctorResult,
+  runs: DashboardRun[],
+  trend: TrendDay[] | null,
+  today: string = utcToday(),
+): OverviewStats {
+  const health = summarizeSourceHealth(doctor);
+  const todayRuns = runs.filter((run) => utcDateOf(run.startedAt) === today);
+  const trendKnown = trend !== null && trend.length > 0;
+  const lastDay = trendKnown ? trend[trend.length - 1] : null;
+  return {
+    todayItems: lastDay ? lastDay.count : null,
+    activeSources: health.ok + health.degraded,
+    totalSources: health.ok + health.degraded + health.dead + health.unknown,
+    pushOkToday: todayRuns.length > 0 ? todayRuns.reduce((sum, run) => sum + countPushOk(run), 0) : null,
+    alerts: doctor.findings.length,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 源健康度卡网格(teardown-vercel-dashboard #3/#4:StatusDot 8px 圆点+13px
+// 标签四色映射;Card = 名称 14 medium + muted 次行 + 相对时间;网格 gap-6)
+// ---------------------------------------------------------------------------
+
+/** 健康度四态展示序:坏者优先(dead → degraded → unknown → ok),同态稳定原序 */
+const SOURCE_STATE_RANK: Record<SourceHealthState, number> = { dead: 0, degraded: 1, unknown: 2, ok: 3 };
+
+export interface SourceHealthCardModel {
+  /** `${pluginFile}#${sourceName}`(跨品类同名源不撞 key) */
+  key: string;
+  name: string;
+  /** 所属品类显示名 */
+  pluginName: string;
+  state: SourceHealthState;
+  /** 健康度评判原因(cli.py evaluate_source_health 的 reason) */
+  reason: string;
+  engine: string;
+  /** 最近观测 run 的启动时刻(ISO;latest.run_id 在 runs.list 窗口内可查,否则 null) */
+  lastObservedAt: string | null;
+  /** 最近观测轮产出条数(latest.item_count;无观测 = null) */
+  latestItemCount: number | null;
+}
+
+/**
+ * 源健康卡模型:doctor.plugins[].sources[] 摊平 + 最近观测时间锚。
+ * 时间锚如实处理:health.latest 只带 run_id 不带时刻,时刻要回 runs.list
+ * 历史行查;窗口(20 条)外查不到 = null → 卡面显「—」,不虚构。
+ */
+export function buildSourceHealthCards(doctor: DoctorResult, runs: DashboardRun[]): SourceHealthCardModel[] {
+  const startedAtByRunId = new Map(runs.map((run) => [run.runId, run.startedAt] as const));
+  const cards: SourceHealthCardModel[] = [];
+  for (const plugin of doctor.plugins) {
+    for (const source of plugin.sources) {
+      const latest = source.health.latest;
+      cards.push({
+        key: `${plugin.file}#${source.name}`,
+        name: source.name,
+        pluginName: plugin.name ?? plugin.file,
+        state: source.health.state,
+        reason: source.health.reason,
+        engine: source.engine,
+        lastObservedAt: latest ? (startedAtByRunId.get(Number(latest.run_id)) ?? null) : null,
+        latestItemCount: latest && typeof latest.item_count === "number" ? latest.item_count : null,
+      });
+    }
+  }
+  return cards.sort((a, b) => SOURCE_STATE_RANK[a.state] - SOURCE_STATE_RANK[b.state]);
+}
+
+/** 相对时间:刚刚 / N 分钟前 / N 小时前 / N 天前;超 7 天或无效 = 原文/—(本屏私有,语义与 feed/api 同源) */
+export function formatRelativeTime(iso: string | null, now: Date = new Date()): string {
+  if (!iso) return "—";
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return iso;
+  const minutes = Math.floor((now.getTime() - then.getTime()) / 60_000);
+  if (minutes < 1) return "刚刚";
+  if (minutes < 60) return `${minutes} 分钟前`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} 小时前`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} 天前`;
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return (
+    `${then.getFullYear()}-${pad(then.getMonth() + 1)}-${pad(then.getDate())} ` +
+    `${pad(then.getHours())}:${pad(then.getMinutes())}`
+  );
+}
+

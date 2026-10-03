@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 /**
  * 仪表盘组件测试 —— mock sidecar(vi.mock "@/lib/api" 的 api 门面,
- * doctor / runs.list / run.status 返回夹具;错误用真实 SidecarRequestError 注入)。
- * 覆盖:品类状态卡(含载入失败) / 源健康度四态汇总 / 近期 run 成功率
- * (runs.list 历史行 + run.status 活跃叠加,C3)/ 错误与空态。
+ * doctor / runs.list / run.status / store.trend 返回夹具;错误用真实
+ * SidecarRequestError 注入)。覆盖:概览条(D4 四格)/ 采集量趋势(Select
+ * 时间范围 + 自绘 sparkline,窗口切换重查)/ 源健康度卡网格(四态 + 坏者
+ * 优先 + 相对时间锚)/ 品类状态卡(含载入失败)/ 源健康度四态计数 /
+ * 近期 run 成功率(runs.list 历史行 + run.status 活跃叠加,C3)/ 错误与空态。
  */
 import { cleanup, fireEvent, render, screen, waitFor, act } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { SidecarRequestError } from "@/lib/api";
 import type { DoctorResult, RunEntry, RunRecord, SourceHealthState } from "@/lib/api";
@@ -43,13 +45,17 @@ import { DashboardScreen } from "./dashboard-screen";
 // 夹具(形状严格对齐 types.ts:DoctorResult / RunEntry)
 // ---------------------------------------------------------------------------
 
-function fixtureSource(name: string, state: SourceHealthState) {
+function fixtureSource(
+  name: string,
+  state: SourceHealthState,
+  latest: DoctorResult["plugins"][number]["sources"][number]["health"]["latest"] = null,
+) {
   return {
     name,
     url: `https://example.com/${name}`,
     engine: "static_html",
     engine_hint: null,
-    health: { state, reason: state === "dead" ? "连续无产出" : "", observed: 5, latest: null, baseline: 2 },
+    health: { state, reason: state === "dead" ? "连续无产出" : "", observed: 5, latest, baseline: 2 },
     fingerprint_skips: { observed: 0, skipped: 0 },
   };
 }
@@ -158,6 +164,13 @@ afterEach(() => {
   nextRunId = 0;
 });
 
+// Radix Select 2.x 在 jsdom 里开下拉需要的指针捕获/滚动桩(趋势时间范围切换用例)
+beforeAll(() => {
+  window.HTMLElement.prototype.hasPointerCapture = () => false;
+  window.HTMLElement.prototype.releasePointerCapture = () => {};
+  window.HTMLElement.prototype.scrollIntoView = () => {};
+});
+
 // ---------------------------------------------------------------------------
 // 用例
 // ---------------------------------------------------------------------------
@@ -192,7 +205,7 @@ describe("DashboardScreen", () => {
     );
     render(<DashboardScreen />);
 
-    await screen.findByText("科技资讯");
+    await screen.findByTestId("category-tech.yaml");
     expect(screen.getByText("坏品类")).toBeTruthy();
     const healthy = screen.getByTestId("category-tech.yaml");
     expect(healthy.textContent).toContain("正常");
@@ -223,7 +236,7 @@ describe("DashboardScreen", () => {
     );
     render(<DashboardScreen />);
 
-    await screen.findByText("科技资讯");
+    await screen.findByTestId("category-tech.yaml");
     expect(screen.getByTestId("health-ok").textContent).toContain("2");
     expect(screen.getByTestId("health-degraded").textContent).toContain("1");
     expect(screen.getByTestId("health-dead").textContent).toContain("1");
@@ -245,7 +258,7 @@ describe("DashboardScreen", () => {
     );
     render(<DashboardScreen />);
 
-    await screen.findByText("科技资讯");
+    await screen.findByTestId("category-tech.yaml");
     expect(screen.getByTestId("run-success-rate").textContent).toBe("80%");
     expect(screen.getByTestId("run-success-rate").parentElement?.textContent).toContain("8/10 次成功");
     expect(screen.getByTestId("run-success-rate").parentElement?.textContent).toContain("1 个运行中");
@@ -265,7 +278,7 @@ describe("DashboardScreen", () => {
     );
     render(<DashboardScreen />);
 
-    await screen.findByText("科技资讯");
+    await screen.findByTestId("category-tech.yaml");
     expect(screen.getByTestId("run-success-rate").textContent).toBe("50%");
     expect(screen.getByTestId(`recent-run-${nextRunId}`).textContent).toContain("已取消");
   });
@@ -300,13 +313,146 @@ describe("DashboardScreen", () => {
   it("刷新按钮重新拉取 doctor + run.status", async () => {
     mockSidecar(Promise.resolve(fixtureDoctor()), Promise.resolve({ runs: [] }));
     render(<DashboardScreen />);
-    await screen.findByText("科技资讯");
+    await screen.findByTestId("category-tech.yaml");
     expect(doctorMock).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "刷新" }));
-    await screen.findByText("科技资讯");
+    await screen.findByTestId("category-tech.yaml");
     expect(doctorMock).toHaveBeenCalledTimes(2);
     expect(runStatusMock).toHaveBeenCalledTimes(2);
+  });
+
+  // -------------------------------------------------------------------------
+  // D4/D5(10-03-ui-deep-imitation):概览条 / 趋势 sparkline / 源健康卡网格
+  // (对照 teardown-vercel-dashboard #2/#3/#4/#6)
+  // -------------------------------------------------------------------------
+
+  it("概览条(D4):今日采集=trend 右端 / 活跃源=ok+degraded / 推送成功=今日 run 的 push ok / 告警=findings", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    mockSidecar(
+      Promise.resolve(
+        fixtureDoctor({
+          plugins: [
+            fixturePlugin({
+              sources: [
+                fixtureSource("a", "ok"),
+                fixtureSource("b", "degraded"),
+                fixtureSource("c", "dead"),
+                fixtureSource("d", "unknown"),
+              ],
+            }),
+          ],
+          findings: [
+            { severity: "error", scope: "plugin:tech.yaml", code: "credentials", message: "缺凭据" },
+            { severity: "warning", scope: "plugin:tech.yaml", code: "env_ref_missing", message: "缺环境变量" },
+          ],
+        }),
+      ),
+      Promise.resolve({
+        runs: [
+          fixtureHistoryRun({
+            started_at: `${today}T08:00:00+00:00`,
+            stats: {
+              items_retained: 5,
+              push: [
+                { channel: "tg", ok: true },
+                { channel: "feishu", ok: false },
+                { channel: "mail", ok: true },
+              ],
+            },
+          }),
+        ],
+      }),
+    );
+    storeTrendMock.mockResolvedValue({ days: [{ date: today, count: 5 }] });
+    render(<DashboardScreen />);
+
+    await screen.findByTestId("category-tech.yaml");
+    await waitFor(() => expect(screen.getByTestId("stat-today-items").textContent).toContain("5"));
+    expect(screen.getByTestId("stat-active-sources").textContent).toContain("2"); // ok+degraded
+    expect(screen.getByTestId("stat-active-sources").textContent).toContain("共 4 源");
+    expect(screen.getByTestId("stat-push-success").textContent).toContain("2"); // 2 次 ok 推送
+    expect(screen.getByTestId("stat-alerts").textContent).toContain("2"); // error+warning 各一
+    expect(screen.getByTestId("dashboard-overview")).toBeTruthy();
+  });
+
+  it("趋势(D4/D5):sparkline 画补零等长窗口(默认 14 点),Select 切 7 天重查 store.trend", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    mockSidecar(Promise.resolve(fixtureDoctor()), Promise.resolve({ runs: [] }));
+    storeTrendMock.mockResolvedValue({ days: [{ date: today, count: 3 }] });
+    render(<DashboardScreen />);
+
+    const spark = await screen.findByTestId("dashboard-sparkline");
+    const polyline = spark.querySelector("polyline");
+    expect(polyline).toBeTruthy();
+    expect(polyline?.getAttribute("points")?.trim().split(/\s+/)).toHaveLength(14); // 补零 = 等长序列
+    expect(screen.getByTestId("trend-total").textContent).toContain("共 3 条");
+    expect(storeTrendMock).toHaveBeenCalledWith({ days: 14 }); // 默认窗口
+
+    // Select 时间范围切换(teardown #6):Radix 下拉仅对 mouse 型 pointerDown 开
+    // (react-select dist index.mjs:214 的 pointerType==="mouse" 门)→ 显式带 pointerType
+    fireEvent.pointerDown(screen.getByRole("combobox", { name: "趋势时间范围" }), {
+      button: 0,
+      ctrlKey: false,
+      pointerType: "mouse",
+    });
+    const option = await screen.findByRole("option", { name: "7 天" });
+    fireEvent.click(option);
+    await waitFor(() => expect(storeTrendMock).toHaveBeenCalledWith({ days: 7 }));
+  });
+
+  it("趋势独立降级:store.trend 拒绝 → 趋势卡显错、概览今日格如实 —,doctor 区块照常", async () => {
+    mockSidecar(Promise.resolve(fixtureDoctor()), Promise.resolve({ runs: [] }));
+    storeTrendMock.mockRejectedValue(
+      new SidecarRequestError({ code: "db_locked", path: "$", message: "数据库被锁" }),
+    );
+    render(<DashboardScreen />);
+
+    const trendError = await screen.findByTestId("dashboard-trend-error");
+    expect(trendError.textContent).toContain("db_locked");
+    await waitFor(() => expect(screen.getByTestId("stat-today-items").textContent).toContain("—"));
+    expect(screen.getByTestId("category-tech.yaml")).toBeTruthy();
+  });
+
+  it("源健康度卡网格(D4):四态卡 + 坏者(dead)排前 + 观测时间锚回 runs.list + 无观测显 —", async () => {
+    // 90 分钟前启动的 run(留 ~30 分钟余量,相对时间稳定落「1 小时前」)
+    const observedRunStarted = new Date(Date.now() - 90 * 60_000).toISOString();
+    const observedRun = fixtureHistoryRun({
+      started_at: observedRunStarted,
+      finished_at: new Date().toISOString(),
+    });
+    const plugin = fixturePlugin({
+      sources: [
+        fixtureSource("hn", "ok", {
+          run_id: observedRun.run_id,
+          run_status: "success",
+          item_count: 5,
+          skip_reason: null,
+          failed: false,
+        }),
+        fixtureSource("deadone", "dead"),
+        fixtureSource("fresh", "unknown"),
+      ],
+    });
+    mockSidecar(
+      Promise.resolve(fixtureDoctor({ plugins: [plugin] })),
+      Promise.resolve({ runs: [observedRun] }),
+    );
+    render(<DashboardScreen />);
+
+    const okCard = await screen.findByTestId("source-card-tech.yaml#hn");
+    expect(okCard.textContent).toContain("正常");
+    expect(okCard.textContent).toContain("1 小时前"); // latest.run_id → runs.list startedAt
+    expect(okCard.textContent).toContain("最近 5 条");
+    expect(screen.getByTestId("source-health-grid")).toBeTruthy();
+
+    // 坏者优先:dead 卡排在 ok 卡之前(buildSourceHealthCards 状态序)
+    const deadCard = screen.getByTestId("source-card-tech.yaml#deadone");
+    expect(deadCard.textContent).toContain("失效");
+    expect(deadCard.compareDocumentPosition(okCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // 无观测(latest=null)→ 相对时间如实 —
+    expect(screen.getByTestId("source-card-tech.yaml#fresh").textContent).toContain("—");
   });
 
   // -------------------------------------------------------------------------
@@ -324,7 +470,7 @@ describe("DashboardScreen", () => {
       return Promise.resolve(() => {});
     });
     render(<DashboardScreen />);
-    await screen.findByText("科技资讯");
+    await screen.findByTestId("category-tech.yaml");
 
     const runOnce = screen.getByRole("button", { name: "跑一次:科技资讯" });
     fireEvent.click(runOnce);
@@ -349,7 +495,7 @@ describe("DashboardScreen", () => {
     );
     onSidecarEventMock.mockResolvedValue(() => {});
     render(<DashboardScreen />);
-    await screen.findByText("科技资讯");
+    await screen.findByTestId("category-tech.yaml");
 
     fireEvent.click(screen.getByRole("button", { name: "跑一次:科技资讯" }));
     const errorLine = await screen.findByTestId("run-once-error-tech.yaml");

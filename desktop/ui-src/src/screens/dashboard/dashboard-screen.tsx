@@ -6,29 +6,43 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, onSidecarEvent, SidecarRequestError } from "@/lib/api";
-import type { UnlistenFn } from "@/lib/api";
+import type { SourceHealthState, UnlistenFn } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 import {
   buildCategoryCards,
+  buildOverviewStats,
+  buildSourceHealthCards,
+  fetchTrendWindow,
   formatDuration,
+  formatRelativeTime,
   formatSuccessRate,
   loadDashboardData,
   runItemCount,
   summarizeRuns,
   summarizeSourceHealth,
+  TREND_WINDOW_DAYS,
+  TREND_WINDOW_DEFAULT,
+  trendCounts,
+  utcToday,
 } from "./api";
 import type {
   CategoryCardModel,
   CategoryTone,
   DashboardData,
   DashboardRun,
+  OverviewStats,
   RunSuccessSummary,
+  SourceHealthCardModel,
   SourceHealthCounts,
+  TrendDay,
+  TrendWindowDays,
 } from "./api";
 import { FeedbackStatsCard } from "./feedback-stats-card";
-import { TrendCard } from "./trend-card";
+import { Sparkline } from "./sparkline";
 
 /** 品类 tone → 徽标(健康度四态语义沿用共享 Badge:ok/warning/destructive) */
 const TONE_BADGE: Record<CategoryTone, { variant: "ok" | "warning" | "destructive"; label: string }> = {
@@ -36,6 +50,32 @@ const TONE_BADGE: Record<CategoryTone, { variant: "ok" | "warning" | "destructiv
   warning: { variant: "warning", label: "降级" },
   dead: { variant: "destructive", label: "异常" },
 };
+
+/**
+ * 状态点(teardown-vercel-dashboard #3:8px 圆点+13px 标签,四色映射
+ * Ready/Error/Building/Queued → ok/dead/warning/unknown;色走 D2 语义 token
+ * bg-ok/warning/dead/unknown,与源管理 HealthBadge 同一色源)。
+ */
+const SOURCE_STATE: Record<SourceHealthState, { dot: string; label: string }> = {
+  ok: { dot: "bg-ok", label: "正常" },
+  degraded: { dot: "bg-warning", label: "退化" },
+  dead: { dot: "bg-dead", label: "失效" },
+  unknown: { dot: "bg-unknown", label: "未知" },
+};
+
+function StatusDot({ state, reason }: { state: SourceHealthState; reason?: string }) {
+  const health = SOURCE_STATE[state];
+  return (
+    <span
+      data-health={state}
+      title={reason}
+      className="inline-flex items-center gap-1.5 text-sm text-foreground"
+    >
+      <span aria-hidden className={cn("size-2 shrink-0 rounded-full", health.dot)} />
+      {health.label}
+    </span>
+  );
+}
 
 /** run 状态 → 徽标(runs 表 status 语义;active = 当前会话进行中,C3) */
 function runStatusBadge(run: DashboardRun) {
@@ -177,32 +217,83 @@ function RecentRunRow({ run }: { run: DashboardRun }) {
   );
 }
 
-function HealthRow({
+/**
+ * 概览条格(teardown-vercel-dashboard #2:小标签 = 大写+弱色,大数字 = tnum
+ * 全局已开;value=null 显 — 不虚构)。note = 弱注记(口径说明)。
+ */
+function StatCell({
   label,
-  count,
-  variant,
+  value,
+  note,
+  destructive = false,
+  testid,
 }: {
   label: string;
-  count: number;
-  variant: "ok" | "warning" | "destructive" | "unknown";
+  value: number | string | null;
+  note: string;
+  destructive?: boolean;
+  testid: string;
 }) {
   return (
-    <div data-testid={`health-${label}`} className="flex items-center justify-between">
-      <Badge variant={variant}>{label}</Badge>
-      <span className="font-mono text-xs text-foreground">{count}</span>
+    <div data-testid={testid} className="flex flex-col gap-1 md:px-6 md:first:pl-0">
+      <p className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p
+        className={cn(
+          "text-2xl font-semibold tabular-nums",
+          destructive ? "text-destructive" : "text-foreground",
+        )}
+      >
+        {value === null ? "—" : value}
+      </p>
+      <p className="text-2xs text-muted-foreground">{note}</p>
     </div>
   );
 }
 
 /**
- * 仪表盘:品类状态卡 / 源健康度汇总 / 近期 run 成功率。
- * 数据 = doctor + runs.list 历史行 + run.status 活跃叠加(见 ./api;C3:
- * 重启 .app 后历史 run 仍可达)。加载/错误/空态三态齐备。
+ * 源健康卡(teardown-vercel-dashboard #4:名称 14 medium + muted 次行 + 相对
+ * 时间 muted 右置;状态点居首行左 = Vercel 项目卡「状态点+词 → 名称 → 次行
+ * → 相对时间」层级)。
+ */
+function SourceCard({ card }: { card: SourceHealthCardModel }) {
+  return (
+    <div
+      data-testid={`source-card-${card.key}`}
+      className="flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-4"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <StatusDot state={card.state} reason={card.reason} />
+        <span className="font-mono text-xs text-muted-foreground">
+          {formatRelativeTime(card.lastObservedAt)}
+        </span>
+      </div>
+      <p className="truncate text-base font-medium text-foreground" title={`${card.name} · ${card.engine}`}>
+        {card.name}
+      </p>
+      <p className="truncate text-xs text-muted-foreground">
+        {card.pluginName}
+        {card.latestItemCount !== null ? ` · 最近 ${card.latestItemCount} 条` : ""}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * 仪表盘(结构性重做,10-03-ui-deep-imitation D4;对标 teardown-vercel-dashboard):
+ * 概览条(今日采集/活跃源/推送成功/告警)→ 采集量趋势(Select 时间范围 + 自绘
+ * SVG sparkline,D5 决议⑥零依赖;活跃 run 时末点呼吸)+ 品类状态 → 源健康度
+ * 卡网格(StatusDot 四色 + 相对时间,gap-6)→ 近期 run 成功率 + 反馈统计。
+ * 数据 = doctor + runs.list + run.status + store.trend(见 ./api;C3:重启 .app
+ * 后历史 run 仍可达)。加载/错误/空态三态齐备;趋势独立降级不拖垮整屏。
  */
 export function DashboardScreen() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<SidecarRequestError | null>(null);
   const [loading, setLoading] = useState(true);
+  const [windowDays, setWindowDays] = useState<TrendWindowDays>(TREND_WINDOW_DEFAULT);
+  const [trend, setTrend] = useState<TrendDay[] | null>(null);
+  const [trendError, setTrendError] = useState<SidecarRequestError | null>(null);
+  const [trendLoading, setTrendLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -220,21 +311,58 @@ export function DashboardScreen() {
     }
   }, []);
 
+  const refreshTrend = useCallback(async (days: TrendWindowDays) => {
+    setTrendLoading(true);
+    setTrendError(null);
+    try {
+      setTrend(await fetchTrendWindow(days));
+    } catch (err) {
+      setTrendError(
+        err instanceof SidecarRequestError
+          ? err
+          : new SidecarRequestError({ code: "transport_error", path: "$", message: String(err) }),
+      );
+    } finally {
+      setTrendLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    void refreshTrend(windowDays);
+  }, [refreshTrend, windowDays]);
+
   const healthCounts: SourceHealthCounts | null = data ? summarizeSourceHealth(data.doctor) : null;
   const runSummary: RunSuccessSummary | null = data ? summarizeRuns(data.runs) : null;
   const categories: CategoryCardModel[] = data ? buildCategoryCards(data.doctor) : [];
+  const sourceCards: SourceHealthCardModel[] = data ? buildSourceHealthCards(data.doctor, data.runs) : [];
+  const overview: OverviewStats | null = data
+    ? buildOverviewStats(data.doctor, data.runs, trend, utcToday())
+    : null;
+
+  const counts = trend ? trendCounts(trend) : [];
+  const trendTotal = counts.reduce((sum, count) => sum + count, 0);
+  const trendPeak = counts.reduce((max, count) => Math.max(max, count), 0);
+  const collecting = runSummary !== null && runSummary.running > 0;
 
   return (
-    <div data-testid="dashboard-screen-root" className="flex flex-col gap-4 pb-6">
+    <div data-testid="dashboard-screen-root" className="flex flex-col gap-6 pb-6">
       <PageHeader
         title="仪表盘"
-        description="品类运行状态、源健康度(ok / degraded / dead)与近期 run 成功率"
+        description="概览条 / 采集量趋势 / 源健康度 / 品类与近期 run"
         actions={
-          <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void refresh();
+              void refreshTrend(windowDays);
+            }}
+            disabled={loading}
+          >
             <RefreshCw className={loading ? "size-3.5 animate-spin" : "size-3.5"} />
             刷新
           </Button>
@@ -254,7 +382,113 @@ export function DashboardScreen() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 px-6 md:grid-cols-3">
+      {/* 概览条(D4;teardown #2:一行四格,大写小标签 + 大数字 tnum;趋势不可达时今日格如实显 —) */}
+      <section data-testid="dashboard-overview" aria-label="今日概览" className="px-6">
+        <Card>
+          <CardContent className="py-5">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-4 md:gap-x-0 md:divide-x md:divide-border/60">
+              {loading && overview === null ? (
+                [0, 1, 2, 3].map((index) => (
+                  <div key={index} className="flex flex-col gap-2 md:px-6 md:first:pl-0">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-8 w-12" />
+                  </div>
+                ))
+              ) : overview === null ? null : (
+                <>
+                  <StatCell
+                    testid="stat-today-items"
+                    label="今日采集"
+                    value={overview.todayItems}
+                    note="UTC 日口径 · items 入库"
+                  />
+                  <StatCell
+                    testid="stat-active-sources"
+                    label="活跃源"
+                    value={overview.activeSources}
+                    note={`共 ${overview.totalSources} 源 · ok+degraded`}
+                  />
+                  <StatCell
+                    testid="stat-push-success"
+                    label="推送成功"
+                    value={overview.pushOkToday}
+                    note="今日(UTC)run 的 ok 推送"
+                  />
+                  <StatCell
+                    testid="stat-alerts"
+                    label="告警"
+                    value={overview.alerts}
+                    note="doctor error+warning 发现"
+                    destructive={overview.alerts > 0}
+                  />
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <div className="grid grid-cols-1 gap-6 px-6 md:grid-cols-3">
+        {/* 采集量趋势(teardown #6:Select 时间范围 + 自绘 sparkline;building 态末点呼吸) */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="size-3.5 text-muted-foreground" />
+                采集量趋势
+                {collecting ? (
+                  <Badge variant="default" className="animate-pulse">
+                    采集中
+                  </Badge>
+                ) : null}
+              </CardTitle>
+              <Select
+                value={String(windowDays)}
+                onValueChange={(value) => setWindowDays(Number(value) as TrendWindowDays)}
+              >
+                <SelectTrigger size="sm" className="h-6 text-xs" aria-label="趋势时间范围">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TREND_WINDOW_DAYS.map((option) => (
+                    <SelectItem key={option} value={String(option)}>
+                      {option} 天
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <CardDescription>每日入库条目数(UTC 逐日;时间范围切换即时重查)</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {trendLoading && trend === null ? (
+              <>
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-3 w-2/3" />
+              </>
+            ) : trendError ? (
+              <p className="text-xs text-destructive" data-testid="dashboard-trend-error">
+                趋势不可用({trendError.code}):{trendError.message}
+              </p>
+            ) : (
+              <>
+                <Sparkline
+                  values={counts}
+                  data-testid="dashboard-sparkline"
+                  pulse={collecting}
+                  aria-label={`近 ${windowDays} 天采集量 sparkline,共 ${trendTotal} 条,峰值 ${trendPeak} 条`}
+                />
+                <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span data-testid="trend-total">
+                    近 {windowDays} 天共 {trendTotal} 条 · 峰值 {trendPeak} 条/日
+                  </span>
+                  <Badge variant="outline">UTC 逐日</Badge>
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         {/* 品类状态 */}
         <Card>
           <CardHeader>
@@ -283,43 +517,62 @@ export function DashboardScreen() {
             )}
           </CardContent>
         </Card>
+      </div>
 
-        {/* 源健康度汇总 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <HeartPulse className="size-3.5 text-muted-foreground" />
-              源健康度
-            </CardTitle>
-            <CardDescription>ok / degraded / dead / unknown 四态分布</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            {loading && !data ? (
-              <>
-                <Skeleton className="h-3 w-3/4" />
-                <Skeleton className="h-3 w-3/4" />
-                <Skeleton className="h-3 w-3/4" />
-              </>
-            ) : healthCounts === null ? null : (
-              <>
-                <HealthRow label="ok" count={healthCounts.ok} variant="ok" />
-                <HealthRow label="degraded" count={healthCounts.degraded} variant="warning" />
-                <HealthRow label="dead" count={healthCounts.dead} variant="destructive" />
-                <HealthRow label="unknown" count={healthCounts.unknown} variant="unknown" />
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  共 {healthCounts.ok + healthCounts.degraded + healthCounts.dead + healthCounts.unknown} 个源
-                  {data?.doctor.healthy ? " · 诊断健康" : " · 存在 error 级发现,建议跑一次诊断"}
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+      {/* 源健康度卡网格(D4;teardown #3/#4:四态点 + 14 medium 名称 + muted 次行 + 相对时间;gap-6) */}
+      <section aria-label="源健康度" className="flex flex-col gap-3 px-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <HeartPulse className="size-3.5 text-muted-foreground" />
+            <h2 className="text-sm font-medium text-foreground">源健康度</h2>
+            <span className="text-xs text-muted-foreground">
+              {sourceCards.length} 个源 · 坏者(dead → degraded → unknown)靠前
+            </span>
+          </div>
+          {healthCounts === null ? null : (
+            <div className="flex items-center gap-3">
+              {(Object.keys(SOURCE_STATE) as SourceHealthState[]).map((state) => (
+                <span
+                  key={state}
+                  data-testid={`health-${state}`}
+                  title={`${SOURCE_STATE[state].label} ${healthCounts[state]}`}
+                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+                >
+                  <span aria-hidden className={cn("size-2 rounded-full", SOURCE_STATE[state].dot)} />
+                  {healthCounts[state]}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div
+          data-testid="source-health-grid"
+          className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        >
+          {loading && !data ? (
+            [0, 1, 2, 3].map((index) => (
+              <Skeleton key={index} className="h-28 w-full" />
+            ))
+          ) : sourceCards.length === 0 ? (
+            <div className="col-span-full">
+              <EmptyState
+                compact
+                title="暂无源"
+                description="已载品类下的采集源会在此按健康度展示;先到「源管理」确认品类与源配置"
+              />
+            </div>
+          ) : (
+            sourceCards.map((card) => <SourceCard key={card.key} card={card} />)
+          )}
+        </div>
+      </section>
 
+      <div className="grid grid-cols-1 gap-6 px-6 md:grid-cols-3">
         {/* 近期 run 成功率 */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="size-3.5 text-muted-foreground" />
+              <Activity className="size-3.5 text-muted-foreground" />
               近期 run 成功率
             </CardTitle>
             <CardDescription>最近 {runSummary?.total ?? 0} 次采集的完成与成功分布</CardDescription>
@@ -355,9 +608,6 @@ export function DashboardScreen() {
             )}
           </CardContent>
         </Card>
-
-        {/* 采集量趋势(B4,10-03-v112-desktop-parity;store.trend UTC 逐日) */}
-        <TrendCard />
 
         {/* 反馈统计(B2,10-03-v112-desktop-parity;feedback.stats 好/坏 + Top 类目) */}
         <FeedbackStatsCard />
