@@ -172,15 +172,25 @@ export function eventToRow(event: SidecarEvent, seq: number): LogRow {
       : `▸ 模型下载失败(job #${event.job_id}:${event.error ?? "error"})`;
     return { key: `event:${seq}`, runId: null, stream: "system", text: outcome, ts: event.ts };
   }
+  if (event.type === "image.server.completed") {
+    // server ensure 终态(10-03-vision-v2 复查:ensure 慢路径应答即返,终态走
+    // 本事件):一行系统摘要;徽章翻正在设置屏模型管理卡
+    const outcome = event.ok
+      ? `▸ 本地视觉服务已就绪(job #${event.job_id})`
+      : `▸ 本地视觉服务确保启动失败(job #${event.job_id}:${event.error ?? "error"})`;
+    return { key: `event:${seq}`, runId: null, stream: "system", text: outcome, ts: event.ts };
+  }
   // 穷尽防御:SidecarEvent = log/progress/completed/test.completed +
-  // image.models.progress/completed 六种(10-03-vision-v2 增模型下载域两事件);
+  // image.models.progress/completed + image.server.completed 七种
+  // (10-03-vision-v2 增模型下载域两事件 + server ensure 终态事件);
   // 协议再添类型时此处编译期即报错
   const unknownEvent: never = event;
   return { key: `event:${seq}`, runId: null, stream: "system", text: `▸ 未识别事件(${String(unknownEvent)})`, ts: "" };
 }
 
 // ---------------------------------------------------------------------------
-// 错误行高亮判定:stderr 通道 = 警示;错误关键词 = 错误(红)
+// 行级着色判定:Crawlab 级别着色思路(BSD-3 可直借,licenses.md 实核)——
+// 错误关键词 = 错误(dead);WARNING 级/裸 stderr = 警示;INFO/DEBUG = 正常
 // ---------------------------------------------------------------------------
 
 /** stderr 结构化日志里的进度行(phase 信号源)不算错误,白名单放行 */
@@ -194,6 +204,18 @@ export function isRowError(row: LogRow): boolean {
   return ERROR_PATTERN.test(row.text);
 }
 
+/** 结构化日志级别段(python logging 行「… INFO myia.pipeline: …」同款) */
+const LEVEL_WARN = /(?:^|\s)(?:WARNING|WARN)\b/;
+const LEVEL_INFO = /(?:^|\s)(?:INFO|DEBUG)\b/i;
+
+/**
+ * 警示行:WARNING/WARN 级 → 警示;带 INFO/DEBUG 级标的 stderr 行是正常运行
+ * 日志(本仓采集管线日志全走 stderr),不着警示色;无级标的裸 stderr(非结构
+ * 化诊断直吐)保守按警示。
+ */
 export function isRowWarn(row: LogRow): boolean {
-  return !isRowError(row) && row.stream === "stderr";
+  if (isRowError(row)) return false;
+  if (row.stream !== "stderr") return false;
+  if (LEVEL_WARN.test(row.text)) return true;
+  return !LEVEL_INFO.test(row.text);
 }

@@ -98,6 +98,8 @@ uv pip install --python "$PYBIN" --quiet "pyinstaller>=6.10"
 # onnx 模型是包内数据文件,须连带采集(task 10-03-image-input AC10)。
 # --collect-all openai:VisionClient 同为 importlib 惰性 import(10-03 装机
 # 冒烟:漏收时运行期 image_provider_error「vision 依赖 openai 未安装」)。
+# --collect-all huggingface_hub:vision/models.py 的 snapshot_download/HfApi
+# 同为惰性 import(10-03-vision-v2 模型下载;与手维 spec 等价,见下方 spec 策略注)。
 DATA_SEP=":"
 [[ "$HOST_OS" == "windows" ]] && DATA_SEP=";"
 mkdir -p "$DIST" "$BIN_DIR"
@@ -129,6 +131,7 @@ else
     --collect-all ocrmac \
     --collect-all rapidocr_onnxruntime \
     --collect-all openai \
+    --collect-all huggingface_hub \
     --add-data "$ROOT_DIR/myia-classifier/myia_classifier/data/keywords.json${DATA_SEP}myia_classifier/data" \
     --distpath "$DIST" --workpath "$SPIKE_DIR/build-pyi" \
     --specpath "$SPIKE_DIR" "$SPIKE_DIR/entry.py"

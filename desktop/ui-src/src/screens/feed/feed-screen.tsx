@@ -26,10 +26,12 @@ import type { FeedItem, UnlistenFn } from "@/lib/api";
 import {
   applyFeedFilter,
   appendFeedPage,
+  categoryColor,
   defaultExportName,
   exportFeedView,
   fetchFeedPage,
   formatRelativeTime,
+  groupFeedItems,
   isOpenableUrl,
   itemKey,
   loadFeedStates,
@@ -117,12 +119,17 @@ function formatAbsoluteTime(iso: string | null): string {
 function FeedCard({
   item,
   state,
+  current,
+  onCurrent,
   onMarkRead,
   onToggle,
   onOpenError,
 }: {
   item: FeedItem;
   state: { read?: boolean; starred?: boolean; later?: boolean };
+  /** 键盘「当前卡」(U 快捷键作用目标;hover/focus 进入时置位) */
+  current: boolean;
+  onCurrent: (key: string) => void;
   onMarkRead: (item: FeedItem) => void;
   onToggle: (item: FeedItem, marker: "starred" | "later" | "read") => void;
   onOpenError: (message: string) => void;
@@ -133,74 +140,106 @@ function FeedCard({
   const time = formatRelativeTime(item.first_seen);
   const openable = isOpenableUrl(item.url);
   const rowKey = item.id ?? itemKey(item);
+  const key = itemKey(item);
   const expandable = Boolean(item.content) || hasImageDetails(item);
+  // 品类色(D4):色条与品类徽标同源;无品类 → null(零色件)
+  const color = categoryColor(item.category);
   return (
+    // 三级密度卡(D4):13px 标题/正文、11px 元信息;hover 行背景 accent/50
+    // (teardown-linear-activity #5);品类色条/未读 accent 竖条(#6/D4)。
     <div
-      data-testid={`feed-item-${item.id ?? itemKey(item)}`}
-      className={`rounded-md border px-3 py-2.5 transition-colors ${
+      data-testid={`feed-item-${rowKey}`}
+      data-category={item.category ?? ""}
+      data-unread={state.read ? "false" : "true"}
+      data-current={current ? "true" : "false"}
+      onMouseEnter={() => onCurrent(key)}
+      onFocus={() => onCurrent(key)}
+      className={`group/feed-item relative rounded-md border py-2 pr-3 pl-3.5 transition-colors duration-(--duration-fast) ease-out-expo hover:bg-accent/50 ${
         state.read ? "border-border/50 bg-muted/20" : "border-border bg-card"
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
+      {/* 左缘竖条:未读 = 2px accent(teardown #6);已读 = 品类色 70%(D4 品类色条) */}
+      {(!state.read || color !== null) && (
+        <span
+          aria-hidden
+          data-testid={`feed-strip-${rowKey}`}
+          className={`absolute top-2 bottom-2 left-0 w-0.5 rounded-full ${state.read ? "opacity-70" : "bg-primary"}`}
+          style={state.read && color ? { backgroundColor: color } : undefined}
+        />
+      )}
+
+      <div className="flex items-baseline justify-between gap-2 pr-1">
         <button
           type="button"
-          className="min-w-0 text-left text-sm font-medium text-foreground hover:text-primary"
+          className="min-w-0 truncate text-left text-sm font-medium text-foreground hover:text-primary"
           onClick={() => onMarkRead(item)}
           title={item.url}
         >
-          {!state.read ? <span className="mr-1.5 inline-block size-1.5 rounded-full bg-primary align-middle" /> : null}
           {item.title || item.url}
         </button>
-        <div className="flex shrink-0 items-center gap-0.5">
-          {/* B2:卡片 👍/👎 反馈(channel=desktop,CLI feedback list 可见) */}
-          <FeedCardFeedback item={item} />
-          {openable ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-6"
-              aria-label="打开原文"
-              title={`在浏览器打开:${item.url}`}
-              onClick={() =>
-                void openInBrowser(item.url).catch((err) =>
-                  onOpenError(err instanceof Error ? err.message : String(err)),
-                )
-              }
-            >
-              <ExternalLink className="size-3.5 text-muted-foreground" />
-            </Button>
-          ) : null}
+        {/* 右对齐灰色相对时间(teardown #4);hover 让位给浮现的操作簇(#5) */}
+        <time
+          dateTime={item.first_seen ?? undefined}
+          className="shrink-0 text-2xs text-muted-foreground transition-opacity duration-(--duration-fast) ease-out-expo group-hover/feed-item:opacity-0"
+        >
+          {time}
+        </time>
+      </div>
+
+      {/* hover 浮现操作簇(#5):浮层质感(popover 面+轻阴影);focus-within 保键盘可达 */}
+      <div
+        data-feed-actions
+        className="absolute top-1 right-1.5 flex items-center gap-0.5 rounded-md border border-border/70 bg-popover/95 p-0.5 opacity-0 shadow-popover transition-opacity duration-(--duration-fast) ease-out-expo group-hover/feed-item:opacity-100 focus-within:opacity-100"
+      >
+        {/* B2:卡片 👍/👎 反馈(channel=desktop,CLI feedback list 可见) */}
+        <FeedCardFeedback item={item} />
+        {openable ? (
           <Button
             variant="ghost"
             size="icon"
             className="size-6"
-            aria-pressed={state.starred === true}
-            aria-label="星标"
-            onClick={() => onToggle(item, "starred")}
+            aria-label="打开原文"
+            title={`在浏览器打开:${item.url}`}
+            onClick={() =>
+              void openInBrowser(item.url).catch((err) =>
+                onOpenError(err instanceof Error ? err.message : String(err)),
+              )
+            }
           >
-            <Star className={state.starred ? "size-3.5 fill-warning text-warning" : "size-3.5 text-muted-foreground"} />
+            <ExternalLink className="size-3.5 text-muted-foreground" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-6"
-            aria-pressed={state.later === true}
-            aria-label="稍后读"
-            onClick={() => onToggle(item, "later")}
-          >
-            <Bookmark className={state.later ? "size-3.5 fill-primary text-primary" : "size-3.5 text-muted-foreground"} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-6"
-            aria-pressed={state.read === true}
-            aria-label={state.read ? "标记未读" : "标记已读"}
-            onClick={() => onToggle(item, "read")}
-          >
-            <Inbox className="size-3.5 text-muted-foreground" />
-          </Button>
-        </div>
+        ) : null}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6"
+          aria-pressed={state.starred === true}
+          aria-label="星标"
+          onClick={() => onToggle(item, "starred")}
+        >
+          <Star className={state.starred ? "size-3.5 fill-warning text-warning" : "size-3.5 text-muted-foreground"} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6"
+          aria-pressed={state.later === true}
+          aria-label="稍后读"
+          onClick={() => onToggle(item, "later")}
+        >
+          <Bookmark className={state.later ? "size-3.5 fill-primary text-primary" : "size-3.5 text-muted-foreground"} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6"
+          aria-pressed={state.read === true}
+          aria-label={state.read ? "标记未读" : "标记已读"}
+          title="已读/未读切换(快捷键 U)"
+          onClick={() => onToggle(item, "read")}
+        >
+          <Inbox className="size-3.5 text-muted-foreground" />
+        </Button>
       </div>
 
       <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -220,12 +259,19 @@ function FeedCard({
             )}
           </Button>
         ) : null}
-        <span className="text-[11px] text-muted-foreground">
-          {item.source ?? "未知来源"} · {time}
-        </span>
-        {item.category ? <Badge variant="secondary">{item.category}</Badge> : null}
+        {item.category && color ? (
+          <span
+            className="inline-flex w-fit shrink-0 items-center justify-center rounded-sm border px-1.5 py-0.5 text-2xs font-medium"
+            style={{ color, backgroundColor: `${color}14`, borderColor: `${color}59` }}
+          >
+            {item.category}
+          </span>
+        ) : item.category ? (
+          <Badge variant="secondary">{item.category}</Badge>
+        ) : null}
+        <span className="text-2xs text-muted-foreground">{item.source ?? "未知来源"}</span>
         {item.tags.slice(0, 4).map((tag) => (
-          <Badge key={tag} variant="outline">
+          <Badge key={tag} variant="outline" className="text-2xs">
             {tag}
           </Badge>
         ))}
@@ -240,17 +286,18 @@ function FeedCard({
         expanded ? (
           // 展开态:全文 + 元信息(G2:C9 消号——正文与原文链接都在卡内)
           <div className="mt-1.5" data-testid={`feed-expanded-${item.id ?? itemKey(item)}`}>
-            <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90">
+            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/90">
               {item.content}
             </p>
-            <p className="mt-1.5 text-[11px] text-muted-foreground">
+            <p className="mt-1.5 text-2xs text-muted-foreground">
               首见 {formatAbsoluteTime(item.first_seen)}
               {item.pushed_at ? ` · 已推送 ${formatAbsoluteTime(item.pushed_at)}` : ""}
               {openable ? ` · ${item.url}` : ""}
             </p>
           </div>
         ) : (
-          <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.content}</p>
+          // 收起态摘要:正文 13px(D4 三级密度的正文级)
+          <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{item.content}</p>
         )
       ) : null}
 
@@ -258,7 +305,7 @@ function FeedCard({
         expanded ? (
           // 展开态(10-03-vision-v2):OCR 全文等宽块(保换行,详情态不截断)
           <div className="mt-1.5 flex flex-col gap-1" data-testid={`feed-image-ocr-${rowKey}`}>
-            <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1.5 text-2xs text-muted-foreground">
               <Badge variant="outline" className="shrink-0" title="图析:配图 OCR 文本全文">
                 图
               </Badge>
@@ -270,7 +317,7 @@ function FeedCard({
           </div>
         ) : (
           <p
-            className="mt-1.5 flex items-center gap-1.5 text-xs leading-relaxed text-muted-foreground"
+            className="mt-1.5 flex items-center gap-1.5 text-2xs leading-relaxed text-muted-foreground"
             data-testid={`feed-image-ocr-${rowKey}`}
           >
             <Badge variant="outline" className="shrink-0" title="图析:配图 OCR 文本摘要">
@@ -286,7 +333,7 @@ function FeedCard({
       {expanded && (item.image_ocr_lines?.length ?? 0) > 0 ? (
         // 展开态:OCR 逐行表(文本 + 置信度色阶;conf 0-1 原样,引擎刻度不可互比)
         <div className="mt-1.5 flex flex-col gap-1" data-testid={`feed-image-ocr-lines-${rowKey}`}>
-          <span className="text-[11px] text-muted-foreground">OCR 逐行(置信度)</span>
+          <span className="text-2xs text-muted-foreground">OCR 逐行(置信度)</span>
           <div className="flex flex-col gap-0.5 rounded-md border border-border/60">
             {item.image_ocr_lines?.map((line, index) => (
               <div
@@ -294,7 +341,7 @@ function FeedCard({
                 className="flex items-baseline justify-between gap-2 px-2.5 py-0.5 odd:bg-muted/20"
               >
                 <span className="min-w-0 break-words text-xs leading-relaxed">{line.text}</span>
-                <span className={`shrink-0 font-mono text-[10px] ${ocrConfClass(line.conf)}`}>
+                <span className={`shrink-0 font-mono text-2xs ${ocrConfClass(line.conf)}`}>
                   {(line.conf * 100).toFixed(0)}%
                 </span>
               </div>
@@ -306,8 +353,8 @@ function FeedCard({
       {expanded && item.image_caption ? (
         // 展开态:配图视觉描述全文(metadata.image_caption)
         <div className="mt-1.5 flex flex-col gap-1" data-testid={`feed-image-caption-${rowKey}`}>
-          <span className="text-[11px] text-muted-foreground">配图描述(VL caption)</span>
-          <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90">
+          <span className="text-2xs text-muted-foreground">配图描述(VL caption)</span>
+          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/90">
             {item.image_caption}
           </p>
         </div>
@@ -317,10 +364,10 @@ function FeedCard({
         // 展开态:落图文件路径文本列表(图片本尊显示属 v2.2,先以路径呈现)
         // TODO(v2.2): convertFileSrc 渲染本地图(内容寻址文件,安全 scope 待定)
         <div className="mt-1.5 flex flex-col gap-1" data-testid={`feed-image-files-${rowKey}`}>
-          <span className="text-[11px] text-muted-foreground">图文件 {item.image_files?.length} 张(路径)</span>
+          <span className="text-2xs text-muted-foreground">图文件 {item.image_files?.length} 张(路径)</span>
           <ul className="flex flex-col gap-0.5">
             {item.image_files?.map((path) => (
-              <li key={path} className="break-all font-mono text-[11px] text-muted-foreground">
+              <li key={path} className="break-all font-mono text-2xs text-muted-foreground">
                 {path}
               </li>
             ))}
@@ -332,10 +379,16 @@ function FeedCard({
 }
 
 /**
- * 情报流:条目卡片瀑布 + 未读/星标/稍后读三态(本地态,localStorage 持久)
+ * 情报流:条目卡片列表 + 未读/星标/稍后读三态(本地态,localStorage 持久)
  * + 游标分页加载(见 ./api 的协议缺口注记)+ 服务端搜索(G1,防抖/Enter
  * 提交,query 随游标透传)+ 顶栏品类服务端过滤(C8,Outlet context)+ 卡片
  * 展开/打开原文(G2)+ 导出当前视图(G3,dialog.save → feed.export)。
+ *
+ * D4 结构性重做(10-03-ui-deep-imitation,对标 teardown-linear-activity
+ * #4/#5/#6/#11):三级信息密度(13px 标题/正文 + 11px 元信息)、品类色条、
+ * 分组时间轴(今天/昨天/7 天内/更早,sticky 组头)、hover 浮现操作簇 +
+ * 行背景 accent/50、未读 accent 竖条 + U 快捷键、空/载/错三态按
+ * frontend-ui-engineering(贴形骨架/带重试错误卡/EmptyState)。
  */
 export function FeedScreen() {
   const navigate = useNavigate();
@@ -455,6 +508,32 @@ export function FeedScreen() {
 
   const visible = useMemo(() => applyFeedFilter(items, states, filter), [items, states, filter]);
 
+  /** 分组时间轴(D4):今天/昨天/7 天内/更早;visible 变化即重算 */
+  const groups = useMemo(() => groupFeedItems(visible), [visible]);
+
+  /** 键盘「当前卡」(teardown #6 的 U 快捷键作用目标;hover/focus 进入卡时置位) */
+  const [currentKey, setCurrentKey] = useState<string | null>(null);
+
+  // U = 当前卡已读/未读切换(Linear Inbox 惯例;输入框内敲 u 不触发)
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "u" && event.key !== "U") return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+      ) {
+        return;
+      }
+      if (currentKey === null) return;
+      const item = items.find((candidate) => itemKey(candidate) === currentKey);
+      if (item) toggle(item, "read");
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [currentKey, items, toggle]);
+
   /** G3 导出当前视图:dialog.save → feed.export;回显 path/count(取消 = 静默) */
   const exportCurrentView = useCallback(async () => {
     setExporting(true);
@@ -522,7 +601,7 @@ export function FeedScreen() {
     <div className="flex flex-col gap-4 pb-6">
       <PageHeader
         title="情报流"
-        description="卡片瀑布:未读 / 星标 / 稍后读(本地态,随浏览器存储持久)"
+        description="按时间分组的条目流:未读 / 星标 / 稍后读(本地态,随浏览器存储持久)"
         actions={
           <div className="flex items-center gap-1.5">
             <Button
@@ -613,21 +692,45 @@ export function FeedScreen() {
 
         {error ? (
           <Card data-testid="feed-error">
-            <CardContent className="pt-1">
+            <CardContent className="flex flex-col gap-1.5 pt-1">
               <p className="text-sm font-medium text-destructive">
                 情报流不可用(sidecar 错误码 {error.code})
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">{error.message}</p>
+              <p className="text-xs text-muted-foreground">{error.message}</p>
+              {/* 三态(frontend-ui-engineering):错误态带重试动作 */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={() => void refresh()}
+                disabled={loading}
+              >
+                <RefreshCw className={loading ? "size-3.5 animate-spin" : "size-3.5"} />
+                重试
+              </Button>
             </CardContent>
           </Card>
         ) : null}
 
         {loading && items.length === 0 ? (
-          <>
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </>
+          // 三态(frontend-ui-engineering):骨架块贴新卡三级形状(标题行/元信息行/摘要两行)
+          <div className="flex flex-col gap-1.5" data-testid="feed-loading" aria-busy="true" aria-label="情报流加载中">
+            {[0, 1, 2, 3].map((row) => (
+              <div key={row} className="rounded-md border border-border/50 px-3 py-2">
+                <div className="flex items-center justify-between gap-2 pr-1">
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3 w-14" />
+                </div>
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-3 w-12" />
+                </div>
+                <Skeleton className="mt-1.5 h-4 w-full" />
+                <Skeleton className="mt-1 h-4 w-4/5" />
+              </div>
+            ))}
+          </div>
         ) : visible.length === 0 ? (
           items.length === 0 && searchActive ? (
             <Card data-testid="feed-search-empty">
@@ -695,15 +798,32 @@ export function FeedScreen() {
             </Card>
           )
         ) : (
-          visible.map((item) => (
-            <FeedCard
-              key={itemKey(item)}
-              item={item}
-              state={states[itemKey(item)] ?? {}}
-              onMarkRead={markRead}
-              onToggle={toggle}
-              onOpenError={setOpenError}
-            />
+          // 分组时间轴(D4):sticky 分组头(今天/昨天/7 天内/更早)+ 组内卡片
+          groups.map((group) => (
+            <section key={group.key} aria-label={`时间分组:${group.label}`}>
+              <div
+                data-testid={`feed-group-${group.label}`}
+                className="sticky top-0 z-10 -mx-6 flex items-center gap-2 bg-background/95 px-6 py-1.5 backdrop-blur-sm"
+              >
+                <span className="text-2xs font-medium text-muted-foreground">{group.label}</span>
+                <span className="text-2xs text-muted-foreground/70">{group.items.length} 条</span>
+                <span aria-hidden className="h-px flex-1 bg-border/70" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {group.items.map((item) => (
+                  <FeedCard
+                    key={itemKey(item)}
+                    item={item}
+                    state={states[itemKey(item)] ?? {}}
+                    current={currentKey === itemKey(item)}
+                    onCurrent={setCurrentKey}
+                    onMarkRead={markRead}
+                    onToggle={toggle}
+                    onOpenError={setOpenError}
+                  />
+                ))}
+              </div>
+            </section>
           ))
         )}
 

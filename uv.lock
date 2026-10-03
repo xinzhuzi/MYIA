@@ -3665,6 +3665,7 @@ dependencies = [
 all = [
     { name = "crawl4ai" },
     { name = "firecrawl-py" },
+    { name = "huggingface-hub" },
     { name = "openai" },
     { name = "scrapling" },
     { name = "skyvern" },
@@ -3685,6 +3686,7 @@ skyvern = [
     { name = "skyvern" },
 ]
 vision = [
+    { name = "huggingface-hub" },
     { name = "ocrmac" },
     { name = "openai" },
     { name = "rapidocr-onnxruntime" },
@@ -3704,6 +3706,8 @@ requires-dist = [
     { name = "firecrawl-py", marker = "extra == 'all'" },
     { name = "firecrawl-py", marker = "extra == 'firecrawl'" },
     { name = "httpx", extras = ["socks"], specifier = ">=0.27" },
+    { name = "huggingface-hub", marker = "extra == 'all'", specifier = ">=0.23" },
+    { name = "huggingface-hub", marker = "extra == 'vision'", specifier = ">=0.23" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "keyring", specifier = ">=25" },
     { name = "ocrmac", marker = "extra == 'vision'", specifier = ">=1.0" },

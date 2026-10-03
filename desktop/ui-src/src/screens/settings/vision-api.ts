@@ -8,13 +8,17 @@
  *   image.config.read {}       → {file, exists, config}(config 为脱敏
  *                                VisionConfig;本模块解包返 config)
  *   image.config.save {config} → {ok}(同门校验失败零写入)
- *   image.models.list {}       → {models:[{name,path,bytes,active}]}
+ *   image.models.list {}       → {models:[{name,path,bytes,active,incomplete}]}
  *   image.models.download {repo, name?} → {job_id}(异步,事件见下)
  *   image.models.delete {name} / image.models.activate {name} → {ok}
  *   image.server.status {}     → {running, base_url, model, healthy}
- *   image.server.ensure {}     → status + {started}(健康等待 ≤120s)
+ *   image.server.ensure {}     → 已健康 = status+{started};否则快照超集+
+ *                                {ensuring:true, job_id},终态走事件(见下)
+ *   image.files.purge {days}   → {deleted, bytes_freed}(CLI 面能力,零 UI)
  *   事件 image.models.progress {job_id, repo, done_bytes, total_bytes?, ts} /
- *        image.models.completed {job_id, ok, error?, ts}(经 onSidecarEvent)
+ *        image.models.completed {job_id, ok, error?, ts} /
+ *        image.server.completed {job_id, ok, status?, error?, ts}
+ *        (均经 onSidecarEvent)
  *
  * 惯例与 sources/settings 屏一致:invoke 直连壳命令 `sidecar_request` +
  * asSidecarError 归一化(错误必得 code/path/message)。
@@ -74,13 +78,18 @@ export async function saveImageConfig(config: VisionConfig): Promise<{ ok: true 
 // ---------------------------------------------------------------------------
 // image.models.* / image.server.* 六方法(10-03-vision-v2;沿用本模块 image.*
 // 屏私有封装惯例,invoke 直连 + asSidecarError 归一化):
-//   image.models.list       {}                 → {models:[{name,path,bytes,active}]}
+//   image.models.list       {}                 → {models:[{name,path,bytes,
+//                                                active,incomplete}]}
 //   image.models.download   {repo, name?}      → {job_id}(异步;进度/终态走
-//                                                image.models.progress/completed)
+//                                                image.models.progress/completed;
+//                                                完整同名 model_exists 拒)
 //   image.models.delete     {name}             → {ok}(active 拒删 model_active_refused)
-//   image.models.activate   {name}             → {ok}(vision.yaml local.model 改写)
+//   image.models.activate   {name}             → {ok}(vision.yaml local.model 改写;
+//                                                半成品拒 model_incomplete)
 //   image.server.status     {}                 → {running,base_url,model,healthy}
-//   image.server.ensure     {}                 → status+{started}(同步等健康 ≤120s)
+//   image.server.ensure     {}                 → 已健康=status+{started} 即返;
+//                                                否则 +{ensuring,job_id} 应答即返,
+//                                                终态走 image.server.completed 事件
 // ---------------------------------------------------------------------------
 
 /** 已装模型清单(models/ 一级子目录;空目录 = 合法空表)。 */
@@ -152,8 +161,10 @@ export async function imageServerStatus(): Promise<ImageServerStatusResult> {
   }
 }
 
-/** 确保本地 mlx_vlm.server 在跑:健康即返 started=false,否则 nohup 自起并
- *  等健康(同步应答,最长约 2 分钟 —— Metal JIT 首载慢;UI 须给等待提示)。 */
+/** 确保本地 mlx_vlm.server 在跑。快路径(已健康)应答即终态;慢路径应答
+ *  立即返回 {ensuring:true, job_id}(自起 + 健康等待 ≤120s 跑 sidecar 后台
+ *  线程,绝不冻结桌面协议),终态订阅 image.server.completed 事件;并发
+ *  第二单抛 ensure_busy —— 等待态文案与翻徽章见 VisionModelsCard 服务行。 */
 export async function ensureImageServer(): Promise<ImageServerEnsureResult> {
   try {
     return await invoke<ImageServerEnsureResult>("sidecar_request", {

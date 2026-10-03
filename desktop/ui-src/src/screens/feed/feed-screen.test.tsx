@@ -4,6 +4,9 @@
  * 返回夹具分页;错误用真实 SidecarRequestError 注入)。
  * 覆盖:卡片渲染(标题/来源/分类/score/时间) / 未读·星标·稍后读三态(本地持久)
  * / 游标分页加载与判停 / 结构化错误与空态。
+ * D4 批(10-03-ui-deep-imitation):品类色条与未读 accent 竖条、分组时间轴、
+ * hover 浮现操作簇(accent/50 行背景 + time 让位)、U 快捷键、贴形加载骨架、
+ * 错误态重试;纯函数 groupFeedItems/categoryColor 边界单测。
  */
 import { cleanup, fireEvent, render, screen, waitFor, within, act } from "@testing-library/react";
 import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom";
@@ -13,6 +16,8 @@ import type { CategoryFilterContext } from "@/components/layout/app-layout";
 
 import { SidecarRequestError } from "@/lib/api";
 import type { FeedExportResult, FeedItem, HealthResult, StoreItemsParams, StoreItemsResult } from "@/lib/api";
+
+import { categoryColor, groupFeedItems } from "./api";
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
@@ -587,5 +592,187 @@ describe("FeedScreen", () => {
     expect(lines.textContent).toContain("88%");
     // 无 image_ocr → 摘要行/全文块零渲染
     expect(screen.queryByTestId(`feed-image-ocr-${item.id}`)).toBeNull();
+  });
+
+  // -------------------------------------------------------------------------
+  // D4 批(10-03-ui-deep-imitation):品类色条 / 分组时间轴 / hover 浮现 /
+  // U 快捷键 / 三态(贴形骨架、错误重试);teardown-linear-activity #4/5/6/11
+  // -------------------------------------------------------------------------
+
+  it("D4 品类色条与未读竖条:未读 = accent 竖条,已读 = 品类色(inline),已读无品类零色件", async () => {
+    // jsdom 把 inline 的 #rrggbb 规范化为 rgb() —— 断言前同法换算期望值
+    const asRgb = (hex: string) => {
+      const value = Number.parseInt(hex.slice(1), 16);
+      return `rgb(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255})`;
+    };
+    const unread = fixtureItem({ category: "ai-news" });
+    const read = fixtureItem({ category: "stocks" });
+    const readNoCategory = fixtureItem({ category: null });
+    localStorageStub.setItem(
+      "myia.feed.states.v1",
+      JSON.stringify({
+        [read.dedup_key]: { read: true },
+        [readNoCategory.dedup_key]: { read: true },
+      }),
+    );
+    storeItemsMock.mockResolvedValue(result([unread, read, readNoCategory]));
+    renderScreen();
+    await screen.findByText("条目 1");
+    fireEvent.click(screen.getByRole("button", { name: "过滤:全部" }));
+
+    // 未读卡:data-unread=true,竖条 = accent(bg-primary),无 inline 色
+    const unreadCard = screen.getByTestId(`feed-item-${unread.id}`);
+    expect(unreadCard.getAttribute("data-unread")).toBe("true");
+    const unreadStrip = screen.getByTestId(`feed-strip-${unread.id}`);
+    expect(unreadStrip.className).toContain("bg-primary");
+    expect(unreadStrip.style.backgroundColor).toBe("");
+
+    // 已读卡:竖条 = 品类色(opacity-70 + inline backgroundColor)
+    const readCard = screen.getByTestId(`feed-item-${read.id}`);
+    expect(readCard.getAttribute("data-unread")).toBe("false");
+    const readStrip = screen.getByTestId(`feed-strip-${read.id}`);
+    expect(readStrip.className).toContain("opacity-70");
+    expect(readStrip.style.backgroundColor).toBe(asRgb(categoryColor("stocks") as string));
+
+    // 品类徽标着色同源(色条与徽标一色)
+    const chip = screen.getByText("ai-news");
+    expect(chip.style.color).toBe(asRgb(categoryColor("ai-news") as string));
+
+    // 已读且无品类:零色件(无竖条)
+    expect(screen.queryByTestId(`feed-strip-${readNoCategory.id}`)).toBeNull();
+  });
+
+  it("D4 hover 浮现操作:行背景 accent/50,操作簇 opacity-0→hover 显(focus-within 可达),time 让位", async () => {
+    const item = fixtureItem({ url: "https://example.com/story" });
+    storeItemsMock.mockResolvedValue(result([item]));
+    renderScreen();
+    const card = await screen.findByTestId(`feed-item-${item.id}`);
+
+    // teardown #5:行 hover 背景 = accent/50
+    expect(card.className).toContain("hover:bg-accent/50");
+    // 操作簇:平时 opacity-0,hover/focus-within 显(浮现动效走 token)
+    const actions = card.querySelector("[data-feed-actions]");
+    expect(actions).not.toBeNull();
+    expect(actions?.className).toContain("opacity-0");
+    expect(actions?.className).toContain("group-hover/feed-item:opacity-100");
+    expect(actions?.className).toContain("focus-within:opacity-100");
+    // 操作簇内动作齐全(反馈/原文/星标/稍后读/已读)
+    for (const name of ["好评", "差评", "打开原文", "星标", "稍后读", "标记已读"]) {
+      expect(within(actions as HTMLElement).getByRole("button", { name })).toBeTruthy();
+    }
+    // 右对齐相对时间(teardown #4):独立 time 元素,hover 让位给操作簇
+    const time = card.querySelector("time");
+    expect(time?.className).toContain("text-2xs");
+    expect(time?.className).toContain("group-hover/feed-item:opacity-0");
+    expect(time?.textContent).toContain("刚刚");
+  });
+
+  it("D4 分组时间轴:今日条目落「今天」sticky 组头(计数如实,同组单头)", async () => {
+    const items = [fixtureItem(), fixtureItem()];
+    storeItemsMock.mockResolvedValue(result(items));
+    renderScreen();
+
+    const header = await screen.findByTestId("feed-group-今天");
+    expect(header.textContent).toContain("今天");
+    expect(header.textContent).toContain("2 条");
+    expect(header.className).toContain("sticky");
+    expect(screen.getAllByTestId("feed-group-今天")).toHaveLength(1);
+  });
+
+  it("D4 U 快捷键:hover 进入卡后按 U 切已读(未读过滤下离场);输入框内敲 u 不触发", async () => {
+    const item = fixtureItem();
+    const other = fixtureItem();
+    storeItemsMock.mockResolvedValue(result([item, other]));
+    renderScreen();
+    await screen.findByText("条目 1");
+
+    fireEvent.mouseEnter(screen.getByTestId(`feed-item-${item.id}`));
+    fireEvent.keyDown(window, { key: "u" });
+    // 当前卡转已读 → 默认「未读」过滤下消失;另一卡不受牵连
+    await waitFor(() => expect(screen.queryByTestId(`feed-item-${item.id}`)).toBeNull());
+    expect(screen.getByTestId(`feed-item-${other.id}`).getAttribute("data-current")).toBe("false");
+
+    // 输入框内敲 u:守卫生效(另一张卡不被切已读)
+    const search = screen.getByLabelText("搜索条目");
+    fireEvent.change(search, { target: { value: "u" } });
+    fireEvent.keyDown(search, { key: "u" });
+    expect(screen.getByTestId(`feed-item-${other.id}`).getAttribute("data-unread")).toBe("true");
+  });
+
+  it("D4 加载态:贴形骨架(feed-loading)常驻至首页应答,应答后卸载", async () => {
+    let resolveItems: ((value: StoreItemsResult) => void) | undefined;
+    storeItemsMock.mockImplementation(
+      () => new Promise<StoreItemsResult>((resolve) => {
+        resolveItems = resolve;
+      }),
+    );
+    renderScreen();
+
+    expect(await screen.findByTestId("feed-loading")).toBeTruthy();
+    expect(screen.queryByTestId(/^feed-item-/)).toBeNull();
+    act(() => resolveItems?.(result([fixtureItem()])));
+    await screen.findByTestId("feed-item-1");
+    expect(screen.queryByTestId("feed-loading")).toBeNull();
+  });
+
+  it("D4 错误态:结构化错误卡带重试按钮,点击重发 store.items 并恢复", async () => {
+    storeItemsMock.mockRejectedValueOnce(
+      new SidecarRequestError({ code: "store_corrupt", path: "params.db", message: "库文件损坏" }),
+    );
+    storeItemsMock.mockResolvedValueOnce(result([fixtureItem()]));
+    renderScreen();
+
+    const banner = await screen.findByTestId("feed-error");
+    expect(banner.textContent).toContain("store_corrupt");
+    fireEvent.click(within(banner).getByRole("button", { name: "重试" }));
+    await screen.findByTestId("feed-item-1");
+    expect(screen.queryByTestId("feed-error")).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D4 纯函数(api.ts):groupFeedItems 时间分桶边界 / categoryColor 稳定性
+// ---------------------------------------------------------------------------
+
+describe("feed D4 纯函数(api.ts)", () => {
+  it("groupFeedItems:四桶按 今天/昨天/7天内/更早 边界落位,空桶不出组", () => {
+    const now = new Date(2026, 9, 3, 12, 0); // 2026-10-03 正午(本地时区)
+    const at = (iso: string) => fixtureItem({ first_seen: iso });
+    const items = [
+      at("2026-10-03T10:00:00"), // 今天
+      at("2026-10-03T00:00:00"), // 今天(0 点边界含)
+      at("2026-10-02T23:59:00"), // 昨天
+      at("2026-09-30T10:00:00"), // 7 天内
+      at("2026-09-26T00:00:00"), // 7 天内(7 天窗下边界含)
+      at("2026-09-25T23:59:00"), // 更早
+      at("不是时间"), // 更早(first_seen 无效归更早)
+    ];
+    const groups = groupFeedItems(items, now);
+    expect(groups.map((group) => group.label)).toEqual(["今天", "昨天", "7 天内", "更早"]);
+    expect(groups[0].items).toHaveLength(2);
+    expect(groups[1].items).toHaveLength(1);
+    expect(groups[2].items).toHaveLength(2);
+    expect(groups[3].items).toHaveLength(2);
+  });
+
+  it("groupFeedItems:空桶过滤 + 桶内顺序保持(新→旧原序)", () => {
+    const now = new Date(2026, 9, 3, 12, 0);
+    const a = fixtureItem({ first_seen: "2026-10-03T09:00:00" });
+    const b = fixtureItem({ first_seen: "2026-10-03T08:00:00" });
+    const c = fixtureItem({ first_seen: "2026-09-01T08:00:00" });
+    const groups = groupFeedItems([a, b, c], now);
+    expect(groups.map((group) => group.key)).toEqual(["today", "earlier"]);
+    expect(groups[0].items).toEqual([a, b]);
+    expect(groups[1].items).toEqual([c]);
+  });
+
+  it("categoryColor:同品类恒同色(6 位 hex 色板内),空品类 null", () => {
+    expect(categoryColor(null)).toBeNull();
+    expect(categoryColor(undefined)).toBeNull();
+    for (const category of ["ai-news", "stocks", "news", "wool", "monitor", "tech"]) {
+      const color = categoryColor(category);
+      expect(color).toMatch(/^#[0-9a-f]{6}$/);
+      expect(categoryColor(category)).toBe(color); // 稳定散列:两次调用同色
+    }
   });
 });

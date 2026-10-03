@@ -75,6 +75,7 @@ __all__ = [
     "build_card",
     "build_markdown_card",
     "card_title",
+    "escape_lark_md",
 ]
 
 logger = logging.getLogger(__name__)
@@ -104,6 +105,17 @@ CARD_FOOTER = "MYIA 自动聚合推送 · 条目来自公开论坛分享,注意�
 #: 同款:oc_ 群/私聊、ou_ open_id、on_ union_id、chat_/open_ 原生 id;可选
 #: ``:thread`` 部分只解析不入发送路由)。
 DIRECT_REF_RE = re.compile(r"^((?:oc|ou|on|chat|open)_[-A-Za-z0-9]+)(?::([-A-Za-z0-9_]+))?$")
+
+
+def escape_lark_md(text: str) -> str:
+    """lark_md 特殊字符字面化:``[`` ``]`` ``<`` 前加反斜杠。
+
+    图析摘要(caption)是模型产物,可能携带 ``[链接式](文本)`` / ``<标签>``
+    形态的字符序列 —— 不转义会被飞书解析成残缺链接/标签,摘要被吃掉。
+    只处理这三个字符(lark_md 链接与标签语法的最小封闭集),纯装饰性的
+    ``[配图 N 张未附]`` 注记是本通道自产文本,不经此函数。
+    """
+    return text.replace("[", "\\[").replace("]", "\\]").replace("<", "\\<")
 
 
 def card_title(context: SendContext) -> str:
@@ -300,7 +312,9 @@ class FeishuCardChannel(TrendAwareChannel):
           「图析: …」摘要行 + 「配图 N 张未附」注记,只告警不阻投递。
 
         多图只上 ``paths[0]``;alt/摘要行均截断到
-        :data:`CAPTION_EXCERPT_CHARS`。
+        :data:`CAPTION_EXCERPT_CHARS`;摘要行入 lark_md 前经
+        :func:`escape_lark_md` 字面化(``[``/``]``/``<``),alt 回退 title 时
+        同样截断。
         """
         if context.kind != "immediate" or len(items) != 1:
             return card
@@ -318,7 +332,11 @@ class FeishuCardChannel(TrendAwareChannel):
                 logger.warning("飞书图片上传失败,降级图析摘要卡(不阻推送): %s", exc)
         excerpt = clip_text(info.caption, CAPTION_EXCERPT_CHARS) if info.caption else ""
         if image_key is not None:
-            alt = excerpt or str(item_view(items[0]).get("title") or "")
+            # alt 是 plain_text(零解析),但回退 title 时同样截断到 CAPTION 上限
+            # —— 超长标题会让 alt 失去「一眼可读」的辅助语义。
+            alt = excerpt or clip_text(
+                str(item_view(items[0]).get("title") or ""), CAPTION_EXCERPT_CHARS
+            )
             elements.insert(
                 1,
                 {
@@ -328,7 +346,9 @@ class FeishuCardChannel(TrendAwareChannel):
                 },
             )
             return card
-        lines = [f"　└ 图析: {excerpt}"] if excerpt else []
+        # lark_md 行:caption 是模型产物,[]< 序列先字面化再插入(防飞书
+        # 误解析成链接/标签把摘要吃掉);「配图 N 张未附」是自产注记,原样。
+        lines = [f"　└ 图析: {escape_lark_md(excerpt)}"] if excerpt else []
         lines.append(f"　└ [配图 {info.declared} 张未附]")
         elements.insert(
             1, {"tag": "div", "text": {"tag": "lark_md", "content": "\n".join(lines)}}

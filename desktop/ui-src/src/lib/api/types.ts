@@ -759,6 +759,9 @@ export interface VisionModelEntry {
   bytes: number;
   /** = 目录与 vision.yaml local.model resolve 后全等(当前激活) */
   active: boolean;
+  /** 半成品(缺 config.json 或 *.safetensors):激活被拒 model_incomplete;
+   *  再次 download 同名 = 断点续传补全 */
+  incomplete: boolean;
 }
 
 export interface ImageModelsListResult {
@@ -809,9 +812,28 @@ export interface ImageServerStatusResult {
   healthy: boolean;
 }
 
-/** image.server.ensure 应答 = status + started(started=true = 本次自起) */
+/** image.server.ensure 应答 = status + started;慢路径另带 ensuring/job_id。
+ *  已健康(快路径)= status + {started:false},零后台零事件(冻结契约原样);
+ *  需自起(慢路径)= 快照超集 + {ensuring:true, job_id},应答立即返回,
+ *  自起 + 健康等待(≤120s)跑 sidecar 后台线程,终态走
+ *  ImageServerCompletedEvent 事件;并发第二单 = ensure_busy。 */
 export interface ImageServerEnsureResult extends ImageServerStatusResult {
   started: boolean;
+  /** 慢路径标记:终态经 image.server.completed 事件收口 */
+  ensuring?: boolean;
+  /** 慢路径 job id(image.server.completed 事件同 id) */
+  job_id?: number;
+}
+
+// image.files.purge(10-03-vision-v2 复查:落图零回收的 CLI 面清除口;UI 不做)
+export interface ImageFilesPurgeParams {
+  /** 按文件 mtime 清超龄落图的天数(≥1 整数) */
+  days: number;
+}
+
+export interface ImageFilesPurgeResult {
+  deleted: number;
+  bytes_freed: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -848,6 +870,7 @@ export interface SidecarProtocol {
   "image.models.activate": { params: ImageModelsActivateParams; result: ImageModelsMutationResult };
   "image.server.status": { params: EmptyParams; result: ImageServerStatusResult };
   "image.server.ensure": { params: EmptyParams; result: ImageServerEnsureResult };
+  "image.files.purge": { params: ImageFilesPurgeParams; result: ImageFilesPurgeResult };
 }
 
 export type SidecarMethod = keyof SidecarProtocol;
@@ -918,15 +941,31 @@ export interface ImageModelsCompletedEvent {
   ts: string;
 }
 
+/** 本地 server ensure 终态事件(entry.py `_image_server_ensure_worker`;
+ *  image.server.ensure 慢路径应答后的收口)。ok=true 时 status =
+ * status+{started} 全量;ok=false 时 error = myia.vision.server 错误族
+ * code(no_local_model / spawn_failed / server_start_failed 等)。 */
+export interface ImageServerCompletedEvent {
+  type: "image.server.completed";
+  job_id: number;
+  ok: boolean;
+  status?: ImageServerEnsureResult;
+  error?: string;
+  ts: string;
+}
+
 export type SidecarEvent =
   | LogEvent
   | ProgressEvent
   | CompletedEvent
   | TestCompletedEvent
   | ImageModelsProgressEvent
-  | ImageModelsCompletedEvent;
+  | ImageModelsCompletedEvent
+  | ImageServerCompletedEvent;
 
 // 看图事件流:image.progress / image.completed 已随看图屏拆除
 // (10-03-vision-pipeline 拍板①);10-03-vision-v2 起新增模型下载域两事件
-// (image.models.progress / completed),SidecarEvent = run 域三事件 +
-// test.completed + 模型下载域两事件。
+// (image.models.progress / completed)与 server ensure 终态事件
+// (image.server.completed,ensure 慢路径应答即返、终态走事件),
+// SidecarEvent = run 域三事件 + test.completed + 模型下载域两事件 +
+// server ensure 终态事件。

@@ -16,6 +16,11 @@ tmp_ret = collect_all('rapidocr_onnxruntime')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('openai')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+# collect-all huggingface_hub:vision/models.py 的 snapshot_download/HfApi 同为
+# importlib 惰性 import(10-03-vision-v2,同 openai 先例);1.x 顶层是 _LazyModule
+# 惰性属性映射,静态分析看不见子模块,须整体收编。
+tmp_ret = collect_all('huggingface_hub')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(

@@ -296,6 +296,16 @@ interface DownloadJobState {
   totalBytes: number | null;
 }
 
+/**
+ * 下载 job 的模块级驻留(10-03-vision-v2 复查:remount 断链修复):设置屏
+ * 切页会卸载本卡,而下载 job 跑在 sidecar 侧与卡不同寿 —— jobId 只存组件
+ * state 会随卸载丢失,重挂载后 progress/completed 事件被当陌生 job 滤掉。
+ * 驻留模块级:重挂载即恢复等待态继续吃事件(模块绑定永不陈旧,事件订阅
+ * 直接读写它)。已知缺口:job 在卸载窗口内完成时事件已错过,等待态残留到
+ * 用户再点下载(后端单飞会拒 download_busy,可据错误码收口)。
+ */
+let activeDownloadJob: DownloadJobState | null = null;
+
 /** 字节数 → 人类可读(B/KB/MB/GB/TB;一位小数,百级以上取整) */
 export function formatModelBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return "—";
@@ -311,17 +321,20 @@ export function formatModelBytes(bytes: number): string {
 
 /**
  * 设置 → 看图分区 · 模型管理卡:本地 MLX 视觉模型(MYIA_HOME/models)的
- * 下载(HF snapshot_download,断点续传)/ 删除 / 激活,与本地 mlx_vlm.server
- * 代管状态行。数据面 = image.models.* / image.server.* 六方法 + 下载域两事件
- * (image.models.progress / completed,经 onSidecarEvent 订阅)。
+ * 下载(HF snapshot_download,断点续传;半成品标「未完成(可续传)」)/
+ * 删除 / 激活,与本地 mlx_vlm.server 代管状态行。数据面 = image.models.* /
+ * image.server.* 六方法 + 三事件(image.models.progress / completed 与
+ * image.server.completed,经 onSidecarEvent 订阅;ensure 应答即返,慢路径
+ * 等待期徽章明示、终态事件翻徽章)。
  */
 export function VisionModelsCard() {
   const [models, setModels] = useState<VisionModelEntry[] | null>(null);
   const [listError, setListError] = useState<SidecarRequestError | null>(null);
-  /** 下载表单与 job 态(单飞:后端 download_busy,前端按钮随 job 态禁用) */
+  /** 下载表单与 job 态(单飞:后端 download_busy,前端按钮随 job 态禁用;
+   *  初值取模块级驻留 —— remount 恢复等待态,见 activeDownloadJob 注释) */
   const [repoId, setRepoId] = useState("");
   const [localName, setLocalName] = useState("");
-  const [job, setJob] = useState<DownloadJobState | null>(null);
+  const [job, setJob] = useState<DownloadJobState | null>(activeDownloadJob);
   /** completed ok=false 的结构化 code(前端预校验失败也走这里) */
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<string | null>(null);
@@ -330,14 +343,16 @@ export function VisionModelsCard() {
   const [activating, setActivating] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<SidecarRequestError | null>(null);
   const [activateStatus, setActivateStatus] = useState<string | null>(null);
-  /** 服务行:挂载拉一次 status;ensure 是同步长应答(≤120s) */
+  /** 服务行:挂载拉一次 status;ensure 应答即返,终态吃 image.server.completed */
   const [server, setServer] = useState<ImageServerStatusResult | null>(null);
   const [serverError, setServerError] = useState<SidecarRequestError | null>(null);
   const [ensuring, setEnsuring] = useState(false);
   const [ensureStatus, setEnsureStatus] = useState<string | null>(null);
   const [ensureError, setEnsureError] = useState<SidecarRequestError | null>(null);
+  /** 本会话发起的 ensure 未收 completed(也防 completed 先于应答到的竞态) */
+  const ensurePendingRef = useRef(false);
   /** 订阅期防陈旧闭包:job id 走 ref 过滤(事件只喂本会话发起的 job) */
-  const jobIdRef = useRef<number | null>(null);
+  const jobIdRef = useRef<number | null>(activeDownloadJob?.jobId ?? null);
 
   const refreshModels = useCallback(async () => {
     setListError(null);
@@ -362,7 +377,8 @@ export function VisionModelsCard() {
     void refreshServer();
   }, [refreshModels, refreshServer]);
 
-  // 下载域事件订阅(progress 喂进度;completed 定终态 → 成功刷新清单/失败出 error)。
+  // 下载域 + server ensure 事件订阅(progress 喂进度;completed 定终态 → 成功
+  // 刷新清单/失败出 error;image.server.completed 定 ensure 终态翻服务徽章)。
   // catch:浏览器直开/壳未起时 listen 不可用 —— 进度条退化为提交即等待态,不炸卡。
   useEffect(() => {
     let unlisten: UnlistenFn | null = null;
@@ -370,14 +386,19 @@ export function VisionModelsCard() {
     void onSidecarEvent((event) => {
       if (event.type === "image.models.progress") {
         if (jobIdRef.current !== event.job_id) return;
-        setJob((prev) =>
-          prev && prev.jobId === event.job_id
-            ? { ...prev, doneBytes: event.done_bytes, totalBytes: event.total_bytes ?? prev.totalBytes }
-            : prev,
-        );
+        const current = activeDownloadJob;
+        if (current && current.jobId === event.job_id) {
+          activeDownloadJob = {
+            ...current,
+            doneBytes: event.done_bytes,
+            totalBytes: event.total_bytes ?? current.totalBytes,
+          };
+          setJob(activeDownloadJob);
+        }
       } else if (event.type === "image.models.completed") {
         if (jobIdRef.current !== event.job_id) return;
         jobIdRef.current = null;
+        activeDownloadJob = null;
         if (event.ok) {
           setJob(null);
           setDownloadStatus("模型已下载完成,清单已刷新(可点「设为当前」激活)");
@@ -385,6 +406,26 @@ export function VisionModelsCard() {
         } else {
           setJob(null);
           setDownloadError(event.error ?? "未知错误");
+        }
+      } else if (event.type === "image.server.completed") {
+        // ensure 终态(单飞:同一时刻至多一个 ensure,不滤 job_id;非本会话
+        // 发起的 ensure 由 ensurePendingRef 守门 —— pending 才收)
+        if (!ensurePendingRef.current) return;
+        ensurePendingRef.current = false;
+        setEnsuring(false);
+        if (event.ok && event.status) {
+          setServer(event.status);
+          setEnsureStatus(
+            event.status.started
+              ? `本地 server 已自起并达健康(${event.status.base_url};Metal JIT 首载最长约 2 分钟)`
+              : `本地 server 已在运行(${event.status.base_url}),无需自起`,
+          );
+        } else {
+          setEnsureError(new SidecarRequestError({
+            code: event.error ?? "unknown",
+            path: "$",
+            message: `确保启动失败(${event.error ?? "未知错误"});可稍后重试或查看 vision-server.log`,
+          }));
         }
       }
     })
@@ -417,7 +458,8 @@ export function VisionModelsCard() {
     try {
       const result = await downloadImageModel({ repo, ...(name ? { name } : {}) });
       jobIdRef.current = result.job_id;
-      setJob({ jobId: result.job_id, repo, doneBytes: 0, totalBytes: null });
+      activeDownloadJob = { jobId: result.job_id, repo, doneBytes: 0, totalBytes: null };
+      setJob(activeDownloadJob);
     } catch (raw) {
       const failure = raw instanceof SidecarRequestError ? raw : new SidecarRequestError({ code: "transport_error", path: "$", message: String(raw) });
       setDownloadError(`${failure.code}: ${failure.message}`);
@@ -456,13 +498,26 @@ export function VisionModelsCard() {
     [refreshModels],
   );
 
-  /** ensure 是同步长应答(健康等待 ≤120s):按钮禁用 + 文案明示约 2 分钟 */
+  /** ensure 应答即返:快路径(已健康/旧 sidecar 同步终态)直接收;慢路径
+   *  (ensuring=true)挂等待文案,终态吃 image.server.completed 事件翻徽章
+   *  —— sidecar 侧自起 + 健康等待 ≤120s 跑后台线程,桌面协议不再被冻住。 */
   const handleEnsure = useCallback(async () => {
+    ensurePendingRef.current = true;
     setEnsuring(true);
     setEnsureError(null);
     setEnsureStatus(null);
     try {
       const result = await ensureImageServer();
+      if (result.ensuring) {
+        // 慢路径:completed 可能先于本应答 resolve 到达(竞态)——pending 已
+        // 被事件清掉时不重复置等待文案/等待态
+        if (ensurePendingRef.current) {
+          setEnsureStatus("正在后台自起并等健康(Metal JIT 首载最长约 2 分钟),完成后自动更新…");
+        }
+        return;
+      }
+      ensurePendingRef.current = false;
+      setEnsuring(false);
       setServer(result);
       setEnsureStatus(
         result.started
@@ -470,9 +525,9 @@ export function VisionModelsCard() {
           : `本地 server 已在运行(${result.base_url}),无需自起`,
       );
     } catch (raw) {
-      setEnsureError(raw instanceof SidecarRequestError ? raw : new SidecarRequestError({ code: "transport_error", path: "$", message: String(raw) }));
-    } finally {
+      ensurePendingRef.current = false;
       setEnsuring(false);
+      setEnsureError(raw instanceof SidecarRequestError ? raw : new SidecarRequestError({ code: "transport_error", path: "$", message: String(raw) }));
     }
   }, []);
 
@@ -521,6 +576,11 @@ export function VisionModelsCard() {
                   {model.name}
                 </span>
                 <span className="text-[11px] text-muted-foreground">{formatModelBytes(model.bytes)}</span>
+                {model.incomplete ? (
+                  <Badge variant="warning" data-testid={`vision-model-incomplete-${model.name}`}>
+                    未完成(可续传)
+                  </Badge>
+                ) : null}
                 {model.active ? (
                   <Badge variant="ok">当前</Badge>
                 ) : (
@@ -529,7 +589,12 @@ export function VisionModelsCard() {
                     variant="ghost"
                     className="h-6 px-1.5 text-xs"
                     onClick={() => void handleActivate(model.name)}
-                    disabled={activating !== null}
+                    disabled={activating !== null || model.incomplete}
+                    title={
+                      model.incomplete
+                        ? "未下载完整(后端 model_incomplete 拒激活);再次下载同名可断点续传补全"
+                        : undefined
+                    }
                   >
                     {activating === model.name ? "激活中…" : "设为当前"}
                   </Button>
@@ -580,12 +645,12 @@ export function VisionModelsCard() {
           </p>
         ) : null}
 
-        {/* 下载区:repo_id + 本地名(可选);进度条吃 progress 事件 */}
+        {/* 下载区:repo + 本地名(可选);进度条吃 progress 事件 */}
         <div className="flex flex-col gap-2 border-t border-border/60 pt-3">
           <div className="grid grid-cols-2 gap-2">
             <FieldInput
-              label="repo_id"
-              aria-label="模型 repo_id"
+              label="repo"
+              aria-label="模型 repo"
               placeholder="mlx-community/Qwen2.5-VL-7B-Instruct-4bit"
               value={repoId}
               onChange={(event) => setRepoId(event.target.value)}
@@ -605,7 +670,9 @@ export function VisionModelsCard() {
               <Download className="size-3.5" />
               {job ? "下载中…" : "下载模型"}
             </Button>
-            <span className="text-[11px] text-muted-foreground">磁盘预检不足会在完成事件收口 disk_insufficient</span>
+            <span className="text-[11px] text-muted-foreground">
+              磁盘预检不足收口 disk_insufficient;同名完整模型拒 model_exists(先删或换名),半成品同名续传
+            </span>
           </div>
           {job ? (
             <div className="flex flex-col gap-1" data-testid="vision-download-progress">
@@ -643,11 +710,16 @@ export function VisionModelsCard() {
           ) : null}
         </div>
 
-        {/* 服务行:status 挂载拉一次;ensure 同步等健康(最长约 2 分钟) */}
+        {/* 服务行:status 挂载拉一次;ensure 应答即返(慢路径终态吃
+            image.server.completed 事件翻徽章,等待期徽章明示「确保启动中」) */}
         <div className="flex flex-col gap-2 border-t border-border/60 pt-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground">本地服务</span>
-            {server === null ? (
+            {ensuring ? (
+              <Badge variant="unknown" data-testid="vision-server-badge">
+                确保启动中…
+              </Badge>
+            ) : server === null ? (
               serverError ? (
                 <Badge variant="unknown" data-testid="vision-server-badge">
                   状态未知
@@ -669,7 +741,7 @@ export function VisionModelsCard() {
               </Badge>
             )}
             <Button size="sm" variant="outline" onClick={() => void handleEnsure()} disabled={ensuring}>
-              {ensuring ? "确保启动中…(最长约 2 分钟)" : "确保启动"}
+              {ensuring ? "确保启动中…(后台,最长约 2 分钟)" : "确保启动"}
             </Button>
             <Button size="sm" variant="ghost" aria-label="刷新服务状态" onClick={() => void refreshServer()} disabled={ensuring}>
               刷新
