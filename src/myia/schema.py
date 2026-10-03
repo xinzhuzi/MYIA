@@ -1359,6 +1359,13 @@ class ImagesConfig(_StrictModel):
     #: ``images_detail_max_items`` 覆写 = **该源独立预算**(不吃也不占
     #: 共享池,可低于也可高于品类值)。
     detail_max_items: int = Field(default=DEFAULT_IMAGES_DETAIL_MAX_ITEMS, ge=1, le=50)
+    #: 图片落库开关(10-03-vision-v2,PRD 待拍板②「落图与否」的应用内开关):
+    #: 开 = 通过全部下载关的图持久化到 ``MYIA_HOME/images/<sha16>.<ext>``
+    #: (内容寻址,同图同文件不重复落盘),metadata 增 ``image_files``
+    #: (绝对路径 list)与 ``image_ocr_lines``(逐行 ``{text, conf}``,
+    #: 供 feed 详情展开);缺省 false = 纯文本产物、图文件即弃,行为与
+    #: 落图能力引入前逐字段一致(零影响默认;隐私与体积由用户裁量)。
+    persist: bool = False
 
 
 # ---------------------------------------------------------------------------

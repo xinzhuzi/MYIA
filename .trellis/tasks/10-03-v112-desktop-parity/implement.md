@@ -196,6 +196,50 @@
   C6 随 v1.2 市场 UI 拍板)**;E4/E5 做或裁(裁则理由);PRD C7 验收措辞变更记录
   (D10 方案①)。
 
+### D12 执行记录(2026-10-03 v112 首切片:C1/C2/C3/C5/C7/C13;B2/B3/B4/C10/C12 未施工)
+
+- 版本 bump:开工核得 `PROTOCOL_VERSION` 已为 2(messaging 批合流 bump,adee17d),
+  按 design §1.3 **不二次 bump**,CHANGELOG 在 v2 台账补记本批方法行(已落)。
+- 终审对账(D10):实测发未知方法名,`data.allowed` 与 spec 注册表 27 行
+  逐一相等(Python 断言 `allowed == sorted(spec_registry) → True, count=27`;
+  门面 `grep -c` client.ts api 键 = 14 = 核心 10 + 本批 4)——零漂。
+- 全量回归(2026-10-03 实跑,显式退出码):pytest 全量 `1946 passed, 14 skipped`
+  exit 0;协议文件 74 passed exit 0;vitest `13 files / 123 tests` exit 0;
+  `tsc -b && vite build` exit 0;`cargo check` exit 0;`cargo test --bin
+  myia-desktop` 2 passed exit 0;`npm --prefix desktop run tauri build` exit 0
+  (产物世事.app + dmg)。
+- **打包面回归治本(2026-10-03 复查发现)**:myia-core.spec 的 SPECPATH 相对化
+  (c97c897)会被 build-sidecar.sh 的 CLI 重生成每跑一次冲回本机绝对路径
+  (tauri build → beforeBuildCommand 链路,两次落地两次被冲实锤)。已改
+  build-sidecar.sh:手维 spec 存在时直接以其为源构建(与 CLI 旗标集等价,
+  collect_all×3/add-data/hidden-import 齐核),CLI 重生成仅作首跑 bootstrap;
+  复跑 tauri build exit 0 且 spec 保持与 HEAD 一致(git diff --quiet = 0)。
+- **冒烟矩阵执行状态(如实)**:
+  - **已无头执行(装包产物 myia-core 直驱,不启 .app;脚本与日志见
+    /tmp/v112_smoke.py、/tmp/v112_smoke.log,SMOKE_RESULT=PASS)**:
+    - 第 2 条(C2 取消)协议+进程级:打包 sidecar serve → run.start(90s 慢源)
+      → `run.cancel` 应答 `{cancelled:true}` → completed `exit_code=-15
+      status=cancelled` → run 子进程组(pgid 实测)无残留。
+    - 第 3 条(C3)协议级:真实 run(success,run_id=1)→ serve 干净退出(EOF=0)
+      → **新起 serve 进程**(等价 sidecar 重启)`runs.list` 仍回 `run_id=1
+      status=success`——重启后历史可达的协议半边闭环。
+    - 进程拓扑实证(探针 /tmp/v112_probe*.log):冻结 serve 派生的 run 子进程
+      **单进程**(bootloader 继承 `_MEIPASS2` 不再 fork 孙进程);非冻结父派生
+      才呈双进程(bootloader+python 孙,同 pgid)——两种形态 killpg 均一锅端
+      (双进程形态探针直证:SIGTERM 组杀后两成员齐消)。
+  - **未执行,留主人 GUI 目视**(静默纪律,代理不启 .app/不抢前台):
+    第 1 条壳层 respawn 目视(杀 sidecar → 徽标 respawning → 自动恢复;连杀
+    5 次 → dead → 顶栏「拉起」;Rust 侧逻辑有 cargo test 退避纯函数 + 无头
+    serve 往返证据,壳 GUI 半边未目视);第 3 条 .app 整体重启目视;第
+    7(C5)/9(C13)条 UI 点击目视(协议往返已有 pytest/vitest 证据);第
+    4/5/6/8 条属未施工项(B2/B3/B4/C10),不在本切片。
+- **冒烟中发现的既有边界(如实记录,非本批引入,未在本批修)**:serve EOF
+  干净退出时,进行中的 run 子进程会孤儿化(reparent 到 pid 1 继续采集,探针
+  /tmp/v112_probe2.log 实证)。与 design §2.1① 记的 SIGKILL 孤儿边相邻但属
+  正常退出路径;是否随 serve 退出一并终止 run,语义需主人拍板,本批不动。
+- C7 验收措辞变更:按 design §10 方案① 落档至 prd.md 验收行(头注如实 +
+  注册表对账;不补 sources.write 共享封装,spec 变更纪律第 3 条政策不推翻)。
+
 ## 回滚点
 
 - D1–D11 每步独立 commit,任一步可单 revert(design §11.4:协议方法增量注册、

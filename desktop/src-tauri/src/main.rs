@@ -18,14 +18,29 @@ use tauri_plugin_shell::ShellExt;
 
 /// 流式事件转发到前端所用的事件名。
 const SIDECAR_EVENT: &str = "sidecar://event";
+/// 壳层 sidecar 生命周期状态事件(C2 respawn;壳自发,非 sidecar 协议)。
+/// 载荷 {state: "respawning"|"online"|"dead", attempt?, respawned?}。
+const SIDECAR_STATE_EVENT: &str = "sidecar://state";
 /// 单请求应答超时(run.start 立即返回;doctor 带代理探测时最重)。
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
+/// 自动 respawn 上限(超过转手动;退避序列 1/2/4/8/16s)。
+const RESPAWN_MAX_ATTEMPTS: u32 = 5;
+const RESPAWN_BASE_DELAY: Duration = Duration::from_secs(1);
+/// respawn 后稳定存活该时长 → attempts 归零(下轮退避从头计)。
+const RESPAWN_STABLE_AFTER: Duration = Duration::from_secs(10);
+
+/// 第 n 次尝试的退避时长:1s·2^(n-1) → 1/2/4/8/16s(saturating,不溢出)。
+fn backoff_delay(attempt: u32) -> Duration {
+    RESPAWN_BASE_DELAY * 2u32.saturating_pow(attempt.saturating_sub(1))
+}
 
 struct Sidecar {
     child: Mutex<Option<CommandChild>>,
     /// id → 应答回递通道(pump 线程 demux 后回填)。
     pending: Mutex<HashMap<u64, tauri::async_runtime::Sender<Result<Value, Value>>>>,
     next_id: AtomicU64,
+    /// 自动 respawn 已尝试次数(Terminated +1;稳定存活归零;手动拉起归零)。
+    respawn_attempts: Mutex<u32>,
 }
 
 /// sidecar 常驻进程:`myia-core serve`,启动时 spawn,pump 任务独占消费其 stdout。
@@ -110,16 +125,114 @@ fn pump_task(app: AppHandle, mut rx: tauri::async_runtime::Receiver<CommandEvent
                     eprintln!("sidecar 退出: code={:?} signal={:?}", payload.code, payload.signal);
                     let state = app.state::<Sidecar>();
                     *state.child.lock().unwrap() = None;
-                    let mut pending = state.pending.lock().unwrap();
-                    for (_, tx) in pending.drain() {
-                        let _ = tx.try_send(Err(json!({"code": "sidecar_terminated", "path": "$",
-                            "message": "sidecar 进程已退出"})));
+                    // drop(child 关闭管道 = stdin EOF,冻结包 serve 循环干净退出;
+                    // 遗留 python 孤儿靠此自清 —— design §2.1② 注记,冒烟核)
+                    {
+                        let mut pending = state.pending.lock().unwrap();
+                        for (_, tx) in pending.drain() {
+                            let _ = tx.try_send(Err(json!({"code": "sidecar_terminated", "path": "$",
+                                "message": "sidecar 进程已退出"})));
+                        }
                     }
+                    drop(state);
+                    schedule_respawn(app.clone());
                 }
                 _ => {}
             }
         }
     });
+}
+
+/// 拉起 sidecar(setup 首启 / 自动 respawn / 手动 sidecar_restart 三处共用)。
+/// spawn 后即起 pump 任务独占消费其 stdout;MYIA_HOME 注入规则同 v1.1.1。
+fn spawn_sidecar(app: &AppHandle) -> Result<CommandChild, Box<dyn std::error::Error>> {
+    // MYIA_HOME 注入尊重用户显式设置(自动化/自定位数据根的逃生口):
+    // 已设则原样继承,不夺权;未设才计算平台根并注入 + 预建目录。
+    // sidecar 叫 myia-core:主程序 mainBinaryName=MYIA,macOS APFS 大小写
+    // 不敏感,叫 myia 会在 Contents/MacOS/ 与 MYIA 撞名互相覆盖
+    let mut command = app.shell().sidecar("myia-core")?.args(["serve"]); // entry.py RPC 模式;直通模式(无参数)留给 CLI 场景
+    if std::env::var_os("MYIA_HOME").is_none() {
+        command = command.env("MYIA_HOME", myia_home_dir(app)?);
+    }
+    // app/bundle 版本注入(C10):单一事实源 = tauri.conf.json 的 version
+    // (package_info),sidecar `version` 应答透传为 app_version 字段;
+    // 开发态缺省同源(与 .app 版本天然一致,无需另维护常量)。
+    let app_version = app.package_info().version.to_string();
+    command = command.env("MYIA_APP_VERSION", app_version);
+    let (rx, child) = command.spawn()?;
+    pump_task(app.clone(), rx);
+    Ok(child)
+}
+
+/// 自动 respawn:指数退避(1/2/4/8/16s),超 5 次转手动(dead 态);spawn 失败
+/// 按同序列自驱重试;稳定存活 10s 归零计数。锁内复核 child 仍空才 spawn,
+/// 防与手动拉起双 spawn(C2)。
+fn schedule_respawn(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        loop {
+            let attempt = {
+                let state = app.state::<Sidecar>();
+                let mut guard = state.respawn_attempts.lock().unwrap();
+                *guard += 1;
+                *guard
+            };
+            if attempt > RESPAWN_MAX_ATTEMPTS {
+                let _ = app.emit(
+                    SIDECAR_STATE_EVENT,
+                    json!({"state": "dead", "attempt": attempt - 1}),
+                );
+                eprintln!("desktop: sidecar 自动 respawn 超限(连续 {}/{RESPAWN_MAX_ATTEMPTS}),转手动拉起", attempt - 1);
+                return;
+            }
+            let _ = app.emit(SIDECAR_STATE_EVENT, json!({"state": "respawning", "attempt": attempt}));
+            eprintln!("desktop: sidecar 将在 {:?} 后自动 respawn(第 {attempt} 次)", backoff_delay(attempt));
+            tokio::time::sleep(backoff_delay(attempt)).await;
+            {
+                let state = app.state::<Sidecar>();
+                let mut child_guard = state.child.lock().unwrap();
+                if child_guard.is_some() {
+                    // 手动拉起已抢先复活,本任务退出防双 spawn
+                    return;
+                }
+                match spawn_sidecar(&app) {
+                    Ok(child) => *child_guard = Some(child),
+                    Err(error) => {
+                        eprintln!("desktop: sidecar respawn 失败(第 {attempt} 次): {error}");
+                        continue; // attempts 已 +1,下一轮更长退避直至 dead
+                    }
+                }
+            }
+            let _ = app.emit(SIDECAR_STATE_EVENT, json!({"state": "online", "respawned": true}));
+            eprintln!("desktop: sidecar 自动 respawn 成功(第 {attempt} 次)");
+            // 稳定计时:存活满 10s → attempts 归零(又死则 Terminated 走更长退避)。
+            // *guard == attempt 复核:稳定窗口内若又死(Terminated 已 +1)或手动
+            // 拉起已归零,本任务不得抢先归零(防两代 respawn 任务交错重置)。
+            tokio::time::sleep(RESPAWN_STABLE_AFTER).await;
+            let state = app.state::<Sidecar>();
+            let mut attempts_guard = state.respawn_attempts.lock().unwrap();
+            if *attempts_guard == attempt && state.child.lock().unwrap().is_some() {
+                *attempts_guard = 0;
+            }
+            return;
+        }
+    });
+}
+
+/// 手动拉起 sidecar(dead 态顶栏「拉起」按钮 / reprobe 升级链路;C2)。
+/// 幂等:进程健在直接回 restarted=false,绝不杀活进程。
+#[tauri::command]
+async fn sidecar_restart(state: State<'_, Sidecar>, app: AppHandle) -> Result<Value, String> {
+    {
+        let mut child_guard = state.child.lock().unwrap();
+        if child_guard.is_some() {
+            return Ok(json!({"restarted": false}));
+        }
+        let child = spawn_sidecar(&app).map_err(|e| e.to_string())?;
+        *child_guard = Some(child);
+    }
+    *state.respawn_attempts.lock().unwrap() = 0;
+    let _ = app.emit(SIDECAR_STATE_EVENT, json!({"state": "online", "respawned": false}));
+    Ok(json!({"restarted": true}))
 }
 
 /// MYIA 应用数据根(v1.1.1 桌面数据通路统一,与 entry.py `myia_home()` 同路径):
@@ -201,24 +314,19 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         // dialog:看图屏系统文件选择器(前端 @tauri-apps/plugin-dialog;权限见 capabilities/default.json)
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![sidecar_request])
+        .invoke_handler(tauri::generate_handler![sidecar_request, sidecar_restart])
         .setup(move |app| {
             // 冷启动打点(沿用 spike 惯例):进程启动 → sidecar spawn 完成。
-            // MYIA_HOME 注入尊重用户显式设置(自动化/自定位数据根的逃生口):
-            // 已设则原样继承,不夺权;未设才计算平台根并注入 + 预建目录。
-            // sidecar 叫 myia-core:主程序 mainBinaryName=MYIA,macOS APFS 大小写
-            // 不敏感,叫 myia 会在 Contents/MacOS/ 与 MYIA 撞名互相覆盖
-            let mut command = app.shell().sidecar("myia-core")?.args(["serve"]); // entry.py RPC 模式;直通模式(无参数)留给 CLI 场景
-            if std::env::var_os("MYIA_HOME").is_none() {
-                command = command.env("MYIA_HOME", myia_home_dir(app.handle())?);
-            }
-            let (rx, child) = command.spawn()?;
+            // 先 manage 后 spawn:pump 任务一启动就会触达 Sidecar 状态
+            // (spawn_sidecar 内起 pump),manage 必须先行。
             app.manage(Sidecar {
-                child: Mutex::new(Some(child)),
+                child: Mutex::new(None),
                 pending: Mutex::new(HashMap::new()),
                 next_id: AtomicU64::new(1),
+                respawn_attempts: Mutex::new(0),
             });
-            pump_task(app.handle().clone(), rx);
+            let child = spawn_sidecar(app.handle())?; // 首启失败仍硬失败(与现状一致;respawn 只管运行中退出)
+            *app.state::<Sidecar>().child.lock().unwrap() = Some(child);
             // MYIA_SMOKE_ROUTE 静默冒烟钩子(v1.1.1 装机五屏截图用):launchctl
             // setenv 传入路由名(如 "feed"),启动即设 window.location.hash("#/feed");
             // 未设则零行为变化。立即 + 1500ms 两次 eval 兜底 webview 未就绪的窗口期,
@@ -280,4 +388,26 @@ fn main() {
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 退避纯函数锁:序列恰为 1/2/4/8/16s(RESPAWN_MAX_ATTEMPTS 内),溢出安全。
+    #[test]
+    fn backoff_delay_doubles_per_attempt() {
+        assert_eq!(backoff_delay(1), Duration::from_secs(1));
+        assert_eq!(backoff_delay(2), Duration::from_secs(2));
+        assert_eq!(backoff_delay(3), Duration::from_secs(4));
+        assert_eq!(backoff_delay(4), Duration::from_secs(8));
+        assert_eq!(backoff_delay(5), Duration::from_secs(16));
+    }
+
+    #[test]
+    fn backoff_delay_saturates_without_panic() {
+        // 极端 attempt(防御):saturating_pow 封顶,不 panic、单调不降
+        assert!(backoff_delay(u32::MAX) >= backoff_delay(RESPAWN_MAX_ATTEMPTS));
+        assert_eq!(backoff_delay(0), Duration::from_secs(1)); // 防御性下界
+    }
 }

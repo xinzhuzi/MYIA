@@ -39,6 +39,7 @@ import {
   type ExportFormat,
 } from "./api";
 import type { FeedFilter, FeedStateMap } from "./api";
+import { FeedCardFeedback } from "./feed-card-feedback";
 
 /** 过滤页签(默认未读,Miniflux 式) */
 const FILTERS: { key: FeedFilter; label: string }[] = [
@@ -69,6 +70,24 @@ function imageOcrSummary(text: string | null | undefined): string | null {
   if (!flat) return null;
   if (flat.length <= IMAGE_OCR_SUMMARY_CHARS) return flat;
   return `${flat.slice(0, IMAGE_OCR_SUMMARY_CHARS)}…`;
+}
+
+/** 展开态可见的图析详情存在性:OCR 全文 / 逐行 / 图说 / 图文件任一即算
+ *  (10-03-vision-v2:三新键任意有值也让条目可展开)。 */
+function hasImageDetails(item: FeedItem): boolean {
+  return (
+    imageOcrSummary(item.image_ocr) !== null ||
+    Boolean(item.image_caption && item.image_caption.trim()) ||
+    (item.image_files?.length ?? 0) > 0 ||
+    (item.image_ocr_lines?.length ?? 0) > 0
+  );
+}
+
+/** OCR 逐行置信度色阶(conf 0-1;两引擎刻度不可互比,色阶只是视觉提示非度量) */
+function ocrConfClass(conf: number): string {
+  if (conf >= 0.9) return "text-ok";
+  if (conf >= 0.7) return "text-foreground/80";
+  return "text-warning";
 }
 
 /** 空流 CTA「运行第一个插件」的状态机(idle → starting → collecting → done/error) */
@@ -113,7 +132,8 @@ function FeedCard({
   const score = primaryScore(item);
   const time = formatRelativeTime(item.first_seen);
   const openable = isOpenableUrl(item.url);
-  const expandable = Boolean(item.content) || Boolean(imageOcrSummary(item.image_ocr));
+  const rowKey = item.id ?? itemKey(item);
+  const expandable = Boolean(item.content) || hasImageDetails(item);
   return (
     <div
       data-testid={`feed-item-${item.id ?? itemKey(item)}`}
@@ -132,6 +152,8 @@ function FeedCard({
           {item.title || item.url}
         </button>
         <div className="flex shrink-0 items-center gap-0.5">
+          {/* B2:卡片 👍/👎 反馈(channel=desktop,CLI feedback list 可见) */}
+          <FeedCardFeedback item={item} />
           {openable ? (
             <Button
               variant="ghost"
@@ -233,17 +255,77 @@ function FeedCard({
       ) : null}
 
       {imageOcrSummary(item.image_ocr) ? (
-        <p
-          className="mt-1.5 flex items-center gap-1.5 text-xs leading-relaxed text-muted-foreground"
-          data-testid={`feed-image-ocr-${item.id ?? itemKey(item)}`}
-        >
-          <Badge variant="outline" className="shrink-0" title="图析:配图 OCR 文本摘要">
-            图
-          </Badge>
-          <span className="min-w-0 truncate" title={item.image_ocr ?? undefined}>
-            {imageOcrSummary(item.image_ocr)}
-          </span>
-        </p>
+        expanded ? (
+          // 展开态(10-03-vision-v2):OCR 全文等宽块(保换行,详情态不截断)
+          <div className="mt-1.5 flex flex-col gap-1" data-testid={`feed-image-ocr-${rowKey}`}>
+            <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Badge variant="outline" className="shrink-0" title="图析:配图 OCR 文本全文">
+                图
+              </Badge>
+              OCR 全文
+            </span>
+            <pre className="whitespace-pre-wrap break-words rounded-md border border-border/60 bg-muted/30 px-2.5 py-2 font-mono text-xs leading-relaxed text-foreground/90">
+              {item.image_ocr}
+            </pre>
+          </div>
+        ) : (
+          <p
+            className="mt-1.5 flex items-center gap-1.5 text-xs leading-relaxed text-muted-foreground"
+            data-testid={`feed-image-ocr-${rowKey}`}
+          >
+            <Badge variant="outline" className="shrink-0" title="图析:配图 OCR 文本摘要">
+              图
+            </Badge>
+            <span className="min-w-0 truncate" title={item.image_ocr ?? undefined}>
+              {imageOcrSummary(item.image_ocr)}
+            </span>
+          </p>
+        )
+      ) : null}
+
+      {expanded && (item.image_ocr_lines?.length ?? 0) > 0 ? (
+        // 展开态:OCR 逐行表(文本 + 置信度色阶;conf 0-1 原样,引擎刻度不可互比)
+        <div className="mt-1.5 flex flex-col gap-1" data-testid={`feed-image-ocr-lines-${rowKey}`}>
+          <span className="text-[11px] text-muted-foreground">OCR 逐行(置信度)</span>
+          <div className="flex flex-col gap-0.5 rounded-md border border-border/60">
+            {item.image_ocr_lines?.map((line, index) => (
+              <div
+                key={`${index}-${line.text.slice(0, 24)}`}
+                className="flex items-baseline justify-between gap-2 px-2.5 py-0.5 odd:bg-muted/20"
+              >
+                <span className="min-w-0 break-words text-xs leading-relaxed">{line.text}</span>
+                <span className={`shrink-0 font-mono text-[10px] ${ocrConfClass(line.conf)}`}>
+                  {(line.conf * 100).toFixed(0)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {expanded && item.image_caption ? (
+        // 展开态:配图视觉描述全文(metadata.image_caption)
+        <div className="mt-1.5 flex flex-col gap-1" data-testid={`feed-image-caption-${rowKey}`}>
+          <span className="text-[11px] text-muted-foreground">配图描述(VL caption)</span>
+          <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90">
+            {item.image_caption}
+          </p>
+        </div>
+      ) : null}
+
+      {expanded && (item.image_files?.length ?? 0) > 0 ? (
+        // 展开态:落图文件路径文本列表(图片本尊显示属 v2.2,先以路径呈现)
+        // TODO(v2.2): convertFileSrc 渲染本地图(内容寻址文件,安全 scope 待定)
+        <div className="mt-1.5 flex flex-col gap-1" data-testid={`feed-image-files-${rowKey}`}>
+          <span className="text-[11px] text-muted-foreground">图文件 {item.image_files?.length} 张(路径)</span>
+          <ul className="flex flex-col gap-0.5">
+            {item.image_files?.map((path) => (
+              <li key={path} className="break-all font-mono text-[11px] text-muted-foreground">
+                {path}
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
     </div>
   );

@@ -512,7 +512,20 @@ def test_route_digest_and_slot_suppression_flow_through_new_channels(tmp_path, m
 def test_new_channels_conform_to_channel_protocol_and_registry():
     assert isinstance(TelegramChannel(token="t", target="env:X"), Channel)
     assert isinstance(WebhookChannel(target="env:X"), Channel)
-    assert set(CHANNELS) == {"feishu_card", "telegram", "webhook", "stdout"}
+    # 注册表钉死:ntfy/dingtalk/wecom 随 10-03-messaging-w2-platforms 落地,
+    # weixin 随 10-03-messaging-weixin-bridge 落地(可选桥接:出站经本机
+    # Hermes CLI,无目录发现)——钉死集随通道注册表演进同步(新通道协议
+    # 符合性由 tests/test_messaging_{ntfy,dingtalk,wecom,weixin_bridge}.py 专测)。
+    assert set(CHANNELS) == {
+        "feishu_card",
+        "telegram",
+        "webhook",
+        "stdout",
+        "ntfy",
+        "dingtalk",
+        "wecom",
+        "weixin",
+    }
     assert TelegramChannel.name == "telegram"
     assert WebhookChannel.name == "webhook"
 

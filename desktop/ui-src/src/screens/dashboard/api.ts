@@ -16,6 +16,8 @@ import type {
   RunEntry,
   RunRecord,
   SourceHealthState,
+  StoreTrendResult,
+  TrendDay,
 } from "@/lib/api";
 
 /**
@@ -221,6 +223,76 @@ export function buildCategoryCards(doctor: DoctorResult): CategoryCardModel[] {
       tone,
     };
   });
+}
+
+// ---------------------------------------------------------------------------
+// 采集量趋势(B4,10-03-v112-desktop-parity:store.trend 纯函数装配)
+// ---------------------------------------------------------------------------
+
+/** 趋势窗口档位(卡头切换;服务端钳制 [1,90]) */
+export const TREND_WINDOW_DAYS = [7, 14, 30] as const;
+export type TrendWindowDays = (typeof TREND_WINDOW_DAYS)[number];
+export const TREND_WINDOW_DEFAULT: TrendWindowDays = 14;
+
+/** UTC「今天」的 YYYY-MM-DD(趋势窗口右端;口径 = UTC 逐日,卡面如实注记)。 */
+export function utcToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** UTC 日期串加减天数(纯字符串日历运算,不经本地时区)。 */
+export function shiftUtcDate(date: string, deltaDays: number): string {
+  const ms = Date.parse(`${date}T00:00:00Z`);
+  if (Number.isNaN(ms)) return date; // 防御:非法入参原样返回,调用侧对齐失败可见
+  return new Date(ms + deltaDays * 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * 补零对齐:把 store.trend 的稀疏逐日计数铺满「截至 today 的 days 天窗口」——
+ * 缺数日补 0、窗口外行丢弃、旧→新稳定输出(空态 = 全零窗口,不是空数组:
+ * sparkline 需要等长序列)。today 显式传入(纯函数可测)。
+ */
+export function fillDailyCounts(rows: TrendDay[], days: number, today: string): TrendDay[] {
+  if (!Number.isInteger(days) || days <= 0) return [];
+  const byDate = new Map<string, number>();
+  for (const row of rows) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(row.date)) byDate.set(row.date, row.count);
+  }
+  const out: TrendDay[] = [];
+  for (let offset = days - 1; offset >= 0; offset -= 1) {
+    const date = shiftUtcDate(today, -offset);
+    out.push({ date, count: byDate.get(date) ?? 0 });
+  }
+  return out;
+}
+
+/** SVG polyline 坐标:等距 x + 按 max 归一 y(全零 = 居中平线,不除零)。 */
+export function toSparklinePoints(
+  counts: number[],
+  width: number,
+  height: number,
+  pad = 3,
+): string {
+  if (counts.length === 0 || width <= pad * 2 || height <= pad * 2) return "";
+  const max = Math.max(...counts, 0);
+  const spanX = width - pad * 2;
+  const spanY = height - pad * 2;
+  return counts
+    .map((count, index) => {
+      const x = counts.length === 1 ? width / 2 : pad + (spanX * index) / (counts.length - 1);
+      const y = max === 0 ? height / 2 : pad + spanY * (1 - count / max);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+}
+
+/** 趋势行 → sparkline 数据(拉平 count;补零由 fillDailyCounts 负责)。 */
+export function trendCounts(filled: TrendDay[]): number[] {
+  return filled.map((day) => day.count);
+}
+
+/** store.trend 应答 → 补零窗口(独立小装配,卡组件直用)。 */
+export function toTrendWindow(result: StoreTrendResult, days: number, today: string): TrendDay[] {
+  return fillDailyCounts(result.days, days, today);
 }
 
 // ---------------------------------------------------------------------------

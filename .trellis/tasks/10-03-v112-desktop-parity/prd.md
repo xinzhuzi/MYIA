@@ -62,7 +62,15 @@
 - [ ] B2:feed 卡片标记 👍/👎 后,CLI `myia feedback list` 能见同一条目(往返一致);反馈 stats 桌面可见
 - [ ] B3:settings 出现反馈开关分区,可切换,重启 .app 后状态保留(doctor/yaml 复核)
 - [ ] B4:仪表盘出现采集量趋势组件,vitest 覆盖其数据聚合
-- [ ] C7:client.ts 方法集与 entry.py _HANDLERS 一一对应(含 sources.write),两处头注释无失实表述
+- [ ] C7:~~client.ts 方法集与 entry.py _HANDLERS 一一对应(含 sources.write)~~
+      → **措辞变更(design §10 方案①,2026-10-03 D10 审查门拍板落档)**:
+      「两处头注释如实 + spec 注册表对账(`data.allowed` ↔ 注册表 ↔ client 门面)」。
+      缘由:并行 spec 线立档 `.trellis/spec/desktop/sidecar-protocol.md` 变更纪律
+      第 3 条钉死「封装面 ≠ 协议面」(sources.write/yaml.*/image.*/channels.*/push.write
+      屏私有封装),原验收措辞与该政策互斥;取方案①(改动小、不撞在途线),不补
+      sources.write 共享封装。实测对账(2026-10-03):`data.allowed` == 注册表
+      27 行,client 门面 14 = 核心 10 + 本批 4,零漂;sources/api.ts「将得
+      method_not_found」失实头注已删,两处头注如实。
 - [ ] C5:settings 可删除凭据,删除后 secret.list 不再列出该项
 - [ ] C8/C9:已划归 10-03-feed-ux(ui-feature-census grill Q1,2026-10-03)随彼批验收消号;
       本档不重复交付,仅在 C1×G1/G3 协议合参时对齐设计

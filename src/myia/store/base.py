@@ -63,12 +63,18 @@ class Store(Protocol):
         *,
         category: str | None = None,
         since: datetime | None = None,
+        before: datetime | None = None,
+        before_id: int | None = None,
+        query: str | None = None,
         limit: int | None = None,
     ) -> list[ItemRecord]:
         """List items, newest first.
 
         ``since`` filters on ``first_seen`` (useful for a slot's digest pool);
         ``limit`` caps the row count. Both filters are optional.
+        ``before``/``before_id`` form the ``(first_seen, id)`` composite cursor
+        (strictly-older pagination); ``query`` is a NOCASE LIKE over
+        title/content/source(桌面情报流,10-03-v112-desktop-batch C1).
         """
         ...
 
@@ -380,6 +386,14 @@ class Store(Protocol):
 
     def latest_run(self, category: str | None = None) -> RunRecord | None:
         """Return the most recent run (optionally for one category), or None."""
+        ...
+
+    def list_runs(self, *, category: str | None = None, limit: int = 50) -> list[RunRecord]:
+        """List persisted runs, newest first(桌面 runs.list 直读,C3).
+
+        Raises:
+            ValueError: negative ``limit``.
+        """
         ...
 
     # --------------------------------------------------------- retention/vacuum

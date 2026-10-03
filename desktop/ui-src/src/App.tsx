@@ -13,10 +13,10 @@ import { YamlEditorScreen } from "@/screens/yaml-editor/yaml-editor-screen";
  * 七屏路由(HashRouter:桌面 webview 下免服务端回退,最稳)。
  * 「/」= 仪表盘;未知路径一律回落仪表盘。
  *
- * 路由接的是 @/screens/* 真实实现(自带 health/doctor/run/logs 数据流);
- * 此前接的 @/routes/* 是 C 阶段占位骨架,五屏真实实现在 v1.1 评审前从未
- * 进过打包产物(PRDAc#「五界面全部可用」在 ui/ 产物上不成立)—— 本文件
- * 即修复入口,骨架页仍留 @/routes/ 备查。
+ * 路由接的是 @/screens/* 真实实现(自带 health/doctor/run/logs 数据流)。
+ * C 阶段的 @/routes/* 占位骨架已删(E4,10-03-v112-desktop-parity 顺风车:
+ * 五屏真实实现在 v1.1 评审前从未进过打包产物,骨架页备查价值已尽,
+ * B3「评分与反馈」分区落地后骨架里的参考位也失效)。
  *
  * /image 看图屏已拆(10-03-vision-pipeline 拍板①:图片理解并入情报管线,
  * 配置面留在设置屏 VisionForm;feed 屏出「图析」行)。

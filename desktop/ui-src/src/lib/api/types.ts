@@ -49,6 +49,9 @@ export interface VersionResult {
   version: string;
   /** 协议版本(PROTOCOL_VERSION,当前 3) */
   protocol: number;
+  /** 壳层 .app/bundle 版本(C10;main.rs spawn 注入 MYIA_APP_VERSION,
+   *  单一事实源 = tauri.conf.json version)。dev/CLI 场景未注入 = null(如实)。 */
+  app_version?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -415,6 +418,12 @@ export interface StoreItemsParams {
   limit?: number;
 }
 
+/** OCR 逐行结果(myia.vision.ocr OcrLine 投影;conf 0-1,两引擎刻度不可互比) */
+export interface ImageOcrLine {
+  text: string;
+  conf: number;
+}
+
 export interface FeedItem {
   id: number | null;
   url: string;
@@ -426,6 +435,15 @@ export interface FeedItem {
   /** 图析摘要(metadata.image_ocr 的单行截断源;10-03-vision-pipeline:
    *  采集图片 OCR 产物。无图条目无此键 = feed 屏零渲染变化。 */
   image_ocr?: string | null;
+  /** 配图视觉描述全文(metadata.image_caption;10-03-vision-v2 起随 VL 通道
+   *  产生,详情展开态全文呈现)。空白/类型不符后端已置 None。 */
+  image_caption?: string | null;
+  /** 落图文件绝对路径清单(metadata.image_files;内容寻址不重复落盘)。
+   *  详情态先以路径文本列表呈现,图片本尊显示属 v2.2。 */
+  image_files?: string[] | null;
+  /** OCR 逐行 {text, conf}(metadata.image_ocr_lines;详情展开逐行置信度表)。
+   *  conf 0-1 原样透传,两引擎刻度不可互比 —— 色阶只是视觉提示。 */
+  image_ocr_lines?: ImageOcrLine[] | null;
   tags: string[];
   category: string | null;
   scores: Record<string, unknown> | null;
@@ -563,6 +581,113 @@ export interface TestCompletedEvent {
   ts: string;
 }
 
+// ---------------------------------------------------------------------------
+// feedback.*(B2,10-03-v112-desktop-parity:桌面反馈入口;与 CLI myia feedback
+// 同门直调 myia.feedback —— channel="desktop" 落库,CLI list 无过滤即见,
+// 往返一致;载荷键逐一对齐 cli.py `_feedback_row_dict` / stats 报文)
+// ---------------------------------------------------------------------------
+
+/** feedback.mark:卡片 👍/👎 → record_feedback(channel=desktop) */
+export interface FeedbackMarkParams {
+  /** 条目引用:items.id(int)或 dedup_key/URL(str);同 resolve_item_ref */
+  item: string | number;
+  /** 结论:good=👍 / bad=👎(normalize_verdict 同门) */
+  verdict: "good" | "bad";
+  db?: string;
+}
+
+export interface FeedbackMarkResult {
+  feedback_id: number | null;
+  item_id: number | null;
+  dedup_key: string;
+  verdict: "good" | "bad";
+  channel: string;
+}
+
+/** feedback.list:反馈记录(新→旧);键同 CLI _feedback_row_dict */
+export interface FeedbackListParams {
+  verdict?: "good" | "bad";
+  channel?: string;
+  /** 缺省 50 */
+  limit?: number;
+  db?: string;
+}
+
+export interface FeedbackRow {
+  id: number | null;
+  item_id: number | null;
+  dedup_key: string;
+  verdict: string;
+  channel: string;
+  title: string | null;
+  category: string | null;
+  created_at: string | null;
+}
+
+export interface FeedbackListResult {
+  count: number;
+  items: FeedbackRow[];
+}
+
+/** FeedbackStats.to_dict()(CLI stats --json 同形) */
+export interface FeedbackStatsPayload {
+  total: number;
+  good: number;
+  bad: number;
+  /** bad/(good+bad),四位小数;零反馈 = 0 */
+  bad_ratio: number;
+  by_channel: Record<string, number>;
+  /** 负反馈 Top 类目(降序;{key, bad}) */
+  top_bad_categories: { key: string; bad: number }[];
+  /** 负反馈 Top 词条(降序;{key, bad}) */
+  top_bad_words: { key: string; bad: number }[];
+}
+
+/** feedback.stats:窗口统计 + 生效调参 + 调参历史(键同 CLI stats 载荷) */
+export interface FeedbackStatsParams {
+  /** 统计窗口天数(缺省 14;TuningPolicy 同门) */
+  window_days?: number;
+  /** Top N(缺省 5) */
+  top?: number;
+  db?: string;
+}
+
+export interface FeedbackStatsResult {
+  window_days: number;
+  stats: FeedbackStatsPayload;
+  /** 生效调参(ActiveTuning.to_dict();enrich 关闭时仅入库不生效) */
+  active_tuning: Record<string, unknown>;
+  /** 最近调参历史(list_tuning(limit=10)) */
+  tuning_history: {
+    id: number | null;
+    kind: string;
+    payload: Record<string, unknown>;
+    created_at: string | null;
+  }[];
+}
+
+// ---------------------------------------------------------------------------
+// store.trend(B4,10-03-v112-desktop-parity:采集量趋势,items 按 first_seen
+// UTC 逐日计数;口径 = UTC 逐日,不做时区换算,卡面如实注记)
+// ---------------------------------------------------------------------------
+
+export interface StoreTrendParams {
+  /** 窗口天数(缺省 14,服务端钳制 [1,90]) */
+  days?: number;
+  category?: string;
+  db?: string;
+}
+
+export interface TrendDay {
+  /** YYYY-MM-DD(UTC) */
+  date: string;
+  count: number;
+}
+
+export interface StoreTrendResult {
+  days: TrendDay[];
+}
+
 /** 无参方法(secret.list)的空参数 */
 export interface EmptyParams {}
 
@@ -619,6 +744,77 @@ export interface ImageConfigSaveParams {
 }
 
 // ---------------------------------------------------------------------------
+// image.models.* / image.server.*(10-03-vision-v2:模型下载与 server 代管;
+// 契约与 entry.py `_m_image_models_*` / `_m_image_server_*` 同形状冻结,
+// 能力实现 src/myia/vision/models.py / server.py)
+// ---------------------------------------------------------------------------
+
+/** 已装模型(image.models.list 逐项;模型 = models/ 一级子目录) */
+export interface VisionModelEntry {
+  /** 目录名(下载时 repo 名段或自定义本地名) */
+  name: string;
+  /** resolve 后的绝对路径 */
+  path: string;
+  /** 递归字节数(跳过隐藏 .cache;未完下载不算已装体量) */
+  bytes: number;
+  /** = 目录与 vision.yaml local.model resolve 后全等(当前激活) */
+  active: boolean;
+}
+
+export interface ImageModelsListResult {
+  /** 空目录 = 合法空表(UI 给下载引导不报错) */
+  models: VisionModelEntry[];
+}
+
+/** repo 合法形(镜像 models.py `_REPO_RE`):mlx-community/<name>,单斜杠,org 固定 */
+export const IMAGE_MODELS_REPO_RE = /^mlx-community\/[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/** 本地名合法形(镜像 `_NAME_RE`;禁路径分隔,防穿越) */
+export const IMAGE_MODELS_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+
+export interface ImageModelsDownloadParams {
+  /** HF 仓库全名,必须 mlx-community/<name>(MLX 格式权重直下免 convert;
+   *  其余命名空间多为原始 HF 权重,对 mlx_vlm.server 不可用,结构化拒) */
+  repo: string;
+  /** 本地目录名;缺省 = repo 名段 */
+  name?: string;
+}
+
+export interface ImageModelsDownloadResult {
+  /** 异步 job id(进度/终态走 image.models.progress / completed 两事件) */
+  job_id: number;
+}
+
+export interface ImageModelsDeleteParams {
+  name: string;
+}
+
+export interface ImageModelsActivateParams {
+  name: string;
+}
+
+export interface ImageModelsMutationResult {
+  ok: true;
+}
+
+/** image.server.status / image.server.ensure 公共形状(server.py `vision_server_status`) */
+export interface ImageServerStatusResult {
+  /** 端口有进程在听(拿到 HTTP 应答;连接拒绝/超时 = false) */
+  running: boolean;
+  /** vision.yaml local.base_url 配置值(探测目标) */
+  base_url: string;
+  /** vision.yaml local.model 配置值(配置口径,不问 server 实载) */
+  model: string;
+  /** GET {base_url}/models 返回 200 */
+  healthy: boolean;
+}
+
+/** image.server.ensure 应答 = status + started(started=true = 本次自起) */
+export interface ImageServerEnsureResult extends ImageServerStatusResult {
+  started: boolean;
+}
+
+// ---------------------------------------------------------------------------
 // 方法 ↔ 参数/结果 映射(entry.py `_HANDLERS` 全集)
 // ---------------------------------------------------------------------------
 
@@ -640,8 +836,18 @@ export interface SidecarProtocol {
   "secret.delete": { params: SecretDeleteParams; result: SecretDeleteResult };
   "sources.test": { params: SourcesTestParams; result: SourcesTestResult };
   "push.test": { params: PushTestParams; result: PushTestResult };
+  "feedback.mark": { params: FeedbackMarkParams; result: FeedbackMarkResult };
+  "feedback.list": { params: FeedbackListParams; result: FeedbackListResult };
+  "feedback.stats": { params: FeedbackStatsParams; result: FeedbackStatsResult };
+  "store.trend": { params: StoreTrendParams; result: StoreTrendResult };
   "image.config.read": { params: EmptyParams; result: ImageConfigReadResult };
   "image.config.save": { params: ImageConfigSaveParams; result: ImageConfigSaveResult };
+  "image.models.list": { params: EmptyParams; result: ImageModelsListResult };
+  "image.models.download": { params: ImageModelsDownloadParams; result: ImageModelsDownloadResult };
+  "image.models.delete": { params: ImageModelsDeleteParams; result: ImageModelsMutationResult };
+  "image.models.activate": { params: ImageModelsActivateParams; result: ImageModelsMutationResult };
+  "image.server.status": { params: EmptyParams; result: ImageServerStatusResult };
+  "image.server.ensure": { params: EmptyParams; result: ImageServerEnsureResult };
 }
 
 export type SidecarMethod = keyof SidecarProtocol;
@@ -691,7 +897,36 @@ export interface CompletedEvent {
   ts: string;
 }
 
-export type SidecarEvent = LogEvent | ProgressEvent | CompletedEvent | TestCompletedEvent;
+/** 模型下载进度事件(entry.py `_image_models_download_worker`;后端 0.5s 节流,
+ *  终态前必发最后一次)。total_bytes 未知(HF 未回报)时缺省。 */
+export interface ImageModelsProgressEvent {
+  type: "image.models.progress";
+  job_id: number;
+  repo: string;
+  done_bytes: number;
+  total_bytes?: number;
+  ts: string;
+}
 
-// 看图事件流(image.progress / image.completed)已随看图屏拆除
-// (10-03-vision-pipeline 拍板①:SidecarEvent 只余 run 域三事件)。
+/** 模型下载终态事件:ok=false 时 error = 结构化 code(disk_insufficient /
+ *  hf_unavailable / 网络失败族等;见 myia.vision.models 错误码表)。 */
+export interface ImageModelsCompletedEvent {
+  type: "image.models.completed";
+  job_id: number;
+  ok: boolean;
+  error?: string;
+  ts: string;
+}
+
+export type SidecarEvent =
+  | LogEvent
+  | ProgressEvent
+  | CompletedEvent
+  | TestCompletedEvent
+  | ImageModelsProgressEvent
+  | ImageModelsCompletedEvent;
+
+// 看图事件流:image.progress / image.completed 已随看图屏拆除
+// (10-03-vision-pipeline 拍板①);10-03-vision-v2 起新增模型下载域两事件
+// (image.models.progress / completed),SidecarEvent = run 域三事件 +
+// test.completed + 模型下载域两事件。

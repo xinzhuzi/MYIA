@@ -493,4 +493,99 @@ describe("FeedScreen", () => {
     expect(await screen.findByTestId("feed-export-result")).toBeTruthy();
     expect(screen.getByTestId("feed-export-result").textContent).toContain("export_write_failed");
   });
+
+  // -------------------------------------------------------------------------
+  // vision-v2 批(10-03-vision-v2):图析详情展开(OCR 全文/逐行置信度/caption/图文件)
+  // -------------------------------------------------------------------------
+
+  it("v2 图析详情展开:OCR 全文等宽块 + 逐行置信度表 + caption 全文 + 图文件路径列表;收起回单行摘要", async () => {
+    const item = fixtureItem({
+      content: null,
+      image_ocr: "第一段落\n第二段落",
+      image_ocr_lines: [
+        { text: "行一(高置信)", conf: 0.95 },
+        { text: "行二(低置信)", conf: 0.5 },
+      ],
+      image_caption: "一张发布会舞台照片,大屏写着发布日期。",
+      image_files: ["/data/images/ab/cd12.jpg"],
+    });
+    storeItemsMock.mockResolvedValue(result([item]));
+    renderScreen();
+    await screen.findByText("条目 1");
+
+    const card = screen.getByTestId(`feed-item-${item.id}`);
+    // 无正文但有图析 → 仍可展开(hasImageDetails)
+    const expandButton = within(card).getByRole("button", { name: "展开条目" });
+    // 收起态:只有单行摘要(压平),零详情块
+    expect(screen.getByTestId(`feed-image-ocr-${item.id}`).textContent).toContain("第一段落 第二段落");
+    expect(screen.queryByTestId(`feed-image-ocr-lines-${item.id}`)).toBeNull();
+    expect(screen.queryByTestId(`feed-image-caption-${item.id}`)).toBeNull();
+    expect(screen.queryByTestId(`feed-image-files-${item.id}`)).toBeNull();
+
+    fireEvent.click(expandButton);
+
+    // OCR 全文:等宽块保换行(摘要态的压平不复现)
+    const ocrFull = await screen.findByTestId(`feed-image-ocr-${item.id}`);
+    expect(ocrFull.textContent).toContain("OCR 全文");
+    const ocrPre = ocrFull.querySelector("pre");
+    expect(ocrPre).not.toBeNull();
+    expect(ocrPre?.textContent).toBe("第一段落\n第二段落"); // 换行原样保留
+
+    // 逐行表:文本 + 置信度百分比(0-1 → %)
+    const lines = screen.getByTestId(`feed-image-ocr-lines-${item.id}`);
+    expect(lines.textContent).toContain("行一(高置信)");
+    expect(lines.textContent).toContain("行二(低置信)");
+    expect(lines.textContent).toContain("95%");
+    expect(lines.textContent).toContain("50%");
+
+    // caption 全文
+    expect(screen.getByTestId(`feed-image-caption-${item.id}`).textContent).toContain("一张发布会舞台照片,大屏写着发布日期。");
+
+    // 图文件:「图文件 N 张(路径)」文本列表(v2.2 再做图片本尊)
+    const files = screen.getByTestId(`feed-image-files-${item.id}`);
+    expect(files.textContent).toContain("图文件 1 张");
+    expect(files.textContent).toContain("/data/images/ab/cd12.jpg");
+
+    // 收起 → 回单行摘要,详情块消失
+    fireEvent.click(within(card).getByRole("button", { name: "收起条目" }));
+    await waitFor(() => expect(screen.queryByTestId(`feed-image-ocr-lines-${item.id}`)).toBeNull());
+    expect(screen.getByTestId(`feed-image-ocr-${item.id}`).textContent).toContain("第一段落 第二段落");
+  });
+
+  it("v2 无图析条目:无正文且无图析 → 无展开按钮;有正文无图析 → 展开只显正文零图析块", async () => {
+    const bare = fixtureItem({ content: null });
+    const textOnly = fixtureItem({ content: "纯文本摘要" });
+    storeItemsMock.mockResolvedValue(result([bare, textOnly]));
+    renderScreen();
+    await screen.findByText("条目 1");
+
+    const bareCard = screen.getByTestId(`feed-item-${bare.id}`);
+    expect(within(bareCard).queryByRole("button", { name: "展开条目" })).toBeNull();
+
+    const textCard = screen.getByTestId(`feed-item-${textOnly.id}`);
+    fireEvent.click(within(textCard).getByRole("button", { name: "展开条目" }));
+    await screen.findByTestId(`feed-expanded-${textOnly.id}`);
+    expect(screen.queryByTestId(`feed-image-ocr-lines-${textOnly.id}`)).toBeNull();
+    expect(screen.queryByTestId(`feed-image-caption-${textOnly.id}`)).toBeNull();
+    expect(screen.queryByTestId(`feed-image-files-${textOnly.id}`)).toBeNull();
+    expect(screen.queryByTestId(`feed-image-ocr-${textOnly.id}`)).toBeNull();
+  });
+
+  it("v2 仅图析单键也能展开:image_ocr_lines 独有(无 ocr 全文)时逐行表可见", async () => {
+    const item = fixtureItem({
+      content: null,
+      image_ocr_lines: [{ text: "仅逐行", conf: 0.88 }],
+    });
+    storeItemsMock.mockResolvedValue(result([item]));
+    renderScreen();
+    await screen.findByText("条目 1");
+
+    const card = screen.getByTestId(`feed-item-${item.id}`);
+    fireEvent.click(within(card).getByRole("button", { name: "展开条目" }));
+    const lines = await screen.findByTestId(`feed-image-ocr-lines-${item.id}`);
+    expect(lines.textContent).toContain("仅逐行");
+    expect(lines.textContent).toContain("88%");
+    // 无 image_ocr → 摘要行/全文块零渲染
+    expect(screen.queryByTestId(`feed-image-ocr-${item.id}`)).toBeNull();
+  });
 });

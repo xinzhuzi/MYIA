@@ -7,7 +7,7 @@
 id: myia-douyin
 name: 抖音/TikTok 数据 API(Douyin_TikTok_Download_API)
 version: 1.1.0
-compatible: ">=0.1,<2.0"
+compatible: ">=0.0.1,<0.1"
 tier: server-only
 requires: []
 provides: [douyin_tiktok_api]

@@ -21,6 +21,7 @@ from typing import Any
 
 import pytest
 
+import myia
 import myia.cli as cli_module
 from myia.cli import EXIT_CONFIG_ERROR, EXIT_OK, EXIT_PARTIAL, build_parser, main
 from myia.pipeline import ChannelPushReport, RunResult, StageReport
@@ -346,7 +347,9 @@ def test_version_flag(capsys):
     with pytest.raises(SystemExit) as excinfo:
         main(["--version"])
     assert excinfo.value.code == 0
-    assert "shishi 1.1.1" in capsys.readouterr().out
+    # 与 cli.py --version 同源断言(版本序列归零 10-03-tag-release 决议 9 后
+    # 不再硬编码版本号,升版免改本测)
+    assert f"shishi {myia.__version__}" in capsys.readouterr().out
 
 
 def test_help_documents_run_and_exit_codes(capsys):

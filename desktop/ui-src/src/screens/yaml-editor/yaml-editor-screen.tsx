@@ -248,7 +248,7 @@ export function YamlEditorScreen() {
                 {docReady?.draft ? <Badge variant="default">未保存草稿</Badge> : null}
               </span>
               <span
-                className="max-w-[55%] truncate font-mono text-[11px] text-muted-foreground"
+                className="max-w-[55%] truncate font-mono text-2xs text-muted-foreground"
                 title={docReady ? docReady.file : undefined}
                 data-testid="editor-path"
               >
@@ -274,12 +274,12 @@ export function YamlEditorScreen() {
                 <Save className="size-3.5" />
                 {save.saving ? "保存中…" : "保存"}
               </Button>
-              <span className="text-[11px] text-muted-foreground">⌘S 保存</span>
+              <span className="text-2xs text-muted-foreground">⌘S 保存</span>
               {runNotice ? (
                 <span
                   role="status"
                   data-testid="run-notice"
-                  className="truncate text-[11px] text-warning"
+                  className="truncate text-2xs text-warning"
                 >
                   {runNotice}
                 </span>

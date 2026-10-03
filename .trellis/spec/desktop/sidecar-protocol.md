@@ -13,11 +13,11 @@
 - 错误结构化透传(对齐 spec python/error-handling):`path` 字段路径、`message` 中文原因、`data` 原始细节。
 - EOF = 干净退出 0(serve,entry.py:1941)。
 
-## 方法注册表(31 方法,逐项核对 `_HANDLERS` entry.py)
+## 方法注册表(本文现列 35 行;代码 `_HANDLERS` 现值 41 —— 差额 = vision-v2 六方法待其随注,见下方注;单一事实源 = 代码)
 
 | # | 方法 | 处理器 | 语义 |
 |---|------|----------------|------|
-| 1 | `version` | `_m_version` | `myia --version` 等价:版本 + 协议版本 |
+| 1 | `version` | `_m_version` | `myia --version` 等价:版本 + 协议版本 + app 版本(`app_version` 透传壳层 `MYIA_APP_VERSION`,dev/CLI 未注入 = null;v112 批 C10) |
 | 2 | `health` | `_m_health` | 插件清单 + 源健康度 + 计数聚合 |
 | 3 | `plugins.list` | `_m_plugins_list` | 已装市场插件 + findings |
 | 4 | `doctor` | `_m_doctor` | 结构化诊断(问题全在 findings,完成即 0) |
@@ -48,14 +48,24 @@
 | 29 | `push.write` | `_m_push_write` | push[] 全量替换:围栏→文本手术→双门→`.bak`→原子写;失败零写入 |
 | 30 | `push.test` | `_m_push_test` | 合成单条测试条目真发指定通道(凭据沿用 env:/keychain: 引用链;PushSendError code 原文直传;stdout 通道卡片入应答 preview;feed-ux 批 G5 前半) |
 | 31 | `bridge.status` | `_m_bridge_status` | 微信桥接探测:`probe_bridge()` 全量七键(available/reason/fix_hint/bin_found/weixin_configured/gateway_alive/bin_path);纯文件存在性探测零读取,无凭据无出网;bin 取品类 YAML 首个 weixin 条目 `weixin_hermes_bin` 覆写;永不抛业务错(10-03-messaging-weixin-bridge D4) |
+| 32 | `feedback.mark` | `_m_feedback_mark` | 卡片 👍/👎 反馈入库(record_feedback 同门直调,channel=desktop;CLI `feedback list` 可见同条目 = 往返一致;条目不存在 `item_not_found`;v112 批 B2) |
+| 33 | `feedback.list` | `_m_feedback_list` | 反馈记录直读(SQLiteStore.list_feedback,新→旧;键同 CLI `_feedback_row_dict`;v112 批 B2) |
+| 34 | `feedback.stats` | `_m_feedback_stats` | 窗口统计 + 生效调参 + 调参历史(FeedbackTuner/TuningPolicy/load_active_tuning 同门,键同 CLI stats 载荷;v112 批 B2) |
+| 35 | `store.trend` | `_m_store_trend` | 采集量趋势(SQLiteStore.daily_item_counts,UTC 逐日计数旧→新;days 钳制 [1,90],零数日补齐归前端;v112 批 B4) |
+
+> 注:vision-v2 批的 `image.models.*`×4 / `image.server.*`×2 六方法已在代码
+> `_HANDLERS` 注册但注册表行未随注(归 10-03-vision-v2 线,勿代注);
+> `data.allowed` 对账时以代码为准,现值 41。
 
 分组:核心 10(1-9 + 13-14 的 logs.tail/secret.set/secret.list)+
 源启停 1(16)+ 品类 YAML 编辑 6(18-23,task 10-03-yaml-editor)+
 看图配置 2(24-25,task 10-03-image-input;10-03-vision-pipeline 拆四留二)+
 消息 4(26-29,task 10-03-messaging-ui)+
 feed-ux 3(11 `feed.export` G3 / 12 `schedule.preview` G4 / 30 `push.test` G5,task 10-03-feed-ux)。
-v1.1.2 桌面对齐批(task 10-03-v112-desktop-parity)新增 4:7 `run.cancel`(C2)/
-8 `runs.list`(C3)/ 15 `secret.delete`(C5)/ 17 `sources.test`(C13)。
+v1.1.2 桌面对齐批(task 10-03-v112-desktop-parity)新增 8:7 `run.cancel`(C2)/
+8 `runs.list`(C3)/ 15 `secret.delete`(C5)/ 17 `sources.test`(C13)+
+32 `feedback.mark` / 33 `feedback.list` / 34 `feedback.stats`(B2)/
+35 `store.trend`(B4,第二切片)。
 weixin-bridge 批(task 10-03-messaging-weixin-bridge)新增 1:31 `bridge.status`。
 
 **store.items 参数(合流形状,v112 批 C1 × feed-ux G1/G3)**:`db/category/since/limit`
@@ -93,6 +103,7 @@ v4(weixin-bridge 批 `bridge.status`)。
 | CLI 包装 | `config` / `cli_error` | CLI 报文带 config+errors[] / 退出码异常无可解析输出(:439-443) |
 | 环境 | `myia_home_unwritable` | serve 上下文数据根不可写(:291) |
 | run | `run_busy` / `run_not_found` / `run_not_active` | 单飞拒绝并发 / 未知 id 或无进行中 run / 已终态拒取消(data 带 state;v112 批 C2) |
+| 反馈 | `item_not_found` / `feedback`(另复用 `invalid_params` / `store_corrupt` 透传) | `feedback.mark`:条目引用解析不到 / verdict 校验或 TuningPolicy 构造失败;`feedback.list`/`stats` 参数形状(v112 批 B2) |
 | 源启停 | `duplicate_source` / `last_source` / `source_unknown` / `source_file_unreadable` / `source_dir_unreadable` / `source_write_failed` / `stash_unreadable` / `category_invalid` | `sources.write` 全链路 |
 | 试抓 | `test_busy`(另复用 `invalid_params` / `not_yaml_suffix` / `path_outside_root` / `source_file_unreadable`) | `sources.test`:单飞拒绝 / 参数形状 / 围栏 / 品类装不上(v112 批 C13);子进程级 CLI 错不走请求错误,经 `test.completed` 事件 `ok:false` 透传 |
 | 品类 YAML 编辑 | `path_outside_root` / `not_yaml_suffix` / `invalid_file_stem` / `file_too_large` / `invalid_encoding` / `file_not_found` / `mtime_conflict` / `duplicate_category_id`(另复用 `category_invalid` / `source_file_unreadable` / `source_write_failed`) | 围栏 + 乐观锁 + 跨文件查重(yaml.* 六方法) |
@@ -114,10 +125,11 @@ push 层 `PushSendError.code`(`missing_target` / `env_var_missing` /
 1. 新增/改名方法:**只改 `_HANDLERS` 一处** + `tests/test_desktop_sidecar_protocol.py` 契约用例;
    本文注册表随同更新(行号注解允许漂移,方法名集合不许漂)。
 2. 对账手法:发未知方法名,拿 `data.allowed` 与本文注册表比对;前端共享类型映射
-   `SidecarProtocol`(types.ts)现盖 19 方法(核心 + image.config.* + v1.1.2 批四方法 +
+   `SidecarProtocol`(types.ts)现盖 23 方法(核心 + image.config.* + v1.1.2 批八方法 +
    feed-ux 批三方法),`sources.write`/`yaml.*` 刻意未入共享映射——对账时按上表分组核对,勿以映射数当全量。
 3. 封装面 ≠ 协议面:`ui-src/src/lib/api/client.ts` 的 `api` 门面盖核心 10 方法 +
-   v1.1.2 桌面对齐批 4 方法(`runCancel`/`runsList`/`secretDelete`/`sourcesTest`,
+   v1.1.2 桌面对齐批 8 方法(`runCancel`/`runsList`/`secretDelete`/`sourcesTest` +
+   `feedbackMark`/`feedbackList`/`feedbackStats`/`storeTrend`,
    10-03-v112-desktop-parity)+ feed-ux 批 3 方法(`feedExport`/`schedulePreview`/
    `pushTest`,10-03-feed-ux;两批新方法全入共享门面,注册表新增行 ↔ 门面新增行
    同源对账,屏私名单不扩);

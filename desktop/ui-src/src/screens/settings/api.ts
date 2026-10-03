@@ -13,14 +13,17 @@
  *                    (enrich.base_url 在 YAML 只允许 env:/keychain: 纯引用,
  *                    端点值本体不落盘 —— EnrichConfig._check_endpoint_refs);
  *                    若用户直接填 env:/keychain: 引用则不经界面写,提示入 YAML。
- *   LLM model      → 品类 YAML enrich.model(非凭据);写回属品类 YAML 协议
- *                    缺口(与源管理 sources.write 同一缺口),界面只展示
- *                    doctor 现值 + 校验输入,不伪造保存成功。
+ *   LLM model      → 品类 YAML enrich.model(非凭据);B3/C11 起经本模块
+ *                    saveCategoryNode(yaml.read→文本手术→yaml.save→doctor
+ *                    复核)写回,「评分与反馈」分区入口;现值仍以 doctor 回显为准。
  *   代理池凭据     → secret.set("myia/proxy/<pool>");池 URL 结构(pools 节)
- *                    属全局 pools YAML,写回同上属协议缺口;探测走 doctor(config)。
+ *                    属全局 pools YAML,写回顺延(yaml-editor 待拍板 3 未定),
+ *                    探测走 doctor(config)。
  *   推送通道凭据   → secret.set("myia/<scope>/<name>")(scope=品类 id;
  *                    推送 target 在 YAML 只允许引用,值本体入钥匙链)。
  */
+import { invoke } from "@tauri-apps/api/core";
+
 import { api, SidecarRequestError } from "@/lib/api";
 import type {
   CredentialEntry,
@@ -31,6 +34,118 @@ import type {
   ProxyPoolStatus,
   SidecarErrorShape,
 } from "@/lib/api";
+
+// ---------------------------------------------------------------------------
+// 品类 YAML 节写回(B3/C11,10-03-v112-desktop-parity;yaml.read → 文本手术 →
+// yaml.save → doctor 复核四步)。yaml.* 属屏私有封装面(spec 变更纪律第 3 条),
+// 本模块自带 invoke 通道(惯例同 screens/yaml-editor/api.ts)。
+// ---------------------------------------------------------------------------
+
+/** yaml.read 应答的极简形状(本模块只用 content/mtime 两键) */
+interface YamlReadOutcome {
+  file: string;
+  content: string;
+  mtime: number;
+}
+
+/** yaml.save 应答的极简形状(warnings = warning 级 findings,不拦保存) */
+interface YamlSaveOutcome {
+  file: string;
+  mtime: number;
+  warnings: { path: string; code: string; message: string; level: string }[];
+}
+
+/** 屏私有类型化往返(与 yaml-editor/api.ts 的 yamlRequest 同款) */
+async function settingsYamlRequest<R>(method: string, params: unknown): Promise<R> {
+  try {
+    return await invoke<R>("sidecar_request", { method, params });
+  } catch (raw) {
+    throw asSidecarError(raw);
+  }
+}
+
+/** 节写回失败的结构化错误(含「无 enrich 节」这类手术前预检) */
+export class CategoryNodeError extends Error {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "CategoryNodeError";
+    this.code = code;
+  }
+}
+
+/**
+ * 品类 YAML 顶层 enrich 节单字段文本手术(注释保真:只替换命中行的值段,
+ * 其余原文逐字节不动;缩进按 schema 两空格约定)。
+ * 找不到顶层 enrich 节或节内该字段行 = CategoryNodeError(去配置编辑屏补节)。
+ */
+export function mutateEnrichField(content: string, field: string, value: string): string {
+  const lines = content.split("\n");
+  let inEnrich = false;
+  let replaced = false;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (/^\S/.test(line)) {
+      inEnrich = /^enrich\s*:/.test(line);
+      continue;
+    }
+    if (!inEnrich) continue;
+    const match = line.match(new RegExp(`^(\\s*${field}\\s*:)(\\s*)([^\\s#]+)(.*)$`));
+    if (match) {
+      lines[index] = `${match[1]}${match[2]}${value}${match[4]}`;
+      replaced = true;
+      break;
+    }
+  }
+  if (!replaced) {
+    throw new CategoryNodeError(
+      "enrich_node_missing",
+      `品类 YAML 缺少 enrich.${field} 行(或整个 enrich 节);到「配置编辑」补齐后再切换。`,
+    );
+  }
+  return lines.join("\n");
+}
+
+/** 一次节写回的结果:save warnings + doctor 复核(回显驱动 UI 状态) */
+export interface CategoryNodeSaveOutcome {
+  file: string;
+  /** yaml.save 带回的 warning 级 findings(如 secret_unknown;不拦保存) */
+  warnings: { path: string; code: string; message: string }[];
+  /** 写后 doctor 复核(mtime 乐观锁防并发编辑) */
+  doctor: DoctorVerify;
+}
+
+/**
+ * 读 → 改 → 写 → 复核四步(design §6):yaml.read 原文直读 → mutate 文本手术 →
+ * yaml.save(mtime 乐观锁 + 同门校验 + .bak 留底)→ doctor({yamls:[file]}) 复核。
+ * 校验 error 级在 sidecar 侧零写入(yaml.save 契约),这里只透传结构化错误。
+ */
+export async function saveCategoryNode(
+  file: string,
+  mutate: (content: string) => string,
+): Promise<CategoryNodeSaveOutcome> {
+  const read = await settingsYamlRequest<YamlReadOutcome>("yaml.read", { file });
+  const next = mutate(read.content);
+  if (next === read.content) {
+    throw new CategoryNodeError("node_unchanged", "字段值未变化,未触发写入。");
+  }
+  const save = await settingsYamlRequest<YamlSaveOutcome>("yaml.save", {
+    file,
+    content: next,
+    expected_mtime: read.mtime,
+  });
+  const doctor = await verifyWithDoctor({ yamls: [file] });
+  return {
+    file,
+    warnings: save.warnings.map((warning) => ({
+      path: warning.path,
+      code: warning.code,
+      message: warning.message,
+    })),
+    doctor,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // 错误归一化(与共享 client.toSidecarError 同规则;独立实现避免动共享层)

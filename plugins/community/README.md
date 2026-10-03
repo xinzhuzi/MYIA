@@ -38,8 +38,8 @@ compose 一律不放插件目录(官方六件的部署文件集中在仓库 `doc
    git submodule 指针)」接入;GPL/AGPL 类上游**不复制其源码进本仓库**;
    本地部署 compose 放作者自己的仓库或 `docker/plugins/`(随收录 PR 说明),
    插件目录内不出现 docker 部署文件。
-6. **版本矩阵**:`compatible` 声明兼容的 myia 版本范围(如 `">=0.1,<2.0"`);
-   不兼容在 install 期结构化拒绝,已装的降级为 warning。
+6. **版本矩阵**:`compatible` 声明兼容的 myia 版本范围(如 `">=0.0.1,<0.1"`,
+   与根 pyproject 依赖窗同款);不兼容在 install 期结构化拒绝,已装的降级为 warning。
 
 ## 索引
 

@@ -51,6 +51,31 @@ repeated here.
   a new `sidecar_restart` command (idempotent) backs the top-bar badge's
   probe→restart→re-probe recovery path, so a killed sidecar no longer bricks
   the UI with permanent `sidecar_not_running` errors.
+- **v1.1.2 desktop parity batch — second slice, protocol methods**:
+  `feedback.mark` / `feedback.list` / `feedback.stats` (B2 — desktop feedback
+  entries via the same `myia.feedback` code path as the CLI with
+  `channel="desktop"`, so `shishi feedback list` sees the same rows;
+  payload keys aligned with the CLI's row/stats shapes) and `store.trend`
+  (B4 — per-day item counts over `first_seen`, UTC calendar days, window
+  clamped to [1, 90]). No `PROTOCOL_VERSION` bump of its own: the batch rides
+  the existing ledger per the one-bump merge policy (currently at 5 after the
+  vision-v2 bump).
+- **v1.1.2 desktop parity batch — second slice, UI**: feed-card 👍/👎 feedback
+  (greyed out after marking — manual marks carry no idempotency key), a
+  dashboard feedback-stats card, a dashboard collection-trend card (hand-rolled
+  SVG sparkline, 7/14/30-day window switch, zero new npm deps; the
+  `fillDailyCounts` aggregation is vitest-covered), a top-bar global
+  "run once + cancel" control (C12; category follows the top-bar selector,
+  ✕ calls `run.cancel`), and a settings「评分与反馈」partition (B3/C11 —
+  per-category `enrich.enabled` toggle + `enrich.model` writeback via
+  `yaml.read → comment-preserving text surgery → yaml.save (mtime optimistic
+  lock) → doctor re-verify`; `budget_per_run` shown read-only as the guard
+  rail; push-channel declarations get a link to the YAML editor screen, and
+  the global pools writeback stays deferred pending the yaml-editor decision).
+  `version` now also reports `app_version` (C10 — the shell injects
+  `MYIA_APP_VERSION` from `package_info()`, i.e. the single source of truth in
+  `tauri.conf.json`; dev/CLI report `null` honestly), surfaced in the top-bar
+  connection tooltip.
 - **feed-ux batch — three sidecar protocol methods** (10-03-feed-ux):
   `feed.export` (export the current filtered view as JSONL/CSV; the sidecar
   writes the user-picked `dialog.save()` path directly — data never transits

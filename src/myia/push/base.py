@@ -15,6 +15,7 @@ time, and error messages carry the reference name only, never the value.
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, Mapping, Protocol, Sequence, runtime_checkable
 
@@ -26,11 +27,14 @@ if TYPE_CHECKING:  # 运行期无环:targets 仅作类型标注(base ← targets
 __all__ = [
     "TrendAwareChannel",
     "DEFAULT_SEND_TIMEOUT_SECONDS",
+    "ItemImages",
     "PushSendError",
     "SendContext",
     "SendReport",
     "Channel",
     "also_seen_list",
+    "clip_text",
+    "item_images",
     "item_view",
 ]
 
@@ -239,3 +243,58 @@ def also_seen_list(item: Mapping[str, Any] | object) -> list[dict[str, Any]]:
             }
         )
     return cleaned
+
+
+def clip_text(text: str, limit: int, *, ellipsis: str = "…") -> str:
+    """Clip ``text`` to at most ``limit`` characters, ellipsis suffix on cut.
+
+    上限计入省略号本身:截断路径产物长度同样 ≤ ``limit``(与「预算必须计入
+    完整后缀宽度」的既有截断纪律一致)。``limit`` < 1 时按 1 处理(退化为
+    单省略号)——调用方自证 limit 合法,比静默返回空串诚实。
+    """
+    if limit < 1:
+        limit = 1
+    if len(text) <= limit:
+        return text
+    return text[: limit - len(ellipsis)] + ellipsis
+
+
+@dataclass(frozen=True)
+class ItemImages:
+    """条目的图片附件信息(看图 v2 推送带图,PRD 10-03-vision-v2)。
+
+    Attributes:
+        paths: ``metadata.image_files`` 中**本机存在**的文件路径(保持声明
+            序;发送与落盘异刻,缺失文件不进此列、按通道各自回退处理)。
+        declared: image_files 声明的有效路径总数(含缺失文件;「图 N 张」
+            注记与回退告警用)。
+        caption: ``metadata.image_caption`` 文本(缺失/非字符串 → 空串)。
+    """
+
+    paths: tuple[str, ...]
+    declared: int
+    caption: str
+
+
+def item_images(item: Mapping[str, Any] | object) -> ItemImages | None:
+    """Read the item's image attachment (``metadata.image_files`` + ``image_caption``).
+
+    后端契约(collect 落盘侧,本层只消费):persist 开启的品类条目 metadata
+    携带 ``image_files``(本地绝对路径 list)与 ``image_caption``。非 list /
+    非 str / 空串条目剔除;存在的文件进 ``paths``,缺失文件仍计入
+    ``declared``;``image_files`` 整体缺席或无有效条目 → None(通道组装层
+    保持原路径,零行为变化)。文件存在性在调用时点判定,不缓存。
+    """
+    view = item_view(item)
+    raw = view.get("image_files")
+    if not isinstance(raw, list):
+        return None
+    declared_paths = [p for p in raw if isinstance(p, str) and p.strip()]
+    if not declared_paths:
+        return None
+    caption = view.get("image_caption")
+    return ItemImages(
+        paths=tuple(p for p in declared_paths if os.path.isfile(p)),
+        declared=len(declared_paths),
+        caption=caption.strip() if isinstance(caption, str) else "",
+    )

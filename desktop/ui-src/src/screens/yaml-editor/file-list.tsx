@@ -75,7 +75,7 @@ export function FileList({ files, selectedFile, draftName, onSelect, onDelete, o
               data-testid="draft-entry"
             >
               <span className="flex items-center justify-between gap-2">
-                <span className="truncate text-[13px] font-medium text-foreground">
+                <span className="truncate text-sm font-medium text-foreground">
                   {draftName} *
                 </span>
                 <Badge variant="default">未保存</Badge>
@@ -91,14 +91,14 @@ export function FileList({ files, selectedFile, draftName, onSelect, onDelete, o
                   onClick={() => onSelect(entry.file)}
                   aria-current={selected ? "true" : undefined}
                   className={cn(
-                    "flex w-full flex-col gap-0.5 rounded-md px-2.5 py-2 pr-8 text-left transition-colors",
+                    "flex w-full flex-col gap-0.5 rounded-md px-2.5 py-2 pr-8 text-left transition-colors duration-(--duration-fast) ease-out-expo",
                     selected ? "bg-accent" : "hover:bg-accent/60",
                   )}
                 >
                   <span className="flex items-center justify-between gap-2">
                     <span
                       className={cn(
-                        "truncate text-[13px]",
+                        "truncate text-sm",
                         selected ? "font-medium text-foreground" : "text-foreground",
                       )}
                     >
@@ -106,7 +106,7 @@ export function FileList({ files, selectedFile, draftName, onSelect, onDelete, o
                     </span>
                     {!entry.parse_ok ? <Badge variant="destructive">损坏</Badge> : null}
                   </span>
-                  <span className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                  <span className="flex items-center justify-between gap-2 text-2xs text-muted-foreground">
                     <span className="truncate font-mono" title={entry.file}>
                       {entry.name}
                     </span>
@@ -124,7 +124,7 @@ export function FileList({ files, selectedFile, draftName, onSelect, onDelete, o
                   aria-label={`删除 ${entry.name}`}
                   title="删除(先 .bak 留底)"
                   onClick={() => onDelete(entry)}
-                  className="absolute top-1/2 right-1.5 hidden -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-destructive/20 hover:text-destructive group-hover:block focus-visible:block"
+                  className="absolute top-1/2 right-1.5 hidden -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors duration-(--duration-fast) ease-out-expo hover:bg-destructive/20 hover:text-destructive group-hover:block focus-visible:block"
                 >
                   <Trash2 className="size-3.5" />
                 </button>
@@ -169,7 +169,7 @@ function CreateFileForm({ onSubmit, onCancel }: CreateFileFormProps) {
         )}
       />
       {invalid ? (
-        <p role="alert" className="text-[11px] text-destructive">
+        <p role="alert" className="text-2xs text-destructive">
           文件名不合规:只允许小写字母/数字/-/_,1-64 字符;中文名请写进 name: 字段
         </p>
       ) : null}

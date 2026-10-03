@@ -8,6 +8,12 @@ line, so a chunk boundary always falls between items and never cuts a tag
 mid-way (template output carries no parse_mode, so even a hard mid-line cut
 there is plain-text safe).
 
+immediate 带图(看图 v2,PRD 10-03-vision-v2):``kind="immediate"`` 单条目
+且 ``metadata.image_files`` 有本机存在文件时,先 ``sendPhoto`` 首图
+(multipart,caption=标题+图析摘要截断 ≤ :data:`CAPTION_LIMIT`)再发正文
+sendMessage;digest 批量不带图。文件缺失/发送失败回退纯文本并告警,
+不阻推送(路由/when 逻辑零改动,仅组装层增强)。
+
 目录寻址(10-03-messaging-telegram):``supports_targeting=True``,
 ``context.target.chat_id`` 优先、退回 legacy ``env:TELEGRAM_CHAT_ID`` 引用;
 ``parse_direct_ref`` 直达解析数字 chat_id / ``@username``(蓝本:Hermes
@@ -32,7 +38,9 @@ from __future__ import annotations
 
 import html
 import logging
+import mimetypes
 import re
+from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import httpx
@@ -43,6 +51,8 @@ from myia.push.base import (
     SendContext,
     TrendAwareChannel,
     also_seen_list,
+    clip_text,
+    item_images,
     item_view,
 )
 from myia.push.feishu_card import card_title
@@ -51,6 +61,7 @@ from myia.push.templates import TemplateRenderError, TemplateRenderer
 from myia.schema import CredentialResolveError, resolve_credential
 
 __all__ = [
+    "CAPTION_LIMIT",
     "CHAT_ID_RE",
     "DEFAULT_TARGET_ENV_REF",
     "DEFAULT_TOKEN_ENV_REF",
@@ -60,6 +71,7 @@ __all__ = [
     "TELEGRAM_USERNAME_RE",
     "TelegramChannel",
     "build_message",
+    "build_photo_caption",
     "split_message",
 ]
 
@@ -73,6 +85,8 @@ DEFAULT_TOKEN_ENV_REF = "env:TELEGRAM_BOT_TOKEN"
 DEFAULT_TARGET_ENV_REF = "env:TELEGRAM_CHAT_ID"
 #: Bot API sendMessage limit: 1-4096 characters per message.
 MESSAGE_LIMIT = 4096
+#: Bot API sendPhoto caption limit: 0-1024 characters per caption.
+CAPTION_LIMIT = 1024
 #: Built-in layout caps one item line well below ``MESSAGE_LIMIT`` so newline
 #: splitting never has to cut inside HTML tags (a >4096-char title/URL would
 #: otherwise hard-split into invalid HTML and Telegram would reject the chunk).
@@ -210,6 +224,25 @@ def build_message(items: Sequence[Any], context: SendContext) -> str:
     return "\n".join(lines)
 
 
+def build_photo_caption(view: Mapping[str, Any], image_caption: str) -> str:
+    """sendPhoto caption:条目标题 + 图析摘要,整体不超 :data:`CAPTION_LIMIT`。
+
+    纯文本(不声明 parse_mode):图析摘要直出,不做 HTML 转义。标题优先
+    保全文;超限预算下先压摘要(尾缀省略号计入上限),标题独占超限时只留
+    标题截断——任一路径产物长度 ≤ 1024。无图析摘要时 caption 即标题。
+    """
+    title = str(view.get("title") or "(无标题)")
+    excerpt = image_caption.strip()
+    if not excerpt:
+        return clip_text(title, CAPTION_LIMIT)
+    if len(title) + 1 + len(excerpt) <= CAPTION_LIMIT:
+        return f"{title}\n{excerpt}"
+    room = CAPTION_LIMIT - len(title) - 1 - len("…")  # "\n" + 尾省略号
+    if room < 1:
+        return clip_text(title, CAPTION_LIMIT)
+    return f"{title}\n{clip_text(excerpt, room)}"
+
+
 class TelegramChannel(TrendAwareChannel):
     """``telegram`` channel: one ``sendMessage`` per ≤4096-char chunk.
 
@@ -278,6 +311,9 @@ class TelegramChannel(TrendAwareChannel):
             else self._resolve_chat_id()
         )
         parts, parse_mode = self._compose(items, context)
+        # immediate 带图(看图 v2):先图后文,先 compose 后图——模板渲染
+        # 失败时零请求发出,绝不产出「有图无文」的孤儿图。
+        await self._send_item_photo(chat_id, items, context)
         for text in parts:
             try:
                 await self._post_message(token, chat_id, text, parse_mode)
@@ -320,6 +356,75 @@ class TelegramChannel(TrendAwareChannel):
             return resolve_credential(DEFAULT_TOKEN_ENV_REF)
         except CredentialResolveError as exc:
             raise PushSendError(exc.code, f"telegram bot 凭据解析失败: {exc}") from exc
+
+    # ------------------------------------------------- immediate 带图(看图 v2)
+
+    async def _send_item_photo(
+        self, chat_id: str, items: Sequence[Any], context: SendContext
+    ) -> None:
+        """Immediate 单条目带图:先 sendPhoto 首图,任何失败回退纯文本。
+
+        仅 ``kind="immediate"`` 且恰一条目时生效(digest 批量不带图,PRD
+        10-03-vision-v2 定案);``metadata.image_files`` 缺席 → 原路径零变化。
+        文件缺失 / 上传或 API 失败只告警不抛:正文 sendMessage 照发(不阻
+        推送)。多图只发首图(:meth:`send_photo` 契约内),余图不逐一发送。
+        """
+        if context.kind != "immediate" or len(items) != 1:
+            return
+        info = item_images(items[0])
+        if info is None:
+            return
+        if not info.paths:
+            logger.warning(
+                "telegram sendPhoto 回退纯文本: 条目声明 %d 图但本机无一存在", info.declared
+            )
+            return
+        caption = build_photo_caption(item_view(items[0]), info.caption)
+        try:
+            await self.send_photo(chat_id, info.paths[0], caption)
+        except (PushSendError, OSError) as exc:
+            logger.warning("telegram sendPhoto 失败,回退纯文本(不阻推送): %s", exc)
+
+    async def send_photo(
+        self, chat_id: str, photo_path: str, caption: str
+    ) -> dict[str, Any]:
+        """``sendPhoto`` one local image file (multipart upload, Bot API).
+
+        Caption 为纯文本(不声明 parse_mode),调用方负责长度约束
+        (:func:`build_photo_caption` ≤ :data:`CAPTION_LIMIT`)。超时/错误
+        处理与 :meth:`_post_message` 对齐;本地图不可读抛
+        ``photo_read_error`` 结构化错误。
+
+        Raises:
+            PushSendError: 文件读取失败、HTTP 传输失败、非 JSON 响应或
+                API ``ok != true``。
+        """
+        token = self._resolve_token()
+        path = Path(photo_path)
+        try:
+            payload = path.read_bytes()
+        except OSError as exc:
+            raise PushSendError(
+                "photo_read_error",
+                f"telegram 图片读取失败({path.name}): {type(exc).__name__}: {exc}",
+            ) from exc
+        content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        data: dict[str, str] = {"chat_id": chat_id}
+        if caption:
+            data["caption"] = caption
+        files = {"photo": (path.name, payload, content_type)}
+        url = f"{TELEGRAM_API_BASE}/bot{token}/sendPhoto"
+        try:
+            if self._client is not None:
+                response = await self._client.post(url, data=data, files=files)
+            else:
+                async with httpx.AsyncClient(timeout=self._timeout) as client:
+                    response = await client.post(url, data=data, files=files)
+        except httpx.HTTPError as exc:
+            raise PushSendError(
+                "http_error", f"telegram 图片请求失败: {type(exc).__name__}: {exc}"
+            ) from exc
+        return self._parse_response(response)
 
     def _resolve_chat_id(self) -> str:
         try:

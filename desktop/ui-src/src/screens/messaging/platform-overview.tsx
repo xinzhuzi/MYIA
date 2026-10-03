@@ -19,6 +19,10 @@
  * - 筛选(全部/已连接/未启用)沿用;切筛选时若当前选中平台不再匹配,选中
  *   栏自动切入该筛选下第一张卡(上游 handleStatusFilter 同交互流)。
  * - 三态派生纯函数(目录桶 + secret.list 名单 → 状态)零协议往返,见下方。
+ * - token 贯彻(task 10-03-ui-deep-imitation,结构零动):辅文/标识 11px 与
+ *   代码块 10px 统一落阶梯 text-2xs(10px 属阶外值,就近日拢 11px);详情头
+ *   15px→text-base(14px,阶内);平台卡 hover 过渡走动效 token
+ *   duration-(--duration-fast)+ease-out-expo(与 ui 基件同款)。
  */
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -625,7 +629,7 @@ function PlatformCardButton({
       type="button"
       aria-pressed={selected}
       className={cn(
-        "flex w-full items-center gap-2 rounded-md border p-2 text-left transition-colors hover:bg-accent/60 hover:text-accent-foreground",
+        "flex w-full items-center gap-2 rounded-md border p-2 text-left transition-colors duration-(--duration-fast) ease-out-expo hover:bg-accent/60 hover:text-accent-foreground",
         card.status === "coming_soon" && "opacity-70",
         CARD_BORDER_TONE[card.status],
         // 选中态:品牌青环 + 浅底,叠加在三态描边之上(状态色不被选中色吃掉)
@@ -650,7 +654,7 @@ function StatusDotTone({ status }: { status: PlatformCardStatus }) {
 
 /** 详情栏小节标题(照上游 SectionTitle 节奏:小号大写间距,中文取 tracking-wide)。 */
 function SectionTitle({ children }: { children: ReactNode }) {
-  return <h4 className="text-[11px] font-semibold tracking-wide text-muted-foreground">{children}</h4>;
+  return <h4 className="text-2xs font-semibold tracking-wide text-muted-foreground">{children}</h4>;
 }
 
 /** 状态说明文案(四态证据来源;连接态列命中信号,缺配置态给下一步动作,
@@ -710,13 +714,13 @@ function PlatformDetailPanel({
         <PlatformAvatar platformId={card.id} platformName={card.name} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="min-w-0 truncate text-[0.9375rem] font-semibold tracking-tight text-foreground">
+            <h3 className="min-w-0 truncate text-base font-semibold tracking-tight text-foreground">
               {card.name}
             </h3>
             <StatePill status={card.status}>{STATUS_LABEL[card.status]}</StatePill>
           </div>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{card.description}</p>
-          <p className="truncate font-mono text-[11px] text-muted-foreground">{card.id}</p>
+          <p className="truncate font-mono text-2xs text-muted-foreground">{card.id}</p>
         </div>
       </header>
 
@@ -752,7 +756,7 @@ function StatePill({ children, status }: { children: string; status: PlatformCar
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-2xs",
         STATE_PILL_TONE[status],
       )}
     >
@@ -777,14 +781,14 @@ function DirectoryQuickView({
   if (bucket.length === 0) {
     if (discovery === "manual") {
       return (
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
+        <p className="text-2xs leading-relaxed text-muted-foreground">
           目录为空:{platformId} 无自动发现(蓝本事实)——推送规则里写直达 id,或手工编辑数据根的
           channel_aliases.json 登记对象(别名文件是本机私有数据)。
         </p>
       );
     }
     return (
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-2xs leading-relaxed text-muted-foreground">
         目录为空:到下方「通道目录」点 {platformId} 组的「刷新」(飞书主动发现)或等会话被动进入(telegram 随
         bot 流量积累)。
       </p>
@@ -792,7 +796,7 @@ function DirectoryQuickView({
   }
   return (
     <div className="flex flex-col gap-1.5">
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         {bucket.length} 个会话;只读速览,改名 / 别名 / 死信处理在下方「通道目录」。
       </p>
       <ul className="flex flex-col gap-1">
@@ -806,7 +810,7 @@ function DirectoryQuickView({
               <span className="truncate font-medium text-foreground">{entry.name}</span>
               {isDeadEntry(entry, dead) ? <Badge variant="destructive">死信</Badge> : null}
             </span>
-            <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{entry.chat_id}</span>
+            <span className="shrink-0 font-mono text-2xs text-muted-foreground">{entry.chat_id}</span>
           </li>
         ))}
       </ul>
@@ -824,12 +828,12 @@ function PlatformGuideView({ guide, platformId }: { guide: PlatformGuide; platfo
       <p className="text-xs font-medium text-foreground">定向推送只需要这些;凭据只覆盖出站,入站项零出现。</p>
       <div className="flex flex-col gap-1">
         {guide.keys.map((entry) => (
-          <p key={entry.key} className="text-[11px] leading-relaxed text-muted-foreground">
+          <p key={entry.key} className="text-2xs leading-relaxed text-muted-foreground">
             <span className="font-mono text-foreground">{entry.key}</span> — {entry.purpose}
           </p>
         ))}
       </div>
-      <ol className="flex list-decimal flex-col gap-1.5 pl-4 text-[11px] leading-relaxed text-muted-foreground">
+      <ol className="flex list-decimal flex-col gap-1.5 pl-4 text-2xs leading-relaxed text-muted-foreground">
         {guide.steps.map((step, index) => (
           <li key={index}>
             {typeof step === "string" ? (
@@ -837,7 +841,7 @@ function PlatformGuideView({ guide, platformId }: { guide: PlatformGuide; platfo
             ) : (
               <>
                 {step.text}
-                <code className="mt-1 block overflow-x-auto rounded bg-background px-2 py-1 font-mono text-[10px] whitespace-pre-wrap text-foreground">
+                <code className="mt-1 block overflow-x-auto rounded bg-background px-2 py-1 font-mono text-2xs whitespace-pre-wrap text-foreground">
                   {step.code}
                 </code>
               </>

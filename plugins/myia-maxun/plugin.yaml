@@ -8,7 +8,7 @@
 id: myia-maxun
 name: 无代码爬虫平台(Maxun)
 version: 1.1.0
-compatible: ">=0.1,<2.0"
+compatible: ">=0.0.1,<0.1"
 tier: server-only
 requires: []
 provides: [maxun]

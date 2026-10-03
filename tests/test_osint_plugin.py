@@ -107,7 +107,7 @@ class TestManifestSchemaEvolution:
             "id": "myia-demo",
             "name": "演示插件",
             "version": "1.0.0",
-            "compatible": ">=0.1,<2.0",
+            "compatible": ">=0.0.1,<0.1",
             "modes": {"remote": {"endpoint": "https://demo-wrapper.example.com"}},
             "install": {"source": "https://github.com/xinzhuzi/MYIA.git"},
         }

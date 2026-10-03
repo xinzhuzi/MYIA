@@ -13,7 +13,7 @@
 id: myia-proxy
 name: 代理池(proxy_pool)
 version: 1.1.0
-compatible: ">=0.1,<2.0"
+compatible: ">=0.0.1,<0.1"
 # v1.1 分级:desktop = 桌面默认集(源码/进程内能力,零 docker)。
 tier: desktop
 requires: []

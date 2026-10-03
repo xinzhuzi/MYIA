@@ -25,9 +25,12 @@ FEEDBACK_VERDICTS = frozenset({FEEDBACK_GOOD, FEEDBACK_BAD})
 
 # Receiving channels of one feedback (feedback.channel): CLI manual marking
 # and the two channel-specific callback paths (grill Q7 分形态接收).
+# desktop = 桌面 app 卡片 👍/👎(v1.1.2 桌面对齐批 B2;channel 为自由串无词表
+# 校验,此常数只作常量家与 CLI/桌面互认锚点 —— `myia feedback list` 无过滤即见)。
 FEEDBACK_CHANNEL_CLI = "cli"
 FEEDBACK_CHANNEL_TELEGRAM = "telegram"
 FEEDBACK_CHANNEL_FEISHU = "feishu"
+FEEDBACK_CHANNEL_DESKTOP = "desktop"
 
 # Tuning adjustment kinds (feedback_tuning table). The feedback loop's
 # periodic task appends rows here; the LATEST row per key (word / category)

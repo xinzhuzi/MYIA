@@ -146,8 +146,35 @@ export function eventToRow(event: SidecarEvent, seq: number): LogRow {
   if (event.type === "completed") {
     return { key: `event:${seq}`, runId: event.run_id, stream: "system", text: completedText(event), ts: event.ts };
   }
-  // 穷尽防御:SidecarEvent 只余 log/progress/completed 三种(10-03-vision-pipeline
-  // 拆屏后 image.progress/image.completed 已删);协议再添类型时此处编译期即报错
+  if (event.type === "test.completed") {
+    // 试抓 job 结果(C13,v1.1.2 桌面对齐批):一行系统摘要(run_id=null,
+    // 与 sources.test 的环形缓冲 run_id=null 同口径;详情在源管理屏回显)
+    const outcome = event.ok
+      ? `▸ 试抓完成(job #${event.job_id})`
+      : `▸ 试抓失败(job #${event.job_id}:${event.error ?? "error"})`;
+    return { key: `event:${seq}`, runId: null, stream: "system", text: outcome, ts: event.ts };
+  }
+  if (event.type === "image.models.progress") {
+    // 模型下载进度(10-03-vision-v2):一行系统摘要(run_id=null,下载 job 不挂
+    // run;后端 0.5s 节流;详情进度条在设置屏模型管理卡)
+    const total = event.total_bytes === undefined ? "总量未知" : `${event.total_bytes}B`;
+    return {
+      key: `event:${seq}`,
+      runId: null,
+      stream: "system",
+      text: `▸ 模型下载进度(job #${event.job_id} ${event.repo}:${event.done_bytes}B / ${total})`,
+      ts: event.ts,
+    };
+  }
+  if (event.type === "image.models.completed") {
+    const outcome = event.ok
+      ? `▸ 模型下载完成(job #${event.job_id})`
+      : `▸ 模型下载失败(job #${event.job_id}:${event.error ?? "error"})`;
+    return { key: `event:${seq}`, runId: null, stream: "system", text: outcome, ts: event.ts };
+  }
+  // 穷尽防御:SidecarEvent = log/progress/completed/test.completed +
+  // image.models.progress/completed 六种(10-03-vision-v2 增模型下载域两事件);
+  // 协议再添类型时此处编译期即报错
   const unknownEvent: never = event;
   return { key: `event:${seq}`, runId: null, stream: "system", text: `▸ 未识别事件(${String(unknownEvent)})`, ts: "" };
 }

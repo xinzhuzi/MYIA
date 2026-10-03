@@ -475,7 +475,7 @@ class TestDoctor:
         assert entry["exists"] is False
         finding = next(f for f in payload["findings"] if f["code"] == "keychain_ref_missing")
         assert finding["severity"] == "error"
-        assert "myia secret set myia/monitor/token" in finding["message"]
+        assert "shishi secret set myia/monitor/token" in finding["message"]
         assert payload["healthy"] is False
 
     def test_existing_keychain_ref_no_finding(self, tmp_path, capsys, keychain_backend):

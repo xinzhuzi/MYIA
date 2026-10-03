@@ -94,6 +94,8 @@ def _reset_sidecar_state(monkeypatch):
     monkeypatch.setattr(entry, "_CANCEL_TIMERS", [])
     monkeypatch.setattr(entry, "_TEST_ACTIVE_JOB", None)
     monkeypatch.setattr(entry, "_TEST_NEXT_JOB_ID", 0)
+    monkeypatch.setattr(entry, "_MODELS_DL_ACTIVE_JOB", None)
+    monkeypatch.setattr(entry, "_MODELS_DL_NEXT_JOB_ID", 0)
     monkeypatch.setattr(entry, "_LOG_RING", deque(maxlen=entry.LOG_RING_CAPACITY))
     monkeypatch.setattr(entry, "_LOG_SEQ", 0)
     # v1.1.1 上下文隔离:ambient MYIA_HOME 不得影响任何用例(dev 模式是默认前提)
@@ -217,7 +219,8 @@ def test_version_roundtrip():
     assert code == 0
     assert events == []
     assert responses == [{"id": 1, "result": {"name": "myia", "version": myia.__version__,
-                                              "protocol": entry.PROTOCOL_VERSION}}]
+                                              "protocol": entry.PROTOCOL_VERSION,
+                                              "app_version": None}}]
 
 
 def test_health_roundtrip_with_summary(tmp_path):
@@ -406,11 +409,12 @@ def test_store_items_seeded_db_with_filters(tmp_path):
 
 
 def test_store_items_projects_image_ocr_scalar(tmp_path):
-    """store.items 图析投影:raw["image_ocr"] 标量出面,raw 整包不出面。
+    """store.items 图析投影:vision 环四键白名单出面,raw 整包不出面。
 
-    feed 屏图析行渲染 item.image_ocr(feed-screen.tsx),数据链 =
-    vision 环挂 metadata.image_ocr → pipeline 以 raw=item.metadata 入库 →
-    本投影;无图条目置 None(契约同 types.ts FeedItem.image_ocr)。
+    feed 屏图析行渲染 item.image_ocr(feed-screen.tsx),详情展开吃
+    image_caption / image_files / image_ocr_lines(10-03-vision-v2 起随
+    ``images.persist`` 产生);数据链 = vision 环挂 metadata → pipeline 以
+    raw=item.metadata 入库 → 本投影;无图条目置 None(契约同 types.ts)。
     """
     db = tmp_path / "ocr.db"
     store = SQLiteStore(str(db))
@@ -420,21 +424,51 @@ def test_store_items_projects_image_ocr_scalar(tmp_path):
     store.save_item(ItemRecord(
         url="https://example.com/vision", dedup_key="ocr1", title="带图条目",
         first_seen=datetime(2026, 10, 2, tzinfo=timezone.utc),
-        raw={"image_ocr": "促销 广告语", "image_status": "ok", "watch": "raw 其余键"},
+        raw={
+            "image_ocr": "促销 广告语",
+            "image_caption": "图表解读全文",
+            "image_files": ["/data/images/abc123.png", "/data/images/def456.jpg"],
+            "image_ocr_lines": [
+                {"text": "促销", "conf": 0.98},
+                {"text": "广告语", "conf": 0.91},
+            ],
+            "image_status": "ok",
+            "watch": "raw 其余键",
+        },
     ))
     store.save_item(ItemRecord(
         url="https://example.com/plain", dedup_key="ocr2", title="无图条目",
         first_seen=datetime(2026, 10, 1, tzinfo=timezone.utc),
+    ))
+    store.save_item(ItemRecord(
+        url="https://example.com/badshape", dedup_key="ocr3", title="形态坏条目",
+        first_seen=datetime(2026, 10, 3, tzinfo=timezone.utc),
+        # 坏形态:caption 空白 / files 混杂坏值 / ocr_lines 夹杂坏行 → 全置 None
+        raw={"image_ocr": "x", "image_caption": "  ", "image_files": ["ok.png", 42],
+             "image_ocr_lines": [{"text": "好", "conf": 0.9}, {"text": "坏行"}]},
     ))
     store.close()
     code, responses, _ = rpc({"id": 1, "method": "store.items", "params": {"db": str(db)}})
     result = responses[0]["result"]
     by_key = {item["dedup_key"]: item for item in result["items"]}
     assert by_key["ocr1"]["image_ocr"] == "促销 广告语"
+    assert by_key["ocr1"]["image_caption"] == "图表解读全文"
+    assert by_key["ocr1"]["image_files"] == ["/data/images/abc123.png", "/data/images/def456.jpg"]
+    assert by_key["ocr1"]["image_ocr_lines"] == [{"text": "促销", "conf": 0.98},
+                                                 {"text": "广告语", "conf": 0.91}]
     assert by_key["ocr2"]["image_ocr"] is None
-    # raw 整包仍不出协议面:仅 image_ocr 标量投影,其余 metadata 键不外泄
+    assert by_key["ocr2"]["image_caption"] is None
+    assert by_key["ocr2"]["image_files"] is None
+    assert by_key["ocr2"]["image_ocr_lines"] is None
+    # 坏形态:三新键整体置 None(image_ocr 标量照常投影,不受牵连)
+    assert by_key["ocr3"]["image_caption"] is None
+    assert by_key["ocr3"]["image_files"] is None
+    assert by_key["ocr3"]["image_ocr_lines"] is None
+    assert by_key["ocr3"]["image_ocr"] == "x"
+    # raw 整包仍不出协议面:仅白名单投影,其余 metadata 键不外泄
     assert set(by_key["ocr1"]) == {
         "id", "url", "dedup_key", "title", "source", "content", "image_ocr",
+        "image_caption", "image_files", "image_ocr_lines",
         "tags", "category", "scores", "pushed_at", "push_slot", "first_seen",
     }
 
@@ -2144,21 +2178,27 @@ def test_method_registry_allowed_matches_handlers():
     """对账(spec 变更纪律第 2 条):data.allowed 与 _HANDLERS 键集一致;
     v1.1.2 桌面对齐批(run.cancel/runs.list/secret.delete/sources.test)+
     feed-ux 批(feed.export/push.test/schedule.preview)+
-    weixin-bridge 批(bridge.status)后 = 31。"""
+    weixin-bridge 批(bridge.status)+
+    vision-v2 批(image.models.*×4 + image.server.*×2)+
+    v1.1.2 批第二切片(feedback.mark/list/stats + store.trend)后 = 41。"""
     code, responses, _ = rpc({"id": 1, "method": "no.such.method", "params": {}})
     allowed = responses[0]["error"]["data"]["allowed"]
     assert allowed == sorted(entry._HANDLERS)
-    assert len(allowed) == 31
+    assert len(allowed) == 41
     for method in ("run.cancel", "runs.list", "secret.delete", "sources.test",
-                   "feed.export", "push.test", "schedule.preview", "bridge.status"):
+                   "feed.export", "push.test", "schedule.preview", "bridge.status",
+                   "image.models.list", "image.models.download",
+                   "image.models.delete", "image.models.activate",
+                   "image.server.status", "image.server.ensure"):
         assert method in allowed
 
 
 def test_protocol_version_bumped_for_feed_ux():
     """feed-ux 批新增三方法 → PROTOCOL_VERSION 3;weixin-bridge 批
-    (bridge.status,10-03-messaging-weixin-bridge)→ v4。"""
+    (bridge.status,10-03-messaging-weixin-bridge)→ v4;vision-v2 批
+    (image.models.*/image.server.* + store.items 三新投影键)→ v5。"""
     code, responses, _ = rpc({"id": 1, "method": "version", "params": {}})
-    assert responses[0]["result"]["protocol"] == 4
+    assert responses[0]["result"]["protocol"] == 5
 
 
 # ---------------------------------------------------------------------------
@@ -2441,3 +2481,412 @@ def test_bridge_status_bad_yaml_does_not_block_probe(tmp_path, monkeypatch):
 
     assert code == 0
     assert "available" in responses[0]["result"]
+
+
+# ---------------------------------------------------------------------------
+# image.models.* / image.server.*(10-03-vision-v2;契约与前端 TS 侧同形状冻结:
+# list→{models:[{name,path,bytes,active}]};download→{job_id}+progress/completed
+# 两事件;delete/activate→{ok};status→{running,base_url,model,healthy};
+# ensure→status+{started})
+# ---------------------------------------------------------------------------
+
+
+def _vision_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """MYIA_HOME 指到 tmp;建 models 目录,返回 home。"""
+    home = tmp_path / "home"
+    monkeypatch.setenv("MYIA_HOME", str(home))
+    (home / "models").mkdir(parents=True)
+    return home
+
+
+def _seed_model(home: Path, name: str, size: int = 64) -> Path:
+    model_dir = home / "models" / name
+    model_dir.mkdir(parents=True, exist_ok=True)
+    (model_dir / "w.safetensors").write_bytes(b"x" * size)
+    return model_dir
+
+
+def test_image_models_list_roundtrip(tmp_path, monkeypatch):
+    """models.list:扫描 + active 标(vision.yaml local.model 对齐);空目录空表。"""
+    home = _vision_home(tmp_path, monkeypatch)
+    _seed_model(home, "qwen-4bit", 100)
+    _seed_model(home, "smol-250m", 10)
+    (home / "models" / "README.md").write_text("杂文件不算")
+    code, responses, _ = rpc({"id": 1, "method": "image.models.list", "params": {}})
+    result = responses[0]["result"]
+    assert [m["name"] for m in result["models"]] == ["qwen-4bit", "smol-250m"]
+    by_name = {m["name"]: m for m in result["models"]}
+    assert by_name["qwen-4bit"]["bytes"] == 100
+    assert by_name["smol-250m"]["active"] is False  # vision.yaml 未配 → 全部非激活
+
+    # 激活一个(vision.yaml local.model)后 active 标翻转
+    (home / "vision.yaml").write_text(
+        "local:\n  model: " + str((home / "models" / "qwen-4bit").resolve()) + "\n",
+        encoding="utf-8",
+    )
+    code, responses, _ = rpc({"id": 2, "method": "image.models.list", "params": {}})
+    by_name = {m["name"]: m for m in responses[0]["result"]["models"]}
+    assert by_name["qwen-4bit"]["active"] is True
+    assert by_name["smol-250m"]["active"] is False
+
+
+def test_image_models_list_empty_home_is_legal(tmp_path, monkeypatch):
+    """零模型 = 合法空表(下载引导态,不报错)。"""
+    _vision_home(tmp_path, monkeypatch)
+    code, responses, _ = rpc({"id": 1, "method": "image.models.list", "params": {}})
+    assert responses[0]["result"] == {"models": []}
+
+
+def test_image_models_download_job_and_events(tmp_path, monkeypatch):
+    """download:提交即返 job_id;progress/completed 两事件形状冻结。"""
+    home = _vision_home(tmp_path, monkeypatch)
+    calls: dict[str, Any] = {}
+
+    def fake_download(repo, models_root, *, name=None, on_progress=None):
+        calls["repo"] = repo
+        calls["name"] = name
+        calls["root"] = str(models_root)
+        calls["dir"] = (home / "models" / "qwen-4bit").mkdir()
+        if on_progress is not None:
+            on_progress(100, 200)
+            on_progress(200, 200)
+        return home / "models" / "qwen-4bit"
+
+    monkeypatch.setattr(entry, "vision_download_model", fake_download)
+    out = io.StringIO()
+    stdin = io.StringIO(json.dumps({
+        "id": 1, "method": "image.models.download",
+        "params": {"repo": "mlx-community/qwen-4bit"},
+    }) + "\n")
+    assert entry.serve(stdin=stdin, stdout=out) == 0
+    responses, _ = split_stream(out)
+    job_id = responses[0]["result"]["job_id"]
+    assert isinstance(job_id, int)
+
+    deadline = time.monotonic() + 10
+    events: list[dict] = []
+    while time.monotonic() < deadline:
+        _, events = split_stream(out)
+        if any(e["type"] == "image.models.completed" for e in events):
+            break
+        time.sleep(0.05)
+    progress = [e for e in events if e["type"] == "image.models.progress"]
+    completed = [e for e in events if e["type"] == "image.models.completed"]
+    assert progress, "进度事件必须发生"
+    assert progress[0]["job_id"] == job_id
+    assert progress[0]["repo"] == "mlx-community/qwen-4bit"
+    assert progress[0]["done_bytes"] == 100 and progress[0]["total_bytes"] == 200
+    assert progress[-1]["done_bytes"] == 200
+    assert completed and completed[0]["ok"] is True
+    assert completed[0]["job_id"] == job_id
+    assert "error" not in completed[0]
+    assert calls["repo"] == "mlx-community/qwen-4bit"
+    assert calls["name"] is None  # 缺省 = repo 名段
+    assert calls["root"] == str(home / "models")
+
+
+def test_image_models_download_failure_event_and_busy(tmp_path, monkeypatch):
+    """下载失败:completed{ok:false, error=code};并发第二单 download_busy。"""
+    _vision_home(tmp_path, monkeypatch)
+    release = threading.Event()
+
+    def failing_download(repo, models_root, *, name=None, on_progress=None):
+        release.wait(timeout=10)  # 钉住第一单,确保第二单撞单飞窗口
+        raise entry.VisionModelError("disk_insufficient", "磁盘不足")
+
+    monkeypatch.setattr(entry, "vision_download_model", failing_download)
+    out = io.StringIO()
+    stdin = io.StringIO("".join(line + "\n" for line in [
+        json.dumps({"id": 1, "method": "image.models.download",
+                    "params": {"repo": "mlx-community/qwen-4bit"}}),
+        json.dumps({"id": 2, "method": "image.models.download",
+                    "params": {"repo": "mlx-community/other"}}),
+    ]))
+    entry.serve(stdin=stdin, stdout=out)
+    responses, _ = split_stream(out)
+    # 第二单撞第一单(单飞):结构化 download_busy(不是 500)
+    assert responses[1]["error"]["code"] == "download_busy"
+    release.set()
+    deadline = time.monotonic() + 10
+    completed: list[dict] = []
+    while time.monotonic() < deadline:
+        _, events = split_stream(out)
+        completed = [e for e in events if e["type"] == "image.models.completed"]
+        if completed:
+            break
+        time.sleep(0.05)
+    assert completed[0]["ok"] is False
+    assert completed[0]["error"] == "disk_insufficient"
+
+
+def test_image_models_download_invalid_params(tmp_path, monkeypatch):
+    """缺 repo / 非 mlx-community 前缀:invalid_params/invalid_repo 结构化拒。"""
+    _vision_home(tmp_path, monkeypatch)
+    code, responses, _ = rpc({"id": 1, "method": "image.models.download", "params": {}})
+    assert responses[0]["error"]["code"] == "invalid_params"
+    assert responses[0]["error"]["path"] == "params.repo"
+    # 非 mlx-community repo:同步快速失败(校验在 download_model 内,job 事件收口)
+    monkeypatch.setattr(entry, "vision_download_model",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            entry.VisionModelError("invalid_repo", "只收 mlx-community")))
+    out = io.StringIO()
+    stdin = io.StringIO(json.dumps({
+        "id": 2, "method": "image.models.download",
+        "params": {"repo": "Qwen/Qwen2-VL"}}) + "\n")
+    entry.serve(stdin=stdin, stdout=out)
+    responses, _ = split_stream(out)
+    assert responses[0]["result"]["job_id"] == 1  # 提交照常,失败走事件
+
+
+def test_image_models_delete_and_activate_roundtrip(tmp_path, monkeypatch):
+    """delete/activate → {ok};active 拒删 model_active_refused;激活写 vision.yaml。"""
+    home = _vision_home(tmp_path, monkeypatch)
+    _seed_model(home, "qwen-4bit")
+    _seed_model(home, "smol-250m")
+    # 激活 qwen-4bit
+    code, responses, _ = rpc({"id": 1, "method": "image.models.activate",
+                              "params": {"name": "qwen-4bit"}})
+    assert responses[0]["result"] == {"ok": True}
+    vision_text = (home / "vision.yaml").read_text(encoding="utf-8")
+    assert str((home / "models" / "qwen-4bit").resolve()) in vision_text
+    # active 拒删
+    code, responses, _ = rpc({"id": 2, "method": "image.models.delete",
+                              "params": {"name": "qwen-4bit"}})
+    assert responses[0]["error"]["code"] == "model_active_refused"
+    assert (home / "models" / "qwen-4bit").exists()  # 拒删 = 目录原样
+    # 非激活模型正常删
+    code, responses, _ = rpc({"id": 3, "method": "image.models.delete",
+                              "params": {"name": "smol-250m"}})
+    assert responses[0]["result"] == {"ok": True}
+    assert not (home / "models" / "smol-250m").exists()
+    # 未知模型结构化 404 族
+    code, responses, _ = rpc({"id": 4, "method": "image.models.delete",
+                              "params": {"name": "ghost"}})
+    assert responses[0]["error"]["code"] == "model_not_found"
+    code, responses, _ = rpc({"id": 5, "method": "image.models.delete", "params": {}})
+    assert responses[0]["error"]["code"] == "invalid_params"
+
+
+def test_image_server_status_roundtrip_local_http(tmp_path, monkeypatch, local_api):
+    """server.status:对本地 /models 端点 running/healthy;死端口全 False。"""
+    home = _vision_home(tmp_path, monkeypatch)
+    port = local_api  # 复用直 API 夹具服务器(任意路径回 200 JSON)
+    (home / "vision.yaml").write_text(
+        f"local:\n  base_url: http://127.0.0.1:{port}/v1\n  model: /m/qwen\n",
+        encoding="utf-8",
+    )
+    code, responses, _ = rpc({"id": 1, "method": "image.server.status", "params": {}})
+    assert responses[0]["result"] == {
+        "running": True,
+        "base_url": f"http://127.0.0.1:{port}/v1",
+        "model": "/m/qwen",
+        "healthy": True,
+    }
+    # 死端口:vision.yaml 指向无人听的 127.0.0.1:9
+    (home / "vision.yaml").write_text(
+        "local:\n  base_url: http://127.0.0.1:9/v1\n  model: /m/qwen\n",
+        encoding="utf-8",
+    )
+    code, responses, _ = rpc({"id": 2, "method": "image.server.status", "params": {}})
+    result = responses[0]["result"]
+    assert result["running"] is False and result["healthy"] is False
+
+
+def test_image_server_ensure_paths(tmp_path, monkeypatch):
+    """ensure:健康短路 started=false;未配模型 no_local_model;spawn 失败结构化。
+
+    探测统一桩死(dev 主机 8080 可能真跑着 mlx_vlm.server,测试绝不碰真网);
+    ①走真 ensure 实现,②③走 entry 能力桩。
+    """
+    import myia.vision.server as vision_server_module
+    monkeypatch.setattr(vision_server_module, "_probe",
+                        lambda url, timeout=2.0: (False, False))
+    home = _vision_home(tmp_path, monkeypatch)
+    # ① vision.yaml 未配 local.model 且探测未跑 → no_local_model
+    code, responses, _ = rpc({"id": 1, "method": "image.server.ensure", "params": {}})
+    assert responses[0]["error"]["code"] in ("no_local_model", "model_dir_missing")
+
+    # ② 已配模型 + ensure 能力桩:健康短路(started=false)与真自启(started=true)
+    _seed_model(home, "qwen-4bit")
+    (home / "vision.yaml").write_text(
+        "local:\n  model: " + str((home / "models" / "qwen-4bit").resolve()) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(entry, "ensure_vision_server", lambda cfg, **kwargs: {
+        "running": True, "base_url": cfg.local_base_url,
+        "model": cfg.local_model, "healthy": True, "started": False,
+    })
+    code, responses, _ = rpc({"id": 2, "method": "image.server.ensure", "params": {}})
+    assert responses[0]["result"]["started"] is False
+    assert responses[0]["result"]["healthy"] is True
+
+    def _spawning(cfg, **kwargs):
+        return {"running": True, "base_url": cfg.local_base_url,
+                "model": cfg.local_model, "healthy": True, "started": True}
+
+    monkeypatch.setattr(entry, "ensure_vision_server", _spawning)
+    code, responses, _ = rpc({"id": 3, "method": "image.server.ensure", "params": {}})
+    assert responses[0]["result"]["started"] is True
+
+    # ③ 代管层失败(如 uvx 缺装):结构化透传 server 族错误码
+    def _failing(cfg, **kwargs):
+        raise entry.VisionServerError("spawn_failed", "uvx 不可用")
+
+    monkeypatch.setattr(entry, "ensure_vision_server", _failing)
+    code, responses, _ = rpc({"id": 4, "method": "image.server.ensure", "params": {}})
+    assert responses[0]["error"]["code"] == "spawn_failed"
+    assert responses[0]["error"]["data"]["error_type"] == "spawn_failed"
+
+
+# ---------------------------------------------------------------------------
+# feedback.mark / feedback.list / feedback.stats + store.trend + version.app_version
+# (B2/B4/C10,10-03-v112-desktop-parity 第二切片;CLI 往返一致 = channel=desktop
+# 落 feedback 表,CLI `myia feedback list` 无过滤即见同一条目)
+# ---------------------------------------------------------------------------
+
+
+def _seed_feedback_db(tmp_path: Path) -> str:
+    """带一条目 + 一条既有 CLI 反馈的种子库(mark 往返的对照面)。"""
+    from datetime import datetime, timezone
+
+    from myia.store.models import FEEDBACK_CHANNEL_CLI, FeedbackRecord, ItemRecord
+
+    db = tmp_path / "feedback.db"
+    store = SQLiteStore(str(db))
+    store.save_item(ItemRecord(
+        url="https://example.com/fb", dedup_key="fb-key-1", title="反馈条目",
+        category="proto-demo", first_seen=datetime(2026, 10, 3, tzinfo=timezone.utc),
+    ))
+    store.save_feedback(FeedbackRecord(
+        dedup_key="fb-key-0", verdict="good", channel=FEEDBACK_CHANNEL_CLI,
+        item_id=None, title="旧条", category=None,
+        created_at=datetime(2026, 10, 2, tzinfo=timezone.utc),
+    ))
+    store.close()
+    return str(db)
+
+
+def test_feedback_mark_list_roundtrip(tmp_path):
+    """mark(dedup_key 身份,channel=desktop)→ list 可见同条;item_not_found 拒。"""
+    db = _seed_feedback_db(tmp_path)
+    code, responses, _ = rpc(
+        {"id": 1, "method": "feedback.mark",
+         "params": {"db": db, "item": "fb-key-1", "verdict": "good"}},
+    )
+    assert code == 0
+    result = responses[0]["result"]
+    assert result["channel"] == "desktop"
+    assert result["dedup_key"] == "fb-key-1"
+    assert result["verdict"] == "good"
+    assert isinstance(result["feedback_id"], int)
+
+    # list:CLI 旧行 + 桌面新行都可见(往返一致;CLI feedback list 同表无过滤)
+    code, responses, _ = rpc(
+        {"id": 2, "method": "feedback.list", "params": {"db": db}},
+    )
+    listing = responses[0]["result"]
+    assert listing["count"] == 2
+    newest = listing["items"][0]  # 新→旧
+    assert newest["channel"] == "desktop" and newest["dedup_key"] == "fb-key-1"
+    assert set(newest.keys()) == {
+        "id", "item_id", "dedup_key", "verdict", "channel", "title", "category", "created_at",
+    }
+    # 过滤:channel=desktop 只剩桌面行;verdict 过滤同理
+    code, responses, _ = rpc(
+        {"id": 3, "method": "feedback.list",
+         "params": {"db": db, "channel": "desktop"}},
+    )
+    assert responses[0]["result"]["count"] == 1
+
+    # 拒绝面:条目不存在 = item_not_found;verdict 非法 = feedback
+    code, responses, _ = rpc(
+        {"id": 4, "method": "feedback.mark",
+         "params": {"db": db, "item": "no-such-key", "verdict": "good"}},
+    )
+    assert responses[0]["error"]["code"] == "item_not_found"
+    code, responses, _ = rpc(
+        {"id": 5, "method": "feedback.mark",
+         "params": {"db": db, "item": "fb-key-1", "verdict": "meh"}},
+    )
+    assert responses[0]["error"]["code"] == "feedback"
+
+
+def test_feedback_stats_window_and_tuning_shape(tmp_path):
+    """stats:窗口计数 + active_tuning/tuning_history 键对齐 CLI stats 载荷。"""
+    db = _seed_feedback_db(tmp_path)
+    code, responses, _ = rpc(
+        {"id": 1, "method": "feedback.stats", "params": {"db": db, "window_days": 14}},
+    )
+    result = responses[0]["result"]
+    assert result["window_days"] == 14
+    assert result["stats"]["total"] == 1 and result["stats"]["good"] == 1
+    assert result["stats"]["by_channel"] == {"cli": 1}
+    assert "top_bad_categories" in result["stats"] and "top_bad_words" in result["stats"]
+    assert "active_tuning" in result and isinstance(result["tuning_history"], list)
+    # 参数形状拒绝:window_days 非法 = invalid_params
+    code, responses, _ = rpc(
+        {"id": 2, "method": "feedback.stats", "params": {"db": db, "window_days": 0}},
+    )
+    assert responses[0]["error"]["code"] == "invalid_params"
+
+
+def test_store_trend_daily_counts_utc(tmp_path):
+    """store.trend:items 按 first_seen UTC 逐日计数(旧→新);category 过滤 + 钳制。"""
+    from datetime import datetime, timedelta, timezone
+
+    from myia.store.models import ItemRecord
+
+    db = tmp_path / "trend.db"
+    store = SQLiteStore(str(db))
+    now = datetime.now(timezone.utc)
+    plan = [
+        (now, "tech", 2),                    # 今天:tech 2 条
+        (now, "stocks", 1),                  # 今天:stocks 1 条
+        (now - timedelta(days=1), "tech", 1),  # 昨天:tech 1 条
+        (now - timedelta(days=40), "tech", 5),  # 40 天前:窗口(7 天)外
+    ]
+    for first_seen, category, count in plan:
+        for index in range(count):
+            store.save_item(ItemRecord(
+                url=f"https://example.com/{category}-{first_seen.date()}-{index}",
+                dedup_key=f"t-{category}-{first_seen.date()}-{index}", title="t",
+                category=category, first_seen=first_seen,
+            ))
+    store.close()
+
+    code, responses, _ = rpc(
+        {"id": 1, "method": "store.trend", "params": {"db": str(db), "days": 7}},
+    )
+    days = responses[0]["result"]["days"]
+    assert [row["date"] for row in days] == sorted({row["date"] for row in days})
+    counts = {row["date"]: row["count"] for row in days}
+    assert counts.get(now.date().isoformat()) == 3
+    assert counts.get((now - timedelta(days=1)).date().isoformat()) == 1
+    assert sum(counts.values()) == 4  # 40 天前不入窗
+
+    # category 过滤 + days 钳制(0 → 1:只剩今天)
+    code, responses, _ = rpc(
+        {"id": 2, "method": "store.trend",
+         "params": {"db": str(db), "days": 7, "category": "tech"}},
+    )
+    counts = {row["date"]: row["count"] for row in responses[0]["result"]["days"]}
+    assert counts.get(now.date().isoformat()) == 2
+    code, responses, _ = rpc(
+        {"id": 3, "method": "store.trend", "params": {"db": str(db), "days": 0}},
+    )
+    assert sum(row["count"] for row in responses[0]["result"]["days"]) == 3
+    # 参数形状:days 非整数 = invalid_params
+    code, responses, _ = rpc(
+        {"id": 4, "method": "store.trend", "params": {"db": str(db), "days": "7"}},
+    )
+    assert responses[0]["error"]["code"] == "invalid_params"
+
+
+def test_version_app_version_passthrough(monkeypatch):
+    """version.app_version:透传 MYIA_APP_VERSION;未注入 = null(dev/CLI 如实)。"""
+    monkeypatch.delenv("MYIA_APP_VERSION", raising=False)
+    code, responses, _ = rpc({"id": 1, "method": "version", "params": {}})
+    assert responses[0]["result"]["app_version"] is None
+    monkeypatch.setenv("MYIA_APP_VERSION", "1.1.2")
+    code, responses, _ = rpc({"id": 2, "method": "version", "params": {}})
+    assert responses[0]["result"]["app_version"] == "1.1.2"

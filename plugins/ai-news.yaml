@@ -113,14 +113,22 @@ dedup:
   key: "{url}"                  # default semantics, spelled out for clarity
 
 enrich:
-  enabled: false                # v0.1: section is a pass-through; flip on with
-                                # an explicit OpenAI-compatible endpoint in v0.2
-                                # (base_url must be an env: reference — grill Q6)
+  enabled: true                 # 10-03-vision-daily A2:第二层漏斗实开;端点凭据
+                                # 双引用(schema 铁律:base_url/api_key 只收
+                                # env:/keychain: 引用,明文拒载 — grill Q6)
   model: glm-4-flash
   scores: [value, relevance, credibility]
-  batch: 20
+  batch: 10                   # 10-03-vision-daily 实测:glm-4-flash 单批 20 条
+                              # 评分 completion >60s 超时上限(enrich 层批级降级);
+                              # 10 条留足余量,mini-batch(≤2 条)~6s 实证
   cache: true
   budget_per_run: 50000
+  base_url: env:MYIA_LLM_BASE_URL   # 智谱 PAAS v4:export MYIA_LLM_BASE_URL=\
+                                # https://open.bigmodel.cn/api/paas/v4
+                                # (docs/zh/zero-cost.md §enrich、docker/env.example
+                                # 同名条目;容器走 docker/.env,CLI 走 shell 导出)
+  api_key: keychain:myia/image/api_key   # 既有 GLM key(与 vision.yaml cloud 同链;
+                                # myia secret set myia/image/api_key 录入)
 
 push:
   - channel: feishu_card
@@ -146,15 +154,15 @@ storage:
 # (aihot 卡片封面)做本地 OCR,产物进 metadata.image_ocr / image_status,
 # 随 enrich 精评与推送模板即刻可读。失败只写降级标记,绝不阻断采集。
 images:
-  enabled: true        # 只 OCR(vl 缺省 off,零 VL 开销、零 token)
+  enabled: true        # OCR + 本地 VL caption(10-03-vision-daily A1:vl 实配 local)
   max_images: 3        # 每条上限;超出静默截断
-  max_per_run: 30      # 每 run 硬闸(VL 时长的护栏;本插件 OCR 毫秒级,
-                       # 30 张远够当日两槽的量)
+  max_per_run: 30      # 每 run 硬闸(VL 时长的护栏;~30s/图,两槽合计 30 张封顶)
   min_bytes: 10240     # <10KB 视为图标/追踪像素跳过
-  # vl: local          # 可选视觉描述(情报向 caption,进 metadata.image_caption):
-  #                    # 通道走 vision.yaml 的 local 节(设置屏「看图」录入本地
-  #                    # 模型路径)。本地服务启动指引(mlx-vlm 示例):
-  #                    #   uvx --from mlx-vlm mlx_vlm.server --model <模型目录> \
-  #                    #     --host 127.0.0.1 --port 8080
-  #                    # 并发 1、45s/图超时降级;token 计入 enrich 预算池。
+  vl: local            # 视觉描述(情报向 caption,进 metadata.image_caption):
+                       # 通道走 vision.yaml 的 local 节(设置屏「看图」录入本地
+                       # 模型路径)。本地服务启动指引(mlx-vlm 示例):
+                       #   uvx --from mlx-vlm mlx_vlm.server --model <模型目录> \
+                       #     --host 127.0.0.1 --port 8080
+                       # 服务死/超时自动降级只 OCR 不崩(已验);并发 1、45s/图
+                       # 超时降级;token 计入 enrich 预算池。
   # ocr_engine: vision # vision | rapidocr;缺省按 vision.yaml 的 ocr.engine_default

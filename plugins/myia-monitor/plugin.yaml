@@ -9,7 +9,7 @@
 id: myia-monitor
 name: 变更监控(changedetection.io)
 version: 1.1.0
-compatible: ">=0.1,<2.0"
+compatible: ">=0.0.1,<0.1"
 tier: remote
 requires: []
 provides: [changedetection]

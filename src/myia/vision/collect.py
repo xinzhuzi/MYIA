@@ -14,6 +14,13 @@ metadata,图析产物续跑自然可见。)
 - ``image_caption``:VL 情报向描述(仅 VL 产出非空时写入);
 - ``image_status``:降级标记(环真正跑了才写,见下表)。
 
+可选落图(10-03-vision-v2,品类 ``images.persist`` 开):通过全部下载关的
+图**内容寻址持久化**到 ``<images_dir>/<sha16>.<ext>``(调用方传入,管线
+侧 = 数据根 ``images/``;同图同文件不重复落盘),metadata 另增
+``image_files``(绝对路径 list)与 ``image_ocr_lines``(逐行
+``{text, conf}``,供 feed 详情展开);缺省关 = 图文件即弃,行为与落图
+能力引入前逐字段一致。落盘失败(磁盘满等)只告警跳过该图,绝不阻管线。
+
 详情页追抓(10-03-detail-images):``images.detail_fetch`` 开时,同一挂点在
 识图环**之前**对本轮无图条目追抓其详情页——带**源级请求头**的静态 GET
 (:func:`detail_request_headers` 与引擎链同一装配语义:源 ``headers`` 的
@@ -69,10 +76,12 @@ extras ``myia[vision]``)——本模块 import 零重依赖,未装 extras 时 OC
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import ipaddress
 import logging
 import os
 import re
+import shutil
 import socket
 import tempfile
 from collections.abc import Iterable, Mapping
@@ -103,6 +112,7 @@ __all__ = [
     "MAX_IMAGE_BYTES",
     "MAX_REDIRECT_HOPS",
     "OCR_CONCURRENCY",
+    "PERSIST_DIR_NAME",
     "VL_CONCURRENCY",
     "VL_TIMEOUT_SECONDS",
     "detail_fetch_images",
@@ -134,6 +144,9 @@ DETAIL_FETCH_TIMEOUT_SECONDS = 10.0
 DETAIL_FETCH_INTERVAL_SECONDS = 1.0
 #: 多图 OCR 文本拼接分隔符。
 IMAGE_OCR_JOIN = "\n"
+#: 落图目录名(10-03-vision-v2:``images.persist`` 开时图存数据根下该目录,
+#: 内容寻址 ``<sha16>.<ext>``;管线侧由调用方拼根,本模块只收绝对目录)。
+PERSIST_DIR_NAME = "images"
 
 #: 情报向 describe 模板(拍板⑧:**collect.py 是管线侧事实源**,与 desktop
 #: 交互屏的通用照片向模板两用途两模板——构图/流派/氛围不进管线)。
@@ -859,6 +872,37 @@ class _VlChannel:
             self.available = True
 
 
+def _persist_images(downloads: list[_Downloaded], images_dir: Path | None) -> list[Path]:
+    """把通过全部下载关的图内容寻址落盘(10-03-vision-v2 ``images.persist``)。
+
+    文件名 = 内容 sha256 前 16 hex + 原后缀(下载关已按魔法字节白名单归一
+    png/jpg/gif/webp):同图(跨条目/跨源)同文件,天然去重。已存在即跳过
+    写(内容寻址,存在即一致);单图落盘失败(OSError:磁盘满/权限)只告警
+    跳过,**绝不阻管线**。返回成功落盘(或本就在场)的绝对路径列表。
+    """
+    if images_dir is None:
+        logger.warning("images.persist 开但未提供落图目录,本轮跳过落盘")
+        return []
+    persisted: list[Path] = []
+    try:
+        images_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        logger.warning("落图目录创建失败(本轮跳过落盘) dir=%s: %s", images_dir, exc)
+        return []
+    for downloaded in downloads:
+        try:
+            digest = hashlib.sha256(downloaded.path.read_bytes()).hexdigest()[:16]
+            target = images_dir / f"{digest}{downloaded.path.suffix}"
+            if not target.exists():
+                shutil.copyfile(downloaded.path, target)
+            persisted.append(target.resolve())
+        except OSError as exc:
+            logger.warning(
+                "图片落盘失败(跳过该图) src=%s: %s", downloaded.path, exc
+            )
+    return persisted
+
+
 async def process_item_images(
     item: Any,
     *,
@@ -869,6 +913,7 @@ async def process_item_images(
     client: httpx.AsyncClient | None = None,
     run_state: ImageRunState | None = None,
     source_extra: Mapping[str, Any] | None = None,
+    images_dir: Path | None = None,
 ) -> str | None:
     """对一个条目跑图片处理环,就地更新 ``item.metadata``。
 
@@ -887,6 +932,8 @@ async def process_item_images(
         run_state: 每 run 图配额(``max_per_run``);``None`` = 单条调用自建
             (管线侧应传入共享实例)。
         source_extra: 源级 ``extra_params``(``images_*`` 平铺覆写)。
+        images_dir: 落图目录(仅 ``persist`` 开时消费;``None`` = 落盘跳过
+            并告警)。管线侧传数据根 ``images/``。
 
     Returns:
         写入 ``metadata["image_status"]`` 的标记;环未进入(节未开/无图/
@@ -939,30 +986,46 @@ async def process_item_images(
                     item.metadata["image_status"] = "none"
                     return "none"
 
+                # 落图(可选,10-03-vision-v2):内容寻址持久化,产物路径挂
+                # metadata.image_files(失败只告警,逐图尽力而为)。
+                if effective.persist:
+                    persisted = _persist_images(usable, images_dir)
+                    if persisted:
+                        item.metadata["image_files"] = [str(p) for p in persisted]
+
                 ocr_sem = asyncio.Semaphore(OCR_CONCURRENCY)
 
-                async def _ocr(path: Path) -> list[str] | None:
-                    """一张图的 OCR(to_thread + 信号量;OCRError → None)。"""
+                async def _ocr(path: Path) -> list[Any] | None:
+                    """一张图的 OCR(to_thread + 信号量;OCRError → None)。
+
+                    返回逐行 :class:`myia.vision.ocr.OcrLine`(带置信度)
+                    —— ``image_ocr`` 拼接与 ``image_ocr_lines`` 投影同源。
+                    """
                     async with ocr_sem:
                         try:
-                            lines = await asyncio.to_thread(run_ocr, path, engine)
+                            return await asyncio.to_thread(run_ocr, path, engine)
                         except OCRError as exc:
                             logger.warning("图片 OCR 失败(降级): %s", exc)
                             return None
-                        return [line.text for line in lines]
 
-                per_image_texts = await asyncio.gather(*(_ocr(d.path) for d in usable))
-                texts = [t for t in per_image_texts if t]
-                if not texts:
-                    if all(t is None for t in per_image_texts):
+                per_image_lines = await asyncio.gather(*(_ocr(d.path) for d in usable))
+                line_lists = [lines for lines in per_image_lines if lines]
+                if not line_lists:
+                    if all(lines is None for lines in per_image_lines):
                         item.metadata["image_status"] = "ocr_failed"
                         return "ocr_failed"
                     # 图内确实无字(逐图 OCR 成功但零行):环成功,零 OCR 产物。
                     item.metadata["image_status"] = "ok"
                     return "ok"
                 item.metadata["image_ocr"] = IMAGE_OCR_JOIN.join(
-                    IMAGE_OCR_JOIN.join(t) for t in texts
+                    IMAGE_OCR_JOIN.join(line.text for line in lines) for lines in line_lists
                 )
+                if effective.persist:
+                    item.metadata["image_ocr_lines"] = [
+                        {"text": line.text, "conf": line.conf}
+                        for lines in line_lists
+                        for line in lines
+                    ]
 
                 # ---- VL 情报向 caption(可选;并发 1、45s/图、走预算池)----
                 if effective.vl == "off":

@@ -663,10 +663,24 @@ class SQLiteStore:
         *,
         category: str | None = None,
         since: datetime | None = None,
+        before: datetime | None = None,
+        before_id: int | None = None,
+        query: str | None = None,
         limit: int | None = None,
     ) -> list[ItemRecord]:
+        """List items, newest first(桌面情报流分页的查询面).
+
+        游标参数(10-03-v112-desktop-batch C1,与 feed-ux G1 合流形状):
+        ``before`` = first_seen 严格小于;``before_id`` 与 ``before`` 组成
+        ``(first_seen, id)`` 元组比较 —— 同刻(相同 first_seen)条目数超过
+        单页 limit 时,单靠 ``before`` 会把同刻更旧条目整批跳过,复合游标
+        才能推进直至取尽。``query`` = title/content/source 三列 LIKE
+        (NOCASE,无索引单机万级可接受,如实注记)。
+        """
         if limit is not None and limit < 0:
             raise ValueError(f"字段校验失败: limit 不能为负数,得到 {limit}")
+        if before is None and before_id is not None:
+            raise ValueError("字段校验失败: before_id 需与 before 同传(复合游标)")
         sql = "SELECT * FROM items"
         conditions: list[str] = []
         params: list[object] = []
@@ -676,13 +690,60 @@ class SQLiteStore:
         if since is not None:
             conditions.append("first_seen >= ?")
             params.append(_to_iso(since))
+        if before is not None:
+            if before_id is not None:
+                conditions.append("(first_seen < ? OR (first_seen = ? AND id < ?))")
+                params.extend([_to_iso(before), _to_iso(before), before_id])
+            else:
+                conditions.append("first_seen < ?")
+                params.append(_to_iso(before))
+        if query:
+            # LIKE 转义:%/_ 按字面匹配(ESCAPE '\';方括号通配符非 SQLite 语法不涉)
+            escaped = query.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
+            like = f"%{escaped}%"
+            conditions.append(
+                "(title LIKE ? ESCAPE '\\' COLLATE NOCASE"
+                " OR content LIKE ? ESCAPE '\\' COLLATE NOCASE"
+                " OR source LIKE ? ESCAPE '\\' COLLATE NOCASE)"
+            )
+            params.extend([like, like, like])
         if conditions:
             sql += " WHERE " + " AND ".join(conditions)
-        sql += " ORDER BY id DESC"
+        sql += " ORDER BY first_seen DESC, id DESC"
         if limit is not None:
             sql += " LIMIT ?"
             params.append(limit)
         return [_row_to_item(row) for row in self._query_all(sql, tuple(params))]
+
+    def daily_item_counts(
+        self, *, days: int = 14, category: str | None = None
+    ) -> list[tuple[str, int]]:
+        """Per-day item counts for the last ``days`` days(采集量趋势,桌面 store.trend).
+
+        Groups on ``substr(first_seen, 1, 10)``(UTC calendar day,如实口径 ——
+        不做时区换算);窗口下界 = UTC now − days 天(仅作 SQL 过滤,零数日
+        补齐归调用方/前端 ``fillDailyCounts``,store 只回有数日)。Returns
+        ``[(date, count)]`` old → new,窗口内零条目时为空列表(合法空态)。
+
+        Raises:
+            ValueError: ``days`` 非正整数(与 list_feedback 的 limit 校验同口径)。
+        """
+        if not isinstance(days, int) or isinstance(days, bool) or days < 1:
+            raise ValueError(f"字段校验失败: days 必须为正整数,得到 {days!r}")
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        sql = (
+            "SELECT substr(first_seen, 1, 10) AS day, COUNT(*) AS count "
+            "FROM items WHERE first_seen IS NOT NULL AND first_seen >= ?"
+        )
+        params: list[object] = [since]
+        if category is not None:
+            sql += " AND category = ?"
+            params.append(category)
+        sql += " GROUP BY day ORDER BY day ASC"
+        return [
+            (str(row["day"]), int(row["count"]))
+            for row in self._query_all(sql, tuple(params))
+        ]
 
     def mark_item_pushed(
         self, item_id: int, slot: str, pushed_at: datetime | None = None
@@ -1250,6 +1311,23 @@ class SQLiteStore:
             error=row["error"],
             steps=steps if isinstance(steps, dict) else None,
         )
+
+    def list_runs(self, *, category: str | None = None, limit: int = 50) -> list[RunRecord]:
+        """List persisted runs, newest first(桌面 runs.list 直读,C3).
+
+        与内存注册表(entry.py ``_RUNS``)互补:重启后历史 run 由此可达。
+        ``limit`` 负数即拒(照 :meth:`list_feedback` 口径)。
+        """
+        if limit < 0:
+            raise ValueError(f"字段校验失败: limit 不能为负数,得到 {limit}")
+        if category is not None:
+            rows = self._query_all(
+                "SELECT * FROM runs WHERE category = ? ORDER BY id DESC LIMIT ?",
+                (category, limit),
+            )
+        else:
+            rows = self._query_all("SELECT * FROM runs ORDER BY id DESC LIMIT ?", (limit,))
+        return [self._row_to_run(row) for row in rows]
 
     def get_run(self, run_id: int) -> RunRecord | None:
         row = self._query_one("SELECT * FROM runs WHERE id = ?", (run_id,))

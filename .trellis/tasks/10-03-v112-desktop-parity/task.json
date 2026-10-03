@@ -3,7 +3,7 @@
   "name": "v112-desktop-parity",
   "title": "v1.1.2 桌面对齐批次:B 组补实现 + C 组协议/UX 缺口",
   "description": "交付 v1.1.2 桌面对齐批次:B2–B4 补实现(桌面反馈入口、settings 反馈开关分区、仪表盘采集量趋势)+ C 组协议/UX 缺口修齐,P1=C2 sidecar 崩溃救回与 C1 翻页游标卡死。",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -21,6 +21,6 @@
   "children": [],
   "parent": null,
   "relatedFiles": [],
-  "notes": "",
+  "notes": "2026-10-03 主人令并行执行;feed-ux 落地(769ebd1)后本任务开跑;UI 在途部分已随 feed-ux 收编落树,本批在其上续作;entry.py 归 vision 线活跃持有,协议步骤压后+活跃度探测",
   "meta": {}
 }

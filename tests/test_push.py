@@ -679,7 +679,21 @@ def test_feishu_and_stdout_channels_conform_to_channel_protocol(monkeypatch):
     assert isinstance(StdoutChannel(), Channel)
     assert isinstance(TelegramChannel(), Channel)
     assert isinstance(WebhookChannel(), Channel)
-    assert set(CHANNELS) == {"feishu_card", "telegram", "webhook", "stdout"}
+    # 注册表钉死:ntfy/dingtalk/wecom 随 10-03-messaging-w2-platforms 落地,
+    # weixin 随 10-03-messaging-weixin-bridge 落地(可选桥接:出站经本机
+    # Hermes CLI,无目录发现)——钉死集随通道注册表演进同步(蓝图注记见
+    # push/__init__.py CHANNELS 定义处;新通道自身的协议符合性由
+    # tests/test_messaging_{ntfy,dingtalk,wecom,weixin_bridge}.py 专测覆盖)。
+    assert set(CHANNELS) == {
+        "feishu_card",
+        "telegram",
+        "webhook",
+        "stdout",
+        "ntfy",
+        "dingtalk",
+        "wecom",
+        "weixin",
+    }
 
 
 @pytest.mark.parametrize("channel", [TelegramChannel(), WebhookChannel()])

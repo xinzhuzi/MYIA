@@ -33,7 +33,7 @@
 ================= ============================== ============================
 方法              CLI 等价                        结果要点
 ================= ============================== ============================
-version           ``myia --version``             name/version/protocol
+version           ``myia --version``             name/version/protocol/app_version
 health            ``myia list --json``           源健康度 + summary 聚合
 plugins.list      ``myia plugin list --json``    已装插件清单 + findings
 doctor            ``myia doctor --json``         findings 全量(完成即 0)
@@ -44,6 +44,13 @@ run.cancel        (进程组杀 run 子进程)           SIGTERM→5s 后 SIGKIL
 runs.list         (SQLiteStore.list_runs 直读)   历史 run(新→旧;重启后可达)
 logs.tail         (sidecar 内环形缓冲)            最近日志行(可按 run_id 过滤)
 store.items       (SQLiteStore.list_items 直读)  情报流条目(新→旧;游标/搜索)
+feedback.mark     (record_feedback 同门直调)      卡片 👍/👎 入库(channel=
+                                                 desktop;CLI feedback list
+                                                 可见同一条目)
+feedback.list     (SQLiteStore.list_feedback)     反馈记录(新→旧;键同 CLI)
+feedback.stats    (FeedbackTuner.stats + tuning)  窗口统计 + 生效调参 + 历史
+store.trend       (SQLiteStore.daily_item_counts) 采集量趋势(UTC 逐日计数,
+                                                 窗口 [1,90] 天)
 feed.export       (list_items 同一查询面直写)     当前过滤视图导出 JSONL/CSV
                                                  (sidecar 直写,数据不经
                                                  webview;只写对话框选定的
@@ -72,6 +79,21 @@ yaml.save         (校验→查重→.bak→原子写)         mtime 乐观锁;f
 yaml.delete       (.bak 留底→删主文件→连带暂存)   自建品类生命周期收尾
 image.config.read  (vision.yaml 直读)              脱敏配置(keychain 引用不回明文)
 image.config.save  (同门校验→原子写)               失败零写入(image_config_invalid)
+image.models.list  (<home>/models 扫描)            已装模型清单(name/path/bytes/
+                                                 active 标;空目录=合法空表)
+image.models.download (HF snapshot_download)       异步 job:提交即返 job_id,
+                                                 结果走 image.models.progress/
+                                                 completed 两事件(断点续传;
+                                                 单飞 download_busy)
+image.models.delete (active 拒删)                  {ok};正被 local.model 使用的
+                                                 模型 model_active_refused
+image.models.activate (vision.yaml 改写)           {ok};local.model 指向该模型
+                                                 目录(同门校验原子写)
+image.server.status (base_url/models 2s 探)        {running, base_url, model,
+                                                 healthy}
+image.server.ensure (nohup 自起 mlx_vlm.server)    status+{started};健康等待
+                                                 ≤120s(JIT 慢),未配模型/
+                                                 spawn 失败/超窗结构化上抛
 channels.list      (消息屏目录四视图)              目录(platforms)+别名(aliases)
                                                  +死信(dead)+推送规则(rules);
                                                  零平台=合法空态
@@ -109,6 +131,16 @@ push.test          (通道 send(items, context))    合成单条测试条目真�
   复合游标;同刻批量超单页 limit 也能翻页取尽)。
 - ``secret.delete`` params:``name``;secrets 层 code 透传(``secret_not_found``
   第二次删除、``invalid_secret_name`` 等)。
+- ``feedback.*`` 三方法(B2,10-03-v112-desktop-parity):``feedback.mark
+  {item, verdict, db?}``(``item`` = items.id 或 dedup_key/URL;条目不存在 =
+  ``item_not_found``)→ ``{feedback_id, item_id, dedup_key, verdict,
+  channel:"desktop"}``;``feedback.list {verdict?, channel?, limit?=50, db?}``
+  → ``{count, items[]}``(键同 CLI `_feedback_row_dict`);
+  ``feedback.stats {window_days?=14, top?=5, db?}`` → ``{window_days, stats,
+  active_tuning, tuning_history}``(键同 CLI stats 载荷)。
+- ``store.trend`` params(B4,同批):``days``(缺省 14,钳制 [1,90])、
+  ``category?``、``db?`` → ``{days: [{date, count}]}`` 旧→新,UTC 逐日口径
+  (零数日补齐归前端 fillDailyCounts)。
 - ``sources.test`` params:``file``(必填,围栏)、``source``(缺省 = 全部源)、
   ``timeout``(≤120)、``config``;应答 ``{job_id, state:"running", source?}``,
   结果走事件 ``test.completed {job_id, ok, exit_code, result?|error?, ts}``;
@@ -144,6 +176,23 @@ push.test          (通道 send(items, context))    合成单条测试条目真�
   包,与 vision.yaml 机制不动):``image.config.read`` / ``image.config.save``
   读写 ``<home>/vision.yaml``(MYIA_HOME 第一个全局配置文件;云端 api_key 只收
   ``keychain:`` 引用,同门校验失败零写入)。业务错误码:``image_config_invalid``。
+- ``image.models.*`` / ``image.server.*`` 六方法(10-03-vision-v2,契约与前端
+  TS 侧同形状冻结):``image.models.list`` 零参 → ``{models:[{name,path,
+  bytes,active}]}``;``image.models.download {repo, name?}``(repo 必须
+  ``mlx-community/<name>``,MLX 格式权重直下免 convert)→ ``{job_id}`` +
+  ``image.models.progress {job_id, repo, done_bytes, total_bytes?}`` /
+  ``image.models.completed {job_id, ok, error?}`` 两事件(磁盘预检不足 =
+  ``disk_insufficient`` 完成事件,断点续传,单飞 ``download_busy``);
+  ``image.models.delete {name}`` / ``image.models.activate {name}`` → ``{ok}``
+  (active 模型拒删 ``model_active_refused``;激活 = vision.yaml
+  ``local.model`` 原子改写);``image.server.status`` 零参 → ``{running,
+  base_url, model, healthy}``;``image.server.ensure`` 零参 → status +
+  ``{started}``(未跑且模型在 → nohup 自起 ``uvx --from mlx-vlm
+  mlx_vlm.server``,健康等待 ≤120s;结构化错误族 ``no_local_model`` /
+  ``model_dir_missing`` / ``spawn_failed`` / ``server_died`` /
+  ``server_start_failed``,日志落 ``<home>/vision-server.log``)。模型与
+  server 能力实现在 ``myia.vision.models`` / ``myia.vision.server``(重依赖
+  惰性,huggingface-hub 在 extras ``myia[vision]``)。
 
 铁律:凭据只进系统钥匙链(``secret.set`` 薄包装 myia.secrets,值不落日志/协议流);
 桌面零 Docker;任何插件装不上不拦核心(doctor/list 只产 findings)。
@@ -186,6 +235,13 @@ import myia
 import yaml
 from myia import push as myia_push
 from myia.cli import DEFAULT_DB_PATH, DEFAULT_PLUGINS_DIR, main as cli_main
+from myia.feedback import (
+    FeedbackTuner,
+    TuningPolicy,
+    load_active_tuning,
+    record_feedback,
+    resolve_item_ref,
+)
 from myia.plugins.installed import INSTALL_ROOT_ENV, default_install_root
 from myia.push import ChannelDirectory, DeliveryLedger, DirectoryDiscoverUnsupported, PushSendError
 from myia.push.weixin import probe_bridge
@@ -202,7 +258,7 @@ from myia.schema import (
     load_category_file,
 )
 from myia.secrets import SecretError, delete_secret, list_secrets, set_secret
-from myia.store import SQLiteStore, StoreSchemaError
+from myia.store import FEEDBACK_CHANNEL_DESKTOP, SQLiteStore, StoreSchemaError
 from myia.vision import (
     VISION_FILE_NAME,
     VisionConfig,
@@ -210,13 +266,29 @@ from myia.vision import (
     load_vision_config,
     save_vision_config,
 )
+from myia.vision.models import (
+    VisionModelError,
+    activate_model as vision_activate_model,
+    delete_model as vision_delete_model,
+    download_model as vision_download_model,
+    list_models as vision_list_models,
+)
+from myia.vision.server import (
+    SERVER_LOG_NAME,
+    VisionServerError,
+    ensure_vision_server,
+    vision_server_status,
+)
 
 #: v2 = 消息族(channels.*/push.write)入表;yaml.*/image.* 并线期未及 bump,
 #: 本次统一收口(v1 停在 10 方法时代)。
 #: v3 = feed-ux 批(feed.export / push.test / schedule.preview;store.items 的
 #: query/before/before_id 已随 v112 桌面对齐批在 v2 期内落地,不重复计)。
 #: v4 = weixin-bridge 批(bridge.status 微信桥接探测,10-03-messaging-weixin-bridge)。
-PROTOCOL_VERSION = 4
+#: v5 = vision-v2 批(image.models.* 四方法 + image.server.* 两方法,及
+#: store.items 投影补 image_caption/image_files/image_ocr_lines 三键,
+#: 10-03-vision-v2;契约与前端 TS 侧同形状冻结)。
+PROTOCOL_VERSION = 5
 #: 日志环形缓冲容量(行);logs.tail 的硬上限。
 LOG_RING_CAPACITY = 4000
 #: 单次 run 的日志事件与环形上限一致;超限仅丢最旧行。
@@ -485,8 +557,18 @@ def _cli_error(code: int, payload: dict[str, Any] | None) -> ProtocolError:
 
 
 def _m_version(params: dict[str, Any]) -> dict[str, Any]:
-    """``myia --version`` 等价:版本 + 协议版本。"""
-    return {"name": "myia", "version": myia.__version__, "protocol": PROTOCOL_VERSION}
+    """``myia --version`` 等价:版本 + 协议版本 + app 版本(C10)。
+
+    ``app_version`` 透传壳层注入的 ``MYIA_APP_VERSION``(main.rs spawn 时取
+    package_info,单一事实源 = tauri.conf.json version);dev/CLI 场景未注入 =
+    null(如实,不虚构)。
+    """
+    return {
+        "name": "myia",
+        "version": myia.__version__,
+        "protocol": PROTOCOL_VERSION,
+        "app_version": os.environ.get("MYIA_APP_VERSION") or None,
+    }
 
 
 def _m_health(params: dict[str, Any]) -> dict[str, Any]:
@@ -569,13 +651,34 @@ def _m_doctor(params: dict[str, Any]) -> dict[str, Any]:
 def _item_dict(item: Any) -> dict[str, Any]:
     """ItemRecord → 协议字典(raw/content_hash 整包不出协议面)。
 
-    例外是 ``image_ocr`` 标量:vision 环产物挂 ``metadata.image_ocr``
-    (collect.py),pipeline 以 ``raw=item.metadata`` 入库,feed 屏图析行
-    渲染依赖它(feed-screen.tsx)——只投影该标量,raw 其余键仍不出面;
-    无图/非字符串/空白条目置 None,feed 屏零渲染变化。
+    例外是 vision 环产物的**白名单投影**:图析产物挂 ``metadata.image_ocr``
+    / ``image_caption`` / ``image_files`` / ``image_ocr_lines``(collect.py,
+    10-03-vision-v2 起后三键随落图开关产生),pipeline 以 ``raw=item.metadata``
+    入库,feed 屏图析行与详情展开依赖它们(feed-screen.tsx)——只投影这些
+    键,raw 其余键仍不出面;无图/类型不符/空白条目置 None,feed 屏零渲染
+    变化。``image_ocr_lines`` 逐行 ``{text, conf}`` 原样透传(供详情逐行
+    置信度渲染),形态不符(非 list[dict{str, num}])整体置 None 不硬抛。
     """
     raw = item.raw if isinstance(item.raw, Mapping) else {}
     ocr = raw.get("image_ocr")
+    caption = raw.get("image_caption")
+    files = raw.get("image_files")
+    ocr_lines = raw.get("image_ocr_lines")
+    projected_lines: list[dict[str, Any]] | None = None
+    if isinstance(ocr_lines, list) and ocr_lines:
+        sane = [
+            {"text": str(line.get("text")), "conf": float(line.get("conf"))}
+            for line in ocr_lines
+            if isinstance(line, Mapping) and isinstance(line.get("text"), str)
+            and isinstance(line.get("conf"), (int, float)) and not isinstance(line.get("conf"), bool)
+        ]
+        # 行数对不齐(夹杂坏行)= 源数据形态异常,整体置 None 不半投影
+        projected_lines = sane if len(sane) == len(ocr_lines) else None
+    projected_files: list[str] | None = None
+    if isinstance(files, list) and files:
+        # 同款严格门:全项皆非空 str 才投影,夹杂坏值整体置 None
+        if all(isinstance(path, str) and path for path in files):
+            projected_files = list(files)
     return {
         "id": item.id,
         "url": item.url,
@@ -584,6 +687,9 @@ def _item_dict(item: Any) -> dict[str, Any]:
         "source": item.source,
         "content": item.content,
         "image_ocr": ocr if isinstance(ocr, str) and ocr.strip() else None,
+        "image_caption": caption if isinstance(caption, str) and caption.strip() else None,
+        "image_files": projected_files,
+        "image_ocr_lines": projected_lines,
         "tags": item.tags,
         "category": item.category,
         "scores": item.scores,
@@ -2206,6 +2312,175 @@ def _m_runs_list(params: dict[str, Any]) -> dict[str, Any]:
     return {"db": str(db), "count": len(records), "runs": [_run_record_dict(record) for record in records]}
 
 
+# ---------------------------------------------------------------------------
+# 方法:feedback.mark / feedback.list / feedback.stats
+# (B2,10-03-v112-desktop-parity:桌面反馈入口;与 CLI ``myia feedback`` 同门
+# 直调 myia.feedback —— channel="desktop" 落库,CLI ``feedback list`` 无过滤
+# 即见同一条目,往返一致;载荷键逐一对齐 cli.py `_feedback_row_dict` / stats 报文)
+# ---------------------------------------------------------------------------
+
+
+def _feedback_row_dict(record: Any) -> dict[str, Any]:
+    """反馈行机器形态(键同 cli.py `_feedback_row_dict`;本地小助手防跨模块私有引用)。"""
+    return {
+        "id": record.id,
+        "item_id": record.item_id,
+        "dedup_key": record.dedup_key,
+        "verdict": record.verdict,
+        "channel": record.channel,
+        "title": record.title,
+        "category": record.category,
+        "created_at": record.created_at.isoformat() if record.created_at else None,
+    }
+
+
+def _m_feedback_mark(params: dict[str, Any]) -> dict[str, Any]:
+    """卡片 👍/👎 入库(record_feedback 同门,channel=desktop;B2)。
+
+    ``item`` = items.id(int)或 dedup_key/URL(str),经 :func:`resolve_item_ref`
+    解析;条目不存在 = ``item_not_found``;verdict ∉ {good,bad} = ``feedback``。
+    """
+    item_ref = params.get("item")
+    if isinstance(item_ref, bool) or item_ref is None or item_ref == "":
+        raise ProtocolError("invalid_params", "缺少条目引用 item(items.id 或 dedup_key/URL)", path="params.item")
+    verdict = params.get("verdict")
+    if verdict not in ("good", "bad"):
+        raise ProtocolError("feedback", f"verdict 必须是 good 或 bad,得到 {verdict!r}", path="params.verdict")
+    db = params.get("db") or _serve_context().db
+    try:
+        store = SQLiteStore(db)
+    except StoreSchemaError as exc:
+        raise ProtocolError(exc.code, str(exc), path="params.db", data=exc.details) from exc
+    try:
+        item = resolve_item_ref(store, item_ref)
+        if item is None:
+            raise ProtocolError(
+                "item_not_found",
+                f"条目不存在: {item_ref!r}(可传 items.id 或 dedup_key/URL)",
+                path="params.item",
+            )
+        try:
+            record = record_feedback(
+                store, verdict=verdict, channel=FEEDBACK_CHANNEL_DESKTOP, item=item
+            )
+        except ValueError as exc:
+            raise ProtocolError("feedback", str(exc), path="params") from exc
+    finally:
+        store.close()
+    return {
+        "feedback_id": record.id,
+        "item_id": record.item_id,
+        "dedup_key": record.dedup_key,
+        "verdict": record.verdict,
+        "channel": record.channel,
+    }
+
+
+def _m_feedback_list(params: dict[str, Any]) -> dict[str, Any]:
+    """反馈记录清单(SQLiteStore.list_feedback 直读,新→旧;B2)。"""
+    verdict = params.get("verdict")
+    if verdict is not None and verdict not in ("good", "bad"):
+        raise ProtocolError("invalid_params", f"verdict 必须是 good 或 bad,得到 {verdict!r}", path="params.verdict")
+    channel = params.get("channel")
+    if channel is not None and (not isinstance(channel, str) or not channel):
+        raise ProtocolError("invalid_params", "channel 必须为非空字符串", path="params.channel")
+    limit = params.get("limit", 50)
+    if limit is None:
+        limit = 50
+    if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+        raise ProtocolError("invalid_params", "limit 必须为正整数", path="params.limit")
+    db = params.get("db") or _serve_context().db
+    try:
+        store = SQLiteStore(db)
+    except StoreSchemaError as exc:
+        raise ProtocolError(exc.code, str(exc), path="params.db", data=exc.details) from exc
+    try:
+        rows = store.list_feedback(verdict=verdict, channel=channel, limit=limit)
+    except ValueError as exc:
+        raise ProtocolError("invalid_params", str(exc), path="params") from exc
+    finally:
+        store.close()
+    return {"count": len(rows), "items": [_feedback_row_dict(row) for row in rows]}
+
+
+def _m_feedback_stats(params: dict[str, Any]) -> dict[str, Any]:
+    """窗口统计 + 生效调参 + 调参历史(键同 CLI ``feedback stats --json``;B2)。"""
+    window_days = params.get("window_days", 14)
+    if window_days is None:
+        window_days = 14
+    if not isinstance(window_days, int) or isinstance(window_days, bool) or window_days < 1:
+        raise ProtocolError("invalid_params", "window_days 必须为正整数", path="params.window_days")
+    top = params.get("top", 5)
+    if top is None:
+        top = 5
+    if not isinstance(top, int) or isinstance(top, bool) or top < 1:
+        raise ProtocolError("invalid_params", "top 必须为正整数", path="params.top")
+    try:
+        policy = TuningPolicy(window_days=window_days, top_n=top)
+    except ValueError as exc:
+        raise ProtocolError("feedback", str(exc), path="params") from exc
+    db = params.get("db") or _serve_context().db
+    try:
+        store = SQLiteStore(db)
+    except StoreSchemaError as exc:
+        raise ProtocolError(exc.code, str(exc), path="params.db", data=exc.details) from exc
+    try:
+        tuner = FeedbackTuner(policy)
+        stats = tuner.stats(store)
+        active = load_active_tuning(store)
+        history = [
+            {
+                "id": row.id,
+                "kind": row.kind,
+                "payload": dict(row.payload),
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+            }
+            for row in store.list_tuning(limit=10)
+        ]
+    except ValueError as exc:
+        raise ProtocolError("feedback", str(exc), path="params") from exc
+    finally:
+        store.close()
+    return {
+        "window_days": policy.window_days,
+        "stats": stats.to_dict(),
+        "active_tuning": active.to_dict(),
+        "tuning_history": history,
+    }
+
+
+# ---------------------------------------------------------------------------
+# 方法:store.trend
+# (B4,10-03-v112-desktop-parity:采集量趋势 —— items 按 first_seen UTC 逐日
+# 计数,SQLiteStore.daily_item_counts 直读;口径 = UTC 逐日,不做时区换算)
+# ---------------------------------------------------------------------------
+
+
+def _m_store_trend(params: dict[str, Any]) -> dict[str, Any]:
+    """采集量趋势(days 钳制 [1,90];零数日补齐归前端 fillDailyCounts)。"""
+    days = params.get("days", 14)
+    if days is None:
+        days = 14
+    if not isinstance(days, int) or isinstance(days, bool):
+        raise ProtocolError("invalid_params", "days 必须为整数", path="params.days")
+    days = max(1, min(days, 90))
+    category = params.get("category")
+    if category is not None and (not isinstance(category, str) or not category):
+        raise ProtocolError("invalid_params", "category 必须为非空字符串", path="params.category")
+    db = params.get("db") or _serve_context().db
+    try:
+        store = SQLiteStore(db)
+    except StoreSchemaError as exc:
+        raise ProtocolError(exc.code, str(exc), path="params.db", data=exc.details) from exc
+    try:
+        rows = store.daily_item_counts(days=days, category=category)
+    except ValueError as exc:
+        raise ProtocolError("invalid_params", str(exc), path="params") from exc
+    finally:
+        store.close()
+    return {"days": [{"date": date, "count": count} for date, count in rows]}
+
+
 def _m_logs_tail(params: dict[str, Any]) -> dict[str, Any]:
     """环形缓冲尾部;lines 上限 = 缓冲容量,run_id 可选过滤。"""
     lines = params.get("lines", 200)
@@ -2270,6 +2545,179 @@ def _m_image_config_save(params: dict[str, Any]) -> dict[str, Any]:
         ) from exc
     path = save_vision_config(_vision_yaml_path(_serve_context()), config)
     return {"ok": True, "file": str(path)}
+
+
+# ---------------------------------------------------------------------------
+# 方法:image.models.list / download / delete / activate + image.server.status
+#       / image.server.ensure(10-03-vision-v2;能力实现 myia.vision.models /
+#       myia.vision.server,契约与前端 TS 侧同形状冻结)
+# ---------------------------------------------------------------------------
+
+#: 模型下载单飞(桌面一次一个大模型;并发下载只会互相抢带宽与磁盘)。
+_MODELS_DL_LOCK = threading.Lock()
+_MODELS_DL_ACTIVE_JOB: int | None = None
+_MODELS_DL_NEXT_JOB_ID = 0
+
+
+def _vision_models_root(ctx: ServeContext) -> Path:
+    """模型根:vision.yaml 同目录 ``models/``(home 模式 = ``<home>/models``)。"""
+    return _vision_yaml_path(ctx).parent / "models"
+
+
+def _active_model_path(ctx: ServeContext) -> str:
+    """当前激活模型路径(lenient:vision.yaml 拒载按未配置,清单不因坏配置炸)。"""
+    try:
+        return load_vision_config(_vision_yaml_path(ctx)).local_model
+    except VisionConfigError:
+        return ""
+
+
+def _require_model_name(params: dict[str, Any]) -> str:
+    """模型名参数校验(非空字符串;delete/activate 共用)。"""
+    name = params.get("name")
+    if not isinstance(name, str) or not name:
+        raise ProtocolError("invalid_params", "缺少模型名 name", path="params.name")
+    return name
+
+
+def _m_image_models_list(params: dict[str, Any]) -> dict[str, Any]:
+    """已装模型清单(空目录 = 合法空表,UI 给下载引导不报错)。"""
+    ctx = _serve_context()
+    active = _active_model_path(ctx)
+    return {
+        "models": vision_list_models(_vision_models_root(ctx), active_path=active or None)
+    }
+
+
+def _m_image_models_download(params: dict[str, Any]) -> dict[str, Any]:
+    """模型下载(异步 job,仿 sources.test 先例):提交即返,结果走两事件。
+
+    ``repo`` 必须 ``mlx-community/<name>``(MLX 格式权重直下免 convert);
+    ``name`` 缺省 = repo 名段。磁盘预检不足 / 网络失败都以
+    ``image.models.completed {ok:false, error}` 收口(error = 结构化 code)。
+    """
+    global _MODELS_DL_ACTIVE_JOB, _MODELS_DL_NEXT_JOB_ID
+    repo = params.get("repo")
+    if not isinstance(repo, str) or not repo.strip():
+        raise ProtocolError(
+            "invalid_params", "缺少仓库全名 repo(mlx-community/<name>)", path="params.repo"
+        )
+    name = params.get("name")
+    if name is not None and (not isinstance(name, str) or not name.strip()):
+        raise ProtocolError("invalid_params", "name 必须是非空字符串或省略", path="params.name")
+    repo = repo.strip()
+    name = (name or "").strip() or None
+    with _MODELS_DL_LOCK:
+        if _MODELS_DL_ACTIVE_JOB is not None:
+            raise ProtocolError(
+                "download_busy",
+                f"已有模型下载在执行 job_id={_MODELS_DL_ACTIVE_JOB}(单飞)",
+                data={"active_job_id": _MODELS_DL_ACTIVE_JOB},
+            )
+        _MODELS_DL_NEXT_JOB_ID += 1
+        job_id = _MODELS_DL_NEXT_JOB_ID
+        _MODELS_DL_ACTIVE_JOB = job_id
+    threading.Thread(
+        target=_image_models_download_worker,
+        args=(job_id, repo, name, _vision_models_root(_serve_context())),
+        daemon=True,
+    ).start()
+    return {"job_id": job_id}
+
+
+def _image_models_download_worker(
+    job_id: int, repo: str, name: str | None, models_root: Path
+) -> None:
+    """后台线程:snapshot_download → 进度/完成事件(绝不阻塞 serve 循环)。"""
+    global _MODELS_DL_ACTIVE_JOB
+
+    def _on_progress(done_bytes: int, total_bytes: int | None) -> None:
+        event: dict[str, Any] = {
+            "type": "image.models.progress",
+            "job_id": job_id,
+            "repo": repo,
+            "done_bytes": done_bytes,
+        }
+        if total_bytes is not None:
+            event["total_bytes"] = total_bytes
+        event["ts"] = _now_iso()
+        _write_line(event)
+
+    error: str | None = None
+    try:
+        try:
+            vision_download_model(repo, models_root, name=name, on_progress=_on_progress)
+        except VisionModelError as exc:
+            error = exc.code
+            _ring_append(None, "stderr", f"sidecar: 模型下载失败 {repo}: [{exc.code}] {exc}")
+        except Exception as exc:  # noqa: BLE001 — 事件必须可见,错误收口为完成事件
+            error = type(exc).__name__
+            _ring_append(None, "stderr", f"sidecar: 模型下载未预期异常 {repo}: {exc}")
+        completed: dict[str, Any] = {
+            "type": "image.models.completed",
+            "job_id": job_id,
+            "ok": error is None,
+            "ts": _now_iso(),
+        }
+        if error is not None:
+            completed["error"] = error
+        _write_line(completed)
+    finally:
+        with _MODELS_DL_LOCK:
+            if _MODELS_DL_ACTIVE_JOB == job_id:
+                _MODELS_DL_ACTIVE_JOB = None
+
+
+def _m_image_models_delete(params: dict[str, Any]) -> dict[str, Any]:
+    """删除模型目录(active 拒删——在用权重删除会让本地 VL 突然失效)。"""
+    name = _require_model_name(params)
+    ctx = _serve_context()
+    active = _active_model_path(ctx)
+    try:
+        vision_delete_model(name, _vision_models_root(ctx), active_path=active or None)
+    except VisionModelError as exc:
+        raise ProtocolError(
+            exc.code, str(exc), path="params.name", data=exc.to_dict()
+        ) from exc
+    return {"ok": True}
+
+
+def _m_image_models_activate(params: dict[str, Any]) -> dict[str, Any]:
+    """激活模型 = vision.yaml ``local.model`` 指向该目录(同门校验原子写)。"""
+    name = _require_model_name(params)
+    ctx = _serve_context()
+    try:
+        vision_activate_model(name, _vision_models_root(ctx), _vision_yaml_path(ctx))
+    except VisionModelError as exc:
+        raise ProtocolError(
+            exc.code, str(exc), path="params.name", data=exc.to_dict()
+        ) from exc
+    except VisionConfigError as exc:  # 拒载/写失败零半载(activate 内同门)
+        raise ProtocolError(
+            "image_config_invalid", f"vision.yaml 改写失败,零写入: {exc}",
+            path="params.name", data=exc.to_dict(),
+        ) from exc
+    return {"ok": True}
+
+
+def _m_image_server_status(params: dict[str, Any]) -> dict[str, Any]:
+    """本地 mlx_vlm.server 状态(base_url/models 2s 探;零副作用)。"""
+    return vision_server_status(_load_vision(_serve_context()))
+
+
+def _m_image_server_ensure(params: dict[str, Any]) -> dict[str, Any]:
+    """确保本地 mlx_vlm.server 在跑:健康即返 started=false,否则 nohup 自启。
+
+    健康等待 ≤120s(Metal JIT 首载慢);同步应答(冻结契约),日志落
+    ``<home>/vision-server.log``。失败结构化上抛(myia.vision.server 错误族)。
+    """
+    ctx = _serve_context()
+    try:
+        return ensure_vision_server(
+            _load_vision(ctx), log_path=_vision_yaml_path(ctx).parent / SERVER_LOG_NAME
+        )
+    except VisionServerError as exc:
+        raise ProtocolError(exc.code, str(exc), data=exc.to_dict()) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -2824,6 +3272,10 @@ _HANDLERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "run.status": _m_run_status,
     "run.cancel": _m_run_cancel,
     "runs.list": _m_runs_list,
+    "feedback.mark": _m_feedback_mark,
+    "feedback.list": _m_feedback_list,
+    "feedback.stats": _m_feedback_stats,
+    "store.trend": _m_store_trend,
     "logs.tail": _m_logs_tail,
     "store.items": _m_store_items,
     "feed.export": _m_feed_export,
@@ -2841,6 +3293,12 @@ _HANDLERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "yaml.delete": _m_yaml_delete,
     "image.config.read": _m_image_config_read,
     "image.config.save": _m_image_config_save,
+    "image.models.list": _m_image_models_list,
+    "image.models.download": _m_image_models_download,
+    "image.models.delete": _m_image_models_delete,
+    "image.models.activate": _m_image_models_activate,
+    "image.server.status": _m_image_server_status,
+    "image.server.ensure": _m_image_server_ensure,
     "channels.list": _m_channels_list,
     "channels.refresh": _m_channels_refresh,
     "channels.alias": _m_channels_alias,

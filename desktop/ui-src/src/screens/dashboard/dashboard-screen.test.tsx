@@ -21,6 +21,8 @@ vi.mock("@/lib/api", async (importOriginal) => {
       runsList: vi.fn(),
       runStatus: vi.fn(),
       runStart: vi.fn(),
+      storeTrend: vi.fn(),
+      feedbackStats: vi.fn(),
     },
     onSidecarEvent: vi.fn(),
   };
@@ -31,6 +33,8 @@ const doctorMock = vi.mocked(api.doctor);
 const runsListMock = vi.mocked(api.runsList);
 const runStatusMock = vi.mocked(api.runStatus);
 const runStartMock = vi.mocked(api.runStart);
+const storeTrendMock = vi.mocked(api.storeTrend);
+const feedbackStatsMock = vi.mocked(api.feedbackStats);
 const onSidecarEventMock = vi.mocked(onSidecarEvent);
 
 import { DashboardScreen } from "./dashboard-screen";
@@ -130,6 +134,22 @@ function mockSidecar(
   // runs.list 应答形 = RunsListResult(db/count/runs);夹具只给 runs,补外层
   runsListMock.mockReturnValue(history.then((payload) => ({ db: "myia.db", count: payload.runs.length, ...payload })));
   runStatusMock.mockReturnValue(registry);
+  // B2/B4 两新卡(自取数):默认空态,不搅既有用例;专项用例自行覆写
+  storeTrendMock.mockResolvedValue({ days: [] });
+  feedbackStatsMock.mockResolvedValue({
+    window_days: 14,
+    stats: {
+      total: 0,
+      good: 0,
+      bad: 0,
+      bad_ratio: 0,
+      by_channel: {},
+      top_bad_categories: [],
+      top_bad_words: [],
+    },
+    active_tuning: {},
+    tuning_history: [],
+  });
 }
 
 afterEach(() => {

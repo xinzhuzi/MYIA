@@ -70,6 +70,8 @@ interface Notice {
  * 底部·状态条(R4;MYIA 版语义,不做 RAM/网关):sidecar 健康(health
  * 一来一回成功即存活证明)+ 已连接平台计数;常驻(sticky)于滚动底部。
  * 空态(目录为空)给「先配平台凭据」指引;断连态与现有屏同范式(ErrorBox+重试)。
+ * 字号全走 D2 阶梯 token(task 10-03-ui-deep-imitation:辅文 11px=text-2xs,
+ * 结构不动,仅 token 贯彻)。
  */
 export function MessagingScreen() {
   const [state, setState] = useState<LoadState>({ status: "loading", data: null, error: null });
@@ -379,12 +381,12 @@ export function MessagingScreen() {
                                   死信
                                 </Badge>
                               ) : null}
-                              <span className="truncate font-mono text-[11px] text-muted-foreground">
+                              <span className="truncate font-mono text-2xs text-muted-foreground">
                                 {entry.chat_id}
                               </span>
                             </span>
                             <span className="flex shrink-0 items-center gap-2">
-                              <span className="text-[11px] text-muted-foreground">
+                              <span className="text-2xs text-muted-foreground">
                                 最后发现 {formatLastSeen(entry.last_seen)}
                               </span>
                               {editing ? null : (
@@ -488,7 +490,7 @@ export function MessagingScreen() {
 
       {/* ---------------- 底部:状态条(R4;常驻滚动底;MYIA 版语义,不做 RAM/网关) ---------------- */}
       <div
-        className="sticky bottom-0 z-10 flex items-center justify-between gap-3 border-t border-border bg-background/95 px-6 py-2 text-[11px] text-muted-foreground backdrop-blur"
+        className="sticky bottom-0 z-10 flex items-center justify-between gap-3 border-t border-border bg-background/95 px-6 py-2 text-2xs text-muted-foreground backdrop-blur"
         data-testid="messaging-statusbar"
       >
         <span className="flex items-center gap-1.5">
@@ -544,7 +546,7 @@ function RuleFileGroup({
             {ruleFile.category_name ?? ruleFile.file}
           </span>
           {ruleFile.parse_ok ? null : <Badge variant="destructive">加载失败</Badge>}
-          <span className="truncate font-mono text-[11px] text-muted-foreground">{ruleFile.file}</span>
+          <span className="truncate font-mono text-2xs text-muted-foreground">{ruleFile.file}</span>
         </p>
         {ruleFile.parse_ok && targetingEntries.length > 0 ? (
           <Button size="sm" disabled={saving} onClick={onSave}>
@@ -583,7 +585,7 @@ function RuleFileGroup({
             </p>
             {entry.platform ? (
               bucket.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-2xs text-muted-foreground">
                   {entry.platform} 目录为空:先在上区「刷新」(飞书)或等 bot 收到消息(telegram 被动积累)。
                 </p>
               ) : (
@@ -600,7 +602,7 @@ function RuleFileGroup({
                           aria-label={`对象 ${option.name}`}
                         />
                         <span className="truncate">{option.name}</span>
-                        <span className="truncate font-mono text-[11px] text-muted-foreground">
+                        <span className="truncate font-mono text-2xs text-muted-foreground">
                           {option.chat_id}
                         </span>
                         {dead ? <Badge variant="destructive">死信</Badge> : null}

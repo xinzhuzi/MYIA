@@ -32,6 +32,7 @@ from myia.store.errors import StoreSchemaError
 from myia.store.models import (
     FEEDBACK_BAD,
     FEEDBACK_CHANNEL_CLI,
+    FEEDBACK_CHANNEL_DESKTOP,
     FEEDBACK_CHANNEL_FEISHU,
     FEEDBACK_CHANNEL_TELEGRAM,
     FEEDBACK_GOOD,
@@ -80,6 +81,7 @@ __all__ = [
     "EngineHint",
     "FEEDBACK_BAD",
     "FEEDBACK_CHANNEL_CLI",
+    "FEEDBACK_CHANNEL_DESKTOP",
     "FEEDBACK_CHANNEL_FEISHU",
     "FEEDBACK_CHANNEL_TELEGRAM",
     "FEEDBACK_GOOD",

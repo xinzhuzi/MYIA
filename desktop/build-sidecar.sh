@@ -108,15 +108,30 @@ export PYINSTALLER_CONFIG_DIR="$SPIKE_DIR/.pyinstaller-cache"
 PYINST="$VENV/bin/pyinstaller"
 [[ -x "$PYINST" ]] || PYINST="$VENV/Scripts/pyinstaller.exe"
 # 命名:sidecar 叫 myia-core 而非 myia——主程序 mainBinaryName=MYIA,macOS APFS
-# 大小写不敏感,sidecar 若叫 myia 会与 MYIA 在 Contents/MacOS/ 撞名互相覆盖。
-"$PYINST" --onefile --name myia-core --clean --noconfirm \
-  --hidden-import myia.secrets \
-  --collect-submodules myia \
-  --collect-all ocrmac \
-  --collect-all rapidocr_onnxruntime \
-  --collect-all openai \
-  --add-data "$ROOT_DIR/myia-classifier/myia_classifier/data/keywords.json${DATA_SEP}myia_classifier/data" \
-  --distpath "$DIST" --workpath "$SPIKE_DIR/build-pyi" \
-  --specpath "$SPIKE_DIR" "$SPIKE_DIR/entry.py"
+# 大小写不敏感,sidecar 若叫 myia 会在 Contents/MacOS/ 与 MYIA 撞名互相覆盖。
+#
+# spec 策略(2026-10-03,v112 批打包面回归治本):仓库手维 myia-core.spec
+# (SPECPATH 相对化,10-03-public-leak-sweep c97c897——公开仓不得带本机绝对
+# 路径)存在时**直接以其为源构建**;下列 CLI 重生成只作首跑 bootstrap——
+# PyInstaller 以 CLI 旗标生成 spec 时会把 entry.py/add-data 回写成本机绝对
+# 路径,tauri build → beforeBuildCommand 每跑一次就把手维 spec 冲回绝对路径
+# (dc178e1/c97c897 相对化两次落地两次被冲,实锤)。手维 spec 与下方旗标集
+# 等价(collect_submodules myia + myia.secrets + collect_all×3 + keywords.json
+# + onefile + name);增删依赖改 spec 本体,勿走重生成路径回退相对化。
+SPEC="$SPIKE_DIR/myia-core.spec"
+if [[ -f "$SPEC" ]]; then
+  "$PYINST" --clean --noconfirm \
+    --distpath "$DIST" --workpath "$SPIKE_DIR/build-pyi" "$SPEC"
+else
+  "$PYINST" --onefile --name myia-core --clean --noconfirm \
+    --hidden-import myia.secrets \
+    --collect-submodules myia \
+    --collect-all ocrmac \
+    --collect-all rapidocr_onnxruntime \
+    --collect-all openai \
+    --add-data "$ROOT_DIR/myia-classifier/myia_classifier/data/keywords.json${DATA_SEP}myia_classifier/data" \
+    --distpath "$DIST" --workpath "$SPIKE_DIR/build-pyi" \
+    --specpath "$SPIKE_DIR" "$SPIKE_DIR/entry.py"
+fi
 cp "$DIST/myia-core$EXT" "$SIDECAR_OUT"
 echo "sidecar built: $SIDECAR_OUT (target: $TARGET)"

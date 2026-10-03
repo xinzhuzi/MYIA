@@ -20,6 +20,13 @@ mark``) and the Telegram/Feishu callback *receivers* already speak the
 button contract — the buttons themselves land with the desktop UI
 (deliberate v0.3 scoping, PRD 10-01-v03-feedback-loop Notes).
 
+immediate 带图(看图 v2,PRD 10-03-vision-v2):``kind="immediate"`` 单条目
+且 ``metadata.image_files`` 有本机存在文件时,先经 ``im/v1/images``
+multipart 上传首图换 ``image_key``(同一 tenant token,应用需开
+``im:resource`` 权限),卡片条目 div 后插 ``img`` 元素;上传失败/文件缺失
+降级「图析摘要卡」文本形态(lark_md 图析摘要行 + 配图 N 张注记),只告警
+不阻投递。digest 批量不带图;路由/when 逻辑零改动,仅组装层增强。
+
 Credentials stay references until send time (security baseline: 凭据零明文):
 the bot token comes from ``env:FEISHU_BOT_TOKEN`` (or an injected value for
 tests). Errors carry reference names only, never resolved values.
@@ -33,7 +40,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import mimetypes
 import re
+from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import httpx
@@ -44,6 +53,8 @@ from myia.push.base import (
     SendContext,
     TrendAwareChannel,
     also_seen_list,
+    clip_text,
+    item_images,
     item_view,
 )
 from myia.push.directory import ChannelEntry
@@ -53,12 +64,14 @@ from myia.schema import CredentialResolveError, resolve_credential
 
 __all__ = [
     "API_URL",
+    "CAPTION_EXCERPT_CHARS",
     "CHATS_API_URL",
     "CHATS_MAX_PAGES",
     "CHATS_PAGE_SIZE",
     "DEFAULT_TOKEN_ENV_REF",
     "DIRECT_REF_RE",
     "FeishuCardChannel",
+    "IMAGES_API_URL",
     "build_card",
     "build_markdown_card",
     "card_title",
@@ -71,6 +84,13 @@ API_URL = "https://open.feishu.cn/open-apis/im/v1/messages"
 #: Feishu open-platform chat-list endpoint(目录发现;官方字段:items[].chat_id/
 #: name/chat_status,翻页 has_more/page_token,page_size 上限 100)。
 CHATS_API_URL = "https://open.feishu.cn/open-apis/im/v1/chats"
+#: Feishu open-platform image-upload endpoint(immediate 带图,看图 v2):卡片
+#: ``img`` 元素的前置步骤——multipart 上传本地图换 ``image_key``。同一
+#: tenant access token(Bearer);应用需具 ``im:resource``(上传图片)权限,
+#: 部署侧未开通时上传返回非零 code,通道降级图析摘要卡(见 _attach_card_image)。
+IMAGES_API_URL = "https://open.feishu.cn/open-apis/im/v1/images"
+#: 图析摘要在卡片 lark_md 行 / img alt 内的截断长度(保持卡片可读)。
+CAPTION_EXCERPT_CHARS = 240
 #: 翻页 page_size(官方默认 20,上限 100;取上限减少往返)。
 CHATS_PAGE_SIZE = 100
 #: 翻页保底上限(design D2:防服务端 has_more 死循环;20 页 × 100 = 2000 群)。
@@ -234,6 +254,9 @@ class FeishuCardChannel(TrendAwareChannel):
             else self._resolve_target()
         )
         card = self._build_card(items, context)
+        # immediate 带图(看图 v2):先建卡(模板渲染错误在此抛出,零请求
+        # 发出),再尝试附图——上传/降级均在组装层内闭环,不阻投递。
+        card = await self._attach_card_image(token, card, items, context)
         body = {
             "receive_id": chat_id,
             "msg_type": "interactive",
@@ -259,6 +282,110 @@ class FeishuCardChannel(TrendAwareChannel):
                 ) from exc
             return build_markdown_card(markdown, title=title)
         return build_card(items, title=title)
+
+    # ------------------------------------------------- immediate 带图(看图 v2)
+
+    async def _attach_card_image(
+        self, token: str, card: dict[str, Any], items: Sequence[Any], context: SendContext
+    ) -> dict[str, Any]:
+        """Immediate 单条目带图组装:img 元素(上传成功)或图析摘要行(降级)。
+
+        仅 ``kind="immediate"`` 且恰一条目生效(digest 批量不带图,PRD
+        10-03-vision-v2 定案);``metadata.image_files`` 缺席 → 卡片原样返回,
+        零行为变化。两条路径:
+
+        - 上传成功:条目 div 之后插入 ``img`` 元素(``img_key`` + alt=图析
+          摘要截断,无摘要退回标题),内文布局不动;
+        - 上传失败 / 文件缺失:降级「图析摘要卡」文本形态——lark_md 附
+          「图析: …」摘要行 + 「配图 N 张未附」注记,只告警不阻投递。
+
+        多图只上 ``paths[0]``;alt/摘要行均截断到
+        :data:`CAPTION_EXCERPT_CHARS`。
+        """
+        if context.kind != "immediate" or len(items) != 1:
+            return card
+        info = item_images(items[0])
+        if info is None:
+            return card
+        elements = card.get("elements")
+        if not isinstance(elements, list) or not elements:
+            return card  # 防御:非预期卡片形态不动(elements 恒非空,见 build_card)
+        image_key: str | None = None
+        if info.paths:
+            try:
+                image_key = await self._upload_image(token, info.paths[0])
+            except (PushSendError, OSError) as exc:
+                logger.warning("飞书图片上传失败,降级图析摘要卡(不阻推送): %s", exc)
+        excerpt = clip_text(info.caption, CAPTION_EXCERPT_CHARS) if info.caption else ""
+        if image_key is not None:
+            alt = excerpt or str(item_view(items[0]).get("title") or "")
+            elements.insert(
+                1,
+                {
+                    "tag": "img",
+                    "img_key": image_key,
+                    "alt": {"tag": "plain_text", "content": alt},
+                },
+            )
+            return card
+        lines = [f"　└ 图析: {excerpt}"] if excerpt else []
+        lines.append(f"　└ [配图 {info.declared} 张未附]")
+        elements.insert(
+            1, {"tag": "div", "text": {"tag": "lark_md", "content": "\n".join(lines)}}
+        )
+        logger.info(
+            "飞书卡片采用图析摘要文本形态: 声明 %d 图,本机存在 %d", info.declared, len(info.paths)
+        )
+        return card
+
+    async def _upload_image(self, token: str, image_path: str) -> str:
+        """Upload one local image → ``image_key`` (``im/v1/images``, multipart).
+
+        官方卡片 ``img`` 元素的前置步骤:multipart 携带 ``image_type=message``
+        与图片文件,同一 tenant access token(Bearer)授权;应用需开
+        ``im:resource`` 权限,未开通时返回非零 code(调用方降级,不硬造)。
+
+        Raises:
+            PushSendError: 文件读取失败、HTTP 传输失败、非 JSON 响应、飞书
+                非零 code,或响应缺 ``data.image_key``。
+        """
+        path = Path(image_path)
+        try:
+            payload = path.read_bytes()
+        except OSError as exc:
+            raise PushSendError(
+                "image_read_error",
+                f"飞书图片读取失败({path.name}): {type(exc).__name__}: {exc}",
+            ) from exc
+        content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        headers = {"Authorization": f"Bearer {token}"}
+        data = {"image_type": "message"}
+        files = {"image": (path.name, payload, content_type)}
+        try:
+            if self._client is not None:
+                response = await self._client.post(
+                    IMAGES_API_URL, data=data, files=files, headers=headers
+                )
+            else:
+                async with httpx.AsyncClient(timeout=self._timeout) as client:
+                    response = await client.post(
+                        IMAGES_API_URL, data=data, files=files, headers=headers
+                    )
+        except httpx.HTTPError as exc:
+            raise PushSendError(
+                "http_error", f"飞书图片上传请求失败: {type(exc).__name__}: {exc}"
+            ) from exc
+        envelope = self._parse_response(response)
+        payload_json = envelope.get("data")
+        image_key = (
+            payload_json.get("image_key") if isinstance(payload_json, Mapping) else None
+        )
+        if not isinstance(image_key, str) or not image_key.strip():
+            raise PushSendError(
+                "invalid_response",
+                f"飞书图片上传响应缺 data.image_key: {str(envelope)[:200]!r}",
+            )
+        return image_key
 
     def _resolve_token(self) -> str:
         if self._token is not None:

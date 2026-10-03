@@ -48,7 +48,16 @@ from myia.pipeline import Pipeline
 from myia.push.base import SendContext
 from myia.push.route import resolve_route, routes_from_config
 from myia.push.templates import TemplateRenderer, item_metric_key
-from myia.schema import ClassifyConfig, LoadError, SourceConfig, load_category, load_category_file
+from myia import secrets as secrets_store
+from myia.schema import (
+    ClassifyConfig,
+    EnrichConfig,
+    LoadError,
+    SourceConfig,
+    load_category,
+    load_category_file,
+)
+from myia.secrets import InMemoryKeychainBackend
 from myia.store import SQLiteStore
 
 PLUGINS_DIR = Path(__file__).resolve().parents[1] / "plugins"
@@ -145,12 +154,19 @@ def test_ai_news_carries_firecrawl_semantics_and_discourse_list():
     # source-level pass-through.
     assert aihot.engine == "auto"
     assert aihot.extract.item == "article[data-item-id]"
-    # 图片处理环官方示范(10-03-vision-pipeline 拍板⑨):活跃 list 源收图 URL
-    # (img@src → metadata["image"]),品类 images: 节开 OCR(vl 注释示例保留
-    # 本地服务启动指引,不实配)。
+    # 图片处理环官方示范(10-03-vision-pipeline 拍板⑨ → 10-03-vision-daily
+    # A1 实开):活跃 list 源收图 URL(img@src → metadata["image"]),品类
+    # images: 节 OCR + 本地 VL caption(vl: local 实配,不再只是注释示例)。
     assert "image" in aihot.extract.fields, "aihot 必须抽取卡片封面 img@src"
     assert config.images is not None and config.images.enabled
-    assert config.images.vl == "off", "示范只 OCR;vl: local 是注释示例不是实配"
+    assert config.images.vl == "local", "A1 落地:本地 VL caption 实配(vision.yaml local 节)"
+    # enrich 第二层漏斗(10-03-vision-daily A2 实开):端点凭据双引用 —
+    # base_url 走 env:(文档既有约定 MYIA_LLM_BASE_URL,CLI export / 容器
+    # docker/.env 注入),api_key 走钥匙链既有 GLM key(vision.yaml cloud 同链)。
+    assert config.enrich.enabled is True, "A2 落地:精评开通,image_ocr/image_caption 进精评 payload"
+    assert config.enrich.base_url == "env:MYIA_LLM_BASE_URL", "端点 base_url 必须是 env: 引用(grill Q6)"
+    assert config.enrich.api_key == "keychain:myia/image/api_key", "key 走钥匙链既有 GLM 凭据"
+    assert config.enrich.batch == 10, "实测批宽:glm-4-flash 单批 20 条超 60s completion 上限,10 条留余量"
     cocoloop = by_name["cocoloop"]
     assert cocoloop.engine == "static_html"
     assert cocoloop.pagination is not None and cocoloop.pagination.max_pages >= 1
@@ -158,11 +174,14 @@ def test_ai_news_carries_firecrawl_semantics_and_discourse_list():
 
 
 def test_ai_news_images_ring_local_hint_comment_ships_startup_guide():
-    """拍板⑨:`vl: local` 以注释示例出现,且必须带本地服务启动指引一句
-    (games 教训:官方插件声明面的注释也是 agent 的 ground truth)。"""
+    """拍板⑨ → 10-03-vision-daily A1:`vl: local` 从注释示例转实配,且注释
+    仍必须带本地服务启动指引一句(games 教训:官方插件声明面的注释也是
+    agent 的 ground truth——vl 开了之后,服务怎么起就是日常 run 的活文档)。"""
     text = (PLUGINS_DIR / "ai-news.yaml").read_text(encoding="utf-8")
-    assert "# vl: local" in text
+    assert "\n  vl: local" in text, "vl: local 必须是实配行,不是注释示例"
     assert "mlx_vlm.server" in text, "本地 VL 服务启动指引必须在注释里"
+    # A2 端点注记同规:env: 引用的取值方法必须在声明面留一句(export 指引)
+    assert "MYIA_LLM_BASE_URL" in text, "enrich.base_url 的 env: 引用必须注明变量怎么取值"
 
 
 def test_wool_declares_seven_source_slots():
@@ -966,8 +985,23 @@ def test_plugin_extract_matches_recorded_markup(plugin, source_name):
 
 @pytest.mark.parametrize("name", OFFICIAL_PLUGINS)
 def test_plugin_builds_a_pipeline(name):
-    """The category plugs into Pipeline (classify table, rules, routes, tz)."""
-    pipeline = Pipeline(_load(name))
+    """The category plugs into Pipeline (classify table, rules, routes, tz).
+
+    10-03-vision-daily A2:ai-news 实开 enrich 后,构造期就要解析端点双引用
+    (env:MYIA_LLM_BASE_URL + keychain:myia/image/api_key,Pipeline fail-fast
+    契约)。这里注入占位 env 与内存钥匙链——构造面契约是「引用可解析」,
+    真端点连通由 task 的真跑验收负责,battery 保持 network-free 且不依赖
+    宿主机是否真有那把钥匙(CI/无钥匙链机器照常过)。"""
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setenv("MYIA_LLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
+    backend = InMemoryKeychainBackend()
+    backend.set_password(secrets_store.SECRET_SERVICE, "myia/image/api_key", "placeholder")
+    secrets_store.set_backend(backend)
+    try:
+        pipeline = Pipeline(_load(name))
+    finally:
+        secrets_store.reset_backend()
+        monkeypatch.undo()
     assert pipeline.config.id == name
 
 
@@ -1112,6 +1146,10 @@ def _single_source_config(name: str):
             "sources": [source],
             "classify": ClassifyConfig(builtin=False, rules=[]),
             "push": [],
+            # 10-03-vision-daily A2:ai-news 的 enrich 已实开;本电池的验收面是
+            # extract + dedup.key 接线,精评走真端点(自带 client,不吃注入的
+            # MockTransport)——这里显式关掉,保持电池 network-free。
+            "enrich": EnrichConfig(enabled=False),
         }
     )
 

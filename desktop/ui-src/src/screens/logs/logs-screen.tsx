@@ -13,7 +13,7 @@ import type { RunEntry, SidecarEvent, UnlistenFn } from "@/lib/api";
 import { buildRunRows, eventToRow, isRowError, isRowWarn, loadRunLogs, loadRuns, subscribeRunEvents, tailToRows } from "./api";
 import type { LogRow } from "./api";
 
-/** run 状态 → 列表徽标(退出码语义 0/1/2/3,见 types.ts RunExitStatus) */
+/** run 状态 → 列表徽标(退出码语义 0/1/2/3 + cancelled,见 types.ts RunExitStatus) */
 function runBadge(status: RunEntry["status"], state: RunEntry["state"]) {
   if (state === "running" || status === null) {
     return { variant: "default" as const, label: "运行中" };
@@ -27,6 +27,9 @@ function runBadge(status: RunEntry["status"], state: RunEntry["state"]) {
       return { variant: "warning" as const, label: "配置" };
     case "failed":
       return { variant: "destructive" as const, label: "失败" };
+    case "cancelled":
+      // run.cancel 信号终局(C2,v1.1.2 桌面对齐批)
+      return { variant: "unknown" as const, label: "已取消" };
   }
 }
 

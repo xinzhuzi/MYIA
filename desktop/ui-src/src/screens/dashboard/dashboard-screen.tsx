@@ -27,6 +27,8 @@ import type {
   RunSuccessSummary,
   SourceHealthCounts,
 } from "./api";
+import { FeedbackStatsCard } from "./feedback-stats-card";
+import { TrendCard } from "./trend-card";
 
 /** 品类 tone → 徽标(健康度四态语义沿用共享 Badge:ok/warning/destructive) */
 const TONE_BADGE: Record<CategoryTone, { variant: "ok" | "warning" | "destructive"; label: string }> = {
@@ -353,6 +355,12 @@ export function DashboardScreen() {
             )}
           </CardContent>
         </Card>
+
+        {/* 采集量趋势(B4,10-03-v112-desktop-parity;store.trend UTC 逐日) */}
+        <TrendCard />
+
+        {/* 反馈统计(B2,10-03-v112-desktop-parity;feedback.stats 好/坏 + Top 类目) */}
+        <FeedbackStatsCard />
       </div>
     </div>
   );

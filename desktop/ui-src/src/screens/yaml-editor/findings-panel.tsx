@@ -54,10 +54,10 @@ export function FindingsPanel({ findings, emptyText, className }: FindingsPanelP
               <Badge variant={finding.level === "error" ? "destructive" : "warning"}>
                 {finding.level === "error" ? "错误" : "警告"}
               </Badge>
-              <span className="truncate font-mono text-[11px] text-muted-foreground" title={finding.path}>
+              <span className="truncate font-mono text-2xs text-muted-foreground" title={finding.path}>
                 {finding.path}
               </span>
-              <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+              <span className="shrink-0 font-mono text-2xs text-muted-foreground">
                 {finding.code}
               </span>
             </span>

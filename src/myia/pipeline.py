@@ -166,11 +166,13 @@ from myia.store import (
 # 「核心流水线零重依赖」红线——未装 myia[vision] 的环境 OCR 走 ocr_failed 降级。
 from myia.vision.collect import (
     DOWNLOAD_TIMEOUT_SECONDS as IMAGE_DOWNLOAD_TIMEOUT_SECONDS,
+    PERSIST_DIR_NAME,
     ImageRunState,
     detail_fetch_images,
     detail_request_headers,
     process_item_images,
 )
+from myia.vision.server import SERVER_LOG_NAME, ensure_vision_server
 from myia.vision.settings import (
     VISION_FILE_NAME,
     VisionConfig,
@@ -1646,6 +1648,22 @@ class Pipeline:
                 "vision.yaml 拒载,图片处理环按 VL 不可用降级(OCR 照常): %s", exc
             )
             vision_cfg = VisionConfig()
+        # server 代管(10-03-vision-v2):本轮任何源可能走 vl:local 时,先
+        # ensure 一次本地 mlx_vlm.server(未跑则 nohup 自启,健康等待跑线程
+        # 池防卡事件循环)。失败只告警 —— VL 环稍后照常按 vl_skipped_error
+        # 降级不阻管线,语义与手工 nohup 失联的今天完全一致。
+        if images_cfg.vl == "local" or any(
+            (source.extra_params or {}).get("images_vl") == "local"
+            for source in self.config.sources
+        ):
+            try:
+                await asyncio.to_thread(
+                    ensure_vision_server,
+                    vision_cfg,
+                    log_path=Path(self._db_path).parent / SERVER_LOG_NAME,
+                )
+            except Exception as exc:  # noqa: BLE001 - 代管失败 = VL 降级,不阻 run
+                logger.warning("本地 vision server 自启失败(VL 照常降级): %s", exc)
         run_state = ImageRunState(
             remaining=images_cfg.max_per_run,
             detail_remaining=images_cfg.detail_max_items,
@@ -1700,6 +1718,7 @@ class Pipeline:
                         client=effective_client,
                         proxy_url=item_proxy,
                         source_extra=source_extra.get(item.source or ""),
+                        images_dir=Path(self._db_path).parent / PERSIST_DIR_NAME,
                     )
                 except Exception as exc:  # noqa: BLE001 - 降级矩阵外的兜底:图析绝不阻管线
                     item.metadata["image_status"] = "skipped:internal_error"

@@ -768,7 +768,7 @@ async def check_proxy_connectivity(
     timeout: float = 10.0,
     clock: Callable[[], float] = time.monotonic,
 ) -> ProxyCheckResult:
-    """Probe one proxy upstream with a lightweight GET (doctor 诊断项,留待 v02-cli-full 接线).
+    """Probe one proxy upstream with a lightweight GET (doctor 诊断项,已接线于 cli.py doctor 的代理池探测).
 
     CLI usage: ``result = await check_proxy_connectivity(pools.resolve(name))``
     per declared pool, then render ``result.to_dict()`` (JSON 友好,凭据已打码).

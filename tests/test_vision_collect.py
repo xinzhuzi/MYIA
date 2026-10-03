@@ -18,6 +18,7 @@ pool 源 proxy_url 传抵(环级 + 管线级)、detail 链 E2E(fixture 本地页
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import ipaddress
 import logging
 import time
@@ -1439,3 +1440,111 @@ class TestPipelineDetailHook:
         assert uas.get("/list") == "TestUA/1 (detail)", "列表抓取带源 UA(既有引擎语义)"
         assert uas.get("/items/1") == "TestUA/1 (detail)", "detail 追抓必须带源 UA 出网"
         assert uas.get("/assets/a.png") != "TestUA/1 (detail)", "图片下载不在本契约面"
+
+
+# ---------------------------------------------------------------------------
+# 图片落库(10-03-vision-v2:images.persist 开 → image_files / image_ocr_lines)
+# ---------------------------------------------------------------------------
+
+
+class TestPersistImages:
+    """persist 缺省 false = 行为与今天逐字段一致;开启才落盘/写新键。"""
+
+    def cfg(self, **overrides: Any) -> ImagesConfig:
+        return ImagesConfig(**{"enabled": True, "min_bytes": 1, **overrides})
+
+    def test_persist_off_keeps_today_behavior(self, monkeypatch, tmp_path):
+        """缺省关:零落盘、零新 metadata 键(与落图能力引入前逐字段一致)。"""
+        fake_ocr(monkeypatch)
+        item = Item()
+        item.metadata["image"] = "https://example.com/pic.png"
+        client = serve({"/pic.png": png_bytes()})
+        images_dir = tmp_path / "images"
+        status = run(collect.process_item_images(
+            item, images_cfg=self.cfg(), vision_cfg=VisionConfig(),
+            client=client, images_dir=images_dir,
+        ))
+        assert status == "ok"
+        assert item.metadata["image_ocr"] == "第一行\n第二行"
+        assert "image_files" not in item.metadata
+        assert "image_ocr_lines" not in item.metadata
+        assert not images_dir.exists()  # 零磁盘副作用
+
+    def test_persist_on_writes_files_and_ocr_lines(self, monkeypatch, tmp_path):
+        """开启:内容寻址落盘 + image_files 绝对路径 + 逐行置信度投影。"""
+        fake_ocr(monkeypatch)
+        item = Item()
+        item.metadata["image"] = "https://example.com/pic.png"
+        client = serve({"/pic.png": png_bytes()})
+        images_dir = tmp_path / "data" / "images"
+        status = run(collect.process_item_images(
+            item, images_cfg=self.cfg(persist=True), vision_cfg=VisionConfig(),
+            client=client, images_dir=images_dir,
+        ))
+        assert status == "ok"
+        files = item.metadata["image_files"]
+        assert isinstance(files, list) and len(files) == 1
+        saved = Path(files[0])
+        assert saved.is_absolute() and saved.exists()
+        assert saved.parent == images_dir.resolve()
+        assert saved.suffix == ".png"
+        assert saved.name == hashlib.sha256(png_bytes()).hexdigest()[:16] + ".png"
+        assert saved.read_bytes() == png_bytes()
+        # 逐行置信度:与 image_ocr 同源,只是不拼行
+        assert item.metadata["image_ocr_lines"] == [
+            {"text": "第一行", "conf": 0.99}, {"text": "第二行", "conf": 0.99},
+        ]
+        assert item.metadata["image_ocr"] == "第一行\n第二行"
+
+    def test_persist_content_addressed_dedup_across_items(self, monkeypatch, tmp_path):
+        """同图跨条目:同 sha16 文件只落一份(内容寻址去重)。"""
+        fake_ocr(monkeypatch)
+        images_dir = tmp_path / "images"
+        client = serve({"/pic.png": png_bytes()})
+        paths = []
+        for _ in range(2):
+            item = Item()
+            item.metadata["image"] = "https://example.com/pic.png"
+            run(collect.process_item_images(
+                item, images_cfg=self.cfg(persist=True), vision_cfg=VisionConfig(),
+                client=client, images_dir=images_dir,
+            ))
+            paths.extend(item.metadata["image_files"])
+        assert paths[0] == paths[1]
+        assert len(list(images_dir.iterdir())) == 1
+
+    def test_persist_all_downloads_fail_no_files_key(self, monkeypatch, tmp_path):
+        """下载全灭:走既有 none 降级,零 image_files 写入。"""
+        fake_ocr(monkeypatch)
+        item = Item()
+        item.metadata["image"] = "https://example.com/pic.png"
+        client = serve({"/pic.png": httpx.Response(404, text="gone")})
+        status = run(collect.process_item_images(
+            item, images_cfg=self.cfg(persist=True), vision_cfg=VisionConfig(),
+            client=client, images_dir=tmp_path / "images",
+        ))
+        assert status == "none"
+        assert "image_files" not in item.metadata
+        assert "image_ocr_lines" not in item.metadata
+
+    def test_persist_without_dir_warns_and_skips(self, monkeypatch, tmp_path, caplog):
+        """persist 开但调用方未给目录:告警跳过落盘,环照常成功不阻管线。"""
+        fake_ocr(monkeypatch)
+        item = Item()
+        item.metadata["image"] = "https://example.com/pic.png"
+        client = serve({"/pic.png": png_bytes()})
+        with caplog.at_level(logging.WARNING, logger="myia.vision.collect"):
+            status = run(collect.process_item_images(
+                item, images_cfg=self.cfg(persist=True), vision_cfg=VisionConfig(),
+                client=client, images_dir=None,
+            ))
+        assert status == "ok"
+        assert "image_files" not in item.metadata  # 落盘跳过,键不写半吊子
+        assert "image_ocr_lines" in item.metadata  # OCR 照常(键属环产物,不受磁盘影响)
+        assert any("落图目录" in record.message for record in caplog.records)
+
+    def test_schema_persist_default_false_and_loadable(self):
+        """schema 同门:persist 缺省 false;显式 true 合法构造。"""
+        assert ImagesConfig().persist is False
+        assert ImagesConfig(enabled=True).persist is False
+        assert ImagesConfig(enabled=True, persist=True).persist is True

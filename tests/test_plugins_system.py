@@ -55,7 +55,7 @@ VALID_MANIFEST_YAML = """
 id: myia-monitor
 name: 变更监控(changedetection.io)
 version: 1.0.0
-compatible: ">=0.1,<2.0"
+compatible: ">=0.0.1,<0.1"
 requires: docker
 provides: [changedetection]
 modes:
@@ -93,8 +93,9 @@ plugin:
       token: keychain:myia/monitor/token
 """
 
-#: 兼容当前 myia 版本的宽松范围(版本随仓库演进也不误伤)。
-ANY_MYIA = ">=0.1,<2.0"
+#: 兼容当前 myia 版本序列的标准窗口(版本序列归零 10-03-tag-release 决议 9:
+#: 与根 pyproject 依赖窗同款;升入 0.1 系列时随五处版本源同步)。
+ANY_MYIA = ">=0.0.1,<0.1"
 
 
 def write_plugin_dir(tmp_path: Path, name: str = "myia-monitor", manifest_text: str = VALID_MANIFEST_YAML) -> Path:
@@ -241,7 +242,7 @@ class TestManifestSchema:
         manifest = load_manifest(yaml.safe_load(VALID_MANIFEST_YAML))
         assert manifest.id == "myia-monitor"
         assert manifest.version == "1.0.0"
-        assert manifest.compatible == ">=0.1,<2.0"
+        assert manifest.compatible == ">=0.0.1,<0.1"
         assert manifest.requires == ["docker"]
         assert manifest.provides == ["changedetection"]
         assert manifest.modes.local.install == "docker compose up -d"
@@ -414,7 +415,7 @@ class TestInstalledStore:
         assert banana["error_type"] == "unknown_field"
 
     def test_install_rejects_incompatible_version_then_force_wins(self, tmp_path: Path, plugin_root: Path):
-        source = write_plugin_dir(tmp_path, manifest_text=VALID_MANIFEST_YAML.replace('">=0.1,<2.0"', '">=99.0"'))
+        source = write_plugin_dir(tmp_path, manifest_text=VALID_MANIFEST_YAML.replace('">=0.0.1,<0.1"', '">=99.0"'))
         store = InstalledPluginStore(plugin_root)
         with pytest.raises(PluginStoreError) as excinfo:
             store.install(source, current_version="0.1.0")
@@ -473,7 +474,7 @@ class TestInstalledStore:
     def test_entries_flags_incompatible_version_as_warning(self, tmp_path: Path, plugin_root: Path):
         store = InstalledPluginStore(plugin_root)
         store.install(
-            write_plugin_dir(tmp_path, manifest_text=VALID_MANIFEST_YAML.replace('">=0.1,<2.0"', '">=99.0"')),
+            write_plugin_dir(tmp_path, manifest_text=VALID_MANIFEST_YAML.replace('">=0.0.1,<0.1"', '">=99.0"')),
             force=True,
         )
         (entry,) = store.entries()

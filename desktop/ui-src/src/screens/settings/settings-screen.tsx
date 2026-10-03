@@ -1,4 +1,4 @@
-import { Globe, KeyRound, RefreshCw, Save, Send, Trash2 } from "lucide-react";
+import { Globe, KeyRound, Lightbulb, RefreshCw, Save, Send, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
@@ -17,11 +17,14 @@ import { api } from "@/lib/api";
 
 import {
   asSidecarError,
+  CategoryNodeError,
   deleteSecretByName,
   isSecretRef,
   listSecretNames,
+  mutateEnrichField,
   proxySecretName,
   pushSecretName,
+  saveCategoryNode,
   saveSecret,
   SECRET_NAME_LLM_API_KEY,
   SECRET_NAME_LLM_BASE_URL,
@@ -30,7 +33,7 @@ import {
   validatePushForm,
   verifyWithDoctor,
 } from "./api";
-import type { DoctorVerify, SecretSaveRecord } from "./api";
+import type { DoctorVerify, EnrichView, SecretSaveRecord } from "./api";
 import { DoctorVerifyPanel } from "./doctor-verify";
 import { ErrorBox } from "./error-box";
 import { FieldInput } from "./field-input";
@@ -60,6 +63,176 @@ interface PushForm {
   scope: string;
   secretName: string;
   value: string;
+}
+
+/** 单品类 enrich 行的本地编辑态(model 输入框与 doctor 回显分离) */
+interface EnrichRowState {
+  modelDraft: string;
+  saving: boolean;
+}
+
+/**
+ * 「评分与反馈」分区(B3+C11,10-03-v112-desktop-parity)。
+ *
+ * 品类 schema 无独立 feedback 节 —— 唯一真实存在、带预算护栏、可经 yaml.save
+ * 写回品类节的反馈回路开关 = ``enrich.enabled`` + ``enrich.budget_per_run``
+ * (LLM 精评/评分回路;design §6 拍板解释)。逐品类:enabled 切换(文本手术
+ * 保注释) + model 写回(C11 半边)+ budget 只读护栏;push 通道声明指引去
+ * 配置编辑屏(第六屏全文件编辑,不在本屏重复造表单);pools 全局配置写回
+ * 顺延(yaml-editor 待拍板 3 未定,维持只展示 + 探测)。
+ */
+function EnrichFeedbackCard({
+  enrichSections,
+  onSaved,
+}: {
+  enrichSections: EnrichView[];
+  /** 写回成功后回抛 doctor 复核结果(驱动父级回显整体刷新) */
+  onSaved: (doctor: DoctorVerify, note: string) => void;
+}) {
+  const [drafts, setDrafts] = useState<Record<string, EnrichRowState>>({});
+  const [error, setError] = useState<SidecarRequestError | null>(null);
+  const [nodeError, setNodeError] = useState<string | null>(null);
+
+  const rowState = (file: string): EnrichRowState =>
+    drafts[file] ?? { modelDraft: "", saving: false };
+  const setRowState = (file: string, next: Partial<EnrichRowState>) =>
+    setDrafts((prev) => ({
+      ...prev,
+      [file]: { ...(prev[file] ?? { modelDraft: "", saving: false }), ...next },
+    }));
+
+  /** 四步写回:yaml.read → 文本手术 → yaml.save(mtime 锁)→ doctor 复核 */
+  const writeNode = useCallback(
+    async (file: string, field: "enabled" | "model", value: string, note: string) => {
+      setError(null);
+      setNodeError(null);
+      setRowState(file, { saving: true });
+      try {
+        const outcome = await saveCategoryNode(file, (content) =>
+          mutateEnrichField(content, field, value),
+        );
+        onSaved(outcome.doctor, note);
+        setDrafts((prev) => {
+          const next = { ...prev };
+          delete next[file]; // 写回成功:草稿回归 doctor 回显现值
+          return next;
+        });
+      } catch (err) {
+        if (err instanceof CategoryNodeError) setNodeError(`${file}:${err.message}`);
+        else setError(asSidecarError(err));
+      } finally {
+        setRowState(file, { saving: false });
+      }
+    },
+    [onSaved],
+  );
+
+  return (
+    <Card data-testid="enrich-feedback-card">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Lightbulb className="size-4 text-muted-foreground" />
+          评分与反馈
+        </CardTitle>
+        <CardDescription>
+          逐品类 LLM 精评开关(enrich.enabled)+ 预算护栏 + model 写回;反馈的 👍/👎 标记在情报流卡片,统计在仪表盘
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {error ? <ErrorBox error={error} /> : null}
+        {nodeError ? (
+          <p role="alert" className="text-xs text-destructive" data-testid="enrich-node-error">
+            {nodeError}
+          </p>
+        ) : null}
+        {enrichSections.length === 0 ? (
+          <span className="text-xs text-muted-foreground">
+            暂无带 enrich 节的品类(doctor 回显为准);到「配置编辑」为品类补 enrich 节。
+          </span>
+        ) : (
+          enrichSections.map(({ pluginFile, enrich }) => {
+            const row = rowState(pluginFile);
+            const modelValue = row.modelDraft || enrich.model;
+            const modelDirty = row.modelDraft !== "" && row.modelDraft !== enrich.model;
+            return (
+              <div
+                key={pluginFile}
+                data-testid={`enrich-row-${pluginFile}`}
+                className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/40 px-3 py-2.5"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-xs font-medium text-foreground">
+                      {pluginFile.split("/").pop() ?? pluginFile}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      预算护栏 budget_per_run = {enrich.budget_per_run}(只读,改值走「配置编辑」)
+                    </span>
+                  </div>
+                  <Button
+                    variant={enrich.enabled ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-7"
+                    aria-pressed={enrich.enabled}
+                    aria-label={`${enrich.enabled ? "停用" : "启用"}精评:${pluginFile}`}
+                    title="切换写回品类 YAML enrich.enabled(yaml.save,注释保真)"
+                    disabled={row.saving}
+                    onClick={() =>
+                      void writeNode(
+                        pluginFile,
+                        "enabled",
+                        enrich.enabled ? "false" : "true",
+                        `${pluginFile} 精评已${enrich.enabled ? "停用" : "启用"}(enrich.enabled 写回,doctor 已复核)。`,
+                      )
+                    }
+                  >
+                    {row.saving ? "写回中…" : enrich.enabled ? "精评已启用" : "精评已停用"}
+                  </Button>
+                </div>
+                <div className="flex items-end gap-2">
+                  <div className="min-w-0 flex-1">
+                    <FieldInput
+                      label="enrich.model"
+                      aria-label={`精评模型 ${pluginFile}`}
+                      placeholder={enrich.model}
+                      value={modelValue}
+                      hint="写回品类 YAML enrich.model(yaml.save;doctor 回显为现值)"
+                      onChange={(event) => setRowState(pluginFile, { modelDraft: event.target.value })}
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!modelDirty || row.saving}
+                    title={modelDirty ? "写回 enrich.model" : "与现值一致,无需保存"}
+                    onClick={() =>
+                      void writeNode(
+                        pluginFile,
+                        "model",
+                        modelValue.trim(),
+                        `${pluginFile} enrich.model 已写回(${modelValue.trim()}),doctor 已复核。`,
+                      )
+                    }
+                  >
+                    <Save className="size-3.5" />
+                    保存 model
+                  </Button>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
+          <span>推送通道声明(push: 节)在品类 YAML:</span>
+          {/* HashRouter 路由:普通锚点即可跳配置编辑屏,不引 Router context 依赖 */}
+          <a href="#/yaml-editor" className="underline underline-offset-2 hover:text-foreground">
+            去配置编辑改 push 声明
+          </a>
+          <span>· 全局 pools 结构写回顺延(待 yaml-editor 拍板落点)</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 /**
@@ -321,7 +494,7 @@ export function SettingsScreen() {
               LLM 精评
             </CardTitle>
             <CardDescription>
-              base_url / key 属凭据类,只经 secret.set 入钥匙链;model 属品类 YAML(写回待协议扩展)
+              base_url / key 属凭据类,只经 secret.set 入钥匙链;model 经下方「评分与反馈」写回品类 YAML(yaml.save)
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
@@ -340,7 +513,7 @@ export function SettingsScreen() {
               placeholder="glm-4-flash(doctor 回显为现值)"
               value={llm.model}
               onChange={(event) => setLlm((prev) => ({ ...prev, model: event.target.value }))}
-              hint="非凭据:存于品类 YAML enrich.model,现值见 doctor 回显;不经本表单持久化(写回属协议缺口)"
+              hint="非凭据:存于品类 YAML enrich.model;写回走下方「评分与反馈」分区(yaml.save,mtime 乐观锁)"
             />
             <FieldInput
               label="LLM API Key"
@@ -511,6 +684,17 @@ export function SettingsScreen() {
           </CardContent>
         </Card>
 
+        {/* 评分与反馈(B3+C11:enrich.enabled/model 写回 + budget 护栏 + push 指引) */}
+        <EnrichFeedbackCard
+          enrichSections={verify?.enrichSections ?? []}
+          onSaved={(doctor, note) => {
+            setVerify(doctor);
+            setSaveNote(note);
+            setSaveError(null);
+            setLastSaved([]);
+          }}
+        />
+
         {/* 看图配置(10-03-vision-pipeline 拆屏后看图在桌面的唯一保留面:
             通道/引擎结构配置 + 云端 key 入钥匙链;采集图析在 feed 屏呈现) */}
         <VisionForm secretNames={secretNames} />
@@ -590,8 +774,9 @@ export function SettingsScreen() {
 
       <p className="px-6 text-[11px] text-muted-foreground">
         安全底线:任何凭据输入只经协议 secret.set 写入系统钥匙链(macOS Keychain /
-        Windows DPAPI);配置文件出现明文凭据 = 启动即报错拒跑。model / 池 URL 结构 /
-        通道声明的品类 YAML 写回属 sidecar 协议缺口,已记 openIssues,界面不伪造保存成功。
+        Windows DPAPI);配置文件出现明文凭据 = 启动即报错拒跑。model /
+        enrich.enabled 经「评分与反馈」写回品类 YAML(yaml.save,注释保真);
+        池 URL 结构写回顺延(待拍板落点),push 通道声明去「配置编辑」。
       </p>
     </div>
   );

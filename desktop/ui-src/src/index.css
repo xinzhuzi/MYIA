@@ -46,6 +46,25 @@
   --brand-to: #8b5cf6;
 
   --radius: 0.5rem;
+
+  /* ---- D2 token 深化(10-03-ui-deep-imitation design.md)---- */
+
+  /* 动效:三级时长 + 双缓动。Linear 克制级——快进快出、无弹跳;
+     --ease-spring(微回弹)仅浮层入场点缀可用,常规过渡禁用 */
+  --duration-fast: 120ms; /* 微反馈:hover/按压/离场 */
+  --duration-base: 180ms; /* 常规:浮层入场/展开切换 */
+  --duration-slow: 240ms; /* 大位移:抽屉/大面板 */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* elevation:面以细边框分层为主,阴影只给浮层(重阴影是反模式);
+     阴影色带深空蓝底色,与 --background 同族 */
+  --shadow-popover: 0 4px 16px rgb(2 6 23 / 0.45);
+  --shadow-drawer: 0 12px 40px rgb(2 6 23 / 0.55);
+
+  /* 密度梯度:表格/日志 compact 节奏基数 4px(→ p-table/py-table/gap-table);
+     默认 spacing 节奏不变 */
+  --spacing-table: 0.25rem;
 }
 
 @theme inline {
@@ -82,6 +101,98 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
+  /* ---- D2 token 暴露(动效/阴影/密度走 :root 同名别名,字号阶梯与
+     下方字体栈同法直接落字面量)---- */
+
+  /* 动效:--duration-* 不是 Tailwind 工具类命名空间,消费写任意值语法
+     duration-(--duration-fast);ease-* 生成 ease-out-expo/ease-spring 工具类 */
+  --duration-fast: var(--duration-fast);
+  --duration-base: var(--duration-base);
+  --duration-slow: var(--duration-slow);
+  --ease-out-expo: var(--ease-out-expo);
+  --ease-spring: var(--ease-spring);
+
+  /* elevation:shadow-popover / shadow-drawer 工具类 */
+  --shadow-popover: var(--shadow-popover);
+  --shadow-drawer: var(--shadow-drawer);
+
+  /* 密度梯度:p-table / py-table / gap-table 等紧凑节奏工具类 */
+  --spacing-table: var(--spacing-table);
+
+  /* 字号阶梯(Linear 密度,覆盖 Tailwind 默认 14/16/18/20,全屏即刻生效):
+     正文 13/14、辅文 11/12、标题 16/18;行高按 1.4~1.5 档配;
+     2xs 默认 medium(微标签/表头惯例)。数字一律走全局 tnum。
+     展示级大数字(24-48px)不进阶梯,按屏局部 arbitrary */
+  --text-2xs: 11px;
+  --text-2xs--line-height: 16px;
+  --text-2xs--font-weight: 500;
+  --text-xs: 12px;
+  --text-xs--line-height: 17px;
+  --text-sm: 13px;
+  --text-sm--line-height: 19px;
+  --text-base: 14px;
+  --text-base--line-height: 20px;
+  --text-lg: 16px;
+  --text-lg--line-height: 24px;
+  --text-xl: 18px;
+  --text-xl--line-height: 26px;
+
+  /* 浮层动效(本仓不装 tw-animate-css,keyframes 自持;时长/缓动全走 token;
+     `both` 填充保证 from/to 态在卸载前保持) */
+  --animate-fade-in: fade-in var(--duration-fast) var(--ease-out-expo) both;
+  --animate-fade-out: fade-out var(--duration-fast) var(--ease-out-expo) both;
+  --animate-overlay-in: overlay-in var(--duration-base) var(--ease-out-expo) both;
+  --animate-overlay-out: overlay-out var(--duration-fast) var(--ease-out-expo) both;
+  --animate-dialog-in: dialog-in var(--duration-base) var(--ease-out-expo) both;
+  --animate-dialog-out: dialog-out var(--duration-fast) var(--ease-out-expo) both;
+  --animate-pop-in: pop-in var(--duration-fast) var(--ease-out-expo) both;
+  --animate-pop-out: pop-out var(--duration-fast) var(--ease-out-expo) both;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes overlay-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes overlay-out {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96) translateY(6px);
+    }
+  }
+  @keyframes dialog-out {
+    to {
+      opacity: 0;
+      transform: scale(0.98) translateY(2px);
+    }
+  }
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97) translateY(-2px);
+    }
+  }
+  @keyframes pop-out {
+    to {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+  }
+
   /* 中文界面字体栈:系统 UI + 苹方/雅黑;日志面用等宽 */
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
@@ -109,6 +220,26 @@
 
   ::selection {
     @apply bg-primary/30;
+  }
+
+  /* 焦点体系(D2):键盘焦点统一 = 3px 品牌青 40% ring,与 button/select
+     基件同一约定;outline 置为透明(强制色彩/高对比模式仍可见,WCAG 2.4.7)。
+     鼠标点击不触发(:focus-visible 仅键盘/顺序焦点);深色面上不加
+     ring-offset(会露背景色缝),仅浮层内嵌套焦点需同色 offset 时局部再加 */
+  :focus-visible {
+    @apply outline-none ring-[3px] ring-ring/40;
+  }
+
+  /* 动效无障碍:系统开启「减弱动态效果」时,过渡/动画即时完成 */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after,
+    ::backdrop {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 
   /* Linear 质感:细滚动条,弱存在感 */

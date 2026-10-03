@@ -4,7 +4,7 @@
 // 覆盖:LLM 凭据保存(只经 secret.set 入钥匙链、值零回显、保存即清)/
 // env: 引用不经界面写 / 表单校验 / secret.set 失败结构化错误 /
 // doctor 回显(凭据存在性 + enrich 现值 + findings)/ 推送凭据保存 / 代理池探测。
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
@@ -420,6 +420,210 @@ describe("设置:凭据删除(C5)", () => {
     fireEvent.click(screen.getByTestId("confirm-delete-myia/push/token"));
     const box = await screen.findByRole("alert");
     expect(box.textContent).toContain("secret_not_found");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// B3+C11(10-03-v112-desktop-parity):评分与反馈分区(enrich.enabled/model 写回
+// yaml.read→文本手术→yaml.save(mtime 锁)→doctor 复核)+ mutateEnrichField 纯函数
+// ---------------------------------------------------------------------------
+
+const SAMPLE_YAML = `id: stocks
+name: 量化快讯
+enrich:
+  enabled: true   # 精评开关(B3)
+  model: glm-4-flash
+  budget_per_run: 40
+push:
+  - channel: feishu_card
+    enabled: true
+`;
+
+describe("mutateEnrichField 纯函数(文本手术,注释保真)", () => {
+  it("改 enabled:只动命中行值段,行内注释与其余原文逐字节不动", async () => {
+    const { mutateEnrichField } = await import("./api");
+    const next = mutateEnrichField(SAMPLE_YAML, "enabled", "false");
+    expect(next).toContain("  enabled: false   # 精评开关(B3)");
+    expect(next).toContain("  model: glm-4-flash");
+    expect(next).toContain("    enabled: true"); // push 节内同名键不受扰(只在 enrich 块内匹配)
+    // 其余行原样(行数不变,除命中行外逐行相等)
+    expect(next.split("\n")).toHaveLength(SAMPLE_YAML.split("\n").length);
+  });
+
+  it("改 model:同款手术", async () => {
+    const { mutateEnrichField } = await import("./api");
+    const next = mutateEnrichField(SAMPLE_YAML, "model", "glm-4.6");
+    expect(next).toContain("  model: glm-4.6");
+    expect(next).toContain("  enabled: true   # 精评开关(B3)");
+  });
+
+  it("无顶层 enrich 节 / 节内无该字段行 → CategoryNodeError(enrich_node_missing)", async () => {
+    const { mutateEnrichField, CategoryNodeError } = await import("./api");
+    expect(() => mutateEnrichField("id: stocks\n", "enabled", "false")).toThrow(CategoryNodeError);
+    expect(() =>
+      mutateEnrichField("enrich:\n  model: glm-4-flash\n", "budget_per_run", "10"),
+    ).toThrow(/budget_per_run/);
+  });
+});
+
+describe("设置:评分与反馈分区(B3+C11)", () => {
+  function installYamlSidecar(options?: { saveImpl?: (params: { file: string; content: string }) => void }) {
+    let mtime = 1_700_000_000;
+    const state = {
+      saved: null as { file: string; content: string; expected_mtime: number | null } | null,
+      secrets: new Map<string, string>(),
+      doctorImpl: () =>
+        doctorFixture({
+          plugins: [pluginFixture("plugins/stocks.yaml", { enrich: enrichFixture("glm-4-flash") })],
+        }),
+    };
+    mocks.invoke.mockImplementation(
+      async (_command: string, args: { method: string; params?: unknown }) => {
+        switch (args.method) {
+          case "doctor":
+            return state.doctorImpl();
+          case "secret.list":
+            return { names: [...state.secrets.keys()].sort() };
+          case "yaml.read":
+            return { file: "plugins/stocks.yaml", content: SAMPLE_YAML, size: SAMPLE_YAML.length, mtime };
+          case "yaml.save": {
+            const params = args.params as { file: string; content: string; expected_mtime: number | null };
+            if (params.expected_mtime !== mtime) {
+              throw JSON.stringify({
+                code: "mtime_conflict",
+                path: "params.expected_mtime",
+                message: "文件已被其他编辑改写,请刷新后重试",
+              });
+            }
+            options?.saveImpl?.(params);
+            state.saved = params;
+            mtime += 1;
+            return {
+              file: params.file,
+              written: true,
+              created: false,
+              backed_up: "plugins/stocks.yaml.bak",
+              mtime,
+              warnings: [],
+            };
+          }
+          default:
+            throw JSON.stringify({
+              code: "method_not_found",
+              path: "method",
+              message: `未知方法 ${args.method}`,
+            });
+        }
+      },
+    );
+    return state;
+  }
+
+  it("挂载即渲染逐品类行(doctor enrich 节);budget 只读护栏明示", async () => {
+    installYamlSidecar();
+    render(<SettingsScreen />);
+    const row = await screen.findByTestId("enrich-row-plugins/stocks.yaml");
+    expect(row.textContent).toContain("stocks.yaml");
+    expect(row.textContent).toContain("budget_per_run = 40");
+    expect(row.textContent).toContain("精评已启用");
+  });
+
+  it("停用开关:yaml.read → 文本手术(enabled: true→false)→ yaml.save(mtime 锁)→ doctor 复核", async () => {
+    const state = installYamlSidecar();
+    render(<SettingsScreen />);
+    const toggle = await screen.findByRole("button", { name: /停用精评:plugins\/stocks\.yaml/ });
+    fireEvent.click(toggle);
+
+    await waitFor(() => expect(state.saved).not.toBeNull());
+    expect(state.saved?.file).toBe("plugins/stocks.yaml");
+    expect(state.saved?.content).toContain("  enabled: false   # 精评开关(B3)");
+    // enrich 节内 enabled 不再为 true(整行匹配;push 节内的同名键不受扰)
+    expect(state.saved?.content).not.toMatch(/^  enabled: true/m);
+    expect(state.saved?.expected_mtime).toBe(1_700_000_000);
+    // 写后 doctor 复核(callsOf 不适用此 mock,断言 invoke 序列含 doctor after save)
+    await waitFor(() => {
+      const methods = mocks.invoke.mock.calls.map(([, args]) => (args as { method: string }).method);
+      const saveAt = methods.lastIndexOf("yaml.save");
+      expect(methods.slice(saveAt)).toContain("doctor");
+    });
+  });
+
+  it("model 写回:与现值一致禁用保存;改值后 yaml.save 带 mtime 锁", async () => {
+    const state = installYamlSidecar();
+    render(<SettingsScreen />);
+    const input = await screen.findByLabelText("精评模型 plugins/stocks.yaml");
+    // 现值一致 → 保存禁用(本项目无 jest-dom,原生 disabled 直查)
+    expect((screen.getByRole("button", { name: /保存 model/ }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(input, { target: { value: "glm-4.6" } });
+    const save = screen.getByRole("button", { name: /保存 model/ }) as HTMLButtonElement;
+    expect(save.disabled).toBe(false);
+    fireEvent.click(save);
+
+    await waitFor(() => expect(state.saved?.content).toContain("  model: glm-4.6"));
+    expect(state.saved?.content).toMatch(/^  enabled: true\s+#/m); // enrich 节 enabled 未被扰
+  });
+
+  it("mtime_conflict 结构化透传(mtime 乐观锁);不静默吞", async () => {
+    let first = true;
+    installYamlSidecar({
+      saveImpl: () => {
+        if (first) {
+          first = false;
+          throw JSON.stringify({
+            code: "mtime_conflict",
+            path: "params.expected_mtime",
+            message: "文件已被其他编辑改写,请刷新后重试",
+          });
+        }
+      },
+    });
+    render(<SettingsScreen />);
+    fireEvent.click(await screen.findByRole("button", { name: /停用精评:plugins\/stocks\.yaml/ }));
+    // 断言限定本分区(vision-form 挂载同屏可能另有 alert,不搅)
+    const card = screen.getByTestId("enrich-feedback-card");
+    const box = await within(card).findByRole("alert");
+    expect(box.textContent).toContain("mtime_conflict");
+    expect(box.textContent).toContain("已被其他编辑改写");
+  });
+
+  it("品类无 enrich 节:CategoryNodeError 行内指引(去配置编辑),不弹协议错误", async () => {
+    const noEnrichYaml = "id: stocks\nname: 量化快讯\n";
+    mocks.invoke.mockImplementation(
+      async (_command: string, args: { method: string }) => {
+        if (args.method === "doctor") {
+          return doctorFixture({
+            plugins: [pluginFixture("plugins/stocks.yaml", { enrich: enrichFixture("glm-4-flash") })],
+          });
+        }
+        if (args.method === "secret.list") return { names: [] };
+        if (args.method === "yaml.read") {
+          return { file: "plugins/stocks.yaml", content: noEnrichYaml, size: 10, mtime: 1 };
+        }
+        if (args.method === "yaml.save") {
+          return {
+            file: "plugins/stocks.yaml",
+            written: true,
+            created: false,
+            backed_up: null,
+            mtime: 2,
+            warnings: [],
+          };
+        }
+        throw JSON.stringify({ code: "method_not_found", path: "method", message: "x" });
+      },
+    );
+    render(<SettingsScreen />);
+    fireEvent.click(await screen.findByRole("button", { name: /停用精评:plugins\/stocks\.yaml/ }));
+    const note = await screen.findByTestId("enrich-node-error");
+    expect(note.textContent).toContain("缺少 enrich");
+    expect(note.textContent).toContain("配置编辑");
+  });
+
+  it("push 声明指引链接 → 配置编辑屏路由(HashRouter 锚点)", async () => {
+    installYamlSidecar();
+    render(<SettingsScreen />);
+    const link = await screen.findByRole("link", { name: "去配置编辑改 push 声明" });
+    expect(link.getAttribute("href")).toBe("#/yaml-editor");
   });
 });
 

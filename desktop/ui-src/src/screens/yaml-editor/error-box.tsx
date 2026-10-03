@@ -17,11 +17,11 @@ export function ErrorBox({ error, onRetry, retryLabel = "重试" }: ErrorBoxProp
   return (
     <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs">
       <p className="font-medium text-destructive">{error.message}</p>
-      <p className="font-mono text-[11px] text-muted-foreground">
+      <p className="font-mono text-2xs text-muted-foreground">
         code={error.code} path={error.path}
       </p>
       {error.code === "mtime_conflict" ? (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           文件在读取后被外部修改(CLI/别的窗口);「重读」拉取最新原文,本地未保存的修改将被放弃。
         </p>
       ) : null}

@@ -80,7 +80,7 @@ export function YamlEditorDialog({ file, onClose, onSaved }: YamlEditorDialogPro
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 animate-overlay-in"
       onClick={attemptClose}
       data-testid="yaml-editor-overlay"
     >
@@ -91,7 +91,7 @@ export function YamlEditorDialog({ file, onClose, onSaved }: YamlEditorDialogPro
         aria-label={`编辑 ${fileNameOf(file)}`}
         tabIndex={-1}
         data-testid="yaml-editor-dialog"
-        className="flex h-[75vh] w-[80vw] flex-col gap-2 rounded-lg border border-border bg-card p-4 shadow-2xl outline-none"
+        className="flex h-[75vh] w-[80vw] flex-col gap-2 rounded-lg border border-border bg-card p-4 shadow-drawer animate-dialog-in outline-none"
         onClick={(event) => event.stopPropagation()}
       >
         {/* 标题区:文件名 + dirty 标记 + 完整路径小字 + 关闭 */}
@@ -102,7 +102,7 @@ export function YamlEditorDialog({ file, onClose, onSaved }: YamlEditorDialogPro
               {dirty ? " *" : ""}
             </span>
             <span
-              className="max-w-[70vw] truncate font-mono text-[11px] text-muted-foreground"
+              className="max-w-[70vw] truncate font-mono text-2xs text-muted-foreground"
               title={file}
               data-testid="editor-path"
             >
@@ -168,7 +168,7 @@ export function YamlEditorDialog({ file, onClose, onSaved }: YamlEditorDialogPro
             </p>
           ) : null}
           {runNotice ? (
-            <span role="status" data-testid="run-notice" className="text-[11px] text-warning">
+            <span role="status" data-testid="run-notice" className="text-2xs text-warning">
               {runNotice}
             </span>
           ) : null}
@@ -189,7 +189,7 @@ export function YamlEditorDialog({ file, onClose, onSaved }: YamlEditorDialogPro
             <Save className="size-3.5" />
             {save.saving ? "保存中…" : "保存"}
           </Button>
-          <span className="text-[11px] text-muted-foreground">⌘S 保存</span>
+          <span className="text-2xs text-muted-foreground">⌘S 保存</span>
           <span className="flex-1" />
           <Button size="sm" variant="outline" onClick={attemptClose}>
             关闭

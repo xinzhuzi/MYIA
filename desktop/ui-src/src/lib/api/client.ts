@@ -1,6 +1,8 @@
 /**
- * MYIA 桌面 sidecar API client —— sidecar 协议(`desktop/entry.py`,30 方法)的共享封装:
- * 类型面 `SidecarProtocol` 盖 19 方法(核心 + image.config.* + v1.1.2 批四方法 + feed-ux 批三方法),`api` 门面封装核心 17 方法
+ * MYIA 桌面 sidecar API client —— sidecar 协议(`desktop/entry.py` `_HANDLERS`,
+ * 方法数随批滚动,单一事实源 = spec 注册表)的共享封装:
+ * 类型面 `SidecarProtocol` 盖 23 方法(核心 + image.config.* + v1.1.2 批八方法 +
+ * feed-ux 批三方法),`api` 门面封装核心 21 方法
  * ——封装面 ≠ 协议面,分工见下方 api 对象头注释。
  *
  * 传输:壳命令 `sidecar_request`(src-tauri/src/main.rs);Rust 侧
@@ -15,6 +17,12 @@ import type {
   DoctorParams,
   DoctorResult,
   EmptyParams,
+  FeedbackListParams,
+  FeedbackListResult,
+  FeedbackMarkParams,
+  FeedbackMarkResult,
+  FeedbackStatsParams,
+  FeedbackStatsResult,
   FeedExportParams,
   FeedExportResult,
   HealthParams,
@@ -48,6 +56,8 @@ import type {
   SourcesTestResult,
   StoreItemsParams,
   StoreItemsResult,
+  StoreTrendParams,
+  StoreTrendResult,
   VersionParams,
   VersionResult,
 } from "./types";
@@ -122,9 +132,10 @@ async function request<M extends SidecarMethod>(
 
 /**
  * 共享类型化门面 —— 核心 10 方法(version … secret.list)+ v1.1.2 桌面对齐批
- * 4 方法(runCancel/runsList/secretDelete/sourcesTest,10-03-v112-desktop-parity)
+ * 8 方法(runCancel/runsList/secretDelete/sourcesTest + feedbackMark/
+ * feedbackList/feedbackStats/storeTrend,10-03-v112-desktop-parity)
  * + feed-ux 批 3 方法(feedExport/schedulePreview/pushTest,10-03-feed-ux),
- * 非协议全量。协议面(30 方法,单一事实源 = entry.py `_HANDLERS`,注册表见
+ * 非协议全量。协议面(单一事实源 = entry.py `_HANDLERS`,注册表见
  * .trellis/spec/desktop/sidecar-protocol.md)的其余方法走屏私有封装:
  * sources.write → screens/sources/api.ts、yaml.* → screens/yaml-editor/api.ts、
  * image.config.* → screens/settings/vision-api.ts(惯例:invoke 直连 +
@@ -177,6 +188,18 @@ export const api = {
     request("sources.test", params),
   /** 发送推送测试消息(G5 前半;真发,凭据沿用 env:/keychain: 引用链) */
   pushTest: (params: PushTestParams): Promise<PushTestResult> => request("push.test", params),
+  /** 卡片 👍/👎 反馈入库(channel=desktop;CLI feedback list 可见,B2) */
+  feedbackMark: (params: FeedbackMarkParams): Promise<FeedbackMarkResult> =>
+    request("feedback.mark", params),
+  /** 反馈记录清单(新→旧;键同 CLI _feedback_row_dict,B2) */
+  feedbackList: (params: FeedbackListParams = {}): Promise<FeedbackListResult> =>
+    request("feedback.list", params),
+  /** 反馈窗口统计 + 生效调参(键同 CLI stats 载荷,B2) */
+  feedbackStats: (params: FeedbackStatsParams = {}): Promise<FeedbackStatsResult> =>
+    request("feedback.stats", params),
+  /** 采集量趋势(items 按 first_seen UTC 逐日计数,B4) */
+  storeTrend: (params: StoreTrendParams = {}): Promise<StoreTrendResult> =>
+    request("store.trend", params),
 } as const;
 
 /** 订阅 sidecar 流式事件(log/progress/completed);返回取消订阅函数。 */
