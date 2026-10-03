@@ -44,6 +44,9 @@ wheel 里就直接失败,到不了 PyPI)。TestPyPI 演练走手动 dispatch,与
    bump 的 commit 上**——tag 触发的工作流按 tag 快照 checkout,守卫校验的也是
    tag 快照里的 pyproject。
 
+- 推 tag 前本地真跑构建与校验:`uv build` 双包 + `pypi-publish.yml` 的
+  verify 脚本逻辑(发行名/布局类缺陷静态审查抓不住,v0.0.1 E2E 实证两例)。
+
 > **v0.0.1 实例(当前)**:五源已于 2026-10-03 随版本序列归零统一落在 `0.0.1`
 > (根 pyproject 依赖窗 `>=0.0.1,<0.1`),git tag 与 GitHub Release 均已清空
 > ——首个发布 tag 即 `v0.0.1`,本步无需再动版本号,直接进第四步。
