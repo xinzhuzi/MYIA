@@ -56,7 +56,7 @@ stderr(整份 stdout 恒可 `json.load`)。退出码:`0` 成功 / `1` 配置或�
 |---|---|
 | `ENGINES` | `auto` `direct_api` `static_html` `crawl4ai` `firecrawl` `scrapling` `stealth_browser` `llm_browser` |
 | `PAGINATION_MODES` | `template` `selector` `scroll` |
-| `EXTRACT_TYPES` | `list` `item` `json_path` |
+| `EXTRACT_TYPES` | `list` `item` `json_path` `rss` |
 | `BACKOFF_POLICIES` | `exponential` `linear` `none` |
 | `PUSH_CHANNELS` | `feishu_card` `telegram` `ntfy` `dingtalk` `wecom` `webhook` `stdout` |
 | `ROUTE_MODES` | `immediate` `digest` `archive` |
@@ -112,16 +112,19 @@ stderr(整份 stdout 恒可 `json.load`)。退出码:`0` 成功 / `1` 配置或�
 
 | 字段 | 缺省 | 语义 |
 |---|---|---|
-| `type` | `必填` | `list` = HTML 列表项;`item` = 单页;`json_path` = JSON API |
+| `type` | `必填` | `list` = HTML 列表项;`item` = 单页;`json_path` = JSON API;`rss` = RSS/Atom feed(feedparser 条目映射,只挂 `static_html` 文本通路;`direct_api` 保持 JSON-only,配即拒) |
 | `item` | `null` | `type: list` 时每条目的容器 CSS 选择器(该类型必填;其余类型禁写) |
-| `url_template` | `null` | 条目 URL 渲染模板,`{field}` 纯占位(与 `dedup.key` 同款语法,至少一个占位符,且**必须在 `fields` 字段名内——装载期交叉校验,拼错即拒**),提取出口逐条渲染并填入 `url`;仅 `list`/`json_path` 可配(`item` 单页源条目 url 即请求 URL,配即拒);运行期单条目占位缺「值」→ url 置空串、该条目被管线按 `invalid_item` 拒掉(不入库);与 `fields` 里的 `url` 二选一,**都有 = `url` 字段胜出、模板静默不用** |
-| `fields` | `必填` | 字段名 → 选择器/JSONPath 的映射,至少 1 个;`list`/`json_path` 类型**必须含 `url` 或配 `url_template`**(二选一;去重键依赖 URL) |
+| `url_template` | `null` | 条目 URL 渲染模板,`{field}` 纯占位(与 `dedup.key` 同款语法,至少一个占位符,且**必须在 `fields` 字段名内——装载期交叉校验,拼错即拒**),提取出口逐条渲染并填入 `url`;仅 `list`/`json_path` 可配(`item` 单页源条目 url 即请求 URL,`rss` 条目 url 由 `fields.url`←`entry.link` 映射,配即拒);运行期单条目占位缺「值」→ url 置空串、该条目被管线按 `invalid_item` 拒掉(不入库);与 `fields` 里的 `url` 二选一,**都有 = `url` 字段胜出、模板静默不用** |
+| `fields` | `必填` | 字段名 → 选择器/JSONPath 的映射,至少 1 个;`list`/`json_path` 类型**必须含 `url` 或配 `url_template`**(二选一;去重键依赖 URL);`rss` 类型**值必须是 feedparser entry 属性白名单 `title`/`link`/`published`/`updated`/`summary`/`author` 之一**(键=归一字段名,如 `url: link`;拼错装载即拒),且**必须含 `url`**(映射 `link`) |
 
 选择器语法:L1/L2 用 CSS(item 内相对选择器,`a@href` 取属性,相对 URL 自动按页面地址补全);
 `json_path` 用 `$` 路径(`$.chart.result[0].meta.price`、`$[*].keyword` 通配)。
 响应没有页面 URL 只有 slug/appid 的 API(Epic/Steam 形态)用 `url_template` 渲染条目链接
 (官方 `plugins/games.yaml` 即此写法);`json_path` 仍表达不了「条目 URL = 请求 URL」,
 此类 API 用稳定业务字段(如 symbol)充当 `url` 字段(官方 `plugins/stocks.yaml` 即此写法)。
+`rss`(10-03-news-rss)走 feedparser:fields 值=entry 属性白名单,条目缺某属性该字段
+逐条省略;`summary` 是 CDATA HTML,直出模板会刷屏,要摘要先进 enrich(官方
+`plugins/news.yaml` 即此写法,模板只有标题+链接+日期)。
 
 ### 2.6 sources[].rate_limit(RateLimitConfig)
 
@@ -267,7 +270,7 @@ target = `{server}/{topic}` 整串引用(如 `env:NTFY_TARGET`,定向写
 | 层 | 引擎 | 什么时候用 | 代价/前提 |
 |---|---|---|---|
 | L1 | `direct_api` | 数据有公开 JSON/REST API(行情、发版、社区 REST) | 最快最省;`extract.type: json_path`;先 curl 确认返回结构再写 fields |
-| L2 | `static_html` | 服务端渲染 HTML(论坛列表、新闻页、Discourse `/latest`) | 零依赖;`extract.type: list` + CSS 选择器 |
+| L2 | `static_html` | 服务端渲染 HTML(论坛列表、新闻页、Discourse `/latest`);RSS/Atom feed | 零依赖;`extract.type: list` + CSS 选择器(feed 用 `type: rss`,CSS 的 `<link>` void 元素拿不到条目 url) |
 | L3 | `crawl4ai` | JS 渲染页面,源码里看不到数据 | 可选依赖 `shishi[crawl4ai]`,未装时报 `dependency_missing` 并继续降级;无 `extract` 时自动结构化兜底 |
 | L3' | `firecrawl` | crawl4ai 的云端替代后端 | 需 endpoint+key(`MYIA_FIRECRAWL_URL` / `MYIA_FIRECRAWL_API_KEY` 环境变量,或 `engine_options.firecrawl.endpoint/api_key`,值必须是 `env:`/`keychain:` 引用);未配置该层失败并继续降级 |
 | L4 | `scrapling` | 基础盾/改版频繁源:自适应选择器自愈 + 隐身指纹 + `pagination.mode: scroll` 无限滚动 | 可选依赖 `shishi[scrapling]`,未装时报 `dependency_missing` 并继续降级;企业级风控(手机验证码/真人审核)零尝试并结构化报错,明确不支持 |

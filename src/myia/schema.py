@@ -159,7 +159,7 @@ ENGINES = (
     "llm_browser",
 )
 PAGINATION_MODES = ("template", "selector", "scroll")
-EXTRACT_TYPES = ("list", "item", "json_path")
+EXTRACT_TYPES = ("list", "item", "json_path", "rss")
 BACKOFF_POLICIES = ("exponential", "linear", "none")
 PUSH_CHANNELS = ("feishu_card", "telegram", "ntfy", "dingtalk", "wecom", "webhook", "stdout")
 ROUTE_MODES = ("immediate", "digest", "archive")
@@ -176,7 +176,7 @@ EngineName = Literal[
     "auto", "direct_api", "static_html", "crawl4ai", "firecrawl", "scrapling", "stealth_browser", "llm_browser"
 ]
 PaginationMode = Literal["template", "selector", "scroll"]
-ExtractType = Literal["list", "item", "json_path"]
+ExtractType = Literal["list", "item", "json_path", "rss"]
 BackoffPolicy = Literal["exponential", "linear", "none"]
 PushChannel = Literal["feishu_card", "telegram", "ntfy", "dingtalk", "wecom", "webhook", "stdout"]
 RouteMode = Literal["immediate", "digest", "archive"]
@@ -541,6 +541,14 @@ class PaginationConfig(_StrictModel):
         return self
 
 
+#: ``extract.type: rss`` 的 feedparser entry 属性白名单(10-03-news-rss):
+#: fields 的**值**=entry 属性名(键=归一字段名,如 ``url: link``)。封闭白名单
+#: —— AI 拼错属性名(如 ``pubdate``)装载即拒,而不是运行期整源静默零产出
+#: (同 url_template 占位符交叉校验的设计动机);条目缺某属性 → 该字段逐条
+#: 省略(同 json_path 语义)。summary 是 CDATA HTML,白名单保留但模板慎用。
+RSS_ENTRY_FIELDS = frozenset({"title", "link", "published", "updated", "summary", "author"})
+
+
 class ExtractConfig(_StrictModel):
     """Field extraction for one source.
 
@@ -548,6 +556,14 @@ class ExtractConfig(_StrictModel):
     selectors); ``item`` scrapes a single page; ``json_path`` reads JSON
     APIs. Without ``extract`` at all, L3+ engines auto-structure (schema
     keeps it ``None``).
+
+    ``rss`` (task 10-03-news-rss) reads RSS feeds: ``fields`` values are
+    feedparser entry attribute names from the closed whitelist
+    :data:`RSS_ENTRY_FIELDS` (键=归一字段名,如 ``url: link``)。The entry
+    URL is the mapped ``link`` — the ``url``-required rule applies the same
+    way (去重键根基); a typo'd attribute name is refused at load time, an
+    entry missing one attribute simply omits that field. Engine-side rss is
+    a ``static_html`` text path only (``direct_api`` stays JSON-only).
 
     ``url_template`` (D1, task 10-03-games): when the payload carries no
     clickable page URL (only a slug / numeric id — Epic freeGamesPromotions,
@@ -601,10 +617,11 @@ class ExtractConfig(_StrictModel):
                 "extract.type 为 list 时必须提供 item 选择器",
                 path_suffix="item",
             )
-        if self.type == "item" and self.url_template is not None:
+        if self.type in ("item", "rss") and self.url_template is not None:
             raise SchemaValueError(
                 "unexpected_url_template",
-                "extract.url_template 仅在 type 为 list/json_path 时有效(单页源条目 url 即请求 URL,无需模板)",
+                "extract.url_template 仅在 type 为 list/json_path 时有效(单页源条目 url 即请求 URL;"
+                "rss 条目 url 由 fields.url←entry.link 映射,无需模板)",
                 path_suffix="url_template",
             )
         if self.url_template is not None:
@@ -621,7 +638,21 @@ class ExtractConfig(_StrictModel):
                     f"({sorted(self.fields)})中:运行期将恒渲染为空 url、整源条目被拒",
                     path_suffix="url_template",
                 )
-        if self.type in ("list", "json_path") and "url" not in self.fields and not self.url_template:
+        if self.type == "rss":
+            # 白名单校验(10-03-news-rss):fields 值=feedparser entry 属性名。
+            # 拼错装载通过的话,运行期 getattr 恒 None → 该字段整源静默缺失
+            # (拼的是 url 时=整源 invalid_item)——同 url_template 交叉校验
+            # 的设计动机:AI 生成质量问题要在加载期可检出。第一个违例即拒,
+            # path 指到 fields.<键>。
+            for name, attr in self.fields.items():
+                if attr not in RSS_ENTRY_FIELDS:
+                    raise SchemaValueError(
+                        "invalid_rss_field",
+                        f"extract.type 为 rss 时 fields.{name} 的值必须是 feedparser entry 属性"
+                        f"({sorted(RSS_ENTRY_FIELDS)})之一,当前为 {attr!r}",
+                        path_suffix=f"fields.{name}",
+                    )
+        if self.type in ("list", "json_path", "rss") and "url" not in self.fields and not self.url_template:
             raise SchemaValueError(
                 "missing_url_field",
                 "extract.fields 必须包含 url 字段,或提供 extract.url_template 渲染条目 URL"

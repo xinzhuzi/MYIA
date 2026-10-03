@@ -579,6 +579,81 @@ class TestExtractUrlTemplate:
         assert extract is not None and extract.url_template is not None
 
 
+class TestExtractRss:
+    """10-03-news-rss:extract.type=rss —— fields 值=feedparser entry 属性白名单。
+
+    RSS 源现状(探查实证):static_html 引擎硬接 RSS 会因 ``<link>`` void 元素
+    拿不到条目 URL 而静默零产出,故加专用提取类型。白名单( title/link/
+    published/updated/summary/author)封闭:拼错属性名装载即拒——同
+    url_template 占位符交叉校验的动机,AI 写错 = 加载期可检出,不是运行期
+    整源静默缺失。url 必填沿 list/json_path 同规(条目 url=entry.link,
+    去重键根基);item 选择器与 url_template 对 rss 均互斥。
+    """
+
+    def test_rss_valid_whitelisted_fields_load(self):
+        data = _minimal_data()
+        data["sources"][0]["extract"] = {
+            "type": "rss",
+            "fields": {"title": "title", "url": "link", "published": "published"},
+        }
+        extract = load_category(data).sources[0].extract
+        assert extract is not None
+        assert extract.type == "rss"
+        assert extract.item is None and extract.url_template is None
+
+    def test_rss_field_outside_whitelist_rejected(self):
+        """拼错属性名(pubdate→应为 published)装载即拒,path 指到 fields.<键>。"""
+        data = _minimal_data()
+        data["sources"][0]["extract"] = {
+            "type": "rss",
+            "fields": {"title": "title", "url": "link", "published": "pubdate"},
+        }
+
+        error = _load_error(data)
+        detail = _error_of_type(error, "invalid_rss_field")
+        assert detail.path == "$.sources[0].extract.fields.published"
+        assert "pubdate" in detail.message
+
+    def test_rss_missing_url_field_rejected(self):
+        # 条目 url=entry.link;没有 url 字段的 rss 提取喂不动去重键。
+        data = _minimal_data()
+        data["sources"][0]["extract"] = {
+            "type": "rss",
+            "fields": {"title": "title", "published": "published"},
+        }
+
+        error = _load_error(data)
+        detail = _error_of_type(error, "missing_url_field")
+        assert detail.path == "$.sources[0].extract.fields"
+
+    def test_rss_rejects_item_selector(self):
+        # item 选择器是 CSS 语义,rss 沿用 list 外一律互斥的现有结构。
+        data = _minimal_data()
+        data["sources"][0]["extract"] = {
+            "type": "rss",
+            "item": "div.entry",
+            "fields": {"title": "title", "url": "link"},
+        }
+
+        error = _load_error(data)
+        detail = _error_of_type(error, "unexpected_extract_item")
+        assert detail.path == "$.sources[0].extract.item"
+
+    def test_rss_rejects_url_template(self):
+        # rss 条目 url 由 fields.url←entry.link 映射,模板无消费出口,配即拒
+        # (防「装载通过但运行期模板静默不用」的半支持路径)。
+        data = _minimal_data()
+        data["sources"][0]["extract"] = {
+            "type": "rss",
+            "url_template": "https://x/{title}",
+            "fields": {"title": "title", "url": "link"},
+        }
+
+        error = _load_error(data)
+        detail = _error_of_type(error, "unexpected_url_template")
+        assert detail.path == "$.sources[0].extract.url_template"
+
+
 # ---------------------------------------------------------------------------
 # Acceptance: structured load errors (field path + reason) for doctor/agents
 # ---------------------------------------------------------------------------

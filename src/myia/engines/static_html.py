@@ -5,7 +5,11 @@ Contract (PRD 10-01-v01-engine-l1-l2):
 - ``extract.type: list`` (item selector + per-field CSS selectors, ``@href`` /
   ``@src`` attribute values, relative URLs resolved against the page URL) and
   ``item`` (single-page, document-level selectors); ``json_path`` is rejected
-  here so ``engine: auto`` degrades correctly;
+  here so ``engine: auto`` degrades correctly. ``rss`` (10-03-news-rss) rides
+  the same text path: the body goes to :func:`fetch_base.extract_rss`
+  (feedparser) instead of CSS selectors — RSS 的 ``<link>`` void 元素拿不到
+  条目 url,硬接 CSS = 静默零产出;``direct_api`` 保持 JSON-only(rss 配
+  direct_api 在引擎层拒);
 - non-UTF8 responses (gb18030/big5 legacy forums — 生产源痛点) are decoded by
   ``fetch_base.decode_response``: BOM > Content-Type charset > meta charset >
   utf-8/gb18030/big5 fallbacks;
@@ -31,6 +35,7 @@ from myia.engines.fetch_base import (
     BaseEngine,
     decode_response,
     extract_html,
+    extract_rss,
     split_attr_selector,
 )
 
@@ -46,7 +51,7 @@ class StaticHTMLEngine(BaseEngine):
 
     LAYER = "L2"
     ENGINE_NAME = "static_html"
-    SUPPORTED_EXTRACT_TYPES = ("list", "item")
+    SUPPORTED_EXTRACT_TYPES = ("list", "item", "rss")
 
     async def _fetch_impl(self) -> list[dict]:
         items: list[dict] = []
@@ -96,7 +101,15 @@ class StaticHTMLEngine(BaseEngine):
             self.last_skip_reason = verdict.reason
             logger.info("变更指纹未变(%s),跳过 url=%s", verdict.reason, url)
             return [], None, True
-        page_items = extract_html(text, self.source.extract, base_url=url)  # type: ignore[arg-type]
+        # 提取出口分流(10-03-news-rss):rss 走 feedparser 条目映射(fields
+        # 值=entry 属性白名单),其余类型走 CSS 选择器。_check_extract_support
+        # 已保证 extract 存在且 type ∈ SUPPORTED_EXTRACT_TYPES。
+        extract = self.source.extract
+        assert extract is not None
+        if extract.type == "rss":
+            page_items = extract_rss(text, extract)
+        else:
+            page_items = extract_html(text, extract, base_url=url)
         if not page_items:
             logger.debug("本页提取 0 条,提前收尾 url=%s", url)
             return [], None, True

@@ -22,9 +22,9 @@ Everything the six engine layers share lives here once (PRD 10-01-v01-fetch-base
   ``residential:`` stays a structured not-implemented error (v0.3,
   pool rotation with the myia-proxy plugin).
 
-Extraction helpers (``json_path`` for APIs, CSS ``list``/``item`` for HTML)
-also live here so direct_api / static_html / firecrawl reuse one
-implementation instead of three divergent ones.
+Extraction helpers (``json_path`` for APIs, CSS ``list``/``item`` for HTML,
+``rss`` for feeds via feedparser) also live here so direct_api / static_html /
+firecrawl reuse one implementation instead of three divergent ones.
 
 All I/O is async (httpx.AsyncClient injected via :class:`FetchContext`);
 clocks and sleepers are injectable so tests never really wait.
@@ -47,6 +47,7 @@ from typing import Any, Awaitable, Callable, Mapping
 from urllib.parse import quote, urljoin, urlsplit, urlunsplit
 from urllib.robotparser import RobotFileParser
 
+import feedparser
 import httpx
 import yaml
 from selectolax.parser import HTMLParser
@@ -108,6 +109,7 @@ __all__ = [
     "expand_proxy_url",
     "extract_html",
     "extract_json",
+    "extract_rss",
     "json_path_resolve",
     "load_proxy_pools",
     "load_proxy_pools_file",
@@ -1327,6 +1329,38 @@ def extract_html(html: str, extract: ExtractConfig, *, base_url: str = "") -> li
         if record:
             items.append(record)
     return _apply_url_template(items, extract)
+
+
+def extract_rss(text: str, extract: ExtractConfig) -> list[dict]:
+    """Apply an ``rss`` extract config to a fetched feed body (feedparser).
+
+    ``fields`` values name feedparser entry attributes — closed whitelist
+    :data:`myia.schema.RSS_ENTRY_FIELDS`, enforced at load time (拼错即拒);
+    per entry an attribute the feed does not carry is simply omitted from
+    that record(逐条目语义,同 json_path;标题/链接齐、缺作者的条目照常
+    产出)。A malformed feed never raises: feedparser surfaces it as the
+    ``bozo`` flag and we only log a WARNING, entries that survived parsing
+    still flow — bozo 容错(截断的 feed 常常仍带出前几条可用条目),条目
+    为空自然返回空列表。``url_template`` is schema-rejected on rss,故无
+    模板出口(条目 url = fields 里映射的 ``link``)。
+    """
+    parsed = feedparser.parse(text)
+    if parsed.bozo:
+        logger.warning(
+            "RSS 源解析带 bozo 标志(容错解析继续,entries=%s): %s",
+            len(parsed.entries),
+            parsed.get("bozo_exception", ""),
+        )
+    items: list[dict] = []
+    for entry in parsed.entries:
+        record = {
+            name: value
+            for name, attr in extract.fields.items()
+            if (value := getattr(entry, attr, None)) is not None
+        }
+        if record:
+            items.append(record)
+    return items
 
 
 # ---------------------------------------------------------------------------

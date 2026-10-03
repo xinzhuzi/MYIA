@@ -25,6 +25,12 @@ dedup-fix (task 10-03-games-dedup-fix) made the games entry key carry
 price state (``{url}-{final_price}``; CS/GOG gained a string-form
 ``final_price`` alias for it) and reversed :func:`item_metric_key` to
 url-first so rotating entry keys no longer break price baselines.
+news (task 10-03-news-rss) joined with the ``rss`` extract type: one
+gcores feed source riding the static_html text path (feedparser entry
+mapping — ``fields`` values are a closed entry-attribute whitelist,
+``url`` maps ``link``), digest-only routing (资讯无 immediate 分层; the
+sole immediate rule is the dormant v0.2 score slot), and templates that
+stay out of the CDATA summary (标题+链接+日期 only).
 """
 
 import asyncio
@@ -37,7 +43,7 @@ import pytest
 import yaml
 
 from myia.classify import rules_from_config
-from myia.engines.fetch_base import extract_html, extract_json
+from myia.engines.fetch_base import extract_html, extract_json, extract_rss
 from myia.pipeline import Pipeline
 from myia.push.base import SendContext
 from myia.push.route import resolve_route, routes_from_config
@@ -46,10 +52,13 @@ from myia.schema import ClassifyConfig, LoadError, SourceConfig, load_category, 
 from myia.store import SQLiteStore
 
 PLUGINS_DIR = Path(__file__).resolve().parents[1] / "plugins"
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
 # gpu-prices 补入(10-03-games-v2,grill 决议⑧):全套电池自 v0.4 起从未
 # 覆盖过它;zol 源现被反爬检查页拦(2026-10-03 实测),无 _SNIPPETS 录制
 # 样本(同 v2ex parked 先例),两跑计划用合成 zol 形状 markup。
-OFFICIAL_PLUGINS = ("stocks", "ai-news", "wool", "games", "gpu-prices")
+# news 补入(10-03-news-rss):游戏资讯 RSS 品类(gcores 单源);snippet 用
+# 实录裁剪 fixture tests/fixtures/news-gcores-rss.xml。
+OFFICIAL_PLUGINS = ("stocks", "ai-news", "wool", "games", "gpu-prices", "news")
 
 
 # ---------------------------------------------------------------------------
@@ -395,6 +404,39 @@ def test_games_cheapshark_deal_hits_rule_and_stays_digest():
         )
 
 
+def test_news_uses_static_html_rss_with_whitelisted_entry_fields():
+    """10-03-news-rss:游戏资讯 = 独立 news.yaml 品类(资讯无价格字段,games
+    规则面全是价格语义,不并入——决议②);唯一源 gcores-rss 挂 static_html
+    文本通路 + extract.type rss(fields 值=feedparser entry 属性白名单,
+    schema 装载期拼错即拒;direct_api 保持 JSON-only 是引擎层词表分工)。
+    路由全 digest(资讯无 immediate 分层):唯一 immediate 是 dormant v0.2
+    score 槽位,enrich 关闭时条目无分数永不命中,未命中走保守缺省 digest。
+    模板只有标题+链接+日期,不进 summary/CDATA(design R3)。"""
+    config = _load("news")
+    (source,) = config.sources
+    assert source.name == "gcores-rss"
+    assert source.engine == "static_html", "rss 只挂 static_html 文本通路(design R4)"
+    assert source.extract is not None and source.extract.type == "rss"
+    assert source.extract.fields == {"title": "title", "url": "link", "published": "published"}
+    assert "url" in source.extract.fields, "rss 条目 url=entry.link,去重键根基(url 必填同规)"
+    assert source.extract.url_template is None
+    assert source.rate_limit is not None and source.rate_limit.respect_robots is True
+    assert config.dedup.key == "{url}", "RSS 条目 url 稳定唯一,无价格态可带"
+    assert config.enrich.enabled is False, "零 token 路线:标题+链接+日期自解释"
+    assert config.classify.builtin is False, "资讯标题不落七大类,内置扫描只会误杀"
+    # 双通道(同 games wrap 先例):feishu_card + telegram
+    assert {push.channel for push in config.push} == {"feishu_card", "telegram"}
+    for push in config.push:
+        assert [rule.mode for rule in push.route] == ["immediate", "digest"]
+        assert "score" in push.route[0].when, "immediate 槽位是 dormant score 规则(全 digest 决议)"
+        assert push.template is not None
+        assert "summary" not in push.template, "模板不进 CDATA summary(design R3)"
+    # 全 digest 语义钉住:无分数条目 → dormant immediate 跳过 → 缺省 digest
+    item = {"title": "合成条目", "url": "https://www.gcores.com/articles/1"}
+    for push in config.push:
+        assert resolve_route(item, routes_from_config(push.route)).mode == "digest"
+
+
 # ---------------------------------------------------------------------------
 # Security / policy red lines
 # ---------------------------------------------------------------------------
@@ -546,6 +588,15 @@ def test_plugin_template_renders_with_representative_items(name):
             {"title": "iGame RTX 5080 公开演示", "url": "https://detail.zol.com.cn/vga/1.html",
              "price": 8999},
         ],
+        # news(10-03-news-rss):实录裁剪形状(fixture 同源条目 220477);
+        # published 是 RFC 822 串,模板切 [:16] 显示;第二条钉逐条目缺
+        # published 省略形态(is defined 守卫下裸渲染存活,不炸 StrictUndefined)
+        "news": [
+            {"title": "《恶魔城：贝尔蒙特的诅咒》试玩版今日上线",
+             "url": "https://www.gcores.com/articles/220477",
+             "published": "Fri, 02 Oct 2026 20:01:17 +0800"},
+            {"title": "无日期条目形状", "url": "https://www.gcores.com/articles/220478"},
+        ],
     }[name]
     renderer = TemplateRenderer()
     expected_marker = {
@@ -554,6 +605,7 @@ def test_plugin_template_renders_with_representative_items(name):
         "wool": "公开演示标题",
         "games": "深埋之星",
         "gpu-prices": "iGame RTX 5080",
+        "news": "《恶魔城：贝尔蒙特的诅咒》试玩版今日上线",
     }[name]
     # 值级标记(opt-in):钉住换算/退路的输出值,不只是「渲染不炸」。
     # games:Steam 条目无 price_text → 退 final_price/100,1360 分应渲染 13.6;
@@ -562,6 +614,9 @@ def test_plugin_template_renders_with_representative_items(name):
     # $0.00(原价 19.99)(wrap;feishu/telegram 两模板同钓)
     value_markers: dict[str, list[str]] = {
         "games": ["13.6", "📅2026-10-08起免费", "$0.50(原价 16.99)", "-97%", "$0.00(原价 19.99)"],
+        # news:RFC 822 published 切 [:16] 出 "Fri, 02 Oct 2026";缺
+        # published 条目(逐条目省略形态)裸渲染存活
+        "news": ["Fri, 02 Oct 2026", "无日期条目形状"],
     }
     for push in config.push:
         if push.template is None:
@@ -818,6 +873,21 @@ _SNIPPETS = {
             "final_price": "0.00",
         },
     },
+    # news (10-03-news-rss): gcores RSS 实录裁剪 fixture(2026-10-03 探查
+    # 取证,逐字裁自 archive/2026-10/10-03-games-wrap/evidence/
+    # news-probe-gcores-rss.xml;CDATA description 只留首个 img+p 段保形状)。
+    # rss 的 fields 值=entry 属性白名单:首条 220477 全字段形态;第二形状
+    # 220471 钉多条目不错位(标题/链接/日期各归各)。
+    ("news", "gcores-rss"): {
+        "xml": FIXTURES / "news-gcores-rss.xml",
+        "expect_url": "https://www.gcores.com/articles/220477",
+        "expect_title": "《恶魔城：贝尔蒙特的诅咒》试玩版今日上线",
+        "expect_second": {
+            "url": "https://www.gcores.com/articles/220471",
+            "title": "搜打撤游戏《绝地求生：黑域撤离》宣布中止开发",
+            "published": "Fri, 02 Oct 2026 17:03:23 +0800",
+        },
+    },
     # v2ex is parked (commented out in wool.yaml, challenge-gated until a
     # firecrawl backend exists) — its extract was never live-verified, so it
     # has no snippet here; re-add one when the source ships.
@@ -833,6 +903,10 @@ def test_plugin_extract_matches_recorded_markup(plugin, source_name):
     spec = _SNIPPETS[(plugin, source_name)]
     if "json" in spec:
         items = extract_json(spec["json"], source.extract)
+    elif "xml" in spec:
+        # rss snippet(10-03-news-rss):fixture 喂 extract_rss(feedparser 通路)
+        assert source.extract.type == "rss", "snippet contract"
+        items = extract_rss(spec["xml"].read_text(encoding="utf-8"), source.extract)
     else:
         assert source.extract.type == "list", "snippet contract"
         items = extract_html(spec["html"], source.extract, base_url=spec.get("base", ""))
@@ -853,9 +927,11 @@ def test_plugin_extract_matches_recorded_markup(plugin, source_name):
         for field in second.get("absent", []):
             assert field not in items[1], f"{plugin}/{source_name}: {field} 应逐元素省略"
         # 断言键集随源字段形态扩(v3:CS 美元字符串字段;wrap:GOG 同款美元
-        # 字段 + id/image 直出;dedup-fix:CS/GOG final_price 美元字符串)
+        # 字段 + id/image 直出;dedup-fix:CS/GOG final_price 美元字符串;
+        # news:RSS RFC 822 published 串)
         for key in ("url", "title", "discount_pct", "expire", "upcoming_pct", "upcoming_start",
-                    "sale_price", "savings_pct", "normal_price", "gog_id", "image", "final_price"):
+                    "sale_price", "savings_pct", "normal_price", "gog_id", "image", "final_price",
+                    "published"):
             if key in second:
                 assert items[1].get(key) == second[key], f"{plugin}/{source_name}: 第二形状 {key} 错位"
 
@@ -964,6 +1040,26 @@ _TWO_RUN_PLANS: dict[str, dict[str, Any]] = {
             'iGame RTX 5080 公开演示</a></h3><span class="price-type">8999</span></div>',
             '<div class="list-item"><h3><a href="https://detail.zol.com.cn/vga/1.html">'
             'iGame RTX 5080 公开演示</a></h3><span class="price-type">9099</span></div>',
+        ],
+    },
+    # news(10-03-news-rss):gcores 形状 XML(实录条目裁剪);第二跑换条目
+    # (A → A+B),同 url 条目被 dedup {url} seen 全期拦截,新条目照常入库。
+    "news": {
+        "source": "gcores-rss",
+        "payloads": [
+            "<rss version='2.0'><channel><title>机核</title>"
+            "<item><title>《恶魔城：贝尔蒙特的诅咒》试玩版今日上线</title>"
+            "<link>https://www.gcores.com/articles/220477</link>"
+            "<pubDate>Fri, 02 Oct 2026 20:01:17 +0800</pubDate></item>"
+            "</channel></rss>",
+            "<rss version='2.0'><channel><title>机核</title>"
+            "<item><title>《恶魔城：贝尔蒙特的诅咒》试玩版今日上线</title>"
+            "<link>https://www.gcores.com/articles/220477</link>"
+            "<pubDate>Fri, 02 Oct 2026 20:01:17 +0800</pubDate></item>"
+            "<item><title>草蜢工作室宣布与网易游戏分道扬镳</title>"
+            "<link>https://www.gcores.com/articles/220435</link>"
+            "<pubDate>Thu, 01 Oct 2026 09:55:00 +0800</pubDate></item>"
+            "</channel></rss>",
         ],
     },
 }

@@ -569,6 +569,91 @@ def test_extract_html_renders_url_template_for_list_type():
     ]
 
 
+# ------------------------------------------- extract.type=rss(10-03-news-rss)
+
+
+def _gcores_fixture_text() -> str:
+    from pathlib import Path
+
+    return (Path(__file__).resolve().parent / "fixtures" / "news-gcores-rss.xml").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_extract_rss_maps_whitelisted_entry_attributes():
+    """fixture=机核 gcores RSS 实录裁剪(2026-10-03 探查取证);fields 值=entry
+    属性白名单逐条映射:键=归一字段名(url←link),值原样直出(CDATA summary
+    保留 HTML 原文——feedparser 不剥 CDATA,模板消费方自担)。"""
+    from myia.engines.fetch_base import extract_rss
+    from myia.schema import ExtractConfig
+
+    extract = ExtractConfig(
+        type="rss",
+        fields={
+            "title": "title",
+            "url": "link",
+            "published": "published",
+            "author": "author",
+            "summary": "summary",
+        },
+    )
+    items = extract_rss(_gcores_fixture_text(), extract)
+    assert len(items) == 3, "实录裁剪 fixture 应有 3 条 item"
+    first = items[0]
+    assert first["title"] == "《恶魔城：贝尔蒙特的诅咒》试玩版今日上线"
+    assert first["url"] == "https://www.gcores.com/articles/220477"
+    assert first["published"] == "Fri, 02 Oct 2026 20:01:17 +0800"
+    assert first["author"] == "YT17"
+    assert first["summary"].startswith("<img"), "CDATA summary 应保留 HTML 原文"
+
+
+def test_extract_rss_omits_missing_attributes_per_entry():
+    """条目缺某属性 → 该字段逐条省略、其余字段照常(逐条目语义,同 json_path;
+    区别于装载期的属性名拼错校验——那是 schema 的活,到不了这里)。"""
+    from myia.engines.fetch_base import extract_rss
+    from myia.schema import ExtractConfig
+
+    feed = (
+        "<rss version='2.0'><channel>"
+        "<item><title>缺作者条目</title><link>https://x/1</link></item>"
+        "<item><title>缺日期条目</title><link>https://x/2</link>"
+        "<author>someone</author></item>"
+        "</channel></rss>"
+    )
+    extract = ExtractConfig(
+        type="rss",
+        fields={"title": "title", "url": "link", "author": "author", "published": "published"},
+    )
+    items = extract_rss(feed, extract)
+    assert len(items) == 2
+    assert items[0] == {"title": "缺作者条目", "url": "https://x/1"}
+    assert items[1] == {"title": "缺日期条目", "url": "https://x/2", "author": "someone"}
+
+
+def test_extract_rss_bozo_malformed_feed_tolerated(caplog):
+    """bozo 容错:截断的 malformed feed 只记 WARNING 不拒(截断 feed 常仍带出
+    前几条可用条目);条目为空 → 空列表,不抛——失败形态交给管线失败记录。"""
+    import logging
+
+    from myia.engines.fetch_base import extract_rss
+    from myia.schema import ExtractConfig
+
+    extract = ExtractConfig(type="rss", fields={"title": "title", "url": "link"})
+    with caplog.at_level(logging.WARNING, logger="myia.engines.fetch_base"):
+        items = extract_rss("<rss version='2.0'><channel><title>truncated", extract)
+    assert items == []
+    assert any("bozo" in record.message for record in caplog.records)
+
+    # 半截 feed 仍带出已完整的条目:容错解析继续产出(不整源拒)
+    partial = (
+        "<rss version='2.0'><channel>"
+        "<item><title>完整条目</title><link>https://x/1</link></item>"
+        "<item><title>被截断"
+    )
+    items = extract_rss(partial, extract)
+    assert [item["url"] for item in items] == ["https://x/1"]
+
+
 # ---------------------------------------------------------------------------
 # 真实源 smoke(PRD 10-01-v01-fetch-base):手动可选执行,CI 不依赖外网。
 # ---------------------------------------------------------------------------

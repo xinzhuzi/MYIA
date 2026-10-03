@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 机核 gcores RSS 实录裁剪(2026-10-03 探查取证,逐字实录自
+     .trellis/tasks/archive/2026-10/10-03-games-wrap/evidence/
+     news-probe-gcores-rss.xml):channel 头 + 前 3 条 item;CDATA
+     description 只保留首个 img + p 段(CDATA 包 HTML 的形状保留),
+     title/link/author/guid/pubDate/thumb 逐字实录。 -->
+<rss version="2.0">
+  <channel>
+    <title>机核</title>
+    <description>不止是游戏</description>
+    <link>https://www.gcores.com</link>
+    <generator>http://rubyonrails.org/</generator>
+    <pubDate>Fri, 02 Oct 2026 21:53:58 +0800</pubDate>
+    <lastBuildDate>Fri, 02 Oct 2026 21:53:58 +0800</lastBuildDate>
+    <item>
+      <title>《恶魔城：贝尔蒙特的诅咒》试玩版今日上线</title>
+      <link>https://www.gcores.com/articles/220477</link>
+      <description>
+        <![CDATA[<img src="https://image.gcores.com/fdc5c6f9c060a6c190634d9ff0c93acd-920-430.jpg?x-oss-process=image/resize,limit_1,m_fill,w_626,h_292/quality,q_90" /><p>科乐美今日正式推出传奇恶魔城系列最新作品《恶魔城：贝尔蒙特的诅咒》 的试玩版，登陆 PlayStation 5、Nintendo Switch、XBOX Series X|S 及 Steam。玩家可在 2026 年 10 月 15 日正式发售前抢先体验游戏前期内容，并可将试玩版进度继承至首发正式版。</p>]]>
+      </description>
+      <author>YT17</author>
+      <guid>https://www.gcores.com/articles/220477</guid>
+      <pubDate>Fri, 02 Oct 2026 20:01:17 +0800</pubDate>
+      <thumb>https://image.gcores.com/fdc5c6f9c060a6c190634d9ff0c93acd-920-430.jpg?x-oss-process=image/resize,limit_1,m_fill,w_626,h_292/quality,q_90</thumb>
+    </item>
+    <item>
+      <title>搜打撤游戏《绝地求生：黑域撤离》宣布中止开发</title>
+      <link>https://www.gcores.com/articles/220471</link>
+      <description>
+        <![CDATA[<img src="https://image.gcores.com/baee29b3707b333a8a72d88bc7659486-460-215.webp?x-oss-process=image/resize,limit_1,m_fill,w_626,h_292/quality,q_90" /><p>在评估了项目的开发状态与未来方向后，PUBG STUDIOS 认为当前的路线无法带来能让玩家长期享受的游戏体验。因此，官方做出了艰难的决定，决定终止《绝地求生：黑域撤离》的开发。</p>]]>
+      </description>
+      <author>YT17</author>
+      <guid>https://www.gcores.com/articles/220471</guid>
+      <pubDate>Fri, 02 Oct 2026 17:03:23 +0800</pubDate>
+      <thumb>https://image.gcores.com/baee29b3707b333a8a72d88bc7659486-460-215.webp?x-oss-process=image/resize,limit_1,m_fill,w_626,h_292/quality,q_90</thumb>
+    </item>
+    <item>
+      <title>草蜢工作室宣布与网易游戏分道扬镳</title>
+      <link>https://www.gcores.com/articles/220435</link>
+      <description>
+        <![CDATA[<img src="https://image.gcores.com/cb964c49b0253222f3d06c5b006253-550-314.png?x-oss-process=image/resize,limit_1,m_fill,w_626,h_292/quality,q_90" /><p>草蜢工作室宣布与网易游戏分道扬镳，重新恢复独立。在2021年，网易游戏曾从 GungHo Online Entertainment 手中收购了该工作室。草蜢工作室 CEO 须田刚一在谈到工作室重获独立时表示，工作室于今年2月推出了最新作品《罗密欧是个绝命侠》，并在3月迎来了成立28周年。</p>]]>
+      </description>
+      <author>YT17</author>
+      <guid>https://www.gcores.com/articles/220435</guid>
+      <pubDate>Thu, 01 Oct 2026 09:55:00 +0800</pubDate>
+      <thumb>https://image.gcores.com/cb964c49b0253222f3d06c5b006253-550-314.png?x-oss-process=image/resize,limit_1,m_fill,w_626,h_292/quality,q_90</thumb>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,102 @@
+# plugins/news.yaml — official plugin: 游戏资讯 RSS 源(10-03-news-rss)
+# v1 只接机核 gcores 一个源:探查实证(wrap 三路探查之资讯源结论,证据
+# .trellis/tasks/archive/2026-10/10-03-games-wrap/evidence/news-probe-*)
+# https://www.gcores.com/rss —— honest UA 200、robots 允许、中文游戏资讯
+# 20 条/次,title/link/pubDate 稳定。Reddit .rss robots 全站 Disallow 不接
+# (判例维持);IGN RSS 为 v2 第二源候选(直用终 URL,feeds.ign.com 是 302
+# 而 httpx 缺省不跟随重定向——加源时注意)。
+# Same 12-section shape as games with every section explained inline
+# ("AI writes the YAML" reference duty). Load-check any plugin with:
+#   myia run plugins/news.yaml --dry-run --json
+
+id: news
+name: 游戏资讯
+
+# 每日 11:00(AM 槽)一跑,与 games 同时段:资讯日更足够(RSS 全量 20 条/
+# 次,一次拉全;dedup {url} 全期拦截,同条新闻只推一次)。
+schedule: "0 11 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  # 机核 gcores RSS(官方 feed):static_html 引擎收文本,提取走 type: rss
+  # (feedparser 条目映射)——static_html 的 CSS 选择器硬接 RSS 会因 <link>
+  # void 元素拿不到条目 url 静默零产出(探查实测 20/20 缺失),rss 类型即为此
+  # 收口。fields 值=feedparser entry 属性白名单(title/link/published/
+  # updated/summary/author,schema 装载期拼错即拒);条目 url=entry.link,
+  # 是去重键根基。summary(CDATA 内是 HTML)v1 不映射不进模板——减坑,
+  # 要摘要留给后续 enrich。
+  - name: gcores-rss
+    engine: static_html         # 引擎收文本(decode_response 同通路);rss 只挂本引擎
+    url: "https://www.gcores.com/rss"
+    method: GET
+    extract:
+      type: rss
+      fields:                   # 键=归一字段名,值=entry 属性名(白名单)
+        title: title            # 中文标题直出
+        url: link               # 条目链接(必填:去重键根基)
+        published: published    # RFC 822 日期串,模板切 [:16] 显示
+    # 无 pagination:单请求全量返回(feed 本身就是列表,不需要 {page} 翻页)
+    rate_limit:                 # 礼貌档(同 games 四源)
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true      # gcores robots 允许 /rss(探查实证);缺省即允许
+    proxy: direct
+    retry: 3
+
+watchlist:                      # enrich 关闭时仅做提及量统计,不做降权
+  keywords: [新游, 版本, 更新, 发售]
+  mute: [广告, 招聘]
+
+classify:                       # 资讯标题不落七大类,同 games 口径关闭
+  builtin: false                # 内置扫描只会误杀(「发售」≠ 卖场促销)
+  rules: []
+
+dedup:
+  key: "{url}"                  # RSS 条目 url 稳定唯一,无价格态可带;同条新闻
+                                # 只推一次,feed 次日重带同条目被 seen 全期拦截
+
+enrich:                         # 零 token 路线:标题+链接+日期自解释,不烧
+  enabled: false                # LLM 精评(要摘要时再开,summary 届时进 prompt)
+
+push:
+  - channel: feishu_card        # 双通道(同 games wrap 先例):feishu 起步 +
+    target: env:FEISHU_CHAT_ID  # telegram 加挂 = YAML 再加一个 push 条目。
+                                # bot token 走渠道缺省 env:FEISHU_BOT_TOKEN。
+    route:                      # 资讯全 digest 零数据分层(决议):唯一 immediate
+                                # 是 v0.2 分数接口槽位,enrich 关闭时 dormant
+                                # (无分数永不命中,resolve 对无分数条目跳过
+                                # score 规则),未命中走保守缺省 digest。
+      - when: "score >= 9"      # v0.2 interface slot (dormant until scores exist)
+        mode: immediate
+      - when: "category == 'news'"   # 日报桶(无分类条目未命中也落缺省 digest)
+        mode: digest
+    # 模板只有标题+链接+日期,不进 summary/CDATA(design R3:CDATA 内是 HTML,
+    # 直出会刷屏;published 是 RFC 822 串,切 [:16] 得 "Fri, 02 Oct 2026";
+    # is defined 守卫:逐条目缺 published 省略后不炸 StrictUndefined)。
+    template: |
+      **游戏资讯 · {{ date }}**
+      {% for item in items %}
+      - [{{ item.title }}]({{ item.url }}){% if item.published is defined %} {{ item.published[:16] }}{% endif %}
+      {% endfor %}
+
+  # telegram 加挂(同 games wrap 先例):模板走精简纯文本变体——telegram
+  # 用户模板契约是渲染文本不带 parse_mode 直发(src/myia/push/telegram.py
+  # _compose),markdown 链接语法会原样露出,故标题后直跟裸 URL。chat id 走
+  # env:TELEGRAM_CHAT_ID;bot token 走渠道缺省 env:TELEGRAM_BOT_TOKEN。
+  - channel: telegram
+    target: env:TELEGRAM_CHAT_ID
+    route:                      # 与 feishu 条目同款路由(资讯全 digest)
+      - when: "score >= 9"      # v0.2 interface slot (dormant until scores exist)
+        mode: immediate
+      - when: "category == 'news'"
+        mode: digest
+    template: |
+      游戏资讯 · {{ date }}
+      {% for item in items %}
+      - {{ item.title }} {{ item.url }}{% if item.published is defined %} {{ item.published[:16] }}{% endif %}
+      {% endfor %}
+
+storage:                        # 资讯时效短,90d 后清库
+  retention: 90d
+  vacuum: monthly

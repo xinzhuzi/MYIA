@@ -653,6 +653,126 @@
    "mute": []
   }
  },
+ "plugins/news.yaml": {
+  "classify": {
+   "builtin": false,
+   "rules": []
+  },
+  "dedup": {
+   "key": "{url}"
+  },
+  "enrich": {
+   "api_key": null,
+   "base_url": null,
+   "batch": 20,
+   "budget_per_run": 50000,
+   "cache": true,
+   "enabled": false,
+   "model": "glm-4-flash",
+   "scores": [
+    "value",
+    "relevance",
+    "credibility"
+   ]
+  },
+  "id": "news",
+  "name": "游戏资讯",
+  "push": [
+   {
+    "channel": "feishu_card",
+    "dingtalk_secret": null,
+    "ntfy_token": null,
+    "retries": 2,
+    "retry_backoff_seconds": 1.0,
+    "route": [
+     {
+      "mode": "immediate",
+      "when": "score >= 9"
+     },
+     {
+      "mode": "digest",
+      "when": "category == 'news'"
+     }
+    ],
+    "target": "env:FEISHU_CHAT_ID",
+    "template": "**游戏资讯 · {{ date }}**\n{% for item in items %}\n- [{{ item.title }}]({{ item.url }}){% if item.published is defined %} {{ item.published[:16] }}{% endif %}\n{% endfor %}\n",
+    "timeout": 10.0,
+    "wecom_agentid": null,
+    "wecom_corpid": null,
+    "wecom_corpsecret": null
+   },
+   {
+    "channel": "telegram",
+    "dingtalk_secret": null,
+    "ntfy_token": null,
+    "retries": 2,
+    "retry_backoff_seconds": 1.0,
+    "route": [
+     {
+      "mode": "immediate",
+      "when": "score >= 9"
+     },
+     {
+      "mode": "digest",
+      "when": "category == 'news'"
+     }
+    ],
+    "target": "env:TELEGRAM_CHAT_ID",
+    "template": "游戏资讯 · {{ date }}\n{% for item in items %}\n- {{ item.title }} {{ item.url }}{% if item.published is defined %} {{ item.published[:16] }}{% endif %}\n{% endfor %}\n",
+    "timeout": 10.0,
+    "wecom_agentid": null,
+    "wecom_corpid": null,
+    "wecom_corpsecret": null
+   }
+  ],
+  "schedule": "0 11 * * *",
+  "sources": [
+   {
+    "engine": "static_html",
+    "extract": {
+     "fields": {
+      "published": "published",
+      "title": "title",
+      "url": "link"
+     },
+     "item": null,
+     "type": "rss",
+     "url_template": null
+    },
+    "headers": {},
+    "method": "GET",
+    "name": "gcores-rss",
+    "pagination": null,
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 2.0,
+     "qps": 0.5,
+     "respect_robots": true
+    },
+    "retry": 3,
+    "url": "https://www.gcores.com/rss"
+   }
+  ],
+  "storage": {
+   "retention": "90d",
+   "vacuum": "monthly"
+  },
+  "timezone": "Asia/Shanghai",
+  "watchlist": {
+   "keywords": [
+    "新游",
+    "版本",
+    "更新",
+    "发售"
+   ],
+   "mute": [
+    "广告",
+    "招聘"
+   ]
+  }
+ },
  "plugins/stocks.yaml": {
   "classify": {
    "builtin": false,
