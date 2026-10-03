@@ -37,3 +37,15 @@
 - [low·待修] 暂存保留键泄漏:_myia_toggle.raw_block 缺失/非字符串时兜底 safe_dump 把内部键写进主 YAML,该源此后停用被拒(触发需手编损坏暂存,现网零路径)——排 v1.1.2 批次顺手修(兜底前剥离 _myia_toggle 再 dump)。
 - [low·待修] 列 0 节间注释被末条目吸收:紧贴末条目(无空行)的列 0 分节注释随停用整体离开主文件,启用还原;中间态一节注释不可见(16 份现网 YAML 零命中)——排 v1.1.2(块尾判定对列 0 注释设界)。
 - 回归测试:无主注释块夹缝场景已入 tests/test_sources_write_surgery.py(36 测);两 low 的触发布局用例随修随补。
+
+## 验收记录(2026-10-03,受主人委托代验)
+
+**verdict:accepted**(五项 AC 全有仓库内证据;评审遗留 2 条 low 为已记录债务排 v1.1.2,按委托口径不作拒收理由)。
+
+- AC1 官方件往返逐字节一致(代验实测):`uv run --no-sync python -m pytest tests/test_sources_write_surgery.py -q` → **36 passed**,其中 `test_official_category_yaml_roundtrip` 参数化遍历 plugins/ 全部 8 份品类 YAML(官方件全含,超出 AC 所列 6 份),逐源停用+启用后 `work.read_bytes() == original` 断言通过;单源品类走 last_source 拒+零字节改动同断言。
+- AC2 注释保真归属正确:THREE_SOURCES_YAML 夹具(顶部节外注释/条目上方锚点注释/行内注释/注释占位 parked)下 `test_anchor_comment_travels_with_entry`、`test_disable_removes_exactly_the_chunk_lines`、`test_quote_and_value_style_fidelity` 及无主注释块夹缝 4 参数回归全绿。
+- AC3 结构化拒写零写入:`test_flow_style_sources_refused` / `test_alias_referencing_source_entry_refused` / `test_misaligned_sources_keys_refused`(含多文档走既有 category_invalid 门)通过,`_assert_refused` 断言主文件零改动且连 .bak/暂存都不落;desktop/entry.py:861 `_sources_surgical_rewrite` 对不齐即抛 `source_write_unsupported`,无静默 safe_dump 回退路径。
+- AC4 既有用例:`uv run --no-sync python -m pytest tests/test_desktop_sidecar_protocol.py -k "sources_write" -q` → 4 passed(「零改动」与 AC1 的矛盾已由评审 medium 条裁定豁免并留痕,断言改写方向更强)。
+- AC5 零新依赖:手术提交 `e7dec54`(引用本任务)未触碰 pyproject.toml;ruamel 全仓(pyproject/classifier/entry/测试)零命中;实现仅用既有 PyYAML+stdlib。
+- 附加核对:desktop/entry.py 工作树与 HEAD 零 diff(委托所述并行暂存已随 d359a3e 前收口),验收即 HEAD 实况。
+- 处置:已执行 `python3 .trellis/scripts/task.py archive 10-03-yaml-toggle-comments`。
