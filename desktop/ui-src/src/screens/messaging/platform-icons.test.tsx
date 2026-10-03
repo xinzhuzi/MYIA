@@ -21,13 +21,16 @@ afterEach(() => {
 });
 
 describe("平台头像:规格表全覆盖", () => {
-  it("28 平台全部有规格;已实装 2 家 brand 精确标,26 家 generic 通用标随波次", () => {
+  it("28 平台全部有规格;已实装 5 家 brand 精确标,23 家 generic 通用标随波次", () => {
     const expected = [
       ...IMPLEMENTED_PLATFORMS.map((p) => p.id),
       ...UPCOMING_PLATFORMS.map((p) => p.id),
     ];
     expect(Object.keys(PLATFORM_ICON_SPECS).sort()).toEqual([...expected].sort());
     expect(Object.keys(PLATFORM_ICON_SPECS)).toHaveLength(28);
+    // W2 转实装的三家(ntfy/钉钉/企微)已从 UPCOMING 移入 IMPLEMENTED
+    expect(IMPLEMENTED_PLATFORMS.map((p) => p.id)).toContain("ntfy");
+    expect(UPCOMING_PLATFORMS.map((p) => p.id)).not.toContain("ntfy");
 
     for (const id of IMPLEMENTED_PLATFORMS.map((p) => p.id)) {
       const spec = PLATFORM_ICON_SPECS[id];
@@ -40,7 +43,7 @@ describe("平台头像:规格表全覆盖", () => {
       expect(spec.kind).toBe("generic");
       expect(spec.Icon).toBeTruthy(); // 通用标必填(lucide 也是 SVG 组件)
       expect(spec.wave).toBe(platform.wave);
-      waves.add(platform.wave);
+      waves.add(spec.wave ?? "");
     }
     expect(waves).toEqual(new Set(["W2", "W3"]));
   });
@@ -88,6 +91,25 @@ describe("平台头像:芯片画法", () => {
     expect(w3.className).toContain("bg-muted/50");
     expect(w3.className).toContain("text-muted-foreground/60");
     expect(w3.className.split(/\s+/)).not.toContain("bg-muted"); // W3 不用全灰档
+  });
+
+  it("W2 转实装三家:ntfy 官方字形品牌色;钉钉/企微官方主色 monogram(与飞书同范式)", () => {
+    const { getByTestId, rerender } = render(<PlatformAvatar platformId="ntfy" platformName="ntfy" />);
+    const ntfy = getByTestId("platform-avatar-ntfy");
+    // Simple Icons「ntfy」官方字形(SVG path 直接采用),品牌色 #317F6F(simple-icons 数据)
+    expect(ntfy.querySelector("svg")?.getAttribute("viewBox")).toBe("0 0 24 24");
+    expect(ntfy.style.color).toContain("rgb(49, 127, 111)"); // #317F6F
+    expect(ntfy.textContent!.trim()).toBe(""); // 字形路线不出 monogram
+
+    rerender(<PlatformAvatar platformId="dingtalk" platformName="钉钉" />);
+    const dingtalk = getByTestId("platform-avatar-dingtalk");
+    expect(dingtalk.textContent).toBe("钉"); // 品牌方无可用简化标 → 官方主色 + 字符
+    expect(dingtalk.style.color).toContain("0, 137, 255"); // #0089FF 钉钉蓝
+
+    rerender(<PlatformAvatar platformId="wecom" platformName="企业微信" />);
+    const wecom = getByTestId("platform-avatar-wecom");
+    expect(wecom.textContent).toBe("企");
+    expect(wecom.style.color).toContain("38, 126, 240"); // #267EF0 企微标准蓝(官方色值表 blue_btn)
   });
 
   it("未登记平台兜底:中性底 + 名称首字 monogram(上游 monogramFor 同语义)", () => {

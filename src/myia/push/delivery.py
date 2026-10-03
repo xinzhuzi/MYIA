@@ -58,6 +58,14 @@ DEAD_ERROR_KINDS = frozenset({"forbidden", "not_found"})
 # ---- 错误分类表(Hermes gateway/platforms/base.py 的 MYIA 精简移植)----
 
 #: forbidden 家族:bot 无法触达该会话(Hermes forbidden 分支 + HTTP 403)。
+#: W2 平台增量(10-03-messaging-w2-platforms,错误码已对照官方文档核订):
+#: - 钉钉 ``errcode=3100xx``:自定义机器人安全校验未通过(官方表统一 310000:
+#:   关键词不匹配/加签不匹配/IP 不在白名单/时间戳无效,open.dingtalk.com
+#:   「自定义机器人发送群消息」),前缀匹配兜住系列变体;
+#: - 企微 ``errcode=40001``(不合法的 secret)/``42001``(access_token 已过期)
+#:   仅在通道重取 token 后仍失败才浮到这里(蓝本 40001/42001 重试族),
+#:   ``60020``(不安全的访问 IP)/``60021``(userid 不在应用可见范围)/
+#:   ``81013``(touser 全部非法或无权限)为官方全局错误码表所列硬失败。
 _FORBIDDEN_MARKERS = (
     "forbidden",
     "403",
@@ -67,10 +75,26 @@ _FORBIDDEN_MARKERS = (
     "not enough rights",
     "have no rights",
     "not a member",
+    "errcode=3100",
+    "errcode=40001",
+    "errcode=42001",
+    "errcode=60020",
+    "errcode=60021",
+    "errcode=81013",
 )
 
 #: chat 级 not_found:整个会话不可达(仅此可判 dead)。
-_CHAT_LEVEL_NOT_FOUND_MARKERS = ("chat not found", "chat_id is invalid")
+#: W2 平台增量:ntfy 发布 404(topic 不存在;403 由上方 403 marker 命中);
+#: 企微 touser 的 userid 失效族——官方全局错误码:40003(无效的 UserID)、
+#: 60111(UserID 不存在)、46004(指定的用户不存在)。
+_CHAT_LEVEL_NOT_FOUND_MARKERS = (
+    "chat not found",
+    "chat_id is invalid",
+    "http 404",
+    "errcode=40003",
+    "errcode=60111",
+    "errcode=46004",
+)
 
 #: 子会话级 not_found:话题/消息没了但父会话可达(不判 dead,Hermes
 #: ``_SUBCHAT_NOT_FOUND_SUBSTRINGS`` 同义;两类标记同现时子会话读法胜出)。

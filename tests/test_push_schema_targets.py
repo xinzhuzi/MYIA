@@ -42,8 +42,15 @@ def _error_of_type(load_error: LoadError, error_type: str):
 class TestChannelPlatformMap:
     def test_builtin_literal_map(self):
         # design D4:内置字面表 feishu_card→feishu、telegram→telegram;
+        # W2(10-03-messaging-w2-platforms)增 ntfy/dingtalk/wecom 三行;
         # webhook/stdout 不在表内(不支持目录寻址)。
-        assert CHANNEL_PLATFORMS == {"feishu_card": "feishu", "telegram": "telegram"}
+        assert CHANNEL_PLATFORMS == {
+            "feishu_card": "feishu",
+            "telegram": "telegram",
+            "ntfy": "ntfy",
+            "dingtalk": "dingtalk",
+            "wecom": "wecom",
+        }
 
 
 class TestTargetsFormat:
@@ -279,3 +286,69 @@ def _strip_additive_targets(dump: dict) -> None:
         assert push.pop("targets") == []
         for rule in push.get("route", []):
             assert rule.pop("targets") == []
+
+
+# ---------------------------------------------------------------------------
+# W2 平台(10-03-messaging-w2-platforms):三通道入表 + 可选凭据字段
+# ---------------------------------------------------------------------------
+
+
+class TestW2PlatformChannels:
+    """ntfy/dingtalk/wecom:入 PUSH_CHANNELS、同平台约束、可选凭据字段守门。"""
+
+    def test_w2_channels_accept_targets_and_optional_fields(self):
+        cfg = load_category({
+            **_minimal_data(),
+            "push": [
+                {"channel": "ntfy", "target": "env:NTFY_TARGET", "ntfy_token": "env:NTFY_TOKEN"},
+                {
+                    "channel": "dingtalk",
+                    "target": "env:DINGTALK_WEBHOOK_URL",
+                    "dingtalk_secret": "keychain:myia/dingtalk/secret",
+                },
+                {
+                    "channel": "wecom",
+                    "targets": ["wecom:ZhangSan"],
+                    "wecom_corpid": "env:WECOM_CORPID",
+                    "wecom_corpsecret": "env:WECOM_CORPSECRET",
+                    "wecom_agentid": "env:WECOM_AGENTID",
+                },
+            ],
+        })
+        ntfy, dingtalk, wecom = cfg.push
+        assert (ntfy.channel, ntfy.ntfy_token, ntfy.targets) == ("ntfy", "env:NTFY_TOKEN", [])
+        assert dingtalk.dingtalk_secret == "keychain:myia/dingtalk/secret"
+        # wecom targets 在场时 target 可省(design D4 放宽),凭据字段原样落位。
+        assert wecom.target is None
+        assert (wecom.wecom_corpid, wecom.wecom_agentid) == ("env:WECOM_CORPID", "env:WECOM_AGENTID")
+
+    def test_w2_same_platform_constraint(self):
+        error = _load_error({
+            **_minimal_data(),
+            "push": [{"channel": "ntfy", "target": "env:NTFY_TARGET", "targets": ["wecom:ZhangSan"]}],
+        })
+        detail = _error_of_type(error, "platform_mismatch")
+        assert detail.path.endswith("targets")
+
+    def test_w2_credential_field_on_wrong_channel_rejected(self):
+        error = _load_error({
+            **_minimal_data(),
+            "push": [{"channel": "ntfy", "target": "env:NTFY_TARGET", "dingtalk_secret": "env:X"}],
+        })
+        assert _error_of_type(error, "unexpected_platform_field")
+
+    def test_w2_credential_field_plaintext_rejected(self):
+        error = _load_error({
+            **_minimal_data(),
+            "push": [{"channel": "dingtalk", "target": "env:X", "dingtalk_secret": "SECplaintext"}],
+        })
+        assert _error_of_type(error, "credential_plaintext")
+
+    def test_w2_legacy_only_config_unchanged(self):
+        """不配可选字段 = 蓝本裸行为:最小条目照常加载(零影响默认)。"""
+        cfg = load_category({
+            **_minimal_data(),
+            "push": [{"channel": "dingtalk", "target": "env:DINGTALK_WEBHOOK_URL"}],
+        })
+        push = cfg.push[0]
+        assert (push.ntfy_token, push.dingtalk_secret, push.wecom_corpid) == (None, None, None)

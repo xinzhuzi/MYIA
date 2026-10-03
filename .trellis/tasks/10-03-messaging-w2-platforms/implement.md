@@ -12,6 +12,22 @@
 6. **UI 转实装**:三平台卡头像/指南/状态派生接入(照 hermes-look 框架);vitest 更新。
 7. **收尾门禁**:`uv run --no-sync python -m pytest tests/ -q` 本域零失败 + vitest 全绿;真机冒烟清单(每平台一条)回填本档。
 
+## 真机冒烟清单(2026-10-03 回填;执行等主人令——grill round-2 Q1)
+
+每平台一条最小路径,全部是纯出站、零真实凭据入仓(引用名可留档,值不入仓):
+
+1. **ntfy**:`export NTFY_TARGET=https://ntfy.sh/<自选topic>` → 手机装 ntfy App(或开
+   ntfy.sh 网页)订阅同名 topic → 品类 YAML `push: [{channel: ntfy, target: env:NTFY_TARGET}]`
+   → `shishi run <yaml>` → 手机收到一条「📡 …日报」通知。
+2. **钉钉**:群设置 → 机器人 → 添加自定义机器人(安全设置选加签)→
+   `export DINGTALK_WEBHOOK_URL=<webhook>`、secret 存 env → YAML
+   `push: [{channel: dingtalk, target: env:DINGTALK_WEBHOOK_URL, dingtalk_secret: env:<名>}]`
+   → `shishi run <yaml>` → 群里收到 text 消息(验证加签增量路)。
+3. **企微**:管理后台建自建应用 → `export WECOM_CORPID/WECOM_CORPSECRET/WECOM_AGENTID/
+   WECOM_TUSER=<成员userid>` → YAML `push: [{channel: wecom, target: env:WECOM_TUSER}]`
+   → `shishi run <yaml>` → 该成员应用会话收到 text 私聊;二跑确认
+   `wecom_token_cache.json` 落数据根且不再 gettoken。
+
 ## 验证命令
 
 ```bash

@@ -24,11 +24,17 @@
 
 | 平台 | 硬失败(标 dead) | 瞬态(不标) |
 |---|---|---|
-| ntfy | 404(topic 不存在)/403(forbidden) | 429/5xx/超时 |
-| 钉钉 | errcode 310000 系列(token 无效/机器人不存在) | errcode -1/系统繁忙/超时 |
-| 企微 | errcode 40001/42001 重取后仍失败、81004(userid 不存在)、60020(forbidden) | 45009(限频)/-1/超时 |
+| ntfy | HTTP 404(topic 不存在)→ not_found;403(forbidden) | 429/5xx/超时 |
+| 钉钉 | errcode 310000 族(关键词/加签/IP/时间戳安全校验未通过,官方表统一 310000)→ forbidden | errcode -1/系统繁忙/超时 |
+| 企微 | errcode 40001/42001 重取后仍失败、60020(不安全的访问 IP)、60021(userid 不在应用可见范围)、81013(touser 全部非法或无权限)→ forbidden;40003(无效的 UserID)/60111(UserID 不存在)/46004(指定的用户不存在)→ not_found | 45009(接口调用超过限制)/-1(系统繁忙)/超时 |
 
-实现期对照各平台错误码文档逐码核订,档内此表为初稿。
+【实现期核订回改(2026-10-03)】初稿的「81004(userid 不存在)」在企微官方
+全局错误码表(developer.work.weixin.qq.com/document/path/90313)中**不存在**;
+userid 失效的真实错误码为 40003/60111/46004(not_found 族)+ 60021/81013
+(forbidden 族),已按官方表逐码核订如上。钉钉 310000 族经官方文档
+「自定义机器人发送群消息」核订:安全校验失败统一记 310000,errmsg 区分
+关键词不匹配/sign not match/IP 不在白名单/timestamp 无效。分类表落地在
+`myia/push/delivery.py` 的 marker 表(W2 增量段,含 `errcode=3100` 前缀匹配)。
 
 ## D4:目录与 refresh 语义
 

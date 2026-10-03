@@ -52,7 +52,13 @@ from myia.push.delivery import (
     send_batch_to_targets,
 )
 from myia.push.digest import DigestAggregator, PendingDigestItem, send_immediate
-from myia.push.directory import ChannelDirectory, ChannelEntry
+from myia.push.directory import (
+    ChannelDirectory,
+    ChannelEntry,
+    DirectoryDiscoverUnsupported,
+)
+from myia.push.dingtalk import DingTalkChannel
+from myia.push.ntfy import NtfyChannel
 from myia.push.feishu_card import (
     API_URL,
     DEFAULT_TOKEN_ENV_REF,
@@ -92,6 +98,7 @@ from myia.push.telegram_feedback import (
     TelegramFeedbackPoller,
     parse_callback_data,
 )
+from myia.push.wecom import WecomChannel
 from myia.push.templates import (
     STOCKS_EXAMPLE_TEMPLATE,
     TemplateRenderer,
@@ -101,10 +108,15 @@ from myia.push.webhook import WebhookChannel
 
 #: Channel-name → implementation registry (dict registry + constructor
 #: injection; no factory inheritance). All four channels are fully
-#: implemented (telegram/webhook landed in v0.2).
+#: implemented (telegram/webhook landed in v0.2); ntfy/dingtalk/wecom land
+#: with 10-03-messaging-w2-platforms(蓝本形态:one-shot POST / 静态 webhook /
+#: 自建应用 token)。
 CHANNELS: dict[str, type] = {
     "feishu_card": FeishuCardChannel,
     "telegram": TelegramChannel,
+    "ntfy": NtfyChannel,
+    "dingtalk": DingTalkChannel,
+    "wecom": WecomChannel,
     "webhook": WebhookChannel,
     "stdout": StdoutChannel,
 }
@@ -116,10 +128,16 @@ CHANNELS: dict[str, type] = {
 #: feishu 于 10-03-messaging-feishu 登记(目录发现 im/v1/chats + 定向发送);
 #: telegram 于 10-03-messaging-telegram 登记(直达解析数字 id/@username +
 #: 定向发送;Bot API 无目录发现,被动积累走 telegram_feedback 的 on_chat
-#: sink,不入本表发现路径)。
+#: sink,不入本表发现路径)。ntfy/dingtalk/wecom 于
+#: 10-03-messaging-w2-platforms 登记(蓝本事实:三平台零目录发现,抛
+#: :class:`~myia.push.directory.DirectoryDiscoverUnsupported`;条目唯一来源
+#: = 别名手工登记 + 直达 id)。
 PLATFORMS: dict[str, type] = {
     "feishu": FeishuCardChannel,
     "telegram": TelegramChannel,
+    "ntfy": NtfyChannel,
+    "dingtalk": DingTalkChannel,
+    "wecom": WecomChannel,
 }
 
 __all__ = [
@@ -138,12 +156,15 @@ __all__ = [
     "ChannelEntry",
     "ChannelTarget",
     "DeliveryLedger",
+    "DirectoryDiscoverUnsupported",
     "PendingDigestItem",
     "PollResult",
     "STOCKS_EXAMPLE_TEMPLATE",
     "Channel",
     "DigestAggregator",
+    "DingTalkChannel",
     "FeishuCardChannel",
+    "NtfyChannel",
     "PushSendError",
     "RouteBuckets",
     "RouteConfigError",
@@ -160,6 +181,7 @@ __all__ = [
     "TemplateRenderError",
     "TemplateRenderer",
     "WebhookChannel",
+    "WecomChannel",
     "also_seen_list",
     "build_card",
     "build_markdown_card",

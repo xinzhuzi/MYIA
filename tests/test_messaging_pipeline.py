@@ -467,3 +467,133 @@ class TestDeadLedgerWiring:
         assert "feishu:oc_1" in ledger  # 单次硬失败即标 dead
         assert "feishu:oc_2" not in ledger
         assert [r.ok for r in result.pushes[0].reports] == [False, True]
+
+
+# ---------------------------------------------------------------------------
+# W2 平台接线(10-03-messaging-w2-platforms 步骤 4):可选凭据字段下传 +
+# wecom token 缓存落数据根 + 无自动发现平台的懒刷静默跳过。
+# ---------------------------------------------------------------------------
+
+
+class TestW2PipelineWiring:
+    def _pipeline(self, tmp_path, monkeypatch, push: list[dict[str, Any]]) -> Pipeline:
+        for key, value in {
+            "MYIA_TEST_NTFY_TARGET": "https://ntfy.example.com/games",
+            "MYIA_TEST_NTFY_TOKEN": "tk",
+            "DINGTALK_WEBHOOK_URL": "https://oapi.dingtalk.com/robot/send?access_token=x",
+            "MYIA_TEST_DINGTALK_SECRET": "SEC",
+            "WECOM_CORPID": "ww1",
+            "WECOM_CORPSECRET": "sec",
+            "WECOM_AGENTID": "1000002",
+            "WECOM_TUSER": "ZhangSan",
+        }.items():
+            monkeypatch.setenv(key, value)
+        config = load_category(
+            {
+                "id": "w2-wiring",
+                "name": "W2 接线",
+                "schedule": "0 9 * * *",
+                "timezone": "UTC",
+                "sources": [
+                    {
+                        "name": "api",
+                        "engine": "direct_api",
+                        "url": "https://api.demo.local/list",
+                        "extract": {
+                            "type": "json_path",
+                            "fields": {"title": "$[*].title", "url": "$[*].url"},
+                        },
+                    }
+                ],
+                "push": push,
+            }
+        )
+        return Pipeline(
+            config,
+            db_path=tmp_path / "p.db",
+            store=SQLiteStore(tmp_path / "p.db"),
+            client=httpx.AsyncClient(
+                transport=httpx.MockTransport(lambda request: httpx.Response(404, text=""))
+            ),
+        )
+
+    def test_build_channel_passes_w2_credential_fields(self, tmp_path, monkeypatch):
+        """schema 可选字段经真实 _build_channel 到达通道构造参数。"""
+        pipeline = self._pipeline(
+            tmp_path,
+            monkeypatch,
+            [
+                {
+                    "channel": "ntfy",
+                    "target": "env:MYIA_TEST_NTFY_TARGET",
+                    "ntfy_token": "env:MYIA_TEST_NTFY_TOKEN",
+                },
+                {
+                    "channel": "dingtalk",
+                    "target": "env:DINGTALK_WEBHOOK_URL",
+                    "dingtalk_secret": "env:MYIA_TEST_DINGTALK_SECRET",
+                },
+                {
+                    "channel": "wecom",
+                    "wecom_corpid": "env:WECOM_CORPID",
+                    "wecom_corpsecret": "env:WECOM_CORPSECRET",
+                    "wecom_agentid": "env:WECOM_AGENTID",
+                    "target": "env:WECOM_TUSER",
+                },
+            ],
+        )
+        try:
+            ntfy = pipeline._build_channel(pipeline.config.push[0])
+            dingtalk = pipeline._build_channel(pipeline.config.push[1])
+            wecom = pipeline._build_channel(pipeline.config.push[2])
+            assert (ntfy._target, ntfy._token_ref) == (
+                "env:MYIA_TEST_NTFY_TARGET",
+                "env:MYIA_TEST_NTFY_TOKEN",
+            )
+            assert (dingtalk._target, dingtalk._secret_ref) == (
+                "env:DINGTALK_WEBHOOK_URL",
+                "env:MYIA_TEST_DINGTALK_SECRET",
+            )
+            assert (wecom._corpid_ref, wecom._corpsecret_ref, wecom._agentid_ref) == (
+                "env:WECOM_CORPID",
+                "env:WECOM_CORPSECRET",
+                "env:WECOM_AGENTID",
+            )
+            # wecom token 缓存落数据根(design D2):db 父目录下约定文件名
+            assert wecom._token_cache_path == tmp_path / "wecom_token_cache.json"
+        finally:
+            pipeline.close()
+
+    def test_legacy_w2_entries_stay_bare(self, tmp_path, monkeypatch):
+        """不配可选字段 = 蓝本裸形态(零影响默认):无 token/secret 注入。"""
+        pipeline = self._pipeline(
+            tmp_path,
+            monkeypatch,
+            [
+                {"channel": "ntfy", "target": "env:MYIA_TEST_NTFY_TARGET"},
+                {"channel": "dingtalk", "target": "env:DINGTALK_WEBHOOK_URL"},
+            ],
+        )
+        try:
+            ntfy = pipeline._build_channel(pipeline.config.push[0])
+            dingtalk = pipeline._build_channel(pipeline.config.push[1])
+            assert ntfy._token_ref is None
+            assert dingtalk._secret_ref is None
+        finally:
+            pipeline.close()
+
+    def test_stale_refresh_skips_no_discovery_platforms(self, tmp_path, monkeypatch, caplog):
+        """run 前懒刷遇无自动发现平台:静默跳过、不触发网络、不写目录。"""
+        pipeline = self._pipeline(
+            tmp_path, monkeypatch, [{"channel": "ntfy", "target": "env:MYIA_TEST_NTFY_TARGET"}]
+        )
+        try:
+            import logging
+
+            with caplog.at_level(logging.DEBUG, logger="myia.push.directory"):
+                asyncio.run(pipeline._refresh_directory_if_stale())
+            # 无自动发现是 debug 级说明,不是 warning 失败
+            assert not any("目录刷新失败" in r.message for r in caplog.records)
+            assert any("无自动发现" in r.message for r in caplog.records)
+        finally:
+            pipeline.close()

@@ -50,13 +50,25 @@ export interface PlatformGuide {
   steps: PlatformGuideStep[];
 }
 
-/** 已实装平台(W1;目录/发送链路已入库,状态真实派生)。 */
+/**
+ * 目录条目的来源形态(状态说明/空目录文案按它分流,W2 起三平台为 manual):
+ * - auto:平台列表 API 主动发现(飞书 im/v1/chats);
+ * - passive:无发现 API,条目随入站消息被动积累(Telegram);
+ * - manual:无自动发现(蓝本事实)——条目只能直达 id 或别名手工登记
+ *   (ntfy/钉钉/企微,task 10-03-messaging-w2-platforms)。
+ */
+export type PlatformDiscovery = "auto" | "passive" | "manual";
+
+/** 已实装平台(目录/发送链路已入库,状态真实派生)。 */
 export interface ImplementedPlatform {
   id: string;
   name: string;
+  /** 接入波次(W1 先行 / W2 消息平台第二批)。 */
+  wave: "W1" | "W2";
   /** 详情面板头部的一行直白描述(只陈述已实装的事实,不预告功能)。 */
   description: string;
   guide: PlatformGuide;
+  discovery: PlatformDiscovery;
 }
 
 /** 未实装平台(W2/W3 波次;灰卡「即将支持」)。 */
@@ -70,6 +82,8 @@ export const IMPLEMENTED_PLATFORMS: readonly ImplementedPlatform[] = [
   {
     id: "feishu",
     name: "飞书",
+    wave: "W1",
+    discovery: "auto",
     description: "飞书开放平台机器人(W1 已实装):tenant_access_token 出站卡片发送 + 群目录发现;凭据经环境变量注入 run。",
     guide: {
       keys: [
@@ -94,6 +108,8 @@ export const IMPLEMENTED_PLATFORMS: readonly ImplementedPlatform[] = [
   {
     id: "telegram",
     name: "Telegram",
+    wave: "W1",
+    discovery: "passive",
     description: "Telegram Bot API(W1 已实装):BotFather 令牌出站发送 + 会话随真实 bot 流量被动积累入目录。",
     guide: {
       keys: [
@@ -115,14 +131,109 @@ export const IMPLEMENTED_PLATFORMS: readonly ImplementedPlatform[] = [
       ],
     },
   },
+  {
+    id: "ntfy",
+    name: "ntfy",
+    wave: "W2",
+    discovery: "manual",
+    description:
+      "ntfy 通知(W2 已实装):one-shot POST 到 {server}/{topic},纯文本/可选 markdown;topic 即地址,无目录概念,推送对象直达或别名登记。",
+    guide: {
+      keys: [
+        {
+          key: "NTFY_TARGET",
+          purpose: "{server}/{topic} 整串(如 https://ntfy.sh/my-alerts);run 时读环境变量,规则写 targets 时可省(公共 ntfy.sh 兜底)",
+        },
+        {
+          key: "NTFY_TOKEN",
+          purpose: "可选鉴权:自建 server 开了访问控制时填(access token 或 user:pass);公共匿名 topic 不用配",
+        },
+      ],
+      steps: [
+        "选 server:公共 ntfy.sh 开箱即用(无需注册);要私有部署可在自己机器上跑 ntfy 容器(binaries/docker,见 docs.ntfy.sh 的 install 页)。",
+        "定一个 topic 名(字母/数字/-/_,如 my-games-alerts);手机装 ntfy App(或开 ntfy.sh 网页)订阅同名 topic——订阅即接收,无需服务端登记。",
+        {
+          text: "冒烟一发确认链路(手机订阅 my-games-alerts 后执行,应立刻收到通知):",
+          code: 'curl -d "hello from MYIA" https://ntfy.sh/my-games-alerts',
+        },
+        "把整串写入环境变量 NTFY_TARGET(如 export NTFY_TARGET=https://ntfy.sh/my-games-alerts);需要鉴权的自建 server 再配 NTFY_TOKEN。",
+        "推送规则里 targets 直达写 ntfy:my-games-alerts;常用地名可在数据根 channel_aliases.json 登记别名(ntfy 无自动发现,别名/直达是仅有的两条寻址路)。",
+      ],
+    },
+  },
+  {
+    id: "dingtalk",
+    name: "钉钉",
+    wave: "W2",
+    discovery: "manual",
+    description:
+      "钉钉自定义机器人 webhook(W2 已实装):msgtype=text 群消息;可选加签(HMAC-SHA256,MYIA 增量);一个 webhook = 一个群,无目录发现。",
+    guide: {
+      keys: [
+        {
+          key: "DINGTALK_WEBHOOK_URL",
+          purpose: "自定义机器人的完整 webhook URL(内嵌 access_token,即投递端点);run 时读环境变量",
+        },
+        {
+          key: "DINGTALK_SECRET",
+          purpose: "可选:机器人安全设置选了「加签」时的 SEC 密钥(经品类 YAML 的 dingtalk_secret 引用配置);不配 = 裸 webhook",
+        },
+      ],
+      steps: [
+        "在钉钉电脑端打开要推送的群 → 右上角群设置 → 机器人 → 添加机器人 → 自定义。",
+        "安全设置三选一:自定义关键词(消息须含该词)/ 加签(推荐,拿 SEC 密钥)/ IP 白名单;记下勾选项——推送被 310000 拒绝时先回这里核对。",
+        "完成添加后复制 Webhook 地址(https://oapi.dingtalk.com/robot/send?access_token=…),写入环境变量 DINGTALK_WEBHOOK_URL。",
+        "安全设置选了「加签」:把 SEC 密钥存入钥匙链或环境变量,品类 YAML 的 push 条目配 dingtalk_secret: env:DINGTALK_SECRET(或 keychain: 引用)。",
+        {
+          text: "冒烟一发确认链路(把 URL 换成你的 webhook,群里应立刻收到):",
+          code: 'curl -s https://oapi.dingtalk.com/robot/send?access_token=xxxx \\\n  -H "Content-Type: application/json" \\\n  -d \'{"msgtype":"text","text":{"content":"hello from MYIA"}}\'',
+        },
+        "多群 = 多个机器人:每个群的 webhook 在规则 targets 里直达写 dingtalk:<完整 webhook URL>,或别名登记;webhook URL 是凭据,别名文件是本机私有数据。",
+      ],
+    },
+  },
+  {
+    id: "wecom",
+    name: "企业微信",
+    wave: "W2",
+    discovery: "manual",
+    description:
+      "企业微信自建应用(W2 已实装):corpid+secret 换 access_token(7200s 缓存)发 text 私聊(touser);群聊/markdown 为蓝本外能力,未实装。",
+    guide: {
+      keys: [
+        {
+          key: "WECOM_CORPID",
+          purpose: "企业 ID(管理后台「我的企业」页);run 时读环境变量",
+        },
+        {
+          key: "WECOM_CORPSECRET",
+          purpose: "自建应用的 Secret(应用详情页);换 access_token 用",
+        },
+        {
+          key: "WECOM_AGENTID",
+          purpose: "自建应用的 AgentId(应用详情页,数值串)",
+        },
+        {
+          key: "WECOM_TUSER",
+          purpose: "缺省推送对象:成员 userid(通讯录成员详情页);规则写 targets 时可省",
+        },
+      ],
+      steps: [
+        "浏览器打开企业微信管理后台 work.weixin.qq.com(需管理员)→ 应用管理 → 自建 → 创建应用,记下 AgentId 与 Secret。",
+        "「我的企业」页复制企业 ID(CorpId);把三者分别写入环境变量 WECOM_CORPID / WECOM_CORPSECRET / WECOM_AGENTID。",
+        "收件人 userid:管理后台通讯录点开成员,详情页的「账号」就是 userid;把要推送的成员拉进应用可见范围(60021/60020 报错先查可见范围与可信 IP)。",
+        "应用详情页「企业可信 IP」填本机出口 IP——调用 message/send 的机器必须在名单内,否则报 60020(不安全的访问 IP)。",
+        "推送规则:targets 直达写 wecom:<userid>(如 wecom:ZhangSan),常用人名别名登记;单发也可配 target: env:WECOM_TUSER 走缺省收件人。",
+      ],
+    },
+  },
 ];
 
-/** W2/W3 未实装平台(父任务 PRD 波次表登记锚点;灰卡,零交互)。 */
+/** W2/W3 未实装平台(父任务 PRD 波次表登记锚点;灰卡,零交互)。微信走独立
+ * 任务 10-03-messaging-weixin-bridge,仍在 W2 灰卡;ntfy/钉钉/企微已于
+ * 10-03-messaging-w2-platforms 转实装(见 IMPLEMENTED_PLATFORMS)。 */
 export const UPCOMING_PLATFORMS: readonly UpcomingPlatform[] = [
   { id: "weixin", name: "微信", wave: "W2" },
-  { id: "wecom", name: "企业微信", wave: "W2" },
-  { id: "dingtalk", name: "钉钉", wave: "W2" },
-  { id: "ntfy", name: "ntfy", wave: "W2" },
   { id: "slack", name: "Slack", wave: "W3" },
   { id: "discord", name: "Discord", wave: "W3" },
   { id: "whatsapp_cloud", name: "WhatsApp", wave: "W3" },
@@ -176,6 +287,8 @@ export interface PlatformCard {
   guide: PlatformGuide | null;
   /** 详情面板头部的一行描述(已实装 = 事实描述;未实装 = 波次排期说明)。 */
   description: string;
+  /** 目录来源(已实装平台才有;灰卡无目录概念,恒 undefined)。 */
+  discovery?: PlatformDiscovery;
 }
 
 /**
@@ -233,12 +346,13 @@ export function buildPlatformCards(
       return {
         id: platform.id,
         name: platform.name,
-        wave: "W1" as const,
+        wave: platform.wave,
         status: deriveImplementedStatus(bucket, matched),
         directoryCount: bucket.length,
         matchedSecretNames: matched,
         guide: platform.guide,
         description: platform.description,
+        discovery: platform.discovery,
       };
     }),
     ...UPCOMING_PLATFORMS.map((platform) => ({
@@ -250,6 +364,7 @@ export function buildPlatformCards(
       matchedSecretNames: [],
       guide: null,
       description: UPCOMING_DESCRIPTION[platform.wave],
+      discovery: undefined,
     })),
   ];
 }
@@ -491,7 +606,14 @@ function statusExplanation(card: PlatformCard): string {
     ]
       .filter(Boolean)
       .join("、");
-    return `已连接:${signals || "信号已就绪"}。可直接在下方「推送规则」勾选该平台目录里的会话为推送对象。`;
+    return `已连接:${signals || "信号已就绪"}。${
+      card.discovery === "manual"
+        ? "该平台无自动发现:推送对象在规则里写直达 id,或用别名登记。"
+        : "可直接在下方「推送规则」勾选该平台目录里的会话为推送对象。"
+    }`;
+  }
+  if (card.discovery === "manual") {
+    return "需要设置:钥匙链未探测到该平台凭据名,且目录为空。按下方「出站凭据指南」录入凭据;该平台无自动发现(蓝本事实),推送对象在规则里写直达 id(如 ntfy:my-alerts)或用别名文件登记。";
   }
   return "需要设置:钥匙链未探测到该平台凭据名,且目录为空(无一次成功发现或真实 bot 流量的证据)。按下方「出站凭据指南」录入凭据,再到下方「通道目录」点该平台的「刷新」验证。";
 }
@@ -539,7 +661,12 @@ function PlatformDetailPanel({
       {card.status === "connected" ? (
         <section className="flex flex-col gap-2">
           <SectionTitle>目录速览</SectionTitle>
-          <DirectoryQuickView bucket={bucket} dead={dead} platformId={card.id} />
+          <DirectoryQuickView
+            bucket={bucket}
+            dead={dead}
+            platformId={card.id}
+            discovery={card.discovery}
+          />
         </section>
       ) : null}
     </div>
@@ -566,12 +693,22 @@ function DirectoryQuickView({
   bucket,
   dead,
   platformId,
+  discovery,
 }: {
   bucket: ChannelEntry[];
   dead: string[];
   platformId: string;
+  discovery?: PlatformDiscovery;
 }) {
   if (bucket.length === 0) {
+    if (discovery === "manual") {
+      return (
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          目录为空:{platformId} 无自动发现(蓝本事实)——推送规则里写直达 id,或手工编辑数据根的
+          channel_aliases.json 登记对象(别名文件是本机私有数据)。
+        </p>
+      );
+    }
     return (
       <p className="text-[11px] leading-relaxed text-muted-foreground">
         目录为空:到下方「通道目录」点 {platformId} 组的「刷新」(飞书主动发现)或等会话被动进入(telegram 随

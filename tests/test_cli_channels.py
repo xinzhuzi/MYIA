@@ -161,3 +161,75 @@ class TestFamilyShape:
     def test_no_subcommand_is_usage_error(self, tmp_path, monkeypatch, capsys):
         code, out, err = _run_cli(["channels"], capsys, monkeypatch, tmp_path)
         assert code == 1
+
+
+# ---------------------------------------------------------------------------
+# W2 平台(10-03-messaging-w2-platforms):无自动发现 = 说明,不是失败
+# ---------------------------------------------------------------------------
+
+
+class TestChannelsRefreshNoDiscovery:
+    """ntfy/dingtalk/wecom 的 refresh:报「无自动发现(蓝本事实)」、目录桶
+    不动、退出码 0(prd R4:不假装刷新)。"""
+
+    @pytest.mark.parametrize("platform", ["ntfy", "dingtalk", "wecom"])
+    def test_no_discovery_platform_reports_and_exits_zero(self, tmp_path, monkeypatch, capsys, platform):
+        from myia.push import DingTalkChannel, NtfyChannel, WecomChannel
+
+        adapters = {
+            "ntfy": NtfyChannel,
+            "dingtalk": DingTalkChannel,
+            "wecom": WecomChannel,
+        }
+        monkeypatch.setattr(
+            "myia.cli.PLATFORMS", {"feishu": FeishuCardChannel, platform: adapters[platform]}
+        )
+        # 预置旧桶(别名占位):refresh 不得清掉它。
+        (tmp_path / "channel_directory.json").write_text(
+            json.dumps(
+                {
+                    "updated_at": "2026-10-03T00:00:00",
+                    "platforms": {platform: [{"platform": platform, "chat_id": "legacy-1", "name": "旧别名"}]},
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+
+        code, out, err = _run_cli(["channels", "refresh", platform, "--json"], capsys, monkeypatch, tmp_path)
+
+        assert code == 0, err
+        payload = json.loads(out)
+        assert payload["refreshed"] == {}
+        assert payload["failed"] == []
+        assert [e["platform"] for e in payload["no_discovery"]] == [platform]
+        assert "无自动发现" in payload["no_discovery"][0]["message"]
+        # 旧桶原样保留(不假装刷新成空目录)
+        assert [e["chat_id"] for e in payload["platforms"][platform]] == ["legacy-1"]
+
+    def test_no_discovery_human_output_prints_explanation(self, tmp_path, monkeypatch, capsys):
+        from myia.push import NtfyChannel
+
+        monkeypatch.setattr("myia.cli.PLATFORMS", {"ntfy": NtfyChannel})
+
+        code, out, err = _run_cli(["channels", "refresh", "ntfy"], capsys, monkeypatch, tmp_path)
+
+        assert code == 0, err
+        assert "ntfy" in out and "无自动发现" in out
+        assert "刷新失败" not in err and "被动目录平台" not in out
+
+    def test_mixed_refresh_separates_passive_and_no_discovery(self, tmp_path, monkeypatch, capsys):
+        """被动积累(telegram)与无自动发现(ntfy)分桶上报,互不混淆。"""
+        from myia.push import NtfyChannel, TelegramChannel
+
+        monkeypatch.setattr(
+            "myia.cli.PLATFORMS", {"telegram": TelegramChannel, "ntfy": NtfyChannel}
+        )
+        code, out, err = _run_cli(["channels", "refresh", "--json"], capsys, monkeypatch, tmp_path)
+        assert code == 0, err
+
+        payload = json.loads(out)
+        assert payload["refreshed"] == {}
+        assert payload["passive"] == ["telegram"]
+        assert [e["platform"] for e in payload["no_discovery"]] == ["ntfy"]
+        assert payload["failed"] == []

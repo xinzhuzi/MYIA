@@ -8,7 +8,6 @@ http.server(安全底线明示例外);凭据方法 monkeypatch,不触碰真实�
 
 from __future__ import annotations
 
-import base64
 import http.server
 import importlib.util
 import io
@@ -91,17 +90,29 @@ def _reset_sidecar_state(monkeypatch):
     monkeypatch.setattr(entry, "_RUNS", {})
     monkeypatch.setattr(entry, "_ACTIVE_RUN_ID", None)
     monkeypatch.setattr(entry, "_NEXT_RUN_ID", 0)
+    monkeypatch.setattr(entry, "_RUN_PROCS", {})
+    monkeypatch.setattr(entry, "_CANCEL_TIMERS", [])
+    monkeypatch.setattr(entry, "_TEST_ACTIVE_JOB", None)
+    monkeypatch.setattr(entry, "_TEST_NEXT_JOB_ID", 0)
     monkeypatch.setattr(entry, "_LOG_RING", deque(maxlen=entry.LOG_RING_CAPACITY))
     monkeypatch.setattr(entry, "_LOG_SEQ", 0)
-    # 看图任务态(image.analyze 单飞注册表,10-03-image-input)
-    monkeypatch.setattr(entry, "_IMAGE_ACTIVE_JOB", None)
-    monkeypatch.setattr(entry, "_IMAGE_NEXT_JOB_ID", 0)
     # v1.1.1 上下文隔离:ambient MYIA_HOME 不得影响任何用例(dev 模式是默认前提)
     monkeypatch.delenv("MYIA_HOME", raising=False)
     monkeypatch.delenv("MYIA_PLUGIN_DIR", raising=False)
     backend = InMemoryKeychainBackend()
+
+    def fake_delete_secret(name: str) -> None:
+        # 与 myia.secrets.delete_secret 同门:名字校验 → 存在性 → 删除
+        from myia.secrets import SecretError, validate_secret_name
+
+        validate_secret_name(name)
+        if backend.get_password("myia", name) is None:
+            raise SecretError("secret_not_found", f"系统钥匙链中未找到凭据 {name!r},无法删除")
+        backend.delete_password("myia", name)
+
     monkeypatch.setattr(entry, "set_secret", _capture_secret(backend))
     monkeypatch.setattr(entry, "list_secrets", lambda: sorted(name for _, name in backend._items))
+    monkeypatch.setattr(entry, "delete_secret", fake_delete_secret)
     yield
 
 
@@ -392,6 +403,40 @@ def test_store_items_seeded_db_with_filters(tmp_path):
                               "params": {"db": str(db), "category": "proto-demo", "limit": 1}})
     result = responses[0]["result"]
     assert result["count"] == 1 and result["items"][0]["category"] == "proto-demo"
+
+
+def test_store_items_projects_image_ocr_scalar(tmp_path):
+    """store.items 图析投影:raw["image_ocr"] 标量出面,raw 整包不出面。
+
+    feed 屏图析行渲染 item.image_ocr(feed-screen.tsx),数据链 =
+    vision 环挂 metadata.image_ocr → pipeline 以 raw=item.metadata 入库 →
+    本投影;无图条目置 None(契约同 types.ts FeedItem.image_ocr)。
+    """
+    db = tmp_path / "ocr.db"
+    store = SQLiteStore(str(db))
+    from datetime import datetime, timezone
+
+    from myia.store.models import ItemRecord
+    store.save_item(ItemRecord(
+        url="https://example.com/vision", dedup_key="ocr1", title="带图条目",
+        first_seen=datetime(2026, 10, 2, tzinfo=timezone.utc),
+        raw={"image_ocr": "促销 广告语", "image_status": "ok", "watch": "raw 其余键"},
+    ))
+    store.save_item(ItemRecord(
+        url="https://example.com/plain", dedup_key="ocr2", title="无图条目",
+        first_seen=datetime(2026, 10, 1, tzinfo=timezone.utc),
+    ))
+    store.close()
+    code, responses, _ = rpc({"id": 1, "method": "store.items", "params": {"db": str(db)}})
+    result = responses[0]["result"]
+    by_key = {item["dedup_key"]: item for item in result["items"]}
+    assert by_key["ocr1"]["image_ocr"] == "促销 广告语"
+    assert by_key["ocr2"]["image_ocr"] is None
+    # raw 整包仍不出协议面:仅 image_ocr 标量投影,其余 metadata 键不外泄
+    assert set(by_key["ocr1"]) == {
+        "id", "url", "dedup_key", "title", "source", "content", "image_ocr",
+        "tags", "category", "scores", "pushed_at", "push_slot", "first_seen",
+    }
 
 
 def test_store_items_corrupt_db_structured_error(tmp_path):
@@ -1280,15 +1325,13 @@ def test_sources_write_then_yaml_save_mutex_by_mtime(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# image.*:看图六方法往返 + 错误矩阵(10-03-image-input;引擎/VL/探活/sips
-# 全 monkeypatch,零外网零真实钥匙链;MYIA_HOME 指向 tmp 数据根)
+# image.config.*:看图配置两方法往返(10-03-vision-pipeline 拆四留二:
+# image.import/ocr/analyze/status 四方法与两事件用例已删,保留设置屏
+# VisionForm 依赖的 config.read/save;零外网零真实钥匙链;MYIA_HOME 指向
+# tmp 数据根)
 # ---------------------------------------------------------------------------
 
-PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"protocol-image-fixture"
-HEIC_BYTES = b"\x00\x00\x00\x18ftypheic" + b"heic-body"
-GIF_BYTES = b"GIF89a" + b"not-supported"
-
-#: 完整合法看图配置(local_model 已填 = 本地通道可提交;云端 key 引用在用例里按需注入)。
+#: 完整合法看图配置(云端 key 引用在用例里按需注入)。
 VISION_CONFIG_OK = {
     "channel_default": "local",
     "local": {"base_url": "http://127.0.0.1:8080/v1", "model": "/models/qwen3-vl-8b-mlx"},
@@ -1296,472 +1339,6 @@ VISION_CONFIG_OK = {
               "api_key": None},
     "ocr": {"enabled": True, "engine_default": "vision"},
 }
-
-from typing import Any  # noqa: E402
-
-from myia.vision import OCRError, OcrLine, VisionResult  # noqa: E402
-
-
-def wait_image_completed(out: io.StringIO, job_id: int, timeout: float = 30.0) -> dict:
-    """等 image.completed 事件(后台线程异步写;EOF 后仍在写)。"""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        for obj in split_stream(out)[1]:
-            if obj.get("type") == "image.completed" and obj.get("job_id") == job_id:
-                return obj
-        time.sleep(0.05)
-    raise AssertionError(f"看图任务 {job_id} 未在 {timeout}s 内完成")
-
-
-def _import_image(monkeypatch, tmp_path: Path, data: bytes = PNG_BYTES, name: str = "shot.png") -> dict:
-    """入库一张图(MYIA_HOME=tmp/home),返回 image.import 应答 result。"""
-    monkeypatch.setenv("MYIA_HOME", str(tmp_path / "home"))
-    source = tmp_path / name
-    source.write_bytes(data)
-    code, responses, _ = rpc({"id": 1, "method": "image.import",
-                              "params": {"kind": "path", "value": str(source)}})
-    assert code == 0
-    assert "error" not in responses[0], responses[0]
-    return responses[0]["result"]
-
-
-def _save_vision_config(monkeypatch, config: dict) -> dict:
-    code, responses, _ = rpc({"id": 90, "method": "image.config.save",
-                              "params": {"config": config}})
-    assert "error" not in responses[0], responses[0]
-    return responses[0]["result"]
-
-
-def _fake_run_ocr(monkeypatch, lines=None, raises=None):
-    """替换 entry.run_ocr:记录调用;可脚本化返回行或抛结构化 OCRError。"""
-    calls: list[dict] = []
-
-    def fake_run_ocr(image_path, engine):
-        calls.append({"image_path": str(image_path), "engine": engine})
-        if raises is not None:
-            raise raises
-        return [OcrLine(text=text, conf=conf) for text, conf in (lines or [("OCR行一", 0.98)])]
-
-    monkeypatch.setattr(entry, "run_ocr", fake_run_ocr)
-    return calls
-
-
-def _fake_vision_client(monkeypatch, reply="模型解读结果", error=None):
-    """替换 entry.VisionClient:记录构造参数与 prompt;可脚本化 analyze 抛错。"""
-    created: list[Any] = []
-
-    class FakeVisionClient:
-        def __init__(self, base_url: str, model: str, *, api_key=None, timeout_seconds=60.0,
-                     max_output_tokens=2048) -> None:
-            self.kwargs = {"base_url": base_url, "model": model, "api_key": api_key}
-            self.calls: list[dict] = []
-            created.append(self)
-
-        async def analyze(self, *, image_path, prompt):
-            self.calls.append({"image_path": str(image_path), "prompt": prompt})
-            if error is not None:
-                raise error
-            return VisionResult(text=reply, total_tokens=17)
-
-        async def aclose(self) -> None:
-            pass
-
-    monkeypatch.setattr(entry, "VisionClient", FakeVisionClient)
-    return created
-
-
-def _fake_probe(monkeypatch, fail=None):
-    """替换 entry._vision_probe:记录探活目标;可脚本化抛 OSError/鉴权错。"""
-    calls: list[dict] = []
-
-    def fake_probe(base_url, *, api_key=None):
-        calls.append({"base_url": base_url, "api_key": api_key})
-        if fail is not None:
-            raise fail
-
-    monkeypatch.setattr(entry, "_vision_probe", fake_probe)
-    return calls
-
-
-def test_image_import_path_roundtrip_and_dedupe(tmp_path, monkeypatch):
-    """import(path):落 <home>/images/<sha256前16>.png;同字节流重复入库幂等。"""
-    imported = _import_image(monkeypatch, tmp_path)
-    import hashlib
-
-    digest = hashlib.sha256(PNG_BYTES).hexdigest()[:16]
-    assert imported == {"id": digest, "path": str(tmp_path / "home" / "images" / f"{digest}.png"),
-                        "bytes": len(PNG_BYTES), "ext": "png"}
-    assert (tmp_path / "home" / "images" / f"{digest}.png").read_bytes() == PNG_BYTES
-    again = _import_image(monkeypatch, tmp_path)  # 去重:同 id 同路径
-    assert again["id"] == digest
-
-
-def test_image_import_base64_with_data_url_prefix(tmp_path, monkeypatch):
-    """import(base64):data URL 前缀剥离、魔数定格式(webp 直收)。"""
-    webp = b"RIFF\x24\x00\x00\x00WEBPVP8 " + b"body"
-    monkeypatch.setenv("MYIA_HOME", str(tmp_path / "home"))
-    encoded = "data:image/webp;base64," + base64.b64encode(webp).decode("ascii")
-    code, responses, _ = rpc({"id": 1, "method": "image.import",
-                              "params": {"kind": "base64", "value": encoded}})
-    result = responses[0]["result"]
-    assert result["ext"] == "webp" and result["bytes"] == len(webp)
-
-
-def test_image_import_too_large_structured(tmp_path, monkeypatch):
-    """超 10MB:结构化 image_too_large(带 size/limit),零落盘。"""
-    monkeypatch.setenv("MYIA_HOME", str(tmp_path / "home"))
-    big = tmp_path / "big.png"
-    big.write_bytes(PNG_BYTES + b"\x00" * (10 * 1024 * 1024 + 1))
-    code, responses, _ = rpc({"id": 1, "method": "image.import",
-                              "params": {"kind": "path", "value": str(big)}})
-    error = responses[0]["error"]
-    assert error["code"] == "image_too_large" and error["path"] == "params.value"
-    assert error["data"]["limit"] == 10 * 1024 * 1024
-    assert not (tmp_path / "home" / "images").exists() or not any(
-        (tmp_path / "home" / "images").iterdir()
-    )
-
-
-def test_image_import_path_size_precheck_before_read(tmp_path, monkeypatch):
-    """path 分支 stat 预检:超大文件零 read_bytes(不整读进内存才拒;同 yaml.read)。"""
-    monkeypatch.setenv("MYIA_HOME", str(tmp_path / "home"))
-    big = tmp_path / "big.png"
-    big.write_bytes(PNG_BYTES + b"\x00" * (10 * 1024 * 1024 + 1))
-
-    def _forbid_read(self):
-        raise AssertionError("超大文件必须 stat 预检拒绝,不得 read_bytes 整读进内存")
-
-    monkeypatch.setattr(Path, "read_bytes", _forbid_read)
-    code, responses, _ = rpc({"id": 1, "method": "image.import",
-                              "params": {"kind": "path", "value": str(big)}})
-    error = responses[0]["error"]
-    assert error["code"] == "image_too_large"
-    assert error["data"]["size"] == 10 * 1024 * 1024 + 1 + len(PNG_BYTES)
-
-
-def test_image_import_unsupported_magic(tmp_path, monkeypatch):
-    """魔数不支持(GIF 冒充 .png):image_unsupported;base64 坏内容同码。"""
-    monkeypatch.setenv("MYIA_HOME", str(tmp_path / "home"))
-    gif = tmp_path / "fake.png"
-    gif.write_bytes(GIF_BYTES)
-    code, responses, _ = rpc({"id": 1, "method": "image.import",
-                              "params": {"kind": "path", "value": str(gif)}})
-    assert responses[0]["error"]["code"] == "image_unsupported"
-    code, responses, _ = rpc({"id": 2, "method": "image.import",
-                              "params": {"kind": "base64", "value": "%%%not-base64%%%"}})
-    assert responses[0]["error"]["code"] == "image_unsupported"
-
-
-def test_image_import_heic_converted_to_png(tmp_path, monkeypatch):
-    """heic:先经 sips 转 png 再收(monkeypatch 转换函数,CI 无 sips 也能测)。"""
-    monkeypatch.setenv("MYIA_HOME", str(tmp_path / "home"))
-    source = tmp_path / "photo.heic"
-    source.write_bytes(HEIC_BYTES)
-    monkeypatch.setattr(entry, "_convert_heic_to_png", lambda data: b"\x89PNG\r\n\x1a\nconverted")
-    code, responses, _ = rpc({"id": 1, "method": "image.import",
-                              "params": {"kind": "path", "value": str(source)}})
-    result = responses[0]["result"]
-    assert result["ext"] == "png" and result["bytes"] == len(b"\x89PNG\r\n\x1a\nconverted")
-
-
-def test_image_import_missing_file(tmp_path, monkeypatch):
-    monkeypatch.setenv("MYIA_HOME", str(tmp_path / "home"))
-    code, responses, _ = rpc({"id": 1, "method": "image.import",
-                              "params": {"kind": "path", "value": str(tmp_path / "nope.png")}})
-    assert responses[0]["error"]["code"] == "image_not_found"
-
-
-def test_image_ocr_roundtrip_default_engine_from_config(tmp_path, monkeypatch):
-    """ocr:engine 缺省取 vision.yaml 的 ocr.engine_default;逐行 {text, conf}+ms。"""
-    imported = _import_image(monkeypatch, tmp_path)
-    config = dict(VISION_CONFIG_OK)
-    config["ocr"] = {"enabled": True, "engine_default": "rapidocr"}
-    _save_vision_config(monkeypatch, config)
-    calls = _fake_run_ocr(monkeypatch, lines=[("羊毛行", 0.95), ("低置信行", 0.42)])
-    code, responses, _ = rpc({"id": 2, "method": "image.ocr", "params": {"id": imported["id"]}})
-    result = responses[0]["result"]
-    assert result["engine"] == "rapidocr"  # 缺省引擎来自配置而非硬编码
-    assert result["lines"] == [{"text": "羊毛行", "conf": 0.95}, {"text": "低置信行", "conf": 0.42}]
-    assert isinstance(result["ms"], int) and result["ms"] >= 0
-    assert calls and calls[0]["engine"] == "rapidocr"
-
-
-def test_image_ocr_engine_param_passthrough(tmp_path, monkeypatch):
-    """ocr:显式 engine 直传引擎层(vision/rapidocr 同门)。"""
-    imported = _import_image(monkeypatch, tmp_path)
-    calls = _fake_run_ocr(monkeypatch)
-    code, responses, _ = rpc({"id": 2, "method": "image.ocr",
-                              "params": {"id": imported["id"], "engine": "rapidocr"}})
-    assert responses[0]["result"]["engine"] == "rapidocr"
-    assert calls[0]["engine"] == "rapidocr" and calls[0]["image_path"] == imported["path"]
-
-
-def test_image_ocr_engine_unknown_structured(tmp_path, monkeypatch):
-    """错误矩阵:非法 engine → image_engine_unknown(带 allowed 名单)。"""
-    imported = _import_image(monkeypatch, tmp_path)
-    _fake_run_ocr(monkeypatch)  # 引擎层不被触达
-    code, responses, _ = rpc({"id": 2, "method": "image.ocr",
-                              "params": {"id": imported["id"], "engine": "tesseract"}})
-    error = responses[0]["error"]
-    assert error["code"] == "image_engine_unknown" and error["path"] == "params.engine"
-    assert error["data"]["allowed"] == ["vision", "rapidocr"]
-
-
-def test_image_ocr_unknown_id_and_dependency_missing(tmp_path, monkeypatch):
-    """错误矩阵:未知 id → image_not_found;引擎依赖缺失 → image_ocr_failed(带安装命令)。"""
-    monkeypatch.setenv("MYIA_HOME", str(tmp_path / "home"))
-    code, responses, _ = rpc({"id": 1, "method": "image.ocr", "params": {"id": "0123456789abcdef"}})
-    assert responses[0]["error"]["code"] == "image_not_found"
-    # 路径穿越免疫:id 必须是 16 位十六进制
-    code, responses, _ = rpc({"id": 2, "method": "image.ocr", "params": {"id": "../../etc/passwd"}})
-    assert responses[0]["error"]["code"] == "image_not_found"
-
-    imported = _import_image(monkeypatch, tmp_path)
-    _fake_run_ocr(
-        monkeypatch,
-        raises=OCRError("dependency_missing", "vision 引擎依赖 ocrmac 未安装:请先执行 pip install 'myia[vision]'",
-                        details={"package": "ocrmac"}),
-    )
-    code, responses, _ = rpc({"id": 3, "method": "image.ocr", "params": {"id": imported["id"]}})
-    error = responses[0]["error"]
-    assert error["code"] == "image_ocr_failed"
-    assert "myia[vision]" in error["message"]
-
-
-def test_image_ocr_invalid_config_file_structured(tmp_path, monkeypatch):
-    """vision.yaml 手改坏(engine_default 越界):image_config_invalid,fail fast。"""
-    imported = _import_image(monkeypatch, tmp_path)
-    home = tmp_path / "home"
-    (home / "vision.yaml").write_text("ocr:\n  engine_default: tesseract\n", encoding="utf-8")
-    _fake_run_ocr(monkeypatch)
-    code, responses, _ = rpc({"id": 2, "method": "image.ocr", "params": {"id": imported["id"]}})
-    assert responses[0]["error"]["code"] == "image_config_invalid"
-    assert responses[0]["error"]["path"] == "vision.yaml"
-
-
-def test_image_analyze_read_mode_full_event_stream(tmp_path, monkeypatch):
-    """analyze(read):job_id 即返 → image.progress(ocr→model)→ image.completed;
-    OCR 初稿嵌校对 prompt;result 带 text/model/channel/elapsed_ms/ocr_used。"""
-    imported = _import_image(monkeypatch, tmp_path)
-    _save_vision_config(monkeypatch, dict(VISION_CONFIG_OK))
-    _fake_run_ocr(monkeypatch, lines=[("初稿行A", 0.98)])
-    clients = _fake_vision_client(monkeypatch, reply="校对后的文字")
-    _fake_probe(monkeypatch)
-
-    out = io.StringIO()
-    stdin = io.StringIO(json.dumps({"id": 1, "method": "image.analyze",
-                                    "params": {"id": imported["id"], "mode": "read"}},
-                                   ensure_ascii=False) + "\n")
-    assert entry.serve(stdin=stdin, stdout=out) == 0
-    responses, _ = split_stream(out)
-    started = responses[0]["result"]
-    job_id = started["job_id"]
-    assert started["state"] == "running" and started["channel"] == "local"
-
-    completed = wait_image_completed(out, job_id)
-    assert completed["ok"] is True
-    result = completed["result"]
-    assert result["text"] == "校对后的文字"
-    assert result["model"] == "/models/qwen3-vl-8b-mlx"
-    assert result["channel"] == "local"
-    assert result["ocr_used"] is True and result["ocr_engine"] == "vision"
-    assert isinstance(result["elapsed_ms"], int)
-
-    _, events = split_stream(out)
-    stages = [e["stage"] for e in events if e["type"] == "image.progress"]
-    assert stages == ["ocr", "model"]
-    # read 模式:OCR 初稿嵌校对 prompt(local-ocr 实证配方)
-    assert "初稿行A" in clients[0].calls[0]["prompt"]
-    assert "校对" in clients[0].calls[0]["prompt"]
-    # 完成后单飞解锁
-    code, status_resp, _ = rpc({"id": 2, "method": "image.status", "params": {}})
-    assert status_resp[0]["result"] == {"busy": False}
-
-
-def test_image_analyze_describe_and_ask_prompts(tmp_path, monkeypatch):
-    """describe 固定结构化 prompt 且 ocr_used=False;ask 直传用户问题。"""
-    imported = _import_image(monkeypatch, tmp_path)
-    _save_vision_config(monkeypatch, dict(VISION_CONFIG_OK))
-    clients = _fake_vision_client(monkeypatch)
-    _fake_probe(monkeypatch)
-    _fake_run_ocr(monkeypatch)
-
-    for params, needle, ocr_used in (
-        ({"mode": "describe"}, "主体", False),
-        ({"mode": "ask", "question": "这串报错码是什么意思?"}, "报错码", False),
-    ):
-        out = io.StringIO()
-        stdin = io.StringIO(json.dumps({"id": 1, "method": "image.analyze",
-                                        "params": {"id": imported["id"], **params}},
-                                       ensure_ascii=False) + "\n")
-        entry.serve(stdin=stdin, stdout=out)
-        job_id = split_stream(out)[0][0]["result"]["job_id"]  # 应答与事件行序不保证,按 id 拆
-        completed = wait_image_completed(out, job_id)
-        assert completed["ok"] is True
-        assert completed["result"]["ocr_used"] is ocr_used
-        assert needle in clients[-1].calls[0]["prompt"]
-
-
-def test_image_analyze_busy_single_flight(tmp_path, monkeypatch):
-    """单飞守卫:已有看图任务 → 第二次提交 image_busy(带 active_job_id)。"""
-    imported = _import_image(monkeypatch, tmp_path)
-    _save_vision_config(monkeypatch, dict(VISION_CONFIG_OK))
-    entry._IMAGE_ACTIVE_JOB = 7
-    try:
-        code, responses, _ = rpc({"id": 1, "method": "image.analyze",
-                                  "params": {"id": imported["id"], "mode": "describe"}})
-        error = responses[0]["error"]
-        assert error["code"] == "image_busy"
-        assert error["data"]["active_job_id"] == 7
-    finally:
-        entry._IMAGE_ACTIVE_JOB = None
-
-
-def test_image_analyze_local_model_missing(tmp_path, monkeypatch):
-    """本地通道未配模型路径:image_config_invalid(同步拒绝,零事件)。"""
-    imported = _import_image(monkeypatch, tmp_path)
-    config = dict(VISION_CONFIG_OK)
-    config["local"] = {"base_url": "http://127.0.0.1:8080/v1", "model": ""}
-    _save_vision_config(monkeypatch, config)
-    code, responses, _ = rpc({"id": 1, "method": "image.analyze",
-                              "params": {"id": imported["id"], "mode": "describe"}})
-    assert responses[0]["error"]["code"] == "image_config_invalid"
-    assert responses[0]["error"]["path"] == "local.model"
-
-
-def test_image_analyze_cloud_no_credentials(tmp_path, monkeypatch):
-    """云端无 key 引用:同步 image_no_credentials,绝不假装成功(AC3)。"""
-    imported = _import_image(monkeypatch, tmp_path)
-    _save_vision_config(monkeypatch, dict(VISION_CONFIG_OK))
-    code, responses, _ = rpc({"id": 1, "method": "image.analyze",
-                              "params": {"id": imported["id"], "mode": "describe", "channel": "cloud"}})
-    error = responses[0]["error"]
-    assert error["code"] == "image_no_credentials" and error["path"] == "cloud.api_key"
-    assert "myia/image/api_key" in error["message"]
-
-
-def test_image_analyze_cloud_with_key_uses_bearer(tmp_path, monkeypatch):
-    """云端有 key 引用:提交时解析钥匙链引用,VisionClient 拿到已解析 key。"""
-    imported = _import_image(monkeypatch, tmp_path)
-    config = dict(VISION_CONFIG_OK)
-    config["cloud"] = {"base_url": "https://open.bigmodel.cn/api/paas/v4",
-                       "model": "glm-4.6v", "api_key": "keychain:myia/image/api_key"}
-    _save_vision_config(monkeypatch, config)
-    monkeypatch.setattr(entry, "resolve_credential",
-                        lambda ref: "test-cloud-key")  # 不触碰真实钥匙链
-    clients = _fake_vision_client(monkeypatch)
-    probes = _fake_probe(monkeypatch)
-
-    out = io.StringIO()
-    stdin = io.StringIO(json.dumps({"id": 1, "method": "image.analyze",
-                                    "params": {"id": imported["id"], "mode": "describe",
-                                               "channel": "cloud"}}, ensure_ascii=False) + "\n")
-    entry.serve(stdin=stdin, stdout=out)
-    job_id = split_stream(out)[0][0]["result"]["job_id"]  # 应答与事件行序不保证,按 id 拆
-    completed = wait_image_completed(out, job_id)
-    assert completed["ok"] is True and completed["result"]["channel"] == "cloud"
-    assert completed["result"]["model"] == "glm-4.6v"
-    assert clients[0].kwargs["api_key"] == "test-cloud-key"  # 云端带 Bearer
-    assert probes[0]["base_url"] == "https://open.bigmodel.cn/api/paas/v4"
-
-
-def test_image_analyze_unreachable_event_with_hint(tmp_path, monkeypatch):
-    """探活失败:image.completed(ok=false, image_unreachable),本地场景附启动指引(AC4)。"""
-    imported = _import_image(monkeypatch, tmp_path)
-    _save_vision_config(monkeypatch, dict(VISION_CONFIG_OK))
-    _fake_vision_client(monkeypatch)
-    _fake_probe(monkeypatch, fail=OSError("ConnectionRefusedError: [Errno 61]"))
-
-    out = io.StringIO()
-    stdin = io.StringIO(json.dumps({"id": 1, "method": "image.analyze",
-                                    "params": {"id": imported["id"], "mode": "describe"}},
-                                   ensure_ascii=False) + "\n")
-    entry.serve(stdin=stdin, stdout=out)
-    job_id = split_stream(out)[0][0]["result"]["job_id"]  # 应答与事件行序不保证,按 id 拆
-    completed = wait_image_completed(out, job_id)
-    assert completed["ok"] is False
-    error = completed["error"]
-    assert error["code"] == "image_unreachable"
-    assert "mlx_vlm" in error["message"]  # 启动指引文案
-    assert error["data"]["base_url"] == "http://127.0.0.1:8080/v1"
-    code, status_resp, _ = rpc({"id": 2, "method": "image.status", "params": {}})
-    assert status_resp[0]["result"]["busy"] is False  # 失败同样解锁
-
-
-def test_image_analyze_provider_error_event(tmp_path, monkeypatch):
-    """VL 调用抛错:image.completed(ok=false, image_provider_error),应用不崩。"""
-    imported = _import_image(monkeypatch, tmp_path)
-    _save_vision_config(monkeypatch, dict(VISION_CONFIG_OK))
-    _fake_vision_client(monkeypatch, error=RuntimeError("模拟端点故障"))
-    _fake_probe(monkeypatch)
-
-    out = io.StringIO()
-    stdin = io.StringIO(json.dumps({"id": 1, "method": "image.analyze",
-                                    "params": {"id": imported["id"], "mode": "describe"}},
-                                   ensure_ascii=False) + "\n")
-    entry.serve(stdin=stdin, stdout=out)
-    job_id = split_stream(out)[0][0]["result"]["job_id"]  # 应答与事件行序不保证,按 id 拆
-    completed = wait_image_completed(out, job_id)
-    assert completed["ok"] is False
-    assert completed["error"]["code"] == "image_provider_error"
-    assert "模拟端点故障" in completed["error"]["message"]
-
-
-def test_image_analyze_param_validation(tmp_path, monkeypatch):
-    """错误矩阵:未知 id / 非法 mode / ask 缺 question → 结构化拒绝。"""
-    monkeypatch.setenv("MYIA_HOME", str(tmp_path / "home"))
-    code, responses, _ = rpc({"id": 1, "method": "image.analyze",
-                              "params": {"id": "0123456789abcdef", "mode": "describe"}})
-    assert responses[0]["error"]["code"] == "image_not_found"
-
-    imported = _import_image(monkeypatch, tmp_path)
-    _save_vision_config(monkeypatch, dict(VISION_CONFIG_OK))
-    code, responses, _ = rpc({"id": 2, "method": "image.analyze",
-                              "params": {"id": imported["id"], "mode": "summarize"}})
-    assert responses[0]["error"]["code"] == "invalid_params"
-    assert responses[0]["error"]["path"] == "params.mode"
-    code, responses, _ = rpc({"id": 3, "method": "image.analyze",
-                              "params": {"id": imported["id"], "mode": "ask"}})
-    assert responses[0]["error"]["code"] == "invalid_params"
-    assert responses[0]["error"]["path"] == "params.question"
-
-
-def test_image_status_busy_reports_job(tmp_path):
-    """status:空闲 {busy: false};执行中附 job_id(serve 退出后注册表仍在)。"""
-    code, responses, _ = rpc({"id": 1, "method": "image.status", "params": {}})
-    assert responses[0]["result"] == {"busy": False}
-    entry._IMAGE_ACTIVE_JOB = 3
-    try:
-        code, responses, _ = rpc({"id": 2, "method": "image.status", "params": {}})
-        assert responses[0]["result"] == {"busy": True, "job_id": 3}
-    finally:
-        entry._IMAGE_ACTIVE_JOB = None
-
-
-def test_image_status_last_completed_reconciliation(tmp_path, monkeypatch):
-    """status 对账:瞬时失败任务的 completed 可能在 webview 订阅建立前写出而被
-    丢 —— 带 job_id 查询附 ``last``(与事件流同一载荷);不带 job_id 保持旧形状。"""
-    imported = _import_image(monkeypatch, tmp_path)
-    _save_vision_config(monkeypatch, dict(VISION_CONFIG_OK))
-    _fake_vision_client(monkeypatch)
-    _fake_probe(monkeypatch, fail=OSError("ConnectionRefusedError: [Errno 61]"))
-
-    out = io.StringIO()
-    stdin = io.StringIO(json.dumps({"id": 1, "method": "image.analyze",
-                                    "params": {"id": imported["id"], "mode": "describe"}},
-                                   ensure_ascii=False) + "\n")
-    entry.serve(stdin=stdin, stdout=out)
-    job_id = split_stream(out)[0][0]["result"]["job_id"]  # 应答与事件行序不保证,按 id 拆
-    completed = wait_image_completed(out, job_id)
-    assert completed["ok"] is False
-
-    code, responses, _ = rpc({"id": 2, "method": "image.status", "params": {}})
-    assert responses[0]["result"] == {"busy": False}  # 旧形状:不带 job_id 不附 last
-    code, responses, _ = rpc({"id": 3, "method": "image.status", "params": {"job_id": job_id}})
-    result = responses[0]["result"]
-    assert result["busy"] is False
-    assert result["last"] == completed  # 注册表留存 = 事件流写出的同一份终态载荷
-    assert result["last"]["error"]["code"] == "image_unreachable"
 
 
 def test_image_config_read_defaults_without_file(tmp_path, monkeypatch):
@@ -2016,6 +1593,31 @@ def test_channels_refresh_merges_and_persists(tmp_path, monkeypatch):
     assert responses[0]["result"]["updated_at"] == persisted["updated_at"]
 
 
+def test_channels_refresh_no_discovery_platform_structured(tmp_path, monkeypatch):
+    """W2 平台(ntfy/dingtalk/wecom)refresh:无自动发现 = discover_not_supported
+    结构化说明(与 telegram 被动积累同族),不是 channel_refresh_failed;旧桶不动。"""
+    from myia.push import NtfyChannel
+
+    home = _messaging_home(tmp_path, monkeypatch, yaml_text=None)
+    _write_directory(home, {"ntfy": [
+        {"platform": "ntfy", "chat_id": "games", "name": "游戏台", "type": "channel",
+         "thread_id": None, "last_seen": None}]})
+
+    monkeypatch.setattr("myia.push.PLATFORMS", {"ntfy": NtfyChannel})
+    code, responses, _ = rpc(
+        {"id": 1, "method": "channels.refresh", "params": {"platform": "ntfy"}},
+    )
+    assert code == 0
+    error = responses[0]["error"]
+    assert error["code"] == "discover_not_supported"
+    assert "无自动发现" in error["message"]
+    assert error["data"]["platform"] == "ntfy"
+    # 旧桶逐字节未动(别名登记的条目不被「刷新」清掉)
+    assert json.loads((home / "channel_directory.json").read_text("utf-8"))["platforms"][
+        "ntfy"
+    ][0]["chat_id"] == "games"
+
+
 def test_channels_alias_set_delete_roundtrip(tmp_path, monkeypatch):
     """alias 正例:set 落别名文件且立即生效;delete 摘除,未发现占位条目随之消失。"""
     home = _messaging_home(tmp_path, monkeypatch, yaml_text=None)
@@ -2255,3 +1857,295 @@ def test_push_write_mid_file_block_and_template_roundtrip(tmp_path, monkeypatch)
     text = yaml_path.read_text(encoding="utf-8")
     assert "# 头部注释:push 之前的内容逐字节不动" in text
     assert text.index("plugin:") > text.index("push:")  # push 仍在 plugin 之前
+
+
+# ---------------------------------------------------------------------------
+# v1.1.2 桌面对齐批(10-03-v112-desktop-batch):run.cancel / runs.list /
+# secret.delete / sources.test / store.items 游标与搜索(C2/C3/C5/C13/C1)
+# ---------------------------------------------------------------------------
+
+
+class _SlowApiHandler(http.server.BaseHTTPRequestHandler):
+    """拖延 API(run.cancel 夹具):响应前睡 30s,保证取消窗口足够长。"""
+
+    def do_GET(self):  # noqa: N802
+        try:
+            time.sleep(30)
+            body = json.dumps(API_JSON, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except Exception:  # noqa: BLE001 — 客户端被杀后写管道失败:静默收场
+            self.close_connection = True
+
+    def log_message(self, *args):  # 静默
+        pass
+
+
+@pytest.fixture()
+def slow_api():
+    """临时本地慢直 API(线程化:每连接独立,客户端被杀不阻塞后续)。"""
+    with socketserver.ThreadingTCPServer(("127.0.0.1", 0), _SlowApiHandler) as srv:
+        port = srv.server_address[1]
+        thread = threading.Thread(target=srv.serve_forever, daemon=True)
+        thread.start()
+        yield port
+        srv.shutdown()
+
+
+def test_run_cancel_full_roundtrip(tmp_path, slow_api):
+    """C2 run.cancel 全往返:慢源 run 进行中 → killpg 取消 → completed 信号终局
+    status=cancelled → run.status 终态 → 子进程收尸(poll is not None)。
+
+    dev 测试边界如实注记:此形态只见单进程(无 bootloader);onefile 双进程
+    「孙进程不残留」的最终证据在装机冒烟,此处绿不冒充该验收。
+    """
+    yaml_path = write_yaml(tmp_path, VALID_YAML.replace("{port}", str(slow_api)), "slow.yaml")
+    out = io.StringIO()
+    stdin = io.StringIO(json.dumps({"id": 1, "method": "run.start",
+                                    "params": {"yaml": yaml_path, "db": str(tmp_path / "c.db")}}) + "\n")
+    assert entry.serve(stdin=stdin, stdout=out) == 0
+    responses, _ = split_stream(out)
+    run_id = responses[0]["result"]["run_id"]
+
+    deadline = time.monotonic() + 30
+    proc = None
+    while time.monotonic() < deadline:
+        proc = entry._RUN_PROCS.get(run_id)
+        if proc is not None and proc.poll() is None:
+            break
+        time.sleep(0.05)
+    assert proc is not None and proc.poll() is None, "run 子进程未在期限内起跑"
+
+    result = entry._m_run_cancel({})
+    assert result == {"run_id": run_id, "cancelled": True, "state": "running"}
+
+    completed = wait_completed(out, run_id)
+    assert completed["exit_code"] is not None and completed["exit_code"] < 0  # 信号终局
+    assert completed["status"] == "cancelled"
+    assert proc.poll() is not None  # 子进程已收尸(run.cancel 的直接物证)
+
+    code, status_resp, _ = rpc({"id": 2, "method": "run.status", "params": {"run_id": run_id}})
+    record = status_resp[0]["result"]["runs"][0]
+    assert record["state"] == "done" and record["status"] == "cancelled"
+    assert entry._ACTIVE_RUN_ID is None  # 单飞位已释放
+
+
+def test_run_cancel_refusals():
+    """C2 错误矩阵:未知 id / 无活跃 run = run_not_found;已终态 = run_not_active。"""
+    code, responses, _ = rpc({"id": 1, "method": "run.cancel", "params": {"run_id": 424242}})
+    assert responses[0]["error"]["code"] == "run_not_found"
+    code, responses, _ = rpc({"id": 2, "method": "run.cancel", "params": {}})
+    assert responses[0]["error"]["code"] == "run_not_found"  # 无进行中 run
+    entry._RUNS[7] = {"run_id": 7, "state": "done", "status": "success"}
+    code, responses, _ = rpc({"id": 3, "method": "run.cancel", "params": {"run_id": 7}})
+    error = responses[0]["error"]
+    assert error["code"] == "run_not_active" and error["data"]["state"] == "done"
+
+
+def test_runs_list_reads_table_newest_first(tmp_path):
+    """C3 runs.list:直读 runs 表(新→旧)—— 内存注册表为空(= sidecar 重启后)
+    历史仍可达;category 过滤 + limit 钳制;非整数 limit 拒。"""
+    db = tmp_path / "runs.db"
+    store = SQLiteStore(str(db))
+    for category in ("proto-demo", "proto-demo", "other"):
+        run_id = store.start_run(category)
+        store.finish_run(run_id, status="success", stats={"items_retained": 1})
+    store.close()
+    code, responses, _ = rpc({"id": 1, "method": "runs.list", "params": {"db": str(db)}})
+    result = responses[0]["result"]
+    assert result["count"] == 3
+    ids = [row["run_id"] for row in result["runs"]]
+    assert ids == sorted(ids, reverse=True)  # 新→旧
+    assert set(result["runs"][0]) == {
+        "run_id", "category", "status", "started_at", "finished_at", "stats", "steps", "error",
+    }
+    code, responses, _ = rpc({"id": 2, "method": "runs.list",
+                              "params": {"db": str(db), "category": "proto-demo", "limit": 1}})
+    assert responses[0]["result"]["count"] == 1
+    assert responses[0]["result"]["runs"][0]["category"] == "proto-demo"
+    code, responses, _ = rpc({"id": 3, "method": "runs.list", "params": {"db": str(db), "limit": 500}})
+    assert responses[0]["result"]["count"] == 3  # 钳制 [1,200] 不报错
+    code, responses, _ = rpc({"id": 4, "method": "runs.list", "params": {"db": str(db), "limit": "x"}})
+    assert responses[0]["error"]["code"] == "invalid_params"
+
+
+def test_secret_delete_roundtrip():
+    """C5 secret.delete:删除后 secret.list 不再列出;二次删除 secret_not_found。"""
+    code, responses, _ = rpc({"id": 1, "method": "secret.set",
+                              "params": {"name": "myia/llm/api_key", "value": "v"}})
+    assert responses[0]["result"]["stored"] is True
+    code, responses, _ = rpc({"id": 2, "method": "secret.list", "params": {}})
+    assert "myia/llm/api_key" in responses[0]["result"]["names"]
+    code, responses, _ = rpc({"id": 3, "method": "secret.delete",
+                              "params": {"name": "myia/llm/api_key"}})
+    assert responses[0]["result"] == {"name": "myia/llm/api_key", "deleted": True}
+    code, responses, _ = rpc({"id": 4, "method": "secret.list", "params": {}})
+    assert "myia/llm/api_key" not in responses[0]["result"]["names"]
+    code, responses, _ = rpc({"id": 5, "method": "secret.delete",
+                              "params": {"name": "myia/llm/api_key"}})
+    assert responses[0]["error"]["code"] == "secret_not_found"
+    code, responses, _ = rpc({"id": 6, "method": "secret.delete", "params": {}})
+    assert responses[0]["error"]["code"] == "invalid_params"
+
+
+def test_store_items_same_timestamp_pagination_to_exhaustion(tmp_path):
+    """C1 复合游标:同刻 first_seen 条目(7)> 单页 limit(3),before+before_id
+    翻页推进直至取尽(sum == 7 且零重复);单 before 会整批跳过同刻条目(对照)。"""
+    from datetime import datetime, timezone
+
+    from myia.store.models import ItemRecord
+    db = tmp_path / "same.db"
+    store = SQLiteStore(str(db))
+    moment = datetime(2026, 10, 2, 8, 0, tzinfo=timezone.utc)
+    for index in range(7):
+        store.save_item(ItemRecord(
+            url=f"https://example.com/s{index}", dedup_key=f"s{index}",
+            title=f"同刻条目{index}", first_seen=moment,
+        ))
+    store.close()
+    seen: list[str] = []
+    before, before_id, limit = None, None, 3
+    pages = 0
+    while True:
+        params: dict = {"db": str(db), "limit": limit}
+        if before is not None:
+            params["before"] = before
+            params["before_id"] = before_id
+        code, responses, _ = rpc({"id": pages + 1, "method": "store.items", "params": params})
+        items = responses[0]["result"]["items"]
+        seen += [item["dedup_key"] for item in items]
+        pages += 1
+        if len(items) < limit:
+            break
+        oldest = items[-1]
+        before, before_id = oldest["first_seen"], oldest["id"]
+        assert pages <= 10, "游标未推进,疑似死循环"
+    assert pages == 3 and len(seen) == 7 and len(set(seen)) == 7  # 取尽且零重复
+
+    # 对照:严格 before 单键把同刻更旧条目整批跳过 —— before_id 的升级理由。
+    code, responses, _ = rpc({"id": 90, "method": "store.items",
+                              "params": {"db": str(db), "limit": 3, "before": moment.isoformat()}})
+    assert responses[0]["result"]["count"] == 0
+    # before_id 单传(缺 before)= invalid_params(复合游标成对出现)
+    code, responses, _ = rpc({"id": 91, "method": "store.items",
+                              "params": {"db": str(db), "before_id": 5}})
+    assert responses[0]["error"]["code"] == "invalid_params"
+
+
+def test_store_items_query_like_nocase(tmp_path):
+    """C1×G1 query:title/content/source 三列 NOCASE LIKE;% 通配按字面匹配。"""
+    from datetime import datetime, timezone
+
+    from myia.store.models import ItemRecord
+    db = tmp_path / "query.db"
+    store = SQLiteStore(str(db))
+    base = datetime(2026, 10, 2, tzinfo=timezone.utc)
+
+    def seed(index: int, title: str, content: str | None, source: str | None) -> None:
+        store.save_item(ItemRecord(
+            url=f"https://example.com/q{index}", dedup_key=f"q{index}", title=title,
+            content=content, source=source,
+            first_seen=datetime(2026, 10, 2, index + 1, tzinfo=timezone.utc),
+        ))
+
+    seed(0, "RSS 周报第 1 期", None, "hackernews")
+    seed(1, "评分纪要", "GLM 精评 4.6 分", "blog")
+    seed(2, "增长 100%", None, "blog")
+    seed(3, "增长 100x", None, "blog")
+    store.close()
+    del base
+
+    def titles_of(query: str) -> list[str]:
+        code, responses, _ = rpc({"id": 1, "method": "store.items",
+                                  "params": {"db": str(db), "query": query}})
+        return [item["title"] for item in responses[0]["result"]["items"]]
+
+    assert titles_of("rss") == ["RSS 周报第 1 期"]  # title 命中(NOCASE)
+    assert titles_of("glm") == ["评分纪要"]  # content 命中
+    assert titles_of("HackerNews") == ["RSS 周报第 1 期"]  # source 命中(大小写不敏感)
+    assert titles_of("100%") == ["增长 100%"]  # % 按字面,不吞 100x
+
+
+def _wait_test_completed(out: io.StringIO, timeout: float = 60.0) -> dict:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        for obj in split_stream(out)[1]:
+            if obj.get("type") == "test.completed":
+                return obj
+        time.sleep(0.05)
+    raise AssertionError(f"试抓未在 {timeout}s 内完成")
+
+
+def test_sources_test_async_job_roundtrip(tmp_path, local_api, monkeypatch):
+    """C13 sources.test:围栏内品类 → 提交即返 job_id → test.completed 事件回载
+    CLI --json 结果(真跑 127.0.0.1 本地夹具,exit 0)。"""
+    plugins = _editor_plugins(tmp_path, monkeypatch,
+                              ("demo.yaml", VALID_YAML.replace("{port}", str(local_api))))
+    yaml_path = plugins / "demo.yaml"
+    out = io.StringIO()
+    stdin = io.StringIO(json.dumps({"id": 1, "method": "sources.test",
+                                    "params": {"file": str(yaml_path), "source": "local-api"}}) + "\n")
+    assert entry.serve(stdin=stdin, stdout=out) == 0
+    responses, _ = split_stream(out)
+    result = responses[0]["result"]
+    assert result["state"] == "running" and result["source"] == "local-api"
+    assert isinstance(result["job_id"], int) and result["job_id"] >= 1
+    event = _wait_test_completed(out)
+    assert event["ok"] is True and event["exit_code"] == 0
+    assert event["result"]["command"] == "test"
+    assert event["result"]["sources"][0]["ok"] is True
+    assert entry._TEST_ACTIVE_JOB is None  # 单飞位已释放
+
+
+def test_sources_test_unknown_source_completes_with_error(tmp_path, local_api, monkeypatch):
+    """C13 源不存在:预检放行(品类可载)→ CLI config 错经事件透传(ok=false)。"""
+    plugins = _editor_plugins(tmp_path, monkeypatch,
+                              ("demo.yaml", VALID_YAML.replace("{port}", str(local_api))))
+    yaml_path = plugins / "demo.yaml"
+    out = io.StringIO()
+    stdin = io.StringIO(json.dumps({"id": 1, "method": "sources.test",
+                                    "params": {"file": str(yaml_path), "source": "no-such-source"}}) + "\n")
+    assert entry.serve(stdin=stdin, stdout=out) == 0
+    event = _wait_test_completed(out)
+    assert event["ok"] is False
+    assert event["error"] == "config"  # CLI config 错透传(source_not_found 细节在 data)
+    assert any(err.get("error_type") == "source_not_found"
+               for err in event["data"]["errors"])
+
+
+def test_sources_test_single_flight_and_refusals(tmp_path, monkeypatch):
+    """C13 错误矩阵:test_busy 单飞 / file 缺失 invalid_params / 围栏外
+    not_yaml_suffix / 装不上品类 source_file_unreadable / timeout>120 拒。"""
+    plugins = _editor_plugins(tmp_path, monkeypatch,
+                              ("demo.yaml", VALID_YAML.replace("{port}", "1")),
+                              ("bad.yaml", BAD_CRON_YAML))
+    good = str(plugins / "demo.yaml")
+    entry._TEST_ACTIVE_JOB = 88
+    code, responses, _ = rpc({"id": 1, "method": "sources.test", "params": {"file": good}})
+    error = responses[0]["error"]
+    assert error["code"] == "test_busy" and error["data"]["active_job_id"] == 88
+    entry._TEST_ACTIVE_JOB = None
+    code, responses, _ = rpc({"id": 2, "method": "sources.test", "params": {}})
+    assert responses[0]["error"]["code"] == "invalid_params"
+    code, responses, _ = rpc({"id": 3, "method": "sources.test", "params": {"file": "/etc/hosts"}})
+    assert responses[0]["error"]["code"] == "not_yaml_suffix"
+    code, responses, _ = rpc({"id": 4, "method": "sources.test",
+                              "params": {"file": str(plugins / "bad.yaml")}})
+    assert responses[0]["error"]["code"] == "source_file_unreadable"
+    code, responses, _ = rpc({"id": 5, "method": "sources.test",
+                              "params": {"file": str(plugins / "bad.yaml"), "timeout": 121}})
+    assert responses[0]["error"]["code"] == "invalid_params"
+
+
+def test_method_registry_allowed_matches_handlers():
+    """对账(spec 变更纪律第 2 条):data.allowed 与 _HANDLERS 键集一致;
+    v1.1.2 桌面对齐批(run.cancel/runs.list/secret.delete/sources.test)后 = 27。"""
+    code, responses, _ = rpc({"id": 1, "method": "no.such.method", "params": {}})
+    allowed = responses[0]["error"]["data"]["allowed"]
+    assert allowed == sorted(entry._HANDLERS)
+    assert len(allowed) == 27
+    for method in ("run.cancel", "runs.list", "secret.delete", "sources.test"):
+        assert method in allowed

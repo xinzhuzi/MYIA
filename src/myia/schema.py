@@ -52,6 +52,17 @@ attached to :attr:`CategoryConfig.aggregate`; the LLM endpoint settings are
 shared with the ``enrich:`` section (the aggregator reuses enrich's
 model/batch/budget/cache rails).
 
+Image processing sidecar (10-03-vision-pipeline): an optional top-level
+``images:`` section (:class:`ImagesConfig`) turns on the fetch-tail image
+ring — item image URLs (extract ``img@src`` / L3 markdown same-domain
+collection) are downloaded (SSRF-guarded, magic-byte-checked, size-capped),
+OCRed locally and optionally captioned by a vision LLM; the products land on
+``metadata.image_ocr`` / ``image_caption`` / ``image_status`` for
+analyze/enrich/push. Like ``aggregate:`` it is a sidecar section
+(structured ``$.images`` errors, ``images: null`` absent) attached to
+:attr:`CategoryConfig.images`; disabled or absent means the ring never
+runs (behavior identical to before the section existed).
+
 Raises:
     LoadError: YAML is unreadable/unparsable or fails any schema rule.
     CredentialResolveError: a credential reference cannot be resolved.
@@ -64,7 +75,7 @@ import os
 import re
 from dataclasses import dataclass, field, replace as dataclass_replace
 from pathlib import Path
-from typing import Annotated, Any, Literal, Mapping, Sequence
+from typing import Annotated, Any, ClassVar, Literal, Mapping, Sequence
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -79,6 +90,7 @@ from pydantic import (
     ValidationError,
     field_validator,
     model_validator,
+    ValidationInfo,
 )
 
 from myia import secrets as secrets_store
@@ -113,6 +125,7 @@ __all__ = [
     "StorageConfig",
     "BaselineConfig",
     "AggregateConfig",
+    "ImagesConfig",
     "CategoryPluginConfig",
     "PluginLocalModeConfig",
     "PluginRemoteModeConfig",
@@ -148,7 +161,7 @@ ENGINES = (
 PAGINATION_MODES = ("template", "selector", "scroll")
 EXTRACT_TYPES = ("list", "item", "json_path")
 BACKOFF_POLICIES = ("exponential", "linear", "none")
-PUSH_CHANNELS = ("feishu_card", "telegram", "webhook", "stdout")
+PUSH_CHANNELS = ("feishu_card", "telegram", "ntfy", "dingtalk", "wecom", "webhook", "stdout")
 ROUTE_MODES = ("immediate", "digest", "archive")
 ENRICH_SCORES = ("value", "relevance", "credibility")
 VACUUM_CADENCES = ("daily", "weekly", "monthly", "never")
@@ -165,7 +178,7 @@ EngineName = Literal[
 PaginationMode = Literal["template", "selector", "scroll"]
 ExtractType = Literal["list", "item", "json_path"]
 BackoffPolicy = Literal["exponential", "linear", "none"]
-PushChannel = Literal["feishu_card", "telegram", "webhook", "stdout"]
+PushChannel = Literal["feishu_card", "telegram", "ntfy", "dingtalk", "wecom", "webhook", "stdout"]
 RouteMode = Literal["immediate", "digest", "archive"]
 ScoreName = Literal["value", "relevance", "credibility"]
 VacuumCadence = Literal["daily", "weekly", "monthly", "never"]
@@ -200,6 +213,13 @@ DEFAULT_AGGREGATE_WINDOW_HOURS = 24.0
 #: 事件聚合标题相似度粗筛缺省阈值(字符 shingle Jaccard):达到阈值才进 LLM
 #: 精筛候选(粗筛只管召回候选,精确率由 LLM 判重保证)。
 DEFAULT_AGGREGATE_SIMILARITY = 0.6
+#: 图片处理环缺省每条上限(张):超出静默截断(首张优先,extract 顺序)。
+DEFAULT_IMAGES_MAX_IMAGES = 3
+#: 图片处理环缺省每 run 总上限(张):VL 时长的硬闸,耗尽后条目标
+#: ``skipped:run_limit``(降级矩阵见 myia/vision/collect.py)。
+DEFAULT_IMAGES_MAX_PER_RUN = 30
+#: 图片处理环缺省最小字节(<10KB 视为图标/追踪像素跳过)。
+DEFAULT_IMAGES_MIN_BYTES = 10_240
 
 #: dedup.key placeholders resolvable for every item without appearing in
 #: extract.fields: the Item top-level pipeline fields plus the slot context
@@ -849,10 +869,14 @@ class EnrichConfig(_StrictModel):
 
 
 #: 通道名 → 平台前缀的内置字面映射(10-03-messaging-core design D4:targets
-#: 同平台约束;schema 不反依赖 push 层,新平台接入目录寻址时同步登记)。
+#: 同平台约束;schema 不反依赖 push 层,新平台接入目录寻址时同步登记;
+#: ntfy/dingtalk/wecom 三行随 10-03-messaging-w2-platforms 登记)。
 CHANNEL_PLATFORMS: dict[str, str] = {
     "feishu_card": "feishu",
     "telegram": "telegram",
+    "ntfy": "ntfy",
+    "dingtalk": "dingtalk",
+    "wecom": "wecom",
 }
 
 #: targets 元素形态 ``platform:名称或id``(与 myia.push.targets.SPEC_RE 同源;
@@ -931,6 +955,26 @@ class PushConfig(_StrictModel):
     timeout: float = Field(default=10.0, gt=0)
     retries: int = Field(default=2, ge=0)
     retry_backoff_seconds: float = Field(default=1.0, ge=0)
+    # ---- W2 平台可选凭据引用(10-03-messaging-w2-platforms design D2)----
+    #: ntfy 可选鉴权 token(值 = Bearer token 或 ``user:pass``;省略且
+    #: ``NTFY_TOKEN`` env 未设 = 无鉴权,公共 topic 合法态)。
+    ntfy_token: str | None = None
+    #: 钉钉可选加签密钥(配置即 HMAC-SHA256 加签,MYIA 增量;省略 = 裸
+    #: webhook,蓝本行为)。
+    dingtalk_secret: str | None = None
+    #: 企微自建应用三凭据(省略走缺省 env 引用 WECOM_CORPID/
+    #: WECOM_CORPSECRET/WECOM_AGENTID,发送期解析)。
+    wecom_corpid: str | None = None
+    wecom_corpsecret: str | None = None
+    wecom_agentid: str | None = None
+
+    #: 各通道专属可选凭据字段的合法宿主(仅本通道可配;与 timeout/retries
+    #: 仅 webhook 同一 fail-fast 哲学,不留静默忽略)。
+    _CHANNEL_OPTIONAL_FIELD_HOSTS: ClassVar[dict[str, tuple[str, ...]]] = {
+        "ntfy": ("ntfy_token",),
+        "dingtalk": ("dingtalk_secret",),
+        "wecom": ("wecom_corpid", "wecom_corpsecret", "wecom_agentid"),
+    }
 
     @model_validator(mode="before")
     @classmethod
@@ -947,12 +991,44 @@ class PushConfig(_StrictModel):
                     )
         return data
 
+    @model_validator(mode="before")
+    @classmethod
+    def _check_platform_credential_fields_scope(cls, data: Any) -> Any:
+        """W2 平台凭据字段仅其宿主通道可配(别处出现 = 配置错误,fail-fast)。"""
+        if not isinstance(data, dict):
+            return data
+        channel = data.get("channel")
+        allowed = cls._CHANNEL_OPTIONAL_FIELD_HOSTS.get(channel, ())
+        every = {
+            field
+            for fields in cls._CHANNEL_OPTIONAL_FIELD_HOSTS.values()
+            for field in fields
+        }
+        for key in data:
+            if key in every and key not in allowed:
+                raise SchemaValueError(
+                    "unexpected_platform_field",
+                    f"channel 为 {channel!r} 时不允许配置 {key}"
+                    f"(该字段仅 {sorted(cls._CHANNEL_OPTIONAL_FIELD_HOSTS)} 对应通道支持)",
+                    path_suffix=key,
+                )
+        return data
+
     @field_validator("target")
     @classmethod
     def _check_target_ref(cls, value: str | None) -> str | None:
         if value is None:
             return value
         parse_secret_value(value, label="push[].target", allow_scheme=False)
+        return value
+
+    @field_validator("ntfy_token", "dingtalk_secret", "wecom_corpid", "wecom_corpsecret", "wecom_agentid")
+    @classmethod
+    def _check_platform_credential_refs(cls, value: str | None, info: ValidationInfo) -> str | None:
+        """W2 平台凭据字段同样只收纯 ``env:``/``keychain:`` 引用(禁明文)。"""
+        if value is None:
+            return value
+        parse_secret_value(value, label=f"push[].{info.field_name}", allow_scheme=False)
         return value
 
     @field_validator("targets")
@@ -1181,6 +1257,54 @@ class AggregateConfig(_StrictModel):
 
 
 # ---------------------------------------------------------------------------
+# Image processing sidecar section (10-03-vision-pipeline, 看图入管线)
+# ---------------------------------------------------------------------------
+
+
+class ImagesConfig(_StrictModel):
+    """品类级图片处理声明(top-level ``images:`` sidecar 节)。
+
+    语义:开启后,fetch 阶段尾部(条目入 checkpoint 队列前)对条目携带的
+    图片 URL 执行 下载(SSRF 拒私网/魔法字节白名单/流式 10MB 截断/10s 超时)
+    → 本地 OCR(to_thread 信号量 4)→ 可选 VL 情报向描述,产物挂
+    ``metadata.image_ocr`` / ``image_caption`` / ``image_status``,喂给
+    analyze/enrich 评分与推送模板(见 :mod:`myia.vision.collect` 的降级
+    矩阵——任何失败只写标记,绝不阻断管线)。**未开启 = 整环零进入**,
+    行为与本节不存在时逐字段一致(零影响默认)。
+
+    图片 URL 的来源:extract ``fields`` 配 ``image: img@src``(机制现成,
+    fetch_base 对 src 属性做 urljoin)或 L3 crawl4ai 无 extract 时的
+    markdown 同域图链接收集(拍板⑥:跨域广告/追踪像素不收)。
+
+    源级覆写:``SourceConfig`` 本就 ``extra="allow"``,约定同键平铺参数
+    ``images_enabled`` / ``images_max_images`` / ``images_min_bytes`` /
+    ``images_vl`` / ``images_ocr_engine`` 覆写品类节(装载期不做 schema
+    强校验,非法值告警忽略——与引擎扩展参数同一宽容度;
+    ``max_per_run`` 是 run 级硬闸,不开放源级覆写)。
+
+    与 ``aggregate:`` 同一套 sidecar 机制:由 :func:`load_category` 在装载
+    入口校验(错误路径统一 ``$.images`` 前缀)并挂到
+    :attr:`CategoryConfig.images`;12 节公开契约(SKILL.md / docs 逐字段
+    锁定)不随之增长。
+    """
+
+    enabled: bool = False
+    #: 每条目处理上限(张,1-10):超出部分静默截断。
+    max_images: int = Field(default=DEFAULT_IMAGES_MAX_IMAGES, ge=1, le=10)
+    #: 每 run 图处理总上限(张):VL 时长的硬闸;耗尽后条目标 ``skipped:run_limit``。
+    max_per_run: int = Field(default=DEFAULT_IMAGES_MAX_PER_RUN, ge=1, le=1000)
+    #: 小于该字节数的图视为图标/追踪像素跳过(缺省 10KB)。
+    min_bytes: int = Field(default=DEFAULT_IMAGES_MIN_BYTES, ge=1, le=10_485_760)
+    #: 视觉描述通道:off = 只 OCR(缺省,零 VL 开销);local = 本地 OpenAI
+    #: 兼容端点(vision.yaml ``local`` 节,并发 1、45s/图超时降级);cloud =
+    #: 云端视觉模型(vision.yaml ``cloud`` 节,token 走 enrich 预算池)。
+    vl: Literal["off", "local", "cloud"] = "off"
+    #: OCR 引擎覆写(vision | rapidocr);缺省 None = 按 vision.yaml 的
+    #: ``ocr.engine_default``。
+    ocr_engine: Literal["vision", "rapidocr"] | None = None
+
+
+# ---------------------------------------------------------------------------
 # Scenario plugin declaration (v1.7 dual-mode sidecar section)
 # ---------------------------------------------------------------------------
 
@@ -1342,6 +1466,10 @@ class CategoryConfig(_StrictModel):
     #: 顶层 ``aggregate:`` 节(v0.4 事件聚合 sidecar,见 :class:`AggregateConfig`)。
     _aggregate: AggregateConfig | None = PrivateAttr(default=None)
 
+    #: 顶层 ``images:`` 节(10-03-vision-pipeline 图片处理环 sidecar,
+    #: 见 :class:`ImagesConfig`)。
+    _images: ImagesConfig | None = PrivateAttr(default=None)
+
     @property
     def plugin(self) -> CategoryPluginConfig | None:
         """品类声明的场景插件节;未声明或未经 :func:`load_category` 装载时为 None."""
@@ -1356,6 +1484,11 @@ class CategoryConfig(_StrictModel):
     def aggregate(self) -> AggregateConfig | None:
         """品类声明的事件聚合节;未声明或未经 :func:`load_category` 装载时为 None."""
         return self._aggregate
+
+    @property
+    def images(self) -> ImagesConfig | None:
+        """品类声明的图片处理节;未声明或未经 :func:`load_category` 装载时为 None."""
+        return self._images
 
     @field_validator("id")
     @classmethod
@@ -1496,17 +1629,20 @@ def load_category(data: Mapping[str, Any], *, source: str | None = None) -> Cate
     and lands on :attr:`CategoryConfig.baseline`. The optional top-level
     ``aggregate:`` section (v0.4 事件聚合) follows the same mechanism against
     :class:`AggregateConfig` (paths prefixed ``$.aggregate``, ``null`` absent)
-    and lands on :attr:`CategoryConfig.aggregate`.
+    and lands on :attr:`CategoryConfig.aggregate`. The optional top-level
+    ``images:`` section (10-03-vision-pipeline 图片处理环) follows the same
+    mechanism against :class:`ImagesConfig` (paths prefixed ``$.images``,
+    ``null`` absent) and lands on :attr:`CategoryConfig.images`.
 
     Args:
         data: top-level mapping from ``yaml.safe_load``.
         source: optional file path, carried on :class:`LoadError` for
             doctor-style reporting.
 
-        Raises:
+    Raises:
         LoadError: any of the twelve sections *or* a sidecar section (plugin
-            / baseline / aggregate) fails validation; collects *all* errors in
-            one report.
+            / baseline / aggregate / images) fails validation; collects *all*
+            errors in one report.
     """
     if not isinstance(data, Mapping):
         raise LoadError(
@@ -1517,6 +1653,7 @@ def load_category(data: Mapping[str, Any], *, source: str | None = None) -> Cate
     plugin_data = payload.pop("plugin", None)  # sidecar 节单独校验,不进 12 节模型
     baseline_data = payload.pop("baseline", None)  # 同上(v0.4 趋势基线)
     aggregate_data = payload.pop("aggregate", None)  # 同上(v0.4 事件聚合)
+    images_data = payload.pop("images", None)  # 同上(10-03-vision-pipeline)
     errors: list[LoadErrorDetail] = []
     config: CategoryConfig | None = None
     try:
@@ -1526,6 +1663,7 @@ def load_category(data: Mapping[str, Any], *, source: str | None = None) -> Cate
     plugin_section = _validate_plugin_section(plugin_data, errors)
     baseline_section = _validate_baseline_section(baseline_data, errors)
     aggregate_section = _validate_aggregate_section(aggregate_data, errors)
+    images_section = _validate_images_section(images_data, errors)
     if config is not None and baseline_section is not None:
         # 交叉校验(baseline 节 vs sources):fields 拼错要装载期可检出。
         _check_baseline_fields(config, baseline_section, errors)
@@ -1535,6 +1673,7 @@ def load_category(data: Mapping[str, Any], *, source: str | None = None) -> Cate
     config._plugin = plugin_section
     config._baseline = baseline_section
     config._aggregate = aggregate_section
+    config._images = images_section
     return config
 
 
@@ -1656,6 +1795,35 @@ def _validate_aggregate_section(
         for err in exc.errors():
             detail = _pydantic_error_detail(err)
             errors.append(dataclass_replace(detail, path=f"$.aggregate{detail.path[1:]}"))
+        return None
+
+
+def _validate_images_section(
+    images_data: Any, errors: list[LoadErrorDetail]
+) -> ImagesConfig | None:
+    """Validate the sidecar ``images:`` section, appending structured errors.
+
+    与 :func:`_validate_baseline_section` 同一契约:``None`` = 未声明;非映射 =
+    结构错误;校验失败的错误路径统一加 ``$.images`` 前缀(子映射校验的 loc 相对
+    于节根)。返回 None 时 errors 里必有对应明细。
+    """
+    if images_data is None:
+        return None
+    if not isinstance(images_data, Mapping):
+        errors.append(
+            LoadErrorDetail(
+                "$.images",
+                "invalid_images_section",
+                f"images 节必须是键值映射,当前为 {type(images_data).__name__}",
+            )
+        )
+        return None
+    try:
+        return ImagesConfig.model_validate(dict(images_data))
+    except ValidationError as exc:
+        for err in exc.errors():
+            detail = _pydantic_error_detail(err)
+            errors.append(dataclass_replace(detail, path=f"$.images{detail.path[1:]}"))
         return None
 
 

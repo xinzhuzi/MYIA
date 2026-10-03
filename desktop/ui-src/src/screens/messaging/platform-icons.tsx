@@ -19,7 +19,7 @@
  * 状态三色(绿/黄/灰)不在此文件——那走 MYIA 语义 tokens(platform-overview
  * 的 StatePill),品牌色与状态色两套语言互不混用(与上游一致)。
  */
-import { Bell, Bot, Hash, Home, Mail, MessageSquareText, Webhook } from "lucide-react";
+import { Bot, Hash, Home, Mail, MessageSquareText, Webhook } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 
 import { cn } from "@/lib/utils";
@@ -33,6 +33,16 @@ function TelegramGlyph(props: SVGProps<SVGSVGElement>) {
   return (
     <svg fill="currentColor" viewBox="0 0 24 24" {...props}>
       <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+    </svg>
+  );
+}
+
+/** Simple Icons「ntfy」官方字形(fill=currentColor,24×24;路径数据直接采用,
+ * 采集自 simple-icons develop 分支 icons/ntfy.svg——依赖红线,不引图标包)。 */
+function NtfyGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="currentColor" viewBox="0 0 24 24" {...props}>
+      <path d="M12.597 13.693v2.156h6.205v-2.156ZM5.183 6.549v2.363l3.591 1.901.023.01-.023.009-3.591 1.901v2.35l.386-.211 5.456-2.969V9.729ZM3.659 2.037C1.915 2.037.42 3.41.42 5.154v.002L.438 18.73 0 21.963l5.956-1.583h14.806c1.744 0 3.238-1.374 3.238-3.118V5.154c0-1.744-1.493-3.116-3.237-3.117h-.001zm0 2.2h17.104c.613.001 1.037.447 1.037.917v12.108c0 .47-.424.916-1.038.916H5.633l-3.026.915.031-.179-.017-13.76c0-.47.424-.917 1.038-.917z" />
     </svg>
   );
 }
@@ -57,16 +67,20 @@ export interface PlatformIconSpec {
   wave?: "W2" | "W3";
 }
 
-/** 28 平台(2 已实装精确标 + 26 未实装通用标);键与 IMPLEMENTED/UPCOMING 平台 id 一一对应。 */
+/** 28 平台(5 已实装精确标 + 23 未实装通用标);键与 IMPLEMENTED/UPCOMING 平台 id 一一对应。
+ * W2 转实装(task 10-03-messaging-w2-platforms):ntfy = Simple Icons 官方字形
+ * (品牌色 #317F6F,simple-icons 数据);钉钉/企微品牌方无可用简化标(与飞书
+ * 同款 monogram 处理)——钉钉蓝 #0089FF(开放平台主站主色)、企微标准蓝
+ * #267EF0(官方「应用色值表」blue_btn,developer.work.weixin.qq.com 94594)。 */
 export const PLATFORM_ICON_SPECS: Record<string, PlatformIconSpec> = {
-  // —— 已实装(W1)精确标 ——
+  // —— 已实装精确标 ——
   feishu: { color: "#3370FF", kind: "brand", monogram: "飞" },
   telegram: { Icon: TelegramGlyph, color: "#26A5E4", kind: "brand" },
+  ntfy: { Icon: NtfyGlyph, color: "#317F6F", kind: "brand" },
+  dingtalk: { color: "#0089FF", kind: "brand", monogram: "钉" },
+  wecom: { color: "#267EF0", kind: "brand", monogram: "企" },
   // —— 未实装 W2(近期)通用标 ——
   weixin: { Icon: MessageSquareText, kind: "generic", wave: "W2" },
-  wecom: { Icon: MessageSquareText, kind: "generic", wave: "W2" },
-  dingtalk: { Icon: MessageSquareText, kind: "generic", wave: "W2" },
-  ntfy: { Icon: Bell, kind: "generic", wave: "W2" },
   // —— 未实装 W3(远期)通用标(按形态分组;未知形态用默认消息标) ——
   slack: { Icon: Hash, kind: "generic", wave: "W3" },
   discord: { Icon: MessageSquareText, kind: "generic", wave: "W3" },

@@ -108,6 +108,12 @@ _CHANNEL_CREDENTIAL_ENV_REFS = (
     "env:FEISHU_BOT_TOKEN",
     "env:TELEGRAM_CHAT_ID",
     "env:TELEGRAM_BOT_TOKEN",
+    "env:NTFY_TOKEN",
+    "env:DINGTALK_WEBHOOK_URL",
+    "env:WECOM_TUSER",
+    "env:WECOM_CORPID",
+    "env:WECOM_CORPSECRET",
+    "env:WECOM_AGENTID",
     "env:MYIA_WEBHOOK_URL",
 )
 

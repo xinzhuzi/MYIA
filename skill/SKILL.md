@@ -58,7 +58,7 @@ stderr(整份 stdout 恒可 `json.load`)。退出码:`0` 成功 / `1` 配置或�
 | `PAGINATION_MODES` | `template` `selector` `scroll` |
 | `EXTRACT_TYPES` | `list` `item` `json_path` |
 | `BACKOFF_POLICIES` | `exponential` `linear` `none` |
-| `PUSH_CHANNELS` | `feishu_card` `telegram` `webhook` `stdout` |
+| `PUSH_CHANNELS` | `feishu_card` `telegram` `ntfy` `dingtalk` `wecom` `webhook` `stdout` |
 | `ROUTE_MODES` | `immediate` `digest` `archive` |
 | `ENRICH_SCORES` | `value` `relevance` `credibility` |
 | `VACUUM_CADENCES` | `daily` `weekly` `monthly` `never` |
@@ -188,19 +188,33 @@ stderr(整份 stdout 恒可 `json.load`)。退出码:`0` 成功 / `1` 配置或�
 
 | 字段 | 缺省 | 语义 |
 |---|---|---|
-| `channel` | `必填` | `feishu_card` / `telegram` / `webhook` / `stdout` |
-| `target` | `null` | 推送目标,只能是 `env:`/`keychain:` 引用;`stdout` 禁止配置;其余通道必填 |
-| `targets` | `[]` | 定向推送对象列表,元素 `platform:名称或id`(如 `feishu:AI中转站合伙人群`,自动去重保序);仅 `feishu_card`/`telegram` 支持(webhook/stdout 配即拒),同平台约束:平台前缀须与本条目通道一致,跨平台写多条 push;在场时 `target` 可省;优先级:规则级 `targets` > 通道级 `targets` > legacy `target` |
+| `channel` | `必填` | `feishu_card` / `telegram` / `ntfy` / `dingtalk` / `wecom` / `webhook` / `stdout` |
+| `target` | `null` | 推送目标,只能是 `env:`/`keychain:` 引用;`stdout` 禁止配置;其余通道必填(配 `targets` 的通道可省) |
+| `targets` | `[]` | 定向推送对象列表,元素 `platform:名称或id`(如 `feishu:AI中转站合伙人群`,自动去重保序);仅寻址通道 `feishu_card`/`telegram`/`ntfy`/`dingtalk`/`wecom` 支持(webhook/stdout 配即拒),同平台约束:平台前缀须与本条目通道一致,跨平台写多条 push;在场时 `target` 可省;优先级:规则级 `targets` > 通道级 `targets` > legacy `target` |
 | `route` | `[]` | 阈值路由(见 route 节);留空 = 七大类缺省映射(羊毛/节点/代买 → immediate,其余 → digest) |
 | `template` | `null` | Jinja2 卡片模板(沙箱渲染,未知变量报错);省略用通道内置版式 |
 | `timeout` | `10.0` | 发送超时秒数(**仅 `webhook` 生效**,其他通道配置即拒) |
 | `retries` | `2` | 发送重试次数(仅 `webhook`) |
 | `retry_backoff_seconds` | `1.0` | 发送重试退避秒数(仅 `webhook`) |
+| `ntfy_token` | `null` | ntfy 可选鉴权 token 引用(值 = Bearer 或 `user:pass`);省略且 `env:NTFY_TOKEN` 未设 = 无鉴权(仅 `ntfy` 可配) |
+| `dingtalk_secret` | `null` | 钉钉可选加签密钥引用(配即 HMAC-SHA256 加签;省略 = 裸 webhook)(仅 `dingtalk` 可配) |
+| `wecom_corpid` | `null` | 企微自建应用 corpid 引用;省略走 `env:WECOM_CORPID`(仅 `wecom` 可配) |
+| `wecom_corpsecret` | `null` | 企微自建应用 secret 引用;省略走 `env:WECOM_CORPSECRET`(仅 `wecom` 可配) |
+| `wecom_agentid` | `null` | 企微自建应用 AgentId 引用(数值串);省略走 `env:WECOM_AGENTID`(仅 `wecom` 可配) |
 
 各通道凭据约定:`feishu_card` 的 target = 收件/群 ID(如 `env:FEISHU_CHAT_ID`),
 机器人 token 从 `env:FEISHU_BOT_TOKEN` 读;`telegram` 的 target = chat id
-(`env:TELEGRAM_CHAT_ID`),token 从 `env:TELEGRAM_BOT_TOKEN` 读;`webhook` 的
-target = 端点 URL 引用(如 `env:MYIA_WEBHOOK_URL`);`stdout` 零凭据,本地验证首选。
+(`env:TELEGRAM_CHAT_ID`),token 从 `env:TELEGRAM_BOT_TOKEN` 读;`ntfy` 的
+target = `{server}/{topic}` 整串引用(如 `env:NTFY_TARGET`,定向写
+`ntfy:<topic>` 免配 target、公共 ntfy.sh 兜底),可选鉴权 token 从
+`env:NTFY_TOKEN` 读;`dingtalk` 的 target = 自定义机器人 webhook URL
+(`env:DINGTALK_WEBHOOK_URL`,定向写 `dingtalk:<完整 webhook URL>`),
+可选加签密钥配 `dingtalk_secret`;`wecom` 的 target = touser userid
+(`env:WECOM_TUSER`,定向写 `wecom:<userid>`),corpid/corpsecret/agentid
+从 `env:WECOM_CORPID` / `env:WECOM_CORPSECRET` / `env:WECOM_AGENTID` 读;
+`webhook` 的 target = 端点 URL 引用(如 `env:MYIA_WEBHOOK_URL`);`stdout`
+零凭据,本地验证首选。ntfy/钉钉/企微三平台无目录自动发现(蓝本事实),
+`targets` 走直达 id 或别名手工登记(channel_aliases.json)。
 
 模板上下文:`items`(条目列表,字段来自 extract)、`date`、`slot`、`category`、`count`。
 
@@ -254,9 +268,9 @@ target = 端点 URL 引用(如 `env:MYIA_WEBHOOK_URL`);`stdout` 零凭据,本地
 |---|---|---|---|
 | L1 | `direct_api` | 数据有公开 JSON/REST API(行情、发版、社区 REST) | 最快最省;`extract.type: json_path`;先 curl 确认返回结构再写 fields |
 | L2 | `static_html` | 服务端渲染 HTML(论坛列表、新闻页、Discourse `/latest`) | 零依赖;`extract.type: list` + CSS 选择器 |
-| L3 | `crawl4ai` | JS 渲染页面,源码里看不到数据 | 可选依赖 `myia[crawl4ai]`,未装时报 `dependency_missing` 并继续降级;无 `extract` 时自动结构化兜底 |
+| L3 | `crawl4ai` | JS 渲染页面,源码里看不到数据 | 可选依赖 `shishi[crawl4ai]`,未装时报 `dependency_missing` 并继续降级;无 `extract` 时自动结构化兜底 |
 | L3' | `firecrawl` | crawl4ai 的云端替代后端 | 需 endpoint+key(`MYIA_FIRECRAWL_URL` / `MYIA_FIRECRAWL_API_KEY` 环境变量,或 `engine_options.firecrawl.endpoint/api_key`,值必须是 `env:`/`keychain:` 引用);未配置该层失败并继续降级 |
-| L4 | `scrapling` | 基础盾/改版频繁源:自适应选择器自愈 + 隐身指纹 + `pagination.mode: scroll` 无限滚动 | 可选依赖 `myia[scrapling]`,未装时报 `dependency_missing` 并继续降级;企业级风控(手机验证码/真人审核)零尝试并结构化报错,明确不支持 |
+| L4 | `scrapling` | 基础盾/改版频繁源:自适应选择器自愈 + 隐身指纹 + `pagination.mode: scroll` 无限滚动 | 可选依赖 `shishi[scrapling]`,未装时报 `dependency_missing` 并继续降级;企业级风控(手机验证码/真人审核)零尝试并结构化报错,明确不支持 |
 | L5 | `stealth_browser` | 反检测真浏览器:登录墙(cookie 注入,凭据走 `keychain:`)/ 基础验证码 | 需 invisible_playwright_mcp 服务(`engine_options.stealth_browser`,未启动报 `mcp_server_missing`);手机验证码/真人审核零尝试,报 `captcha_*` 结构化错误,不绕过 |
 | L6 | `llm_browser` | LLM 驱动浏览器(skyvern 自然语言指挥),多步交互/复杂表单死源的最后手段 | 需 skyvern endpoint+key(`engine_options.llm_browser.endpoint/api_key`,值必须是 `env:`/`keychain:` 引用);硬护栏:单源白名单(仅 `engine: llm_browser` 显式指定或 `auto` 链尾触达)+ 每 run 次数/预算熔断 |
 

@@ -555,11 +555,15 @@ describe("消息:平台总览筛选 tabs", () => {
       </MemoryRouter>,
     );
     const overview = await screen.findByTestId("platform-overview");
-    // 缺省选中 feishu(已连接);切到「未启用」后选中不再匹配 → 自动选中第一张灰卡(weixin)
+    // 缺省选中 feishu(已连接);切到「未启用」后选中不再匹配 → 自动选中该筛选
+    // 下第一张卡。fixture 只有 feishu/telegram 已连接 → 第一张未启用 = W2 转实装
+    // 但凭据缺失的 ntfy(需要设置,不是灰卡)。
     fireEvent.click(within(overview).getByTestId("platform-filter-disabled"));
     const detail = within(overview).getByTestId("platform-detail");
-    expect(within(detail).getByText("微信")).toBeTruthy();
-    expect(within(detail).getByText("即将支持")).toBeTruthy();
+    // 名称与 id 行都写着 ntfy(h3 + font-mono id),用文本包含断言选中对象
+    expect(detail.textContent).toContain("ntfy");
+    expect(within(detail).getByText("需要设置")).toBeTruthy();
+    expect(detail.textContent).toContain("无自动发现"); // manual 平台的需要设置说明
   });
 
   it("已实装但凭据缺失 → 归入「未启用」而非「已连接」;切档后详情栏保持在 feishu(需要设置)", async () => {
@@ -649,6 +653,47 @@ describe("消息:详情栏出站凭据指南(唯一入口)", () => {
       expect(text).not.toMatch(/webhook\s*secret/i);
     }
   });
+
+  it("W2 三平台指南各就位(ntfy 自建/公共 topic、钉钉群设置→自定义机器人、企微管理后台自建应用)", async () => {
+    const sidecar = okSidecar();
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+    const overview = await screen.findByTestId("platform-overview");
+
+    // ntfy:凭据 key + curl 冒烟 + 直达寻址指引;指南文案只覆盖出站
+    fireEvent.click(within(overview).getByTestId("platform-card-ntfy"));
+    const ntfyGuide = within(overview).getByTestId("platform-guide-ntfy");
+    expect(ntfyGuide.textContent).toContain("NTFY_TARGET");
+    expect(ntfyGuide.textContent).toContain("NTFY_TOKEN");
+    expect(ntfyGuide.textContent).toContain("docs.ntfy.sh");
+    expect(ntfyGuide.textContent).toContain("curl -d");
+    expect(ntfyGuide.textContent).toContain("ntfy:my-games-alerts");
+    expect(ntfyGuide.textContent).toContain("无自动发现");
+
+    // 钉钉:群设置 → 机器人 → 自定义机器人;加签密钥可配;直达 = 完整 webhook
+    fireEvent.click(within(overview).getByTestId("platform-card-dingtalk"));
+    const dingGuide = within(overview).getByTestId("platform-guide-dingtalk");
+    expect(dingGuide.textContent).toContain("DINGTALK_WEBHOOK_URL");
+    expect(dingGuide.textContent).toContain("群设置");
+    expect(dingGuide.textContent).toContain("自定义");
+    expect(dingGuide.textContent).toContain("dingtalk_secret");
+    expect(dingGuide.textContent).toContain("oapi.dingtalk.com/robot/send");
+
+    // 企微:管理后台建自建应用 → corpid/secret/agentid 三凭据 + touser
+    fireEvent.click(within(overview).getByTestId("platform-card-wecom"));
+    const wecomGuide = within(overview).getByTestId("platform-guide-wecom");
+    expect(wecomGuide.textContent).toContain("WECOM_CORPID");
+    expect(wecomGuide.textContent).toContain("WECOM_CORPSECRET");
+    expect(wecomGuide.textContent).toContain("WECOM_AGENTID");
+    expect(wecomGuide.textContent).toContain("work.weixin.qq.com");
+    expect(wecomGuide.textContent).toContain("wecom:ZhangSan");
+    // 群聊/markdown 是蓝本外能力:描述如实声明只做 text 私聊
+    expect(within(overview).getByTestId("platform-detail").textContent).toContain("text 私聊");
+  });
 });
 
 describe("消息:底部状态条(R4)", () => {
@@ -709,12 +754,21 @@ describe("消息:平台总览派生纯函数", () => {
     expect(deriveImplementedStatus([], [])).toBe("needs_setup");
   });
 
-  it("buildPlatformCards:2 已实装 + 26 未实装;灰卡无指南、id 唯一", () => {
+  it("buildPlatformCards:5 已实装(全缺凭据=需要设置)+ 23 未实装;灰卡无指南、id 唯一", () => {
     const cards = buildPlatformCards({}, []);
     expect(cards).toHaveLength(28);
-    expect(cards.filter((card) => card.status === "needs_setup")).toHaveLength(2);
-    expect(cards.filter((card) => card.status === "coming_soon")).toHaveLength(26);
+    expect(cards.filter((card) => card.status === "needs_setup")).toHaveLength(5);
+    expect(cards.filter((card) => card.status === "coming_soon")).toHaveLength(23);
     expect(new Set(cards.map((card) => card.id)).size).toBe(28);
+    // W2 三平台已转实装:有指南、discovery=manual(无自动发现,蓝本事实)
+    for (const id of ["ntfy", "dingtalk", "wecom"]) {
+      const card = cards.find((c) => c.id === id)!;
+      expect(card.guide).not.toBeNull();
+      expect(card.wave).toBe("W2");
+      expect(card.discovery).toBe("manual");
+    }
+    expect(cards.find((c) => c.id === "feishu")!.discovery).toBe("auto");
+    expect(cards.find((c) => c.id === "telegram")!.discovery).toBe("passive");
     for (const card of cards.filter((c) => c.status === "coming_soon")) {
       expect(card.guide).toBeNull();
       expect(card.directoryCount).toBe(0);

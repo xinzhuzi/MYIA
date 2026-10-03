@@ -142,6 +142,7 @@ from myia.push import (
     send_immediate,
 )
 from myia.push.directory import REFRESH_STALE_SECONDS, ChannelDirectory, ChannelEntry
+from myia.push.wecom import TOKEN_CACHE_FILENAME as WECOM_TOKEN_CACHE_FILENAME
 from myia.push.templates import (
     build_keyword_trends,
     build_trend_table,
@@ -160,8 +161,34 @@ from myia.store import (
     SQLiteStore,
     Store,
 )
+# 图片处理环(10-03-vision-pipeline,fetch 尾部):vision 包重依赖全惰性
+# (ocrmac/rapidocr/openai 都在首次调用时才 import),这里顶层 import 不破
+# 「核心流水线零重依赖」红线——未装 myia[vision] 的环境 OCR 走 ocr_failed 降级。
+from myia.vision.collect import (
+    DOWNLOAD_TIMEOUT_SECONDS as IMAGE_DOWNLOAD_TIMEOUT_SECONDS,
+    ImageRunState,
+    process_item_images,
+)
+from myia.vision.settings import (
+    VISION_FILE_NAME,
+    VisionConfig,
+    VisionConfigError,
+    load_vision_config,
+)
 
 logger = logging.getLogger(__name__)
+
+#: W2 平台可选凭据字段 → 通道构造参数(10-03-messaging-w2-platforms
+#: design D2;schema 已保证字段只在宿主通道出现,这里只做下传)。
+_W2_CHANNEL_FIELD_KWARGS: dict[str, tuple[tuple[str, str], ...]] = {
+    "ntfy": (("ntfy_token", "token_ref"),),
+    "dingtalk": (("dingtalk_secret", "secret_ref"),),
+    "wecom": (
+        ("wecom_corpid", "corpid_ref"),
+        ("wecom_corpsecret", "corpsecret_ref"),
+        ("wecom_agentid", "agentid_ref"),
+    ),
+}
 
 __all__ = [
     "DEFAULT_DB_PATH",
@@ -876,6 +903,9 @@ class Pipeline:
 
         v0.2 起四通道全部实装:用户 YAML 里的 target/template 必须真的到达
         通道(裸构造会静默改走默认 env 引用——要么假失败,要么误投)。
+        W2 平台(10-03-messaging-w2-platforms):可选凭据引用字段同步下传
+        (schema 已保证只在宿主通道出现);wecom 的 token 缓存落数据根
+        (db 父目录,与目录/死信账本同一收口;design D2)。
         """
         channel_cls = CHANNELS[push.channel]  # schema Literal guarantees the name
         kwargs: dict[str, Any] = {}
@@ -888,6 +918,14 @@ class Pipeline:
             kwargs["timeout"] = push.timeout
             kwargs["retries"] = push.retries
             kwargs["retry_backoff_seconds"] = push.retry_backoff_seconds
+        for field, kwarg in _W2_CHANNEL_FIELD_KWARGS.get(push.channel, ()):
+            value = getattr(push, field, None)
+            if value is not None:
+                kwargs[kwarg] = value
+        if push.channel == "wecom":
+            kwargs["token_cache_path"] = (
+                Path(self._db_path).parent / WECOM_TOKEN_CACHE_FILENAME
+            )
         if push.channel == "stdout" and self._stdout_stream is not None:
             # --json 模式:卡片行改写 stderr,run 报告独占 stdout(CLI 契约)
             kwargs["out"] = self._stdout_stream
@@ -945,10 +983,17 @@ class Pipeline:
         if self._aggregator is not None:
             executed = (*EXECUTED_STAGES[:-1], "aggregate", EXECUTED_STAGES[-1])
         # 单轮共享 token 预算(精评 + 事件判重同一个池,PRD: 并入 enrich 预算
-        # 护栏;两个 LLM 阶段合计不越过 budget_per_run)。
+        # 护栏;两个 LLM 阶段合计不越过 budget_per_run)。图片处理环的 VL
+        # caption(10-03-vision-pipeline 拍板③/AC3)同池 spend total_tokens:
+        # 开了 images.vl 的品类即使 enrich 关闭也建池,预算闸门不缺位。
+        images_vl_active = bool(
+            self.config.images is not None
+            and self.config.images.enabled
+            and self.config.images.vl != "off"
+        )
         self._run_budget = (
             BudgetTracker(limit=self.config.enrich.budget_per_run)
-            if self._enricher is not None or self._aggregator is not None
+            if self._enricher is not None or self._aggregator is not None or images_vl_active
             else None
         )
         stages = {name: StageReport(name=name) for name in executed}
@@ -1449,6 +1494,10 @@ class Pipeline:
                 source_report.skip_reason,
                 len(source_report.failures),
             )
+        # 图片处理环(10-03-vision-pipeline 拍板②):fetch 尾部、条目入 checkpoint
+        # 队列前逐条处理——产物挂 metadata,下方 _checkpoint_payload(current) 含
+        # metadata,续跑自然可见;品类未开 images: 节 = 整环零进入(AC1 零影响)。
+        await self._process_item_images_ring(items)
         report.status = "ok"
         logger.info(
             "采集步骤完成 sources=%s items=%s source_failures=%s",
@@ -1529,6 +1578,65 @@ class Pipeline:
                 source.name, source_report.attempts, last_error_type, last_error,
             )
         return source_report, raw_items
+
+    async def _process_item_images_ring(self, items: list[Item]) -> None:
+        """图片处理环入口(10-03-vision-pipeline,拍板②:fetch 阶段尾部)。
+
+        品类 ``images:`` 节未声明/未开启 → 整环零进入(零开销);开启后逐条
+        下载→本地 OCR→可选 VL,产物挂 ``metadata.image_ocr`` /
+        ``image_caption`` / ``image_status``(降级矩阵见
+        :mod:`myia.vision.collect`,任何失败只写标记不阻管线)。
+
+        ``vision.yaml`` 落数据根(db 路径父目录,与消息平台目录同根——CLI
+        cwd / 桌面 ``myia_home()`` 两形态一致);拒载按「VL 不可用、OCR 照常」
+        降级,不 fail run。``max_per_run`` 配额与 VL 预算池都是 run 级状态,
+        由本方法统一持有后逐条传入。
+        """
+        images_cfg = self.config.images
+        if images_cfg is None or not images_cfg.enabled:
+            return
+        try:
+            vision_cfg = load_vision_config(Path(self._db_path).parent / VISION_FILE_NAME)
+        except VisionConfigError as exc:
+            logger.warning(
+                "vision.yaml 拒载,图片处理环按 VL 不可用降级(OCR 照常): %s", exc
+            )
+            vision_cfg = VisionConfig()
+        run_state = ImageRunState(remaining=images_cfg.max_per_run)
+        source_extra = {source.name: source.extra_params for source in self.config.sources}
+        # 测试注入的 client(MockTransport)直接复用——每请求 10s 帽与
+        # follow_redirects=False 由 collect 层保证;未注入才自建下载专用 client。
+        client = self._injected_client
+        own_client = client is None
+        if own_client:
+            client = httpx.AsyncClient(
+                timeout=IMAGE_DOWNLOAD_TIMEOUT_SECONDS, follow_redirects=False
+            )
+        try:
+            for item in items:
+                try:
+                    await process_item_images(
+                        item,
+                        images_cfg=images_cfg,
+                        vision_cfg=vision_cfg,
+                        budget=self._run_budget,
+                        run_state=run_state,
+                        client=client,
+                        source_extra=source_extra.get(item.source or ""),
+                    )
+                except Exception as exc:  # noqa: BLE001 - 降级矩阵外的兜底:图析绝不阻管线
+                    item.metadata["image_status"] = "skipped:internal_error"
+                    logger.warning(
+                        "图片处理环异常(只写标记,不阻管线) url=%s: %s", item.url, exc
+                    )
+        finally:
+            if own_client:
+                await client.aclose()
+        if run_state.throttled_items:
+            logger.info(
+                "图片处理环完成 items=%s run_limit_throttled=%s quota_left=%s",
+                len(items), run_state.throttled_items, run_state.remaining,
+            )
 
     async def _stage_classify(
         self,

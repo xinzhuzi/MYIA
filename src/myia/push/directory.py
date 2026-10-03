@@ -42,6 +42,7 @@ from typing import Any, Iterable, Mapping
 __all__ = [
     "ALIASES_FILENAME",
     "DIRECTORY_FILENAME",
+    "DirectoryDiscoverUnsupported",
     "REFRESH_STALE_SECONDS",
     "ChannelEntry",
     "ChannelDirectory",
@@ -59,6 +60,30 @@ REFRESH_STALE_SECONDS = 300.0
 
 #: entry ``type`` 取值约定(与通道实现共享;对齐 Hermes 的 channel/dm/forum 语汇)。
 ENTRY_TYPES = ("group", "dm", "channel", "topic")
+
+
+class DirectoryDiscoverUnsupported(RuntimeError):
+    """该平台**没有**目录发现能力(蓝本事实),不是刷新失败。
+
+    10-03-messaging-w2-platforms design D4:ntfy/dingtalk/wecom 三家在蓝本里
+    均无「列出可达对象」的 API(MYIA 侧也无入站可回填),目录条目唯一来源是
+    别名文件手工登记 + 直达 id。发现路径遇到本异常按「该平台无自动发现」
+    处理——静默跳过/如实说明,绝不计为失败、不假装刷新出空目录:
+
+    - :meth:`ChannelDirectory.refresh` 捕获后 debug 日志跳过(保留旧桶);
+    - CLI ``channels refresh`` 打印说明并以 0 退出(payload 记 ``no_discovery``);
+    - 桌面 sidecar ``channels.refresh`` 转 ``discover_not_supported`` 结构化错误。
+
+    与 telegram 的被动积累(``discover_directory`` 缺席)语义不同:telegram
+    条目会随入站观测自动进目录,这三家连隐式积累都没有——所以走显式
+    异常而非「无钩子」约定。
+    """
+
+    def __init__(self, message: str = "") -> None:
+        super().__init__(
+            message
+            or "该平台无自动发现(蓝本事实):请用别名登记或直达 id 寻址"
+        )
 
 
 @dataclass
@@ -335,11 +360,13 @@ class ChannelDirectory:
         照常(Hermes ``build_channel_directory`` 同语义)。
 
         Args:
-            adapters: platform → 通道实例;缺 ``discover_directory`` 的跳过。
+            adapters: platform → 通道实例;缺 ``discover_directory`` 的跳过;
+                抛 :class:`DirectoryDiscoverUnsupported` 的(无自动发现平台,
+                蓝本事实)同样跳过——debug 级日志,不算失败。
             now: 时间源注入(测试)。
 
         Returns:
-            每平台条目数 ``{platform: count}``(失败平台不在结果里)。
+            每平台条目数 ``{platform: count}``(失败/无发现平台不在结果里)。
         """
         stamp = now if now is not None else self._wall_clock()
         counts: dict[str, int] = {}
@@ -350,6 +377,10 @@ class ChannelDirectory:
                 continue
             try:
                 entries = await discover()
+            except DirectoryDiscoverUnsupported as exc:
+                # 无自动发现是平台事实(prd R4):不告警不计数,保留旧桶。
+                logger.debug("平台无自动发现,跳过目录刷新: platform=%s note=%s", platform, exc)
+                continue
             except Exception as exc:  # noqa: BLE001 - 刷新失败退回旧目录,不阻塞推送
                 logger.warning(
                     "目录刷新失败,保留该平台旧桶: platform=%s error=%s", platform, exc

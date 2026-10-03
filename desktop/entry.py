@@ -26,6 +26,7 @@
     {"type": "log",       "run_id": 3, "stream": "stderr", "line": "…", "ts": "…"}
     {"type": "progress",  "run_id": 3, "phase": "source_done", "source": "…", "items": "2", "ts": "…"}
     {"type": "completed", "run_id": 3, "exit_code": 0, "status": "success", …, "ts": "…"}
+    {"type": "test.completed", "job_id": 1, "ok": true, "exit_code": 0, "result": {…}, "ts": "…"}
 
 == 方法集(覆盖现有 CLI 能力) ==
 
@@ -38,13 +39,20 @@ plugins.list      ``myia plugin list --json``    已装插件清单 + findings
 doctor            ``myia doctor --json``         findings 全量(完成即 0)
 run.start         ``myia run <yaml>``            后台子进程,立即返回 run_id
 run.status        (sidecar 内注册表)             state/exit_code/status/record
+run.cancel        (进程组杀 run 子进程)           SIGTERM→5s 后 SIGKILL 兜底;
+                                                 信号终局 status="cancelled"
+runs.list         (SQLiteStore.list_runs 直读)   历史 run(新→旧;重启后可达)
 logs.tail         (sidecar 内环形缓冲)            最近日志行(可按 run_id 过滤)
-store.items       (SQLiteStore.list_items 直读)  情报流条目(新→旧)
+store.items       (SQLiteStore.list_items 直读)  情报流条目(新→旧;游标/搜索)
 secret.set        ``myia secret set``            只入系统钥匙链,值零回显
 secret.list       ``myia secret list``           只有名字,值不可读
+secret.delete     ``myia secret delete``         误存凭据的 UI 清除口
 sources.write     (品类 YAML 源启停写回)          disable 摘出/enable 移回
                                                  (文本手术,注释逐字节保真);
                                                  落盘前过 load_category 同门
+sources.test      ``myia test <yaml> --source``  试抓此源,异步 job;结果走
+                                                 test.completed 事件(同步实现
+                                                 会撞壳层 120s 硬超时,禁)
 yaml.list         (plugins 目录扫描)              品类 YAML 清单(坏文件带
                                                  error 入列,可读可修)
 yaml.read         (原文直读)                      UTF-8 原文(newline="" 逐
@@ -77,7 +85,23 @@ push.write         (push[] 全量替换写回)           围栏→push 块文本
   ``config``(全局 pools YAML)。同一时刻只允许一个 run(``run_busy`` 结构化拒绝);
   子进程 = 冻结包自启(直通模式)/ dev 下 ``python -m myia.cli``,退出码
   0/1/2/3 由 CLI 原样带回,随 ``completed`` 事件透传(退出码语义保留)。
-- ``store.items`` params:``db``、``category``、``since``(ISO 时间)、``limit``。
+- ``run.cancel`` params:``run_id``(缺省 = 当前活跃 run);应答
+  ``{run_id, cancelled, state}``;未知 id/无活跃 run = ``run_not_found``,
+  已终态 = ``run_not_active``(data 带 state)。杀进程走 ``os.killpg``
+  进程组(onefile bootloader+孙进程一锅端;run 子进程
+  ``start_new_session=True`` 自成进程组)。
+- ``runs.list`` params:``db``、``category``、``limit``(缺省 50,钳制 [1,200]);
+  直读 runs 表(新→旧),sidecar 重启后历史仍在。
+- ``store.items`` params:``db``、``category``、``since``(ISO 时间)、``limit``、
+  ``query``(title/content/source 三列 LIKE NOCASE)、``before``(ISO 时间,
+  first_seen 严格小于)、``before_id``(与 before 组成 ``(first_seen, id)``
+  复合游标;同刻批量超单页 limit 也能翻页取尽)。
+- ``secret.delete`` params:``name``;secrets 层 code 透传(``secret_not_found``
+  第二次删除、``invalid_secret_name`` 等)。
+- ``sources.test`` params:``file``(必填,围栏)、``source``(缺省 = 全部源)、
+  ``timeout``(≤120)、``config``;应答 ``{job_id, state:"running", source?}``,
+  结果走事件 ``test.completed {job_id, ok, exit_code, result?|error?, ts}``;
+  单飞 = ``test_busy``,装不上品类 = ``source_file_unreadable``。
 - ``run.status`` / ``logs.tail`` params:``run_id``(可省)/ ``lines``(tail 上限)。
 - ``health`` params:``plugins_dir``、``db``;``plugins.list`` params:``dir``;
   ``doctor`` params:``yamls[]``、``plugins_dir``、``db``、``config``、``probe_timeout``。
@@ -127,6 +151,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -140,7 +165,7 @@ import yaml
 from myia import push as myia_push
 from myia.cli import DEFAULT_DB_PATH, DEFAULT_PLUGINS_DIR, main as cli_main
 from myia.plugins.installed import INSTALL_ROOT_ENV, default_install_root
-from myia.push import ChannelDirectory, DeliveryLedger, PushSendError
+from myia.push import ChannelDirectory, DeliveryLedger, DirectoryDiscoverUnsupported, PushSendError
 from myia.schema import (
     CATEGORY_ID_RE,
     CHANNEL_PLATFORMS,
@@ -153,7 +178,7 @@ from myia.schema import (
     load_category,
     load_category_file,
 )
-from myia.secrets import SecretError, list_secrets, set_secret
+from myia.secrets import SecretError, delete_secret, list_secrets, set_secret
 from myia.store import SQLiteStore, StoreSchemaError
 from myia.vision import (
     VISION_FILE_NAME,
@@ -543,15 +568,35 @@ def _item_dict(item: Any) -> dict[str, Any]:
 
 
 def _m_store_items(params: dict[str, Any]) -> dict[str, Any]:
-    """SQLiteStore.list_items 直读(数据面复用:SQLite 单库,零新后端)。"""
+    """SQLiteStore.list_items 直读(数据面复用:SQLite 单库,零新后端)。
+
+    游标(C1,与 feed-ux G1 合流形状):``before`` = first_seen 严格小于;
+    ``before_id`` 与之组成 ``(first_seen, id)`` 复合游标(同刻条目超单页
+    limit 也能推进直至取尽);``query`` = title/content/source 三列 LIKE
+    NOCASE。全部可选,旧调用零感知。
+    """
     db = params.get("db") or _serve_context().db
-    since_raw = params.get("since")
-    since = None
-    if since_raw:
+
+    def _parse_iso(name: str) -> datetime | None:
+        raw = params.get(name)
+        if not raw:
+            return None
         try:
-            since = datetime.fromisoformat(str(since_raw))
+            return datetime.fromisoformat(str(raw))
         except ValueError as exc:
-            raise ProtocolError("invalid_params", f"since 不是合法 ISO 时间: {since_raw}", path="params.since") from exc
+            raise ProtocolError("invalid_params", f"{name} 不是合法 ISO 时间: {raw}", path=f"params.{name}") from exc
+
+    since = _parse_iso("since")
+    before = _parse_iso("before")
+    before_id = params.get("before_id")
+    if before_id is not None:
+        if not isinstance(before_id, int) or isinstance(before_id, bool) or before_id < 1:
+            raise ProtocolError("invalid_params", "before_id 必须为正整数(与 before 同传)", path="params.before_id")
+        if before is None:
+            raise ProtocolError("invalid_params", "before_id 需与 before 同传(复合游标)", path="params.before_id")
+    query = params.get("query")
+    if query is not None and not isinstance(query, str):
+        raise ProtocolError("invalid_params", "query 必须为字符串", path="params.query")
     limit = params.get("limit")
     if limit is not None and (not isinstance(limit, int) or limit < 1):
         raise ProtocolError("invalid_params", "limit 必须为正整数", path="params.limit")
@@ -561,7 +606,8 @@ def _m_store_items(params: dict[str, Any]) -> dict[str, Any]:
         raise ProtocolError(exc.code, str(exc), path="params.db", data=exc.details) from exc
     try:
         items = store.list_items(
-            category=params.get("category"), since=since, limit=limit
+            category=params.get("category"), since=since, before=before,
+            before_id=before_id, query=query or None, limit=limit,
         )
     except ValueError as exc:  # store 层参数校验(空 category 等)
         raise ProtocolError("invalid_params", str(exc), path="params") from exc
@@ -591,6 +637,22 @@ def _m_secret_list(params: dict[str, Any]) -> dict[str, Any]:
     except SecretError as exc:
         raise ProtocolError(exc.code, str(exc)) from exc
     return {"names": names}
+
+
+def _m_secret_delete(params: dict[str, Any]) -> dict[str, Any]:
+    """薄包装 myia.secrets.delete_secret:误存凭据的 UI 清除口(C5)。
+
+    凭据只有名字无值,无回显问题;重复删除第二次 ``secret_not_found``
+    (幂等性归调用方,与 CLI 同门)。
+    """
+    name = params.get("name")
+    if not isinstance(name, str) or not name:
+        raise ProtocolError("invalid_params", "缺少凭据名 name(myia/<scope>/<name>)", path="params.name")
+    try:
+        delete_secret(name)
+    except SecretError as exc:
+        raise ProtocolError(exc.code, str(exc), path="params.name") from exc
+    return {"name": name, "deleted": True}
 
 
 # ---------------------------------------------------------------------------
@@ -1585,6 +1647,137 @@ def _m_yaml_delete(params: dict[str, Any]) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# 方法:sources.test(试抓此源,异步 job;C13)
+# ---------------------------------------------------------------------------
+
+# 同步实现禁令的依据:每源试抓缺省 120s(cli.py DEFAULT_TEST_TIMEOUT_SECONDS)
+# = 壳层单请求 120s 硬超时(main.rs REQUEST_TIMEOUT),同步必撞 sidecar_timeout;
+# 且 serve 循环单线程,同步会把整个桌面后端卡死至抓完 —— 照 image.analyze
+# 先例做异步 job:提交即返 job_id,结果走 test.completed 事件。
+_TEST_LOCK = threading.Lock()
+_TEST_ACTIVE_JOB: int | None = None
+_TEST_NEXT_JOB_ID = 0
+
+
+def _sources_test_worker(job_id: int, cmd: list[str], env: dict[str, str], source: str | None) -> None:
+    """后台线程:试抓子进程 → stderr 入环形缓冲(run_id=null)→ test.completed。"""
+    global _TEST_ACTIVE_JOB
+    try:
+        proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env,
+            text=True, encoding="utf-8", errors="replace", bufsize=1,
+            start_new_session=True,
+        )
+        # stdout 收集(末份 --json 文档;不进环形缓冲——试抓报告不是日志行),
+        # stderr 走 _pump_stream(环形缓冲 + log 事件,logs.tail 可诊断)。
+        stdout_lines: list[str] = []
+
+        def _collect_stdout() -> None:
+            assert proc.stdout is not None
+            for raw in proc.stdout:
+                stdout_lines.append(raw)
+
+        readers = [
+            threading.Thread(target=_collect_stdout, daemon=True),
+            threading.Thread(target=_pump_stream, args=(None, proc.stderr, "stderr"), daemon=True),
+        ]
+        for thread in readers:
+            thread.start()
+        exit_code = proc.wait()
+        for thread in readers:
+            thread.join(timeout=5)
+        payload = None
+        for raw in reversed(stdout_lines):
+            line = raw.strip()
+            if not line:
+                continue
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                payload = parsed
+                break
+        ok = exit_code == 0 and payload is not None and "error" not in payload
+        event: dict[str, Any] = {
+            "type": "test.completed", "job_id": job_id, "ok": ok,
+            "exit_code": exit_code, "ts": _now_iso(),
+        }
+        if ok:
+            event["result"] = payload
+        else:
+            event["error"] = (payload or {}).get("error", "cli_error") if payload else "cli_error"
+            if payload:
+                event["data"] = payload
+        _write_line(event)
+    except Exception as exc:  # noqa: BLE001 — 兜底:事件必须可见
+        _write_line({
+            "type": "test.completed", "job_id": job_id, "ok": False, "exit_code": None,
+            "error": "internal_error", "data": {"message": f"{type(exc).__name__}: {exc}"},
+            "ts": _now_iso(),
+        })
+    finally:
+        with _TEST_LOCK:
+            if _TEST_ACTIVE_JOB == job_id:
+                _TEST_ACTIVE_JOB = None
+
+
+def _m_sources_test(params: dict[str, Any]) -> dict[str, Any]:
+    """试抓此源(C13):围栏 → 异步 job(``myia test <yaml> --source <s> --json``)。
+
+    ``file`` 过 :func:`_fence_yaml_path`(试抓不得成为任意文件读原语);
+    品类装不上 = ``source_file_unreadable``;单飞 = ``test_busy``。
+    结果只走 ``test.completed`` 事件(提交即返,不阻塞 serve 循环)。
+    """
+    global _TEST_ACTIVE_JOB, _TEST_NEXT_JOB_ID
+    file_raw = params.get("file")
+    if not isinstance(file_raw, str) or not file_raw:
+        raise ProtocolError("invalid_params", "缺少品类 YAML 路径 file", path="params.file")
+    resolved, _ctx = _fence_yaml_path(file_raw)
+    source = params.get("source")
+    if source is not None and (not isinstance(source, str) or not source):
+        raise ProtocolError("invalid_params", "source 必须为非空字符串", path="params.source")
+    timeout = params.get("timeout")
+    if timeout is not None:
+        if not isinstance(timeout, (int, float)) or isinstance(timeout, bool) or timeout <= 0:
+            raise ProtocolError("invalid_params", "timeout 必须为正数秒(≤120)", path="params.timeout")
+        if timeout > 120:
+            raise ProtocolError("invalid_params", "timeout 上限 120s(壳层单请求硬超时同值)", path="params.timeout")
+    config = params.get("config")
+    if config is not None and not isinstance(config, str):
+        raise ProtocolError("invalid_params", "config 必须为字符串(全局 pools YAML 路径)", path="params.config")
+    # 装不上品类:结构化即时拒(同 CLI load_category_file 门,零外网预检)
+    try:
+        load_category_file(resolved)
+    except LoadError as exc:
+        raise ProtocolError(
+            "source_file_unreadable", f"品类 YAML 装不上: {exc}",
+            path="params.file", data={"file": str(resolved)},
+        ) from exc
+    with _TEST_LOCK:
+        if _TEST_ACTIVE_JOB is not None:
+            raise ProtocolError(
+                "test_busy", f"已有试抓在执行 job_id={_TEST_ACTIVE_JOB}(单飞)",
+                data={"active_job_id": _TEST_ACTIVE_JOB},
+            )
+        _TEST_NEXT_JOB_ID += 1
+        job_id = _TEST_NEXT_JOB_ID
+        _TEST_ACTIVE_JOB = job_id
+    argv_tail = ["test", str(resolved), "--json"]
+    if source:
+        argv_tail += ["--source", source]
+    if timeout is not None:
+        argv_tail += ["--timeout", str(timeout)]
+    if config:
+        argv_tail += ["--config", config]
+    cmd, env = _self_command(argv_tail)
+    threading.Thread(
+        target=_sources_test_worker, args=(job_id, cmd, env, source), daemon=True,
+    ).start()
+    return {"job_id": job_id, "state": "running", **({"source": source} if source else {})}
+
+
+# ---------------------------------------------------------------------------
 # 方法:run.start / run.status / logs.tail(run 子进程 + 注册表 + 日志流)
 # ---------------------------------------------------------------------------
 
@@ -1592,6 +1785,13 @@ _RUNS_LOCK = threading.Lock()
 _RUNS: dict[int, dict[str, Any]] = {}
 _NEXT_RUN_ID = 0
 _ACTIVE_RUN_ID: int | None = None
+#: run 子进程注册表(run.cancel 的杀进程落点;C2)。与 _RUNS 分家:
+#: _RUNS 条目会整个进 run.status 应答,Popen 对象绝不能随行出协议面。
+_RUN_PROCS: dict[int, subprocess.Popen] = {}
+#: run.cancel 兜底计时器(持有引用防 GC 提前回收计时线程)。
+_CANCEL_TIMERS: list[threading.Timer] = []
+#: SIGTERM 后的 SIGKILL 宽限(run 子进程自清理窗口;killpg 进程组杀)。
+_CANCEL_KILL_GRACE_SECONDS = 5.0
 
 #: pipeline 结构化日志(logging 规范 key=value 形态)→ 进度事件。
 #: 日志文案变化时优雅退化(进度事件停发,log 事件照常),不影响正确性。
@@ -1644,15 +1844,39 @@ def _pump_stream(run_id: int, stream_obj: Any, stream_name: str) -> None:
             _emit_progress(run_id, line)
 
 
+def _run_record_dict(record: Any) -> dict[str, Any]:
+    """RunRecord → 协议字典(runs.list 行与 completed.record 同一形状,防两处漂移)。"""
+    return {
+        "run_id": record.id,
+        "category": record.category,
+        "status": record.status,
+        "started_at": record.started_at.isoformat() if record.started_at else None,
+        "finished_at": record.finished_at.isoformat() if record.finished_at else None,
+        "stats": record.stats,
+        "steps": record.steps,
+        "error": record.error,
+    }
+
+
 def _run_worker(run_id: int, cmd: list[str], env: dict[str, str], *, dry: bool, db: str,
                 yaml_path: str, started_at: str, wall_start: float) -> None:
-    """后台线程:跑 run 子进程 → 流式 log/progress 事件 → completed 事件。"""
+    """后台线程:跑 run 子进程 → 流式 log/progress 事件 → completed 事件。
+
+    ``start_new_session=True``:run 自成进程组(dev 单进程形态行为不变)——
+    冻结包是 onefile 双进程(bootloader + 真实 python 采集孙进程),
+    run.cancel 用 killpg 才能一锅端,裸 ``proc.kill`` 只杀 bootloader
+    漏孙进程(design §2.2 实证;dev 测试单进程,孙进程证据在装机冒烟)。
+    """
     global _ACTIVE_RUN_ID
+    proc = None
     try:
         proc = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env,
             text=True, encoding="utf-8", errors="replace", bufsize=1,
+            start_new_session=True,
         )
+        with _RUNS_LOCK:
+            _RUN_PROCS[run_id] = proc
         readers = [
             threading.Thread(target=_pump_stream, args=(run_id, proc.stdout, "stdout"), daemon=True),
             threading.Thread(target=_pump_stream, args=(run_id, proc.stderr, "stderr"), daemon=True),
@@ -1670,16 +1894,7 @@ def _run_worker(run_id: int, cmd: list[str], env: dict[str, str], *, dry: bool, 
                 store = SQLiteStore(db)
                 latest = store.latest_run()
                 if latest is not None:
-                    record = {
-                        "run_id": latest.id,
-                        "category": latest.category,
-                        "status": latest.status,
-                        "started_at": latest.started_at.isoformat() if latest.started_at else None,
-                        "finished_at": latest.finished_at.isoformat() if latest.finished_at else None,
-                        "stats": latest.stats,
-                        "steps": latest.steps,
-                        "error": latest.error,
-                    }
+                    record = _run_record_dict(latest)
             except Exception:  # noqa: BLE001 — record 尽力而为,缺位不拦 completed
                 record = None
             finally:
@@ -1688,6 +1903,12 @@ def _run_worker(run_id: int, cmd: list[str], env: dict[str, str], *, dry: bool, 
         status = STATUS_BY_EXIT.get(exit_code) if exit_code is not None else None
         if record is not None:
             status = record["status"]
+        # 取消信号终局(SIGTERM/SIGKILL 都呈负退出码):可辨认终态 cancelled,
+        # 优先于 runs 表残留状态(被杀 run 的表行停在 running,不回填不误报)。
+        with _RUNS_LOCK:
+            cancel_requested = bool(_RUNS.get(run_id, {}).get("cancel_requested"))
+        if cancel_requested and exit_code is not None and exit_code < 0:
+            status = "cancelled"
         duration_ms = int((datetime.now(timezone.utc).timestamp() - wall_start) * 1000)
         entry = _RUNS[run_id]
         entry.update(state="done", exit_code=exit_code, status=status,
@@ -1704,8 +1925,48 @@ def _run_worker(run_id: int, cmd: list[str], env: dict[str, str], *, dry: bool, 
                      "dry": dry, "error": f"{type(exc).__name__}: {exc}", "ts": _now_iso()})
     finally:
         with _RUNS_LOCK:
+            _RUN_PROCS.pop(run_id, None)
             if _ACTIVE_RUN_ID == run_id:
                 _ACTIVE_RUN_ID = None
+
+
+def _m_run_cancel(params: dict[str, Any]) -> dict[str, Any]:
+    """取消进行中的 run(进程组杀;C2)。SIGTERM → 宽限后 SIGKILL 兜底,立即返回。
+
+    错误:未知 id / 无进行中 run = ``run_not_found``;已终态 = ``run_not_active``
+    (data 带 state)。onefile 双进程必须 ``os.killpg``(bootloader 会转发
+    SIGTERM 给孙进程;SIGKILL 兜底也走进程组,防孙进程成孤儿继续采集)。
+    """
+    run_id = params.get("run_id")
+    with _RUNS_LOCK:
+        if run_id is None:
+            run_id = _ACTIVE_RUN_ID
+            if run_id is None:
+                raise ProtocolError("run_not_found", "当前没有进行中的 run", path="params.run_id")
+        entry = _RUNS.get(run_id)
+        if entry is None:
+            raise ProtocolError("run_not_found", f"无此 run_id: {run_id}", path="params.run_id")
+        if entry.get("state") != "running":
+            raise ProtocolError(
+                "run_not_active", f"run {run_id} 已终态,不可取消",
+                path="params.run_id", data={"state": entry.get("state")},
+            )
+        proc = _RUN_PROCS.get(run_id)
+        entry["cancel_requested"] = True
+    if proc is not None and proc.poll() is None:
+        def _kill_group(sig: int) -> None:
+            try:
+                os.killpg(os.getpgid(proc.pid), sig)  # type: ignore[arg-type]
+            except (ProcessLookupError, PermissionError):
+                pass  # 进程已收尸/权限边界:宽限兜底自然无事可做
+
+        _kill_group(signal.SIGTERM)
+        timer = threading.Timer(_CANCEL_KILL_GRACE_SECONDS, _kill_group, args=(signal.SIGKILL,))
+        timer.daemon = True
+        timer.start()
+        with _RUNS_LOCK:
+            _CANCEL_TIMERS.append(timer)
+    return {"run_id": run_id, "cancelled": True, "state": "running"}
 
 
 def _m_run_start(params: dict[str, Any]) -> dict[str, Any]:
@@ -1759,6 +2020,35 @@ def _m_run_status(params: dict[str, Any]) -> dict[str, Any]:
         else:
             runs = [dict(_RUNS[key]) for key in sorted(_RUNS, reverse=True)]
     return {"runs": runs}
+
+
+def _m_runs_list(params: dict[str, Any]) -> dict[str, Any]:
+    """runs 表直读(SQLiteStore.list_runs,新→旧;C3)。
+
+    run.status 只读内存注册表,sidecar 重启即空 —— 历史成功率的真数据源
+    是 runs 表;内存态仅保留「进行中」语义。limit 钳制 [1,200](钳制不报错)。
+    """
+    limit_raw = params.get("limit", 50)
+    if limit_raw is None:
+        limit_raw = 50
+    if not isinstance(limit_raw, int) or isinstance(limit_raw, bool):
+        raise ProtocolError("invalid_params", "limit 必须为整数", path="params.limit")
+    limit = max(1, min(limit_raw, 200))
+    category = params.get("category")
+    if category is not None and not isinstance(category, str):
+        raise ProtocolError("invalid_params", "category 必须为字符串", path="params.category")
+    db = params.get("db") or _serve_context().db
+    try:
+        store = SQLiteStore(db)
+    except StoreSchemaError as exc:
+        raise ProtocolError(exc.code, str(exc), path="params.db", data=exc.details) from exc
+    try:
+        records = store.list_runs(category=category or None, limit=limit)
+    except ValueError as exc:
+        raise ProtocolError("invalid_params", str(exc), path="params") from exc
+    finally:
+        store.close()
+    return {"db": str(db), "count": len(records), "runs": [_run_record_dict(record) for record in records]}
 
 
 def _m_logs_tail(params: dict[str, Any]) -> dict[str, Any]:
@@ -1898,7 +2188,9 @@ def _push_raw_dict(push: Any) -> dict[str, Any]:
 
     只携带显式声明的字段:None 的 target/template、空 targets、空 route
     都不出现 —— UI 原样回传时与「手写 YAML 的最小条目」等价,不引入
-    schema 会拒的显式默认值(如非 webhook 通道的 timeout)。
+    schema 会拒的显式默认值(如非 webhook 通道的 timeout)。W2 平台可选
+    凭据引用字段(10-03-messaging-w2-platforms)同理:显式声明才携带,
+    回传经 load_category 同门校验(schema 保证只在宿主通道出现)。
     """
     raw: dict[str, Any] = {"channel": push.channel}
     if push.target is not None:
@@ -1907,6 +2199,16 @@ def _push_raw_dict(push: Any) -> dict[str, Any]:
         raw["targets"] = list(push.targets)
     if push.template is not None:
         raw["template"] = push.template
+    for field in (
+        "ntfy_token",
+        "dingtalk_secret",
+        "wecom_corpid",
+        "wecom_corpsecret",
+        "wecom_agentid",
+    ):
+        value = getattr(push, field, None)
+        if value is not None:
+            raw[field] = value
     if push.route:
         raw["route"] = [
             {"when": rule.when, "mode": rule.mode, **({"targets": list(rule.targets)} if rule.targets else {})}
@@ -1975,6 +2277,16 @@ def _m_channels_refresh(params: dict[str, Any]) -> dict[str, Any]:
     try:
         discovered = adapter.discover_directory()
         entries = asyncio.run(discovered) if inspect.isawaitable(discovered) else discovered
+    except DirectoryDiscoverUnsupported as exc:
+        # W2 平台(ntfy/dingtalk/wecom,10-03-messaging-w2-platforms 蓝本事实):
+        # 无自动发现是平台形态而非失败——与 telegram 被动积累同一错误族
+        # (discover_not_supported),UI 据文案指引用户走直达 id / 别名登记。
+        raise ProtocolError(
+            "discover_not_supported",
+            str(exc),
+            path="params.platform",
+            data={"platform": platform},
+        ) from exc
     except PushSendError as exc:
         raise ProtocolError(
             "channel_refresh_failed",
@@ -2259,11 +2571,15 @@ _HANDLERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "doctor": _m_doctor,
     "run.start": _m_run_start,
     "run.status": _m_run_status,
+    "run.cancel": _m_run_cancel,
+    "runs.list": _m_runs_list,
     "logs.tail": _m_logs_tail,
     "store.items": _m_store_items,
     "secret.set": _m_secret_set,
     "secret.list": _m_secret_list,
+    "secret.delete": _m_secret_delete,
     "sources.write": _m_sources_write,
+    "sources.test": _m_sources_test,
     "yaml.list": _m_yaml_list,
     "yaml.read": _m_yaml_read,
     "yaml.validate": _m_yaml_validate,
