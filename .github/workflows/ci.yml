@@ -55,6 +55,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      # tauri 在 Linux 的系统依赖(GTK/WebKit/glib):裸 ubuntu runner 没有,
+      # glib-sys 等经 pkg-config 找不到 .pc 直接红(tauri 官方 prerequisites)。
+      - name: Install Tauri Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev \
+            librsvg2-dev libayatana-appindicator3-dev
       # tauri-build 的 build.rs 校验 externalBin 存在性,而 binaries/ 被 gitignore
       # (.gitignore:67),fresh checkout 必须先造占位再 check(不必真跑 PyInstaller;
       # 起草期实测:无占位必红,占位后全绿)。
