@@ -3,7 +3,7 @@
   "name": "aipocket-fusion",
   "title": "aipocket 有用模块融合(功能重实现)",
   "description": "aipocket(AGPL-3.0,作者 fuyou)是 AI 凭证/基础设施 OSINT 工具。主人令:把其中有用的模块以功能重实现方式融进 MYIA Python 情报管线(GitHub 工件猎取、凭证验证+余额查询、FOFA/Shodan 曝面发现等)。硬约束:AGPL 代码严禁入仓(MYIA 为 MIT),只模仿行为不搬代码。",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -21,6 +21,6 @@
   "children": [],
   "parent": null,
   "relatedFiles": [],
-  "notes": "",
+  "notes": "2026-10-03 主人 /workflow 开工令(按 trellis 做完)=推翻等收尾门+grill Round 2 六问按推荐;task.json 直改 in_progress(并行会话在场不走 task.py start)。执行工作流分两段:插件包纯增量先行,接线段等热文件(schema.py/cli.py/docs schema/test_plugins.py)清空。",
   "meta": {}
 }

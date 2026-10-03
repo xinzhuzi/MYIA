@@ -84,6 +84,7 @@ R2: store 凭证 items → shishi credcheck(resolve→validate→balance) → al
 
 ## 5. 取舍记录
 
+- **Grill Round 2 六决(2026-10-03,开工令即按推荐;详见 prd §6)**:探测分层(存活默认/余额显式 `--balance`)、出网缺省(credcheck 串行 RPM≤30、GitHub run 预算 12 轮转、FOFA/Shodan 照上游)、掩码(store 全文/items+模板前 8 后 4/push 默认 stdout)、真跑语义(自备活 key+构造死 key;猎取产物仅存活探测先目视)、单任务不拆、品类电池进/桌面种子不进。
 - **新引擎 vs 纯 CLI vs 新 plugin mode**:新引擎(PRD 要求进管线;下游零改动;代价=EngineName 三锁+golden,可控)。纯 CLI 止步 stdout 被否;plugin: 节加 native mode 被否(契约面更大,规避)。
 - **R1 泳道取舍**:实况两泳道照抄(已被上游验证);diff 解析器收编为工件二次加工增强件(上游已建未接线,我们接线=增值而非偏离)。
 - **探测档位**:只做 L0 unauth_read(与上游扫描器硬编码一致);weak_password/idor/ssrf/sqli/rce 引擎规格在案但 v1 不开(fail-closed 语义照抄,authorized_probe_scope 概念引入留二期)。

@@ -47,8 +47,8 @@ MYIA 现状(融合前):
 ## 5. 验收标准(草案)
 
 - **AC1 零代码污染**:融合范围内模块全部 Python 原生实现;全仓 `rg` 核验无 aipocket/AGPL 文件、无逐行翻译痕迹(文件头无上游归属需求 = 未借代码)。
-- **AC2 真跑验证**:R1/R2 对真实 GitHub 工件与真实供应商端点各跑通端到端(最低条数待 grill 定);录制回放只作回归,不单独放行。
-- **AC3 私有情报红线**:凭据命中物不入 git、不外发;测试 fixture 全脱敏。
+- **AC2 真跑验证(Q10 定案)**:P2 冒烟=自备活 key 验活键路径 + 构造死 key 验 401 判死路径(可无主人 key 达成);R1 真跑需 GitHub token(缺则记主人侧待办+fixture 回归兜底);R3 需 FOFA/Shodan key(缺则空态演练=AC6);录制回放只作回归,不单独放行。
+- **AC3 私有情报红线(Q9 掩码政策)**:凭据命中物不入 git、不外发;store 内部全文、items.fields 与一切推送模板前 8 后 4 掩码;测试 fixture 全脱敏。
 - **AC4 工程配套**:docs zh/en 同步;测试齐;如有插件声明面变更,golden 基件同步(在案教训:改声明面必同步 golden)。
 - **AC5 插件体系合规**:走 MYIA 插件体系(tier/requires/provides 声明正确),不破坏现有插件与桌面端。
 - **AC6 R4 空态合规**:FOFA/Shodan 无 key 时插件显式空态降级,不报错不静默;被动探测证据快照按私有情报红线处理。
@@ -59,6 +59,16 @@ MYIA 现状(融合前):
 - **Q2 远程插件 = 保留共存,降为可选**(按推荐)。
 - **Q3 排期 = 等 dwfrun-0e1749cb 大工作流收尾后 start**(按推荐;规划三件套先行备齐,收尾即 start)。
 - **Q4 出网纪律(未单问,按推荐默认)**:验证/余额探测默认串行 + 每供应商 RPM 上限(数值 design 阶段定);R4 入一期后,FOFA/Shodan API 调用同样走限速预算池。
+
+### Grill Round 2(2026-10-03,主人 /workflow 开工令=六问全按推荐)
+
+- **Q7 探测分层**:存活探测(models 端点,默认开)/ 余额+身份探测(默认**关**,`--balance` 显式开或品类配置项)。
+- **Q8 出网缺省(数值定案)**:credcheck 串行、每供应商 RPM ≤30(间隔 2s);GitHub 每 run 查询预算 12 条(checkpoint 游标跨 run 轮转);FOFA/Shodan 照上游(0.3s/1.0s 页间、24/16 查询预算)。不抄上游并发 20。
+- **Q9 掩码政策**:store 内部字段存 apikey 全文(库不出本机);items.fields 与一切推送模板一律**前 8 后 4 掩码**;官方品类模板 push 默认 `stdout`;全文永不进模板上下文。
+- **Q10 真跑验收语义(AC2 定案)**:P2 冒烟=主人自备活 key(final_verified+余额正确)+ 构造死 key(401→rejected);对猎取产物的 credcheck 首跑仅存活探测且产出先落库供主人目视,不做余额/身份探测。
+- **Q11 任务结构**:维持单任务 P0–P4,不拆父子。
+- **Q12 品类挂接**:credentials/exposure 进官方件电池(OFFICIAL_PLUGINS/OFFICIAL_PACKAGES/golden 同步);桌面首跑种子四件套(ai-news/gpu-prices/stocks/wool)**不加**,首跑零门槛原则。
+- **开工门修订**:主人 /workflow「按照 trellis 方式做完」=开工令,推翻「等 dwfrun-0e1749cb 收尾」;改为执行内分段——插件包纯增量先行,接线段(schema.py/cli.py/docs 三锁/golden)等并行工作流交出热文件。
 
 ## 7. 深化事实补注(2026-10-03「深化与补全」)
 

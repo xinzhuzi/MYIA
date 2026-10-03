@@ -19,7 +19,7 @@
 - [ ] `credhunter/packs.py` + `specs.py`:发现层 20 包 + 验证层 25 规格,数据文件化(YAML/JSON),loader+单测;扩展=加数据不改码
 - [ ] `credhunter/fingerprints.py`:十大族联合正则 + 17 条细正则 + 变量名归因表 + 噪声过滤(全按 fingerprints.md §7,语义对齐)
 - [ ] `credhunter/ghhunt.py`:code 泳道(1..=5×100、公开性校验、噪音路径过滤、blob ≤1MiB)+ commit 泳道(第 1 页、≤12 查询)+ token 池轮转 + 403/429 退避(≤90s 单轮)+ apiurl 前缀归因映射 + 工件二次加工(≤200/并发 8/重试 5;diff 解析增强件在此接线)
-- [ ] `credhunter/findings.py`:items 形状(对齐 pipeline 期望;dedup.key 字段组合,按 dedup.py 实测语义定稿,禁 {title})
+- [ ] `credhunter/findings.py`:items 形状(对齐 pipeline 期望;dedup.key 字段组合,按 dedup.py 实测语义定稿,禁 {title});**apikey 出 items 一律前 8 后 4 掩码(Q9),全文只留 store 内部字段**
 - [ ] **引擎注册三锁**:schema.py:175-177 EngineName + registry.py:84-92 + 新增 `src/myia/engines/credhunter.py`(动态加载 adapter;缺失→EngineFailure 结构化降级照 registry.py:179-212)
 - [ ] `src/myia/cli.py`:credhunt 子命令(挂载 :265 / handlers :2804 / 常量 :175-182,proxy 样板)
 - [ ] 品类挂接:credentials.yaml 加 `engine: credhunter` 源(remote 源保留)
@@ -30,7 +30,7 @@
 
 ## P2 R2 验证 + 余额
 
-- [ ] `credhunter/credcheck.py`:resolve 链(域名→前缀→unknown;aws_bedrock 域名特判)→ 三态归类(final_verified / rejected=401/403 或 2xx 无模型 / transient)→ BalanceResult 17 字段回填;13 家匿名探测矩阵逐家按 credcheck.md §5;仅存活性家族(models_liveness);kiro/azure/vertex=无探测;header ASCII/CRLF 安全闸
+- [ ] `credhunter/credcheck.py`:resolve 链(域名→前缀→unknown;aws_bedrock 域名特判)→ 三态归类(final_verified / rejected=401/403 或 2xx 无模型 / transient)→ BalanceResult 17 字段回填;13 家匿名探测矩阵逐家按 credcheck.md §5;仅存活性家族(models_liveness);kiro/azure/vertex=无探测;header ASCII/CRLF 安全闸;**存活探测默认开、余额/身份探测默认关显式开(Q7);串行+每供应商 RPM≤30(Q8)**
 - [ ] CLI `shishi credcheck --json`:读库凭证 items → 探测 → 回填 store(findings 侧字段,无破坏 schema);串行 + 每供应商 RPM 上限(PRD Q4)
 - [ ] 脱敏 fixture 单测(每供应商至少一条 happy path + 一条 401 判死);不可探测端点诚实 unknown 断言
 - [ ] README 补 credcheck 用法与授权定位重申
