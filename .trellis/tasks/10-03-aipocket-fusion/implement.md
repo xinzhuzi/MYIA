@@ -72,7 +72,7 @@
 
 ## P4 残留清单(2026-10-03 交付后,质检核实 7 条;主人过目后逐项收)
 
-- [ ] **【新·价值链缺口,重于 low】全文密钥通道缺位(2026-10-03 主人问「没有其他问题吗」后自查发现)**:findings「全文永不入 item」对 Q9 模板红线是对的(引擎路径无安全通道:from_extracted 额外字段全进 metadata、item_view 把 metadata 合进模板上下文),但全文被直接丢弃——猎→存→验断链,credcheck 无从取原文。**定案=插件侧 keystore**(指纹→全文 JSON,MYIA_HOME 数据域,chmod 600,核心零接触);已派实现代理在途,落地后勾掉。
+- [x] **【价值链缺口→已修复(2026-10-03,keystore 代理+主会话收口)】全文密钥通道**:插件侧 keystore 落地(`credhunter/keystore.py`:指纹→原文 JSON、$MYIA_HOME|cwd、chmod 600、原子写;ghhunt 四处命中点全挂钩;credcheck `--from-keystore` 双入口+三态回填;25 红线单测「item 序列化零全文、库文件有全文」)。设计定案注记:不用 store 内部字段(引擎路径无安全通道,metadata 会漏进模板上下文)。
 - [ ] **发现3(线权)→已代收(2026-10-03 主会话)**:myia-credentials compatible 矩阵收编提交(HEAD 树 test_plugin_packages 版本矩阵复绿,95 passed;归因 tag-release 线,main 保绿纪律优先)。
 - [x] **发现4(low)已修(2026-10-03 主会话)**:credentials.yaml push feishu_card→stdout(Q9)+golden 同步(channel/target 两处)。
 - [x] **发现5(low)已对齐口径(2026-10-03 主会话)**:adapter.py/cli.py/README 三处改为「--apikey 显式传键;读库→回填列 fast-follow(store/* 被并行线持有)」——**回填通路本体仍未实现**,补齐时按 integration-facts §2 通路与 Q7/Q8 分层限速。

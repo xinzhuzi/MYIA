@@ -17,13 +17,17 @@ importlib,防插件目录产生 ``__pycache__`` 垃圾)。
   (CLI 面,同步)—— 消费 documents(命中位置文本),产出掩码-only items;
 - **credhunt(R1 GitHub 工件猎取)**::func:`fetch_hunt`(引擎面,异步)/
   :func:`run_credhunt`(CLI 面,同步)—— 两泳道 + 工件二次加工,产出
-  items + 跨 run checkpoint;
+  items + 跨 run checkpoint;命中同步入本地密钥库(全文只进库,Q9 对外
+  仍掩码,见下);
 - **exposure(R4 FOFA/Shodan 曝面)**::func:`fetch_exposure`(引擎面,
   to_thread 包同步实现)/ :func:`run_exposure`(CLI 面,同步)—— 搜页 +
-  L0 被动探测;
-- **credcheck(R2 验证/余额)**::func:`run_credcheck`(CLI 面;显式
-  ``--apikey`` 传键探测而非 fetch,不走引擎,见 integration-facts §2;
-  「读库→回填」通路列 fast-follow——store/* 当前被并行线持有)。
+  L0 被动探测(服务暴露面命中无凭据,不入密钥库);
+- **credcheck(R2 验证/余额)**::func:`run_credcheck`(``--apikey`` 显式
+  传键)/ :func:`run_credcheck_keystore`(``--from-keystore`` 读密钥库)
+  双 CLI 入口,均不走引擎(见 integration-facts §2);「读库→回填」
+  通路已落地插件侧 keystore:猎手命中入库(指纹→全文)→
+  ``credcheck.run_from_keystore`` 逐条探测 → ``check_state``/
+  ``last_check`` 回填(核心仓库 store/* 深集成仍列后续件)。
 
 纪律红线:
 - **密钥经参数注入**(github_tokens/fofa_key/shodan_key/records 形参),
@@ -34,7 +38,9 @@ importlib,防插件目录产生 ``__pycache__`` 垃圾)。
   不启用 —— 本适配器(CLI 直跑面)抛 ``tokens_missing`` 结构化错误,规格
   §2 同款;品类源走引擎面时由宿主引擎落 ``credential_missing`` 空态);
 - **掩码-only 输出**(Q9):payload/items 里密钥只有前 8 后 4 掩码形态,
-  全文永不进 stdout;
+  全文永不进 stdout;全文只落**本机密钥库**(keystore,``$MYIA_HOME``
+  或开发态 cwd 下 ``credhunter-keystore.json``,600 权限,数据域不出
+  本机、不入 git);
 - 任何失败抛 :class:`CredhunterError`(code + message + details,``to_dict()``
   直接进 CLI JSON),失败码→退出码映射归 CLI 所有。
 """
@@ -61,9 +67,11 @@ __all__ = [
     "fingerprints",
     "fofa_query_pool",
     "ghhunt",
+    "keystore",
     "packs",
     "run",
     "run_credcheck",
+    "run_credcheck_keystore",
     "run_credhunt",
     "run_exposure",
     "scan_documents",
@@ -113,6 +121,7 @@ fingerprints = _load_module("fingerprints")
 findings = _load_module("findings")
 ghhunt = _load_module("ghhunt")
 credcheck = _load_module("credcheck")
+keystore = _load_module("keystore")
 exposure = _load_module("exposure")
 
 
@@ -266,12 +275,37 @@ async def fetch(*, documents: Sequence[Mapping[str, Any]] | None = None) -> list
 # ---------------------------------------------------------------------------
 
 
+def _default_keystore_factory() -> Any:
+    """缺省密钥库工厂:``MYIA_HOME``(优先)或 cwd 下 credhunter-keystore.json。"""
+    return keystore.Keystore(keystore.default_keystore_path())
+
+
+class _LazyKeystore:
+    """首次命中才落盘的惰性密钥库代理(零命中/凭据缺失不建空文件)。
+
+    引擎面与 CLI 面缺省注入本代理:``credhunter-keystore.json`` 只在真有
+    全文命中要入库时创建(构造期即建档会让每次零命中 run 在数据域留空库,
+    也让 tokens_missing 一类先失败路径无谓写盘)。
+    """
+
+    def __init__(self, factory: Any) -> None:
+        self._factory = factory
+        self._store: Any = None
+
+    def record(self, fingerprint: str, apikey: str, provider: str, source_url: str = "") -> None:
+        """ghhunt 的 duck-typed 入库口(首调构造真库,后续直通)。"""
+        if self._store is None:
+            self._store = self._factory()
+        self._store.record(fingerprint, apikey, provider, source_url)
+
+
 async def fetch_hunt(
     *,
     github_tokens: Sequence[str] | None = None,
     queries: Sequence[str] | None = None,
     checkpoint: Mapping[str, Any] | None = None,
     client: Any = None,
+    keystore_store: Any = None,
 ) -> dict[str, Any]:
     """引擎面入口(credhunt lane):跑一轮 GitHub 工件猎取。
 
@@ -282,6 +316,9 @@ async def fetch_hunt(
         checkpoint: 跨 run 状态(引擎宿主持久化后下轮传入即接续)。
         client: 注入的 ``httpx.AsyncClient``(引擎传共享 context client,
         让代理 transport/测试 MockTransport 对本 lane 生效)。
+        keystore_store: 密钥库(duck-typed ``record``);缺省注入惰性代理
+        (首命中落 ``$MYIA_HOME``/cwd 下 ``credhunter-keystore.json``,
+        600 权限)—— 全文只进库,items 仍掩码-only(Q9)。
 
     Returns:
         ``ghhunt.hunt`` 原样产物:``{"items", "errors", "checkpoint",
@@ -294,9 +331,10 @@ async def fetch_hunt(
         kwargs["checkpoint"] = dict(checkpoint)
     if client is not None:
         kwargs["client"] = client
+    kwargs["keystore"] = keystore_store if keystore_store is not None else _LazyKeystore(_default_keystore_factory)
     try:
         return await ghhunt.hunt(**kwargs)
-    except ghhunt.GithubHuntError as exc:
+    except ValueError as exc:  # GithubHuntError/KeystoreError 同为 ValueError 族,code 透传
         raise CredhunterError(str(getattr(exc, "code", "credhunt_failed")), str(exc)) from exc
 
 
@@ -486,6 +524,65 @@ def run_credcheck(
             "records": len(results),
             **state_counts,
         },
+        "duration_seconds": round(clock() - started, 3),
+    }
+
+
+def run_credcheck_keystore(
+    *,
+    keystore_path: str | Path | None = None,
+    probe_balance: bool = False,
+    limit: int | None = None,
+    rpm: int = credcheck.PER_PROVIDER_RPM_LIMIT,
+    clock: Any = time.monotonic,
+) -> dict[str, Any]:
+    """CLI 面入口(``shishi credcheck --from-keystore``):读密钥库验证 payload。
+
+    与 :func:`run_credcheck`(``--apikey`` 显式传键)构成 credcheck 双入口:
+    本面读猎手落盘的本地密钥库(缺省 ``$MYIA_HOME``/cwd 下
+    ``credhunter-keystore.json``,600 权限),逐条验证并把 ``check_state``/
+    ``last_check`` 回填入库 ——「猎→存→验」闭环。探测结论(rejected/
+    final_verified)是**数据**不是错误:status 恒 success,transient 占比
+    只进 counts(退出码映射归 CLI)。
+
+    Args:
+        keystore_path: 密钥库路径(缺省走 ``keystore.default_keystore_path``)。
+        probe_balance: Q7 余额/身份探测开关(默认**关**,显式开)。
+        limit: 最多验证条数(缺省全量,按入库顺序)。
+        rpm: Q8 每供应商 RPM 上限(60/rpm = 同供应商最小间隔;缺省 30)。
+        clock: 单调时钟注入口(测试 mock 用)。
+
+    Returns:
+        结构化 payload:plugin/capability/status/source(keystore)/
+        keystore_path/keystore_records(库内指纹总数)/probe_balance/
+        results(掩码-only,逐条含 fingerprint + masked_apikey)/counts/
+        duration_seconds。
+
+    Raises:
+        CredhunterError: 库文件坏/记录形状坏(``keystore_invalid``/
+        ``keystore_unreadable``/``invalid_record``,结构化降级)。
+    """
+    started = clock()
+    try:
+        outcome = credcheck.run_from_keystore(
+            keystore_path if keystore_path is not None else keystore.default_keystore_path(),
+            balance=probe_balance,
+            limit=limit,
+            rpm=rpm,
+        )
+    except ValueError as exc:  # KeystoreError/记录形状坏统一结构化
+        code = getattr(exc, "code", "invalid_record")
+        raise CredhunterError(str(code), str(exc)) from exc
+    return {
+        "plugin": PLUGIN_ID,
+        "capability": "credcheck",
+        "status": "success",
+        "source": "keystore",
+        "keystore_path": outcome["keystore_path"],
+        "keystore_records": outcome["records"],
+        "probe_balance": probe_balance,
+        "results": outcome["results"],
+        "counts": outcome["counts"],
         "duration_seconds": round(clock() - started, 3),
     }
 

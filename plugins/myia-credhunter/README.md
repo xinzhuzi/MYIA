@@ -35,14 +35,15 @@ behavior-specs/`),零上游代码复制、不搬上游标识符/文案/注释;�
 | 能力名 | 段 | 状态 |
 |---|---|---|
 | `credhunt` | GitHub 工件凭证猎取(code search + commit message 两泳道,联合正则十大族) | 已落地:引擎 lane(`engine_options.credhunter.lane: credhunt`)+ CLI 冒烟口 `shishi credhunt` |
-| `credcheck` | 凭证验证(models 三态)+ 余额/身份探测 | 已落地:CLI 子命令 `shishi credcheck`(`--apikey` 显式传键探测,不走引擎;读库→回填通路列 fast-follow) |
+| `credcheck` | 凭证验证(models 三态)+ 余额/身份探测 | 已落地:CLI 子命令 `shishi credcheck` 双入口——`--apikey` 显式传键 / `--from-keystore` 读本地密钥库(猎手命中入库的指纹→全文,验证后回填 `check_state`;见下方「密钥库」节) |
 | `exposure` | FOFA/Shodan 曝面发现 + L0 被动探测 | 已落地:引擎 lane(`lane: exposure`)+ CLI 冒烟口 `shishi exposure`;无 key 显式空态 |
 
 供应商指纹库(发现层 20 查询包 + 验证层 25 规格,数据文件化,
 `credhunter/data/*.yaml` —— **加供应商 = 加数据不改码**)、密钥指纹
 (联合正则十大族 + 17 条细正则 + 变量名归因表 + 噪声过滤)、items 形状
-与 Q9 掩码、适配器多入口(引擎面 `fetch`/`fetch_hunt`/`fetch_exposure`
-异步,CLI 面 `run`/`run_credhunt`/`run_credcheck`/`run_exposure` 同步)。
+与 Q9 掩码、插件侧密钥库(猎→存→验通路)、适配器多入口(引擎面
+`fetch`/`fetch_hunt`/`fetch_exposure` 异步,CLI 面 `run`/`run_credhunt`/
+`run_credcheck`/`run_credcheck_keystore`/`run_exposure` 同步)。
 
 ## 接入
 
@@ -81,7 +82,8 @@ remote 聚合共存)、`plugins/exposure.yaml`(exposure + scan 双源)。
 
 ```bash
 shishi credhunt --github-token keychain:myia/credhunter/github-token --json
-shishi credcheck --apikey "sk-..." --balance --json   # 冒烟:自备活 key + 构造死 key
+shishi credcheck --apikey "sk-..." --balance --json   # 入口一:显式传键(自备活 key + 构造死 key 冒烟)
+shishi credcheck --from-keystore --balance --json     # 入口二:读密钥库(猎手命中已入库的全文,验证后回填)
 shishi exposure --fofa-key keychain:myia/credhunter/fofa-key --json
 ```
 
@@ -89,7 +91,26 @@ shishi exposure --fofa-key keychain:myia/credhunter/fofa-key --json
 
 ```python
 adapter.run(documents=[{"text": "...", "url": "https://github.com/o/r/blob/...", "source_type": "code_snapshot"}])
+adapter.run_credcheck_keystore()   # 缺省读 $MYIA_HOME/credhunter-keystore.json(路径可显式注入)
 ```
+
+## 密钥库(keystore,猎→存→验通路)
+
+猎手产 items 时全文密钥经 Q9 掩码后即丢弃,「猎→存→验」原本断链;
+插件侧密钥库补上这一环:**命中即入库(指纹→全文)→ credcheck
+`--from-keystore` 读库探测 → `check_state`/`last_check` 回填**。
+
+- **位置与权限**:`$MYIA_HOME/credhunter-keystore.json`(无该环境变量时
+  落当前工作目录,开发态即仓库根);文件权限 **600**(posix),原子写
+  (同目录 tmp + rename,崩溃不留半份 JSON);
+- **内容形状**:`{"version": 1, "records": {指纹: {"apikey"(全文),
+  "provider", "first_seen", "last_seen", "hit_count", "sources"(证据
+  URL 去重,上限 20), "last_check", "check_state"}}}`;
+- **Q9 边界不变**:全文只存在于本文件——items、推送模板、CLI stdout
+  仍然一律前 8 后 4 掩码;库属数据域,**不出本机、不入 git、不外发**;
+- 引擎面 `fetch_hunt`/CLI 面 `run_credhunt` 缺省把命中写入缺省库位置
+  (首次命中才建文件);`ghhunt.hunt(keystore=…)` 亦可显式注入或传
+  `None` 纯扫描不入库。
 
 ## keychain 引用写法
 
@@ -124,7 +145,8 @@ token: keychain:myia/credhunter/github-token
 | FOFA | 页大小 100、≤10 页、页间 0.3s、24 查询/run | base 可配(官方/代理部署者自决) |
 | Shodan | 页大小 100、≤10 页、页间 1.0s、16 查询/run | — |
 | 被动探测 | 仅 L0 unauth_read、每目标 12 请求预算 | 高危类 fail-closed |
-| 掩码 | 前 8 后 4(Q9) | items/推送模板一律掩码 |
+| 密钥库 | `$MYIA_HOME/credhunter-keystore.json`(无 env 时 cwd) | 600 权限、原子写;指纹→全文,sources 去重上限 20 |
+| 掩码 | 前 8 后 4(Q9) | items/推送模板一律掩码;全文只进本机密钥库 |
 
 ## 目录
 
@@ -136,6 +158,7 @@ credhunter/
   specs.py                   # 验证层 25 规格 loader + resolve(data/provider_specs.yaml)
   fingerprints.py            # 联合正则十大族 + 17 细正则 + 归因表 + 噪声过滤
   findings.py                # items 形状 + dedup 键 + Q9 掩码
+  keystore.py                # 插件侧密钥库(指纹→全文,600,原子读写)
   data/provider_packs.yaml   # 发现层查询包(加供应商=加数据)
   data/provider_specs.yaml   # 验证层规格(加供应商=加数据)
 ```

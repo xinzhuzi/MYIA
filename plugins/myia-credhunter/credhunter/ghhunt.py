@@ -38,6 +38,12 @@ ghhunt.md``)的 MYIA 功能重实现:httpx.AsyncClient 全异步、零上游代�
 - **输出 = 掩码-only items**(Q9):全部经 ``findings.build_finding_item``
   装配;上下文摘录先对**同文本全部命中键**做 redact 再截断(防兄弟键
   全文漏进 content),全文密钥永不入 item。
+- **命中入密钥库**(猎→存→验通路):``hunt(keystore=…)`` 注入 duck-typed
+  ``record``(插件侧 ``keystore.Keystore``)时,每次命中在装配掩码 item
+  的同时以 ``findings.key_fingerprint`` 为主键把全文落进本地密钥库
+  (``$MYIA_HOME/credhunter-keystore.json``,600;适配器面缺省注入)。
+  缺省 ``None`` = 纯扫描不入库(引擎/测试自主决定);库文件失败按结构化
+  错上抛(本地盘故障不该静默丢全文)。
 
 模块加载:与 adapter.py 同款 compile+exec 手法(零 ``__pycache__``);
 兄弟模块(fingerprints/findings)经 :func:`_sibling` 从 sys.modules 复用
@@ -581,14 +587,21 @@ def _build_items(
     query: str = "",
     object_sha: str | None = None,
     commit_sha: str | None = None,
+    keystore: Any = None,
 ) -> list[dict[str, Any]]:
-    """SideHit 批 → 掩码-only items(附 change_side/行号/来源元数据)。"""
+    """SideHit 批 → 掩码-only items(附 change_side/行号/来源元数据)。
+
+    keystore(duck-typed ``record``)非空时,每键同时以指纹为主键入本地
+    密钥库(全文只进库,Q9 对外掩码口径不变;见模块 docstring)。
+    """
     if not side_hits or not source_url:
         return []
     excerpt = _masked_excerpt(context_text, [side_hit.hit.apikey for side_hit in side_hits])
     items: list[dict[str, Any]] = []
     for side_hit in side_hits:
         hit = side_hit.hit
+        if keystore is not None:
+            keystore.record(_findings.key_fingerprint(hit.apikey), hit.apikey, hit.provider, source_url)
         item = _findings.build_finding_item(
             apikey=hit.apikey,
             provider=hit.provider,
@@ -669,6 +682,7 @@ async def _process_one_work(
     *,
     retries: int,
     sleep: Callable[[float], Awaitable[None]],
+    keystore: Any = None,
 ) -> list[dict[str, Any]]:
     """单工件处理:取数 → 扫描 → items;状态回写 work.status/attempts/error。
 
@@ -690,6 +704,7 @@ async def _process_one_work(
                     source_type=work.lane or "commit_message",
                     query=work.query,
                     commit_sha=work.sha,
+                    keystore=keystore,
                 )
                 work.status = "terminal"
                 return items
@@ -707,6 +722,7 @@ async def _process_one_work(
                 file_path=work.file_path,
                 query=work.query,
                 object_sha=work.sha,
+                keystore=keystore,
             )
             work.status = "terminal"
             return items
@@ -728,8 +744,12 @@ async def process_artifacts(
     concurrency: int = ARTIFACT_CONCURRENCY,
     retries: int = ARTIFACT_RETRY_LIMIT,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    keystore: Any = None,
 ) -> dict[str, Any]:
     """工件二次加工:领 ≤limit 条,并发 concurrency,每工件首试 + 至多 retries 次重试。
+
+    keystore 注入时命中同步入本地密钥库(与两泳道同口径;并发工件的
+    入库串行化由密钥库自身的进程内锁保证)。
 
     Returns:
         {"items", "works", "counts"}:items 为掩码-only 管线 items;works 为
@@ -741,7 +761,7 @@ async def process_artifacts(
 
     async def _guarded(work: ArtifactWork) -> None:
         async with semaphore:
-            produced.extend(await _process_one_work(gh, work, retries=retries, sleep=sleep))
+            produced.extend(await _process_one_work(gh, work, retries=retries, sleep=sleep, keystore=keystore))
 
     await asyncio.gather(*(_guarded(work) for work in batch))
     statuses = {"fetch_pending": 0, "terminal": 0, "transient": 0, "artifact_too_large": 0}
@@ -790,6 +810,7 @@ async def _hunt_code_lane(
     pages_max: int,
     errors: list[dict[str, Any]],
     counters: dict[str, int],
+    keystore: Any = None,
 ) -> tuple[list[dict[str, Any]], list[ArtifactWork]]:
     """code 泳道:/search/code 1..=pages_max 页,逐条公开性/噪音/blob 处理。"""
     items: list[dict[str, Any]] = []
@@ -866,6 +887,7 @@ async def _hunt_code_lane(
                         file_path=path or None,
                         query=query,
                         object_sha=file_sha or None,
+                        keystore=keystore,
                     )
                 )
             if len(entries) < per_page:
@@ -888,6 +910,7 @@ async def _hunt_commit_lane(
     budget: int,
     errors: list[dict[str, Any]],
     counters: dict[str, int],
+    keystore: Any = None,
 ) -> tuple[list[dict[str, Any]], list[ArtifactWork]]:
     """commit 泳道:/search/commits 仅第 1 页,预算条查询轮转(Q8)。"""
     items: list[dict[str, Any]] = []
@@ -923,6 +946,7 @@ async def _hunt_commit_lane(
                     source_type="commit_message",
                     query=query,
                     commit_sha=sha or None,
+                    keystore=keystore,
                 )
             )
             if repo_full and sha:
@@ -969,6 +993,7 @@ async def hunt(
     now: Callable[[], float] = time.time,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     artifact_sleep: Callable[[float], Awaitable[None]] | None = None,
+    keystore: Any = None,
 ) -> dict[str, Any]:
     """跑一轮 GitHub 工件猎取(code + commit 两泳道 + 工件二次加工)。
 
@@ -985,11 +1010,16 @@ async def hunt(
             加工三参数(规格 §6 缺省)。
         now / sleep: 限速退避的时钟与睡眠注入口(测试 FakeClock)。
         artifact_sleep: 工件重试退避睡眠(独立注入,免污染限速断言)。
+        keystore: 本地密钥库(duck-typed ``record``,插件侧
+            ``keystore.Keystore``);每次命中以指纹为主键把全文入库,
+            供 credcheck ``run_from_keystore`` 读库验证。缺省 None =
+            纯扫描不入库(适配器面缺省注入缺省库位置)。
 
     Returns:
         {"items"(掩码-only 管线 items), "errors"(结构化错误列表),
         "checkpoint"(更新后的跨 run 状态), "counts"(扫描统计)}。
-        单查询/单工件失败只进 errors/状态,不打断整轮(规格 §7)。
+        单查询/单工件失败只进 errors/状态,不打断整轮(规格 §7);
+        密钥库读写失败是本地系统性故障,按结构化错上抛(不静默丢全文)。
     """
     owned_client: httpx.AsyncClient | None = None
     if client is None:
@@ -1008,10 +1038,11 @@ async def hunt(
         errors: list[dict[str, Any]] = []
         counters = _new_counters()
         code_items, code_works = await _hunt_code_lane(
-            gh, pool, state, per_page=per_page, pages_max=code_pages_max, errors=errors, counters=counters
+            gh, pool, state, per_page=per_page, pages_max=code_pages_max, errors=errors, counters=counters,
+            keystore=keystore,
         )
         commit_items, commit_works = await _hunt_commit_lane(
-            gh, pool, state, budget=commit_query_budget, errors=errors, counters=counters
+            gh, pool, state, budget=commit_query_budget, errors=errors, counters=counters, keystore=keystore
         )
         artifact_outcome = await process_artifacts(
             gh,
@@ -1020,6 +1051,7 @@ async def hunt(
             concurrency=artifact_concurrency,
             retries=artifact_retries,
             sleep=artifact_sleep or asyncio.sleep,
+            keystore=keystore,
         )
         items = [*code_items, *commit_items, *artifact_outcome["items"]]
         counters.update(artifact_outcome["counts"])

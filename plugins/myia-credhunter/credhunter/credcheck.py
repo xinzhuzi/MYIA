@@ -1,8 +1,10 @@
 """凭证验证 + 余额探测(credhunter R2)。
 
 行为规格(behavior-specs/credcheck.md)语义重实现,零上游代码;上游
-AGPL 源码不看不搬。本模块自包含(插件子模块互不 import,组合归
-adapter/宿主 —— 与 packs/specs/fingerprints/findings 同一架构纪律):
+AGPL 源码不看不搬。验证核心自包含(插件子模块互不 import,组合归
+adapter/宿主 —— 与 packs/specs/fingerprints/findings 同一架构纪律);
+唯 :func:`run_from_keystore` 惰性自举 keystore/specs 两兄弟(同目录
+compile+exec 手法,与 ghhunt/exposure 一致):
 
 - **resolve 链**:`registry.resolve(apiurl, apikey)`(specs.py,域名后缀 →
   密钥前缀 → unknown;aws_bedrock 域名特判只认 ``bedrock.``/``bedrock-``
@@ -38,16 +40,24 @@ adapter/宿主 —— 与 packs/specs/fingerprints/findings 同一架构纪律):
   其它非 2xx = 未命中(全默认值),不武断判死;
 - 余额仅对 validation_state ∈ {final_verified, transient} 执行(rejected
   已判死无探测价值;transient 放行是为了 glm/longcat 被动标记在 429/5xx
-  错误体上仍可解析 —— 规格 §5 的被动家族正是从错误码取证据)。
+  错误体上仍可解析 —— 规格 §5 的被动家族正是从错误码取证据);
+- **密钥库读跑**(猎→存→验通路的验证段)::func:`run_from_keystore`
+  读插件侧本地密钥库(猎手命中入库的指纹→全文记录),逐条验证后
+  ``update_check`` 回填 ``check_state``/``last_check``;Q7/Q8 纪律同上
+  (存活默认、余额显式;串行 + 每供应商 RPM 间隔),返回值掩码-only
+  (fingerprint + 前缀掩码,全文永不进结果)。
 """
 
 from __future__ import annotations
 
 import json
 import re
+import sys
 import time
+import types
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode, urlparse
 
@@ -77,6 +87,7 @@ __all__ = [
     "mask_apikey",
     "probe_models",
     "result_to_dict",
+    "run_from_keystore",
 ]
 
 # ---------------------------------------------------------------------------
@@ -1185,3 +1196,113 @@ def result_to_dict(result: ValidationResult) -> dict[str, Any]:
     """ValidationResult → JSON 可序列化 dict(balance 一并展平;掩码-only)。"""
     payload = asdict(result)
     return payload
+
+
+# ---------------------------------------------------------------------------
+# 7) 密钥库读跑(猎→存→验通路的验证段)
+# ---------------------------------------------------------------------------
+
+
+def _require_sibling(name: str) -> types.ModuleType:
+    """取同目录 ``credhunter/<name>.py`` 子模块(登记 sys.modules 后 compile+exec)。
+
+    与适配器 ``_load_module``/ghhunt ``_sibling`` 同手法同理由(不走
+    importlib,插件目录零 ``__pycache__``);仅 :func:`run_from_keystore`
+    惰性使用(keystore 读库回填、specs 缺省注册表),验证核心零兄弟依赖。
+    """
+    module_name = f"myia_credhunter_{name}"
+    module = sys.modules.get(module_name)
+    if module is not None:
+        return module
+    module_file = Path(__file__).resolve().parent / f"{name}.py"
+    if not module_file.is_file():
+        raise FileNotFoundError(f"credhunter 子模块不存在:{module_file}")
+    module = types.ModuleType(module_name)
+    module.__file__ = str(module_file)
+    sys.modules[module_name] = module
+    executable = compile(module_file.read_text(encoding="utf-8"), str(module_file), "exec")
+    exec(executable, module.__dict__)  # noqa: S102 - 仓库内受控插件代码,非任意输入
+    return module
+
+
+def run_from_keystore(
+    keystore_path: str | Path,
+    *,
+    balance: bool = False,
+    limit: int | None = None,
+    rpm: int = PER_PROVIDER_RPM_LIMIT,
+    registry: Any = None,
+    transport: Any = None,
+    pacer: Pacer | None = None,
+) -> dict[str, Any]:
+    """读本地密钥库逐条验证并回填(「猎→存→验」通路的验证段)。
+
+    猎手(ghhunt)命中时已把全文密钥以指纹为主键落进插件侧密钥库(Q9:
+    items/模板仍然掩码-only);本函数读库逐条验证 —— Q7:models 存活探测
+    默认开、``balance=True`` 才显式探测余额/身份;Q8:串行 + 每供应商
+    RPM ``rpm``(缺省 30 → 最小间隔 2s,共享 :class:`Pacer`)。每条验证
+    完即 ``update_check`` 回填 ``last_check``/``check_state``
+    (final_verified/rejected/transient),中途崩溃不丢已验结论。
+
+    Args:
+        keystore_path: 密钥库文件路径(交 ``keystore.Keystore`` 构造;
+            缺省位置由 ``keystore.default_keystore_path`` 解析)。
+        balance: Q7 余额/身份探测开关(默认**关**,显式开)。
+        limit: 最多验证条数(缺省全量;按入库顺序取前 N)。
+        rpm: Q8 每供应商 RPM 上限(60/rpm = 同供应商两次请求最小间隔)。
+        registry: ``specs.ProviderResolver``(duck-typed ``resolve``;缺省
+            惰性自举真实 specs 注册表)。
+        transport / pacer: 注入口(测试零网络/零等待;缺省
+            :class:`HttpxTransport` + 按 rpm 折算间隔的 :class:`Pacer`)。
+
+    Returns:
+        {"keystore_path", "records"(库内指纹总数), "results"(逐条:
+        fingerprint + masked_apikey + :func:`result_to_dict` 掩码产物),
+        "counts"(checked + 按 validation_state 计数)}—— 全文密钥永不
+        进返回值(Q9)。
+
+    Raises:
+        ValueError: 库记录形状坏(调用方结构化降级);KeystoreError
+            (ValueError 子类):库文件不可读/不可写/指纹丢失。
+    """
+    store = _require_sibling("keystore").Keystore(keystore_path)
+    records = store.load()
+    entries = list(records.items())
+    take = len(entries) if limit is None else max(0, int(limit))
+    resolved_registry = registry
+    if resolved_registry is None:
+        specs_module = _require_sibling("specs")
+        resolved_registry = specs_module.ProviderResolver(specs_module.load_specs())
+    shared_transport = transport or HttpxTransport()
+    shared_pacer = pacer or Pacer(min_interval_seconds=60.0 / max(1, rpm))
+    results: list[dict[str, Any]] = []
+    state_counts: dict[str, int] = {}
+    for fingerprint, record in entries[:take]:
+        if not isinstance(record, Mapping):
+            raise ValueError(f"records[{fingerprint}] 必须是映射(猎手入库记录),当前为 {type(record).__name__}")
+        apikey = record.get("apikey")
+        if not isinstance(apikey, str) or not apikey:
+            raise ValueError(f"records[{fingerprint}].apikey 必须是非空字符串")
+        outcome = check_credential(
+            apikey=apikey,
+            apiurl="",
+            registry=resolved_registry,
+            transport=shared_transport,
+            pacer=shared_pacer,
+            probe_balance=balance,
+        )
+        store.update_check(fingerprint, outcome.validation_state)
+        results.append(
+            {
+                "fingerprint": fingerprint,
+                "masked_apikey": mask_apikey(apikey),
+                **result_to_dict(outcome),
+            }
+        )
+        state_counts[outcome.validation_state] = state_counts.get(outcome.validation_state, 0) + 1
+    return {
+        "keystore_path": str(store.path),
+        "records": len(records),
+        "results": results,
+        "counts": {"checked": len(results), **state_counts},
+    }

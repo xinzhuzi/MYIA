@@ -64,7 +64,7 @@ MYIA 现状(融合前):
 
 - **Q7 探测分层**:存活探测(models 端点,默认开)/ 余额+身份探测(默认**关**,`--balance` 显式开或品类配置项)。
 - **Q8 出网缺省(数值定案)**:credcheck 串行、每供应商 RPM ≤30(间隔 2s);GitHub 每 run 查询预算 12 条(checkpoint 游标跨 run 轮转);FOFA/Shodan 照上游(0.3s/1.0s 页间、24/16 查询预算)。不抄上游并发 20。
-- **Q9 掩码政策**:store 内部字段存 apikey 全文(库不出本机);items.fields 与一切推送模板一律**前 8 后 4 掩码**;官方品类模板 push 默认 `stdout`;全文永不进模板上下文。
+- **Q9 掩码政策(2026-10-03 keystore 落地后修订)**:items.fields 与一切推送模板一律**前 8 后 4 掩码**(引擎路径无安全通道——from_extracted 额外字段全进 metadata、item_view 把 metadata 合进模板上下文,故全文永不入 item);全文存**插件侧密钥库**(`$MYIA_HOME|cwd/credhunter-keystore.json`,chmod 600,指纹→原文+回填探测状态;库不出本机);官方品类模板 push 默认 `stdout`。
 - **Q10 真跑验收语义(AC2 定案)**:P2 冒烟=主人自备活 key(final_verified+余额正确)+ 构造死 key(401→rejected);对猎取产物的 credcheck 首跑仅存活探测且产出先落库供主人目视,不做余额/身份探测。
 - **Q11 任务结构**:维持单任务 P0–P4,不拆父子。
 - **Q12 品类挂接**:credentials/exposure 进官方件电池(OFFICIAL_PLUGINS/OFFICIAL_PACKAGES/golden 同步);桌面首跑种子四件套(ai-news/gpu-prices/stocks/wool)**不加**,首跑零门槛原则。

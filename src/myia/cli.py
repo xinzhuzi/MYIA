@@ -186,7 +186,8 @@ DEFAULT_PROXY_CHECK_TIMEOUT_SECONDS = 10.0
 PROXY_FETCH_FAILURE_CODES = frozenset({"fetch_failed", "no_alive_proxy"})
 #: 凭证猎手插件(myia-credhunter,进程内三 lane:credhunt/credcheck/exposure;
 #: 10-03-aipocket-fusion;正式取数走 engine: credhunter 进管线,CLI 面是
-#: 调试/冒烟口,credcheck 是显式传键探测不走引擎,读库回填列 fast-follow)。
+#: 调试/冒烟口,credcheck 双入口=--apikey 显式传键 / --from-keystore 读
+#: 插件侧密钥库回填状态,均不走引擎)。
 CREDHUNTER_PLUGIN_ID = "myia-credhunter"
 #: credhunt 配置类失败码 → 1(GitHub 无 token 该源不启用,规格语义);
 #: 采集类失败由 payload 状态面(errors/items)判定,不走失败码映射。
@@ -2873,6 +2874,18 @@ def _run_credhunter_command(
         直接返回退出码;否则 payload 待打印,退出码由调用面继续算。
     """
     try:
+        if command == "credcheck" and bool(getattr(args, "from_keystore", False)) == bool(
+            getattr(args, "apikeys", None)
+        ):
+            # 双入口互斥校验:--apikey 与 --from-keystore 恰用其一。
+            _emit_generic_error(
+                "credcheck_input_conflict" if args.apikeys else "credcheck_input_missing",
+                "--apikey 与 --from-keystore 必须二选一(当前"
+                + ("两者都给" if args.apikeys else "两者都没给")
+                + ")",
+                as_json=args.as_json,
+            )
+            return None, EXIT_CONFIG_ERROR
         adapter = _import_plugin_adapter(args.plugins_dir, CREDHUNTER_PLUGIN_ID)
     except (OSError, ImportError, SyntaxError) as exc:
         _emit_generic_error(
@@ -2891,8 +2904,15 @@ def _run_credhunter_command(
                 checkpoint=_load_credhunt_checkpoint_cli(args.checkpoint_file),
             )
         elif command == "credcheck":
-            records = [{"apikey": _resolve_cli_secret(key), "apiurl": args.apiurl} for key in (args.apikeys or [])]
-            payload = adapter.run_credcheck(records=records, probe_balance=args.balance)
+            if args.from_keystore:
+                payload = adapter.run_credcheck_keystore(
+                    keystore_path=args.keystore_file,
+                    probe_balance=args.balance,
+                    limit=args.limit,
+                )
+            else:
+                records = [{"apikey": _resolve_cli_secret(key), "apiurl": args.apiurl} for key in (args.apikeys or [])]
+                payload = adapter.run_credcheck(records=records, probe_balance=args.balance)
         else:
             payload = adapter.run_exposure(
                 fofa_key=_resolve_cli_secret(args.fofa_key) if args.fofa_key else None,
@@ -3059,24 +3079,44 @@ def _add_credcheck_parser(sub: argparse._SubParsersAction) -> None:
         "credcheck",
         help="凭证验证(models 三态)+ 可选余额/身份探测(myia-credhunter 插件)",
         description=(
-            "对给定凭证批做 resolve(域名→前缀→unknown)→ models 三态验证"
-            "(final_verified/rejected/transient)→ 可选余额探测(--balance 显式开,"
-            "Q7)。串行 + 每供应商 RPM≤30(Q8);密钥全文只用于探测头,输出一律"
-            "掩码(Q9)。冒烟口径:自备活 key 验 final_verified + 构造死 key 验"
-            "rejected。"
+            "双入口:--apikey 显式传键,或 --from-keystore 读猎手落盘的本地"
+            "密钥库(缺省 $MYIA_HOME/cwd 下 credhunter-keystore.json,600 权限,"
+            "验证结果回填 check_state/last_check ——「猎→存→验」闭环)。探测:"
+            "resolve(域名→前缀→unknown)→ models 三态验证(final_verified/"
+            "rejected/transient)→ 可选余额探测(--balance 显式开,Q7)。串行 +"
+            "每供应商 RPM≤30(Q8);密钥全文只用于探测头,输出一律掩码(Q9)。"
+            "冒烟口径:自备活 key 验 final_verified + 构造死 key 验 rejected。"
         ),
     )
     credcheck.add_argument(
         "--apikey",
         dest="apikeys",
         action="append",
-        required=True,
-        help="待验证密钥(可重复;裸值或 env:/keychain: 引用均可)",
+        help="待验证密钥(可重复;裸值或 env:/keychain: 引用均可;与 --from-keystore 二选一)",
+    )
+    credcheck.add_argument(
+        "--from-keystore",
+        dest="from_keystore",
+        action="store_true",
+        help="读本地密钥库验证并回填状态(与 --apikey 二选一;Q9:全文不出库)",
+    )
+    credcheck.add_argument(
+        "--keystore-file",
+        dest="keystore_file",
+        default=None,
+        help="密钥库路径(仅 --from-keystore 时生效;缺省 $MYIA_HOME/cwd 下 credhunter-keystore.json)",
+    )
+    credcheck.add_argument(
+        "--limit",
+        dest="limit",
+        type=int,
+        default=None,
+        help="最多验证条数(仅 --from-keystore 时生效;缺省全量,按入库顺序)",
     )
     credcheck.add_argument(
         "--apiurl",
         default="",
-        help="API 基址归因提示(可空;空则按密钥前缀/规格官方基址)",
+        help="API 基址归因提示(可空;仅 --apikey 入口生效,空则按密钥前缀/规格官方基址)",
     )
     credcheck.add_argument(
         "--balance",

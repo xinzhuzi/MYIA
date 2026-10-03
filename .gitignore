@@ -95,5 +95,9 @@ Thumbs.db
 /channel_aliases.json
 /channel_directory.json
 /channel_dead.json
+# credhunter 全文密钥库(指纹→原文,含真实密钥——比 channel_* 更敏感,
+# 零容忍口径同 myia.db):正常应落数据根(MYIA_HOME),引擎缺省路径在仓库
+# cwd 直跑时会落仓库根,严禁入库(10-03-aipocket-fusion Q9)。
+/credhunter-keystore.json
 # 技能工具链的本地锁文件(本机技能版本快照,非仓库配置)
 /skills-lock.json
