@@ -118,7 +118,7 @@ from myia.feedback import (
 )
 from myia.pipeline import Pipeline, build_cron_trigger
 from myia.push import PLATFORMS
-from myia.push.directory import ChannelDirectory
+from myia.push.directory import ChannelDirectory, DirectoryDiscoverUnsupported
 from myia.plugins import (
     InstalledPluginStore,
     PluginFinding,
@@ -372,7 +372,7 @@ def _add_secret_parser(sub: argparse._SubParsersAction) -> None:
         help=(
             "凭据值;缺省时非 tty 从 stdin 读取、tty 下安全输入(不回显)。"
             "注意:经命令行参数传值会落入 shell history 与进程列表(ps),"
-            "自动化请改用 stdin 管道(如 myia secret set … < value.txt)"
+            "自动化请改用 stdin 管道(如 shishi secret set … < value.txt)"
         ),
     )
     secret_set.add_argument("--json", dest="as_json", action="store_true", help="机器可读输出")
@@ -826,7 +826,7 @@ _INIT_OPTIONAL_INPUTS: list[dict[str, Any]] = [
         "id": "push",
         "section": "push[]",
         "default": [],
-        "description": "每通道:channel(feishu_card/telegram/webhook/stdout)、target(env:/keychain: 引用,"
+        "description": "每通道:channel(feishu_card/telegram/ntfy/dingtalk/wecom/webhook/stdout)、target(env:/keychain: 引用,"
                        "stdout 不需要)、route(when→immediate/digest/archive;空 = 七大类缺省映射)、"
                        "template(Jinja2,语法在加载期校验)",
     },
@@ -1589,7 +1589,7 @@ def _credential_findings(
                     scope=scope,
                     code="keychain_ref_missing",
                     message=f"钥匙链中不存在凭据 {entry['name']}(引用于 {_format_ref_paths(entry)});"
-                            f"请执行 myia secret set {entry['name']} 写入",
+                            f"请执行 shishi secret set {entry['name']} 写入",
                 )
             if entry.get("note"):
                 _finding(
@@ -1838,7 +1838,7 @@ def _read_secret_value(args: argparse.Namespace) -> str:
         # 进程列表(ps)。stderr 警告不污染 --json 的 stdout 单文档契约。
         print(
             "警告:凭据值经 --value 命令行参数传入,会落入 shell history 与进程列表(ps);"
-            "自动化场景建议改用 stdin 管道:myia secret set <name> < value.txt",
+            "自动化场景建议改用 stdin 管道:shishi secret set <name> < value.txt",
             file=sys.stderr,
         )
         return args.value
@@ -1931,8 +1931,11 @@ def _print_channels_table(directory: ChannelDirectory) -> None:
 def _channels_refresh(args: argparse.Namespace) -> int:
     """``shishi channels refresh [platforms...]``:发现 → 合并 → 打印目录。
 
-    退出码:全部成功 0;未知平台/凭据缺失等任一结构化失败 1(fail-fast
-    家族语义;失败平台保留旧目录桶,已成功平台照常合并)。
+    退出码:全部成功/无自动发现 0;未知平台/凭据缺失等任一结构化失败 1
+    (fail-fast 家族语义;失败平台保留旧目录桶,已成功平台照常合并)。
+    无自动发现平台(ntfy/dingtalk/wecom,10-03-messaging-w2-platforms 蓝本
+    事实)报结构化说明(payload ``no_discovery``)而非假装刷新出空目录,
+    也不是失败——条目靠直达 id / 别名手工登记。
     """
     as_json = args.as_json
     requested = [str(name) for name in args.platforms] or sorted(PLATFORMS)
@@ -1956,6 +1959,7 @@ def _channels_refresh(args: argparse.Namespace) -> int:
     refreshed: dict[str, int] = {}
     failures: list[dict[str, str]] = []
     passive: list[str] = []
+    no_discovery: list[dict[str, str]] = []
     shims: dict[str, _PrecapturedAdapter] = {}
     for platform in requested:
         adapter = PLATFORMS[platform]()
@@ -1967,6 +1971,11 @@ def _channels_refresh(args: argparse.Namespace) -> int:
             continue
         try:
             entries = asyncio.run(discover())
+        except DirectoryDiscoverUnsupported as exc:
+            # 无自动发现平台(10-03-messaging-w2-platforms,蓝本事实):
+            # 说明 ≠ 失败,目录桶不动,退出码不受影响。
+            no_discovery.append({"platform": platform, "message": str(exc)})
+            continue
         except Exception as exc:  # noqa: BLE001 - 单平台失败隔离:告警 + 保留旧桶
             failures.append({"platform": platform, "error": f"{type(exc).__name__}: {exc}"})
             continue
@@ -1980,6 +1989,7 @@ def _channels_refresh(args: argparse.Namespace) -> int:
         "data_root": str(data_root),
         "refreshed": refreshed,
         "passive": passive,
+        "no_discovery": no_discovery,
         "failed": failures,
         "updated_at": directory.updated_at,
         "platforms": {
@@ -2003,6 +2013,8 @@ def _channels_refresh(args: argparse.Namespace) -> int:
                 f"{platform} 为被动目录平台(无主动发现 API):目录由入站消息自动积累,"
                 "别名文件 channel_aliases.json 可手工补录"
             )
+        for entry in no_discovery:
+            print(f"{entry['platform']}: {entry['message']}")
         for failure in failures:
             print(
                 f"刷新失败(保留旧目录): {failure['platform']}: {failure['error']}",

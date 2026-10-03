@@ -41,7 +41,7 @@ There are five extras in total: `crawl4ai` / `scrapling` / `firecrawl` /
 that are resolved at run time:
 
 - `env:VAR_NAME` — read from the environment at run time;
-- `keychain:shishi/<scope>/<name>` — read from the OS keychain (macOS
+- `keychain:myia/<scope>/<name>` — read from the OS keychain (macOS
   Keychain / Windows DPAPI). The namespace is canonical: store the value
   first with `shishi secret set`, then reference it in YAML. Flat legacy
   names (e.g. `keychain:linuxsb_cookie`) are refused at resolve time.
@@ -58,7 +58,7 @@ export MYIA_LLM_KEY=...
 # Credentials that should not live in the environment (e.g. a site cookie)
 # go into the keychain: pipe the value over stdin — never pass it as a
 # command-line argument (it would land in shell history and process lists)
-shishi secret set shishi/stocks/site_cookie < cookie.txt
+shishi secret set myia/stocks/site_cookie < cookie.txt
 ```
 
 Don't want to configure a paid endpoint? Both vision and enrich have

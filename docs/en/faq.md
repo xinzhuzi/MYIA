@@ -82,7 +82,7 @@ but there is no "no limit" declaration.
 Config files get copied, committed, shared — plaintext credentials are the
 first leak. 世事 refuses plaintext values under credential-like keys **at
 load time** (error type `credential_plaintext`, exit code 1) and accepts
-only `env:` / `keychain:shishi/<scope>/<name>` references; values are never
+only `env:` / `keychain:myia/<scope>/<name>` references; values are never
 echoed, never logged. `shishi doctor --json` probes every reference and hands
 you a repair action.
 

@@ -38,7 +38,7 @@ entry point): `plugin:` (scenario plugin dual mode, v0.3), `baseline:`
 | `PAGINATION_MODES` | `template` `selector` `scroll` |
 | `EXTRACT_TYPES` | `list` `item` `json_path` |
 | `BACKOFF_POLICIES` | `exponential` `linear` `none` |
-| `PUSH_CHANNELS` | `feishu_card` `telegram` `webhook` `stdout` |
+| `PUSH_CHANNELS` | `feishu_card` `telegram` `ntfy` `dingtalk` `wecom` `webhook` `stdout` |
 | `ROUTE_MODES` | `immediate` `digest` `archive` |
 | `ENRICH_SCORES` | `value` `relevance` `credibility` |
 | `VACUUM_CADENCES` | `daily` `weekly` `monthly` `never` |
@@ -192,13 +192,16 @@ structured `dependency_missing` and fallback to keyword-only scoring).
 
 | Field | Default | Semantics |
 |---|---|---|
-| `channel` | required | `feishu_card` / `telegram` / `webhook` / `stdout` |
+| `channel` | required | `feishu_card` / `telegram` / `ntfy` / `dingtalk` / `wecom` / `webhook` / `stdout` |
 | `target` | `null` | Push target, a **pure** `env:`/`keychain:` reference; forbidden on `stdout`, required elsewhere |
 | `route` | `[]` | Threshold routing (table below); empty = the seven-category default mapping (freebie/node/buying-agent → immediate, others → digest) |
 | `template` | `null` | Jinja2 card template (sandboxed render; syntax errors refused at load); omit for the channel's built-in layout |
 | `timeout` | `10.0` | Send timeout seconds (**`webhook` only**; configured elsewhere → refused) |
 | `retries` | `2` | Send retry count (`webhook` only) |
 | `retry_backoff_seconds` | `1.0` | Send retry backoff seconds (`webhook` only) |
+| `ntfy_token` | `null` | Optional ntfy auth token reference (value = Bearer token or `user:pass` → Basic); omitted with `env:NTFY_TOKEN` unset = no auth (`ntfy` only) |
+| `dingtalk_secret` | `null` | Optional DingTalk signing secret reference (set = HMAC-SHA256 signed; omitted = bare webhook) (`dingtalk` only) |
+| `wecom_corpid` / `wecom_corpsecret` / `wecom_agentid` | `null` | WeCom self-built-app credential references; omitted falls back to env `WECOM_CORPID`/`WECOM_CORPSECRET`/`WECOM_AGENTID` (`wecom` only) |
 
 route rules:
 
@@ -404,6 +407,7 @@ error types:
 | `missing_url_field` | `extract.fields` lacks `url` and no `url_template` is set (`list`/`json_path` need one of the two) |
 | `invalid_url_template` / `unexpected_url_template` | `url_template` has no placeholder or names a field outside `fields` / set on an `item` single-page extract |
 | `unexpected_transport_field` | `timeout`/`retries`/`retry_backoff_seconds` on a non-webhook channel |
+| `unexpected_platform_field` | a W2 platform credential field (`ntfy_token`/`dingtalk_secret`/`wecom_*`) on a non-host channel |
 
 ## Consistency guarantees
 

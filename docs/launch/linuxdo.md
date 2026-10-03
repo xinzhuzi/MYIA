@@ -99,7 +99,7 @@ L4 Scrapling(隐身指纹)→ L5 反检测浏览器 → L6 LLM 浏览器兜底�
 `dependency_missing` 报错而不是崩。
 
 **3. 凭据安全是硬约束**
-YAML 里凭据位只认 `env:VAR` / `keychain:shishi/<scope>/<name>` 引用
+YAML 里凭据位只认 `env:VAR` / `keychain:myia/<scope>/<name>` 引用
 (macOS Keychain / Windows DPAPI),明文 Cookie/Token 启动即拒载;`shishi
 secret set` 管录入,值走 stdin 不进 shell history、不进日志、不进
 `--json` 输出。源站 Cookie 这类敏感值全程只存在系统钥匙串里。

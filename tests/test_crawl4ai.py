@@ -15,7 +15,14 @@ Covers:
   ``{page}`` 模板翻页;
 - browser_options / run_options 透传(v12-crawl4ai-l3 配置化补全):透传键到
   BrowserConfig/CrawlerRunConfig、自管键冲突拒绝、非映射结构化报错、未知键
-  (真库 dataclass TypeError)结构化 invalid_* 且指名键;
+  (真库配置类 TypeError)结构化 invalid_* 且指名键;
+- 构造期 ValueError 的结构化捕获:透传已知键非法值(真库 __init__ 校验)与
+  引擎自管注入路径(零透传)各一条,均结构化 invalid_* 不裸逃;
+- 代理注入身份(v0.2 复盘修复 + 2026-10-03 low-B):池代理优先走新版
+  ``proxy_config``(ProxyConfig.from_string),旧版库回落弃用 ``proxy`` 参数
+  且 WARNING 进程内只报一次;
+- robots UA 一致性(2026-10-03 low-C):无源级 headers 的源,浏览器收到与
+  robots 判定相同的基座默认 UA(robots 放行身份 = 实抓身份);
 - auto chain order (fake engines injected into ENGINE_REGISTRY): L2 失败 →
   crawl4ai 成功且不再落 firecrawl;crawl4ai 依赖缺失按普通引擎失败继续降级。
 
@@ -27,18 +34,22 @@ from __future__ import annotations
 import asyncio
 import importlib
 import importlib.util
+import logging
 import os
 import sys
 import types
 from dataclasses import dataclass, field
 from types import SimpleNamespace
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
 
 from myia.engines import registry
+from myia.engines import crawl4ai as crawl4ai_module
 from myia.engines.crawl4ai import Crawl4AIEngine, load_crawl4ai
 from myia.engines.fetch_base import (
+    DEFAULT_USER_AGENT,
     BaseEngine,
     EngineNotAvailableError,
     FetchError,
@@ -110,14 +121,16 @@ class FakeCrawl4AI:
     core: FakeCore
     browser_configs: list[dict] = field(default_factory=list)
     run_configs: list[dict] = field(default_factory=list)
+    proxy_configs: list[object] = field(default_factory=list)
 
 
-#: 真 crawl4ai 的 BrowserConfig/CrawlerRunConfig:未知参数构造期 TypeError
-#: (dataclass),已知键的非法值构造期 ValueError(``__init__`` 校验,如
+#: 真 crawl4ai 的 BrowserConfig/CrawlerRunConfig 是 @_with_defaults 装饰的
+#: 普通类(非 dataclass):未知关键字参数因显式 ``__init__`` 签名抛构造期
+#: TypeError,已知键的非法值在 ``__init__`` 校验抛 ValueError(如
 #: enable_stealth×browser_mode='builtin'、非正数 body_visibility_timeout)。
 #: 假类按同语义拒绝,透传用例才能验证 TypeError/ValueError → 结构化映射。
 BROWSER_CONFIG_KEYS = frozenset(
-    {"headless", "proxy", "headers", "browser_type", "user_agent",
+    {"headless", "proxy", "proxy_config", "headers", "browser_type", "user_agent",
      "viewport_width", "viewport_height", "text_mode", "light_mode",
      "enable_stealth", "browser_mode"}
 )
@@ -128,16 +141,28 @@ RUN_CONFIG_KEYS = frozenset(
 )
 
 
-def install_fake_crawl4ai(monkeypatch: pytest.MonkeyPatch, script: list) -> FakeCrawl4AI:
-    """Build a fake ``crawl4ai`` package and inject it via sys.modules."""
+def install_fake_crawl4ai(
+    monkeypatch: pytest.MonkeyPatch,
+    script: list,
+    *,
+    browser_config_raises: Exception | None = None,
+) -> FakeCrawl4AI:
+    """Build a fake ``crawl4ai`` package and inject it via sys.modules.
+
+    ``browser_config_raises``:注入后 BrowserConfig 构造一律抛该异常——
+    模拟构造期异常与透传键无关的场景(low-A:引擎自管注入路径的
+    构造期 ValueError 也必须结构化,不裸逃)。
+    """
     module = types.ModuleType("crawl4ai")
     fake = FakeCrawl4AI(module=module, core=FakeCore(script))
 
     class BrowserConfig:
         def __init__(self, **kwargs) -> None:
             unknown = sorted(set(kwargs) - BROWSER_CONFIG_KEYS)
-            if unknown:  # 与真库 dataclass 同语义:未知参数构造期 TypeError
+            if unknown:  # 与真库配置类同语义:未知参数构造期 TypeError
                 raise TypeError(f"unexpected keyword argument {unknown[0]!r}")
+            if browser_config_raises is not None:
+                raise browser_config_raises
             if kwargs.get("enable_stealth") and kwargs.get("browser_mode") == "builtin":
                 # 与真库 __init__ 值校验同语义:async_configs.py:1046-1052
                 raise ValueError("enable_stealth cannot be used with browser_mode='builtin'.")
@@ -160,6 +185,28 @@ def install_fake_crawl4ai(monkeypatch: pytest.MonkeyPatch, script: list) -> Fake
     class CacheMode:
         BYPASS = "bypass"
 
+    class ProxyConfig:
+        """与真库 ProxyConfig 同消费面:构造字段 + ``from_string``。
+
+        from_string 与真库同语义:无法解析(缺 scheme:// 或 authority)抛
+        ValueError;server 保留原串(引擎断言只需身份一致,不重复真库的
+        拆解细节)。
+        """
+
+        def __init__(self, server=None, username=None, password=None, country=None) -> None:
+            self.server = server
+            self.username = username
+            self.password = password
+            self.country = country
+            fake.proxy_configs.append(self)
+
+        @classmethod
+        def from_string(cls, proxy_str: str):
+            parsed = urlsplit(proxy_str)
+            if parsed.scheme not in {"http", "https", "socks5"} or not parsed.hostname:
+                raise ValueError(f"Invalid proxy string: {proxy_str}")
+            return cls(server=proxy_str, username=parsed.username, password=parsed.password)
+
     class AsyncWebCrawler:
         def __init__(self, config=None) -> None:
             self.config = config
@@ -173,6 +220,7 @@ def install_fake_crawl4ai(monkeypatch: pytest.MonkeyPatch, script: list) -> Fake
     module.BrowserConfig = BrowserConfig
     module.CrawlerRunConfig = CrawlerRunConfig
     module.CacheMode = CacheMode
+    module.ProxyConfig = ProxyConfig
     module.AsyncWebCrawler = AsyncWebCrawler
     monkeypatch.setitem(sys.modules, "crawl4ai", module)
     return fake
@@ -228,7 +276,8 @@ def test_fetch_with_list_extract_parses_rendered_html(monkeypatch):
         {"title": "JS 帖子二", "url": "https://js-heavy.example.com/t/2"},
     ]
     assert fake.core.calls[0]["url"] == SITE_URL
-    assert fake.browser_configs == [{"headless": True}]  # 默认无头
+    # 默认无头;无 headers 源同步基座默认 UA(low-C:robots 判定身份=实抓身份)
+    assert fake.browser_configs == [{"headless": True, "user_agent": DEFAULT_USER_AGENT}]
     assert fake.run_configs[0]["page_timeout"] == 60000  # 默认 60s,API 侧毫秒
     assert fake.run_configs[0]["cache_mode"] == "bypass"  # 缓存语义由我们自管
 
@@ -333,7 +382,7 @@ def test_engine_options_headless_and_timeout_pass_through(monkeypatch):
 
     run(Crawl4AIEngine(source, context).fetch())
 
-    assert fake.browser_configs == [{"headless": False}]
+    assert fake.browser_configs == [{"headless": False, "user_agent": DEFAULT_USER_AGENT}]
     assert fake.run_configs[0]["page_timeout"] == 15000
 
 
@@ -439,7 +488,7 @@ def test_passthrough_reserved_engine_keys_rejected():
 
 
 def test_passthrough_unknown_key_surfaces_structured(monkeypatch):
-    """透传键被配置类拒绝(真库 dataclass TypeError,假类同语义)→ 结构化
+    """透传键被配置类拒绝(真库配置类构造期 TypeError,假类同语义)→ 结构化
     invalid_* 且指名键——不修则裸 TypeError 逃到 registry 被归 unknown。"""
     install_fake_crawl4ai(monkeypatch, [{"html": RENDERED_HTML}])
     client = make_client(make_handler(lambda r: pytest.fail("配置错误时不应发起任何请求")))
@@ -702,12 +751,14 @@ def test_smoke_tapnow_js_render_auto_structures():
 
 # ---------------------------------------------------------------------------
 # v0.2 复盘修复:代理/headers 透传 + 浏览器启动失败结构化
+# (2026-10-03 low-B:代理注入走新版 proxy_config,旧版回落 proxy 一次性告警)
 # ---------------------------------------------------------------------------
 
 
-def test_pool_proxy_is_passed_to_browser_config(monkeypatch):
-    """源配 pool: 代理时,BrowserConfig 必须收到解析后的 upstream——
-    否则用户以为走了代理,真实 IP 直连目标站(显式代理意图静默丢弃)。"""
+def test_pool_proxy_is_passed_via_proxy_config(monkeypatch):
+    """源配 pool: 代理时,BrowserConfig 必须经新版 proxy_config 收到解析后的
+    upstream——否则用户以为走了代理,真实 IP 直连目标站(显式代理意图静默
+    丢弃);弃用 ``proxy`` 参数不再作为首选注入路径。"""
     fake = install_fake_crawl4ai(monkeypatch, [{"html": RENDERED_HTML}])
     recorded: list[dict] = []
     real_client = httpx.AsyncClient
@@ -731,8 +782,39 @@ def test_pool_proxy_is_passed_to_browser_config(monkeypatch):
     run(Crawl4AIEngine(source, context).fetch())
 
     assert fake_kwargs_proxy(recorded) is not None  # 池客户端拿到 proxy(基座挂载)
-    assert fake.browser_configs[0]["proxy"] == "http://proxy.example.com:8080"  # 浏览器也拿到
+    proxy_config = fake.browser_configs[0]["proxy_config"]  # 浏览器经 proxy_config 拿到
+    assert proxy_config.server == "http://proxy.example.com:8080"
+    assert "proxy" not in fake.browser_configs[0]  # 弃用路径不再首选
     assert fake.browser_configs[0]["headless"] is True
+    assert fake.proxy_configs[0].server == "http://proxy.example.com:8080"
+
+
+def test_pool_proxy_falls_back_to_deprecated_proxy_kwarg_with_one_warning(monkeypatch, caplog):
+    """旧版库(无 ProxyConfig.from_string)回落弃用 proxy 参数:浏览器仍拿到
+    代理(不静默丢弃),且回落 WARNING 进程内只报一次(两轮 fetch 恒 1 条)。"""
+    fake = install_fake_crawl4ai(
+        monkeypatch, [{"html": RENDERED_HTML}, {"html": RENDERED_HTML}]
+    )
+    del fake.module.ProxyConfig  # 模拟旧版 crawl4ai:无 ProxyConfig
+    monkeypatch.setattr(crawl4ai_module, "_PROXY_FALLBACK_WARNED", False)  # 隔离进程级 flag
+    client = make_client(make_handler(lambda r: httpx.Response(404, text="")))
+    context, _ = make_context(client)
+    context.proxy_pools = load_proxy_pools(
+        {"pools": {"main": "http://proxy.example.com:8080"}}
+    )
+    source = make_source(engine="crawl4ai", url=SITE_URL, extract=LIST_EXTRACT, proxy="pool:main")
+    engine = Crawl4AIEngine(source, context)
+
+    with caplog.at_level(logging.WARNING, logger="myia.engines.crawl4ai"):
+        run(engine.fetch())
+        run(engine.fetch())  # 第二轮:回落路径复用,不再重复告警
+
+    assert len(fake.browser_configs) == 2
+    for config in fake.browser_configs:
+        assert config["proxy"] == "http://proxy.example.com:8080"  # 回落但代理不丢
+        assert "proxy_config" not in config
+    fallback_warnings = [r for r in caplog.records if "回退弃用 proxy" in r.message]
+    assert len(fallback_warnings) == 1  # 一次性:第二源/第二轮不刷屏
 
 
 def fake_kwargs_proxy(recorded: list[dict]) -> str | None:
@@ -743,7 +825,7 @@ def fake_kwargs_proxy(recorded: list[dict]) -> str | None:
 
 
 def test_direct_source_browser_config_has_no_proxy(monkeypatch):
-    """direct 源:BrowserConfig 不带 proxy 键(与既有契约一致)。"""
+    """direct 源:BrowserConfig 不带任何代理键(与既有契约一致)。"""
     fake = install_fake_crawl4ai(monkeypatch, [{"html": RENDERED_HTML}])
     client = make_client(make_handler(lambda r: httpx.Response(404, text="")))
     context, _ = make_context(client)
@@ -751,7 +833,45 @@ def test_direct_source_browser_config_has_no_proxy(monkeypatch):
     run(Crawl4AIEngine(make_source(engine="crawl4ai", url=SITE_URL, extract=LIST_EXTRACT), context).fetch())
 
     assert "proxy" not in fake.browser_configs[0]
+    assert "proxy_config" not in fake.browser_configs[0]
     assert "headers" not in fake.browser_configs[0]
+
+
+def test_default_user_agent_reaches_browser_matching_robots_identity(monkeypatch):
+    """low-C robots UA 一致性:无源级 headers 的源,浏览器收到与 robots 判定
+    相同的基座默认 UA(fetch_base._ensure_robots_allowed 以 self._headers 的
+    UA can_fetch,基座在无 headers 时补 DEFAULT_USER_AGENT)——robots 放行
+    身份 = 目标站实抓身份,不允许 robots 以 MYIA 身份放行、浏览器以 crawl4ai
+    内置默认 UA 实抓的身份分裂。"""
+    fake = install_fake_crawl4ai(monkeypatch, [{"html": RENDERED_HTML}])
+    client = make_client(make_handler(lambda r: httpx.Response(404, text="")))
+    context, _ = make_context(client)
+    source = make_source(engine="crawl4ai", url=SITE_URL, extract=LIST_EXTRACT)  # 无 headers
+
+    run(Crawl4AIEngine(source, context).fetch())
+
+    assert fake.browser_configs[0]["user_agent"] == DEFAULT_USER_AGENT
+
+
+def test_engine_side_browser_config_valueerror_surfaces_structured(monkeypatch):
+    """low-A:构造期 ValueError 不问键来自透传还是引擎自管注入——零透传、
+    纯自管键(headless/user_agent)下假类抛构造期 ValueError,仍结构化
+    invalid_browser_options(钉住引擎对 ValueError 分支的捕获不裸逃)。"""
+    install_fake_crawl4ai(
+        monkeypatch,
+        [],
+        browser_config_raises=ValueError(
+            "enable_stealth cannot be used with browser_mode='builtin'."
+        ),
+    )
+    client = make_client(make_handler(lambda r: pytest.fail("构造失败时不应发起任何请求")))
+    context, _ = make_context(client)
+    source = make_source(engine="crawl4ai", url=SITE_URL)  # 无透传 browser_options
+
+    with pytest.raises(FetchError) as excinfo:
+        run(Crawl4AIEngine(source, context).fetch())
+    assert excinfo.value.error_type == "invalid_browser_options"
+    assert "enable_stealth" in str(excinfo.value)
 
 
 def test_source_headers_are_passed_to_browser_config(monkeypatch):

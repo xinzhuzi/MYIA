@@ -34,7 +34,7 @@
 | `PAGINATION_MODES` | `template` `selector` `scroll` |
 | `EXTRACT_TYPES` | `list` `item` `json_path` |
 | `BACKOFF_POLICIES` | `exponential` `linear` `none` |
-| `PUSH_CHANNELS` | `feishu_card` `telegram` `webhook` `stdout` |
+| `PUSH_CHANNELS` | `feishu_card` `telegram` `ntfy` `dingtalk` `wecom` `webhook` `stdout` |
 | `ROUTE_MODES` | `immediate` `digest` `archive` |
 | `ENRICH_SCORES` | `value` `relevance` `credibility` |
 | `VACUUM_CADENCES` | `daily` `weekly` `monthly` `never` |
@@ -175,13 +175,16 @@ rate_limit:
 
 | 字段 | 缺省 | 语义 |
 |---|---|---|
-| `channel` | `必填` | `feishu_card` / `telegram` / `webhook` / `stdout` |
+| `channel` | `必填` | `feishu_card` / `telegram` / `ntfy` / `dingtalk` / `wecom` / `webhook` / `stdout` |
 | `target` | `null` | 推送目标,只能是**纯** `env:`/`keychain:` 引用;`stdout` 禁止配置,其余通道必填 |
 | `route` | `[]` | 阈值路由(见下表);留空 = 七大类缺省映射(羊毛/节点/代买 → immediate,其余 → digest) |
 | `template` | `null` | Jinja2 卡片模板(沙箱渲染,语法错误加载期拒);省略用通道内置版式 |
 | `timeout` | `10.0` | 发送超时秒数(**仅 `webhook` 生效**,其他通道配置即拒) |
 | `retries` | `2` | 发送重试次数(仅 `webhook`) |
 | `retry_backoff_seconds` | `1.0` | 发送重试退避秒数(仅 `webhook`) |
+| `ntfy_token` | `null` | ntfy 可选鉴权 token 引用(值 = Bearer 或 `user:pass` → Basic);省略且 `env:NTFY_TOKEN` 未设 = 无鉴权(仅 `ntfy` 可配) |
+| `dingtalk_secret` | `null` | 钉钉可选加签密钥引用(配即 HMAC-SHA256 加签;省略 = 裸 webhook)(仅 `dingtalk` 可配) |
+| `wecom_corpid` / `wecom_corpsecret` / `wecom_agentid` | `null` | 企微自建应用三凭据引用;省略走缺省 env `WECOM_CORPID`/`WECOM_CORPSECRET`/`WECOM_AGENTID`(仅 `wecom` 可配) |
 
 route 规则:
 
@@ -375,6 +378,7 @@ push:
 | `missing_url_field` | `extract.fields` 缺 `url` 且未配 `url_template`(`list`/`json_path` 二者必居其一) |
 | `invalid_url_template` / `unexpected_url_template` | `url_template` 无占位符或占位符不在 `fields` 字段名内 / 配在 `item` 单页源上 |
 | `unexpected_transport_field` | `timeout`/`retries`/`retry_backoff_seconds` 出现在非 webhook 通道 |
+| `unexpected_platform_field` | W2 平台凭据字段(`ntfy_token`/`dingtalk_secret`/`wecom_*`)配在非宿主通道 |
 
 ## 一致性保证
 

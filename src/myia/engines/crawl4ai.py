@@ -16,14 +16,17 @@ Contract (PRD 10-01-v02-engine-crawl4ai):
 - the full crawl4ai config surface is reachable via
   ``engine_options.crawl4ai.browser_options`` / ``run_options`` (dicts merged
   into ``BrowserConfig`` / ``CrawlerRunConfig`` — v12 task 10-03-v12-crawl4ai-l3);
-  the engine's *semantic* keys (browser: ``headless``/``proxy``/``headers``;
-  run: ``cache_mode``/``page_timeout``) are single-source and cannot be
-  overridden through the passthrough (double source of truth = 配置冲突,
-  fail-fast 结构化拒绝); a passthrough key/value the crawl4ai config class
-  rejects at construction time (``TypeError`` for unknown keys, ``ValueError``
-  for its ``__init__`` validation) surfaces as a structured
-  ``invalid_browser_options`` / ``invalid_run_options`` instead of an
-  ``unknown``;
+  the engine's *semantic* keys (browser: ``headless``/``proxy``(+
+  ``proxy_config``)/``headers``; run: ``cache_mode``/``page_timeout``) are
+  single-source and cannot be overridden through the passthrough (double
+  source of truth = 配置冲突, fail-fast 结构化拒绝); a passthrough key/value
+  the crawl4ai config class rejects at construction time (``TypeError`` for
+  unknown keys, ``ValueError`` for its ``__init__`` validation) surfaces as a
+  structured ``invalid_browser_options`` / ``invalid_run_options`` instead of
+  an ``unknown``;
+- identity consistency (robots UA 一致性): robots 判定身份与浏览器实际抓取
+  身份同源——无源级 headers 的源把基座注入的默认 UA 同步传给浏览器
+  (``user_agent``),robots ``can_fetch`` 放行的身份即目标站看到的身份;
 - without ``extract`` the engine falls back to crawl4ai's own
   auto-structuring capability: one ``{url, title, content}`` record per
   target URL built from the rendered markdown (yaml-schema rule 7:
@@ -53,6 +56,7 @@ import logging
 from typing import Any
 
 from myia.engines.fetch_base import (
+    DEFAULT_USER_AGENT,
     BaseEngine,
     ExtractionError,
     FetchError,
@@ -88,7 +92,12 @@ DEFAULT_PAGE_TIMEOUT_SECONDS = 60.0
 #: Engine-owned BrowserConfig keys — semantic knobs whose value the engine
 #: derives itself (headless 校验 / proxy 解析+脱敏 / headers 凭据解析+脱敏日志);
 #: passthrough ``browser_options`` may not override them (单一来源,冲突即拒).
-_RESERVED_BROWSER_KEYS = frozenset({"headless", "proxy", "headers"})
+#: ``proxy`` 与 ``proxy_config`` 同为代理语义(后者是新版库的注入键),自管不拆.
+_RESERVED_BROWSER_KEYS = frozenset({"headless", "proxy", "proxy_config", "headers"})
+
+#: 代理注入回落(旧版库无 ``ProxyConfig.from_string``)的 WARNING 进程内只报
+#: 一次——回落是兼容行为而非每轮新故障,重复刷屏只会淹没日志。
+_PROXY_FALLBACK_WARNED = False
 
 #: Engine-owned CrawlerRunConfig keys — cache semantics (BYPASS, 我们自管变更
 #: 指纹) and the page budget (timeout 预算护栏) stay single-source.
@@ -215,14 +224,27 @@ class Crawl4AIEngine(BaseEngine):
         # 不传等于用户真实 IP 直连目标站(安全红线:显式代理意图不得静默丢弃)。
         browser_kwargs: dict[str, Any] = {"headless": headless}
         if self._active_proxy_url:
-            browser_kwargs["proxy"] = self._active_proxy_url
+            browser_kwargs.update(self._proxy_browser_kwarg(crawl4ai))
         if self.source.headers:
             browser_kwargs["headers"] = dict(self._headers)  # 含解析后的 Cookie 等凭据
+        else:
+            # robots UA 一致性:robots 判定身份(fetch_base._ensure_robots_allowed
+            # 以 self._headers 的 UA can_fetch)必须等于浏览器实际抓取身份——
+            # 无源级 headers 时基座已补默认 UA,同步传给浏览器,否则 robots 以
+            # MYIA 身份放行、目标站看到的却是 crawl4ai 内置默认 UA(身份分裂,
+            # 礼貌约定失真)。透传 browser_options.user_agent 仍可覆盖
+            # (update 在后,显式配置优先)。
+            browser_kwargs["user_agent"] = next(
+                (value for key, value in self._headers.items() if key.lower() == "user-agent"),
+                DEFAULT_USER_AGENT,
+            )
         browser_kwargs.update(browser_extra)
-        # 透传键/值被 crawl4ai 配置类拒绝必须结构化:dataclass 未知参数
-        # TypeError 与构造期值校验 ValueError(真库 __init__ 内多处 raise,
-        # 如 enable_stealth×browser_mode、非正数超时)同拦 —— 否则裸异常逃到
-        # registry 被归为 unknown,排障看不到键名/非法值。
+        # 透传键/值被 crawl4ai 配置类拒绝必须结构化:真库配置类是
+        # @_with_defaults 装饰的普通类(非 dataclass)——未知关键字参数因显式
+        # __init__ 签名抛 TypeError,已知键的非法值在 __init__ 校验中抛
+        # ValueError(真库 __init__ 内多处 raise,如 enable_stealth×browser_mode、
+        # 非正数超时),两类同拦 —— 否则裸异常逃到 registry 被归为 unknown,
+        # 排障看不到键名/非法值。
         try:
             browser_config = crawl4ai.BrowserConfig(**browser_kwargs)
         except (TypeError, ValueError) as exc:
@@ -274,6 +296,41 @@ class Crawl4AIEngine(BaseEngine):
         except Exception as exc:  # noqa: BLE001 - 统一转结构化(错误链保留)
             raise self._browser_failure(exc) from exc
         return items
+
+    def _proxy_browser_kwarg(self, crawl4ai: Any) -> dict[str, Any]:
+        """池代理 → BrowserConfig 代理键(双路径探测:proxy_config 优先)。
+
+        crawl4ai 新版已弃用 ``proxy`` 参数,注入走 ``proxy_config``(经
+        ``ProxyConfig.from_string`` 构造);旧版库(无 ProxyConfig/from_string,
+        或解析失败)回落弃用参数并记一次性 WARNING——回落是兼容行为,
+        进程内只报一次,不逐源刷屏。
+
+        Returns:
+            单键 dict:``{"proxy_config": ProxyConfig}``(新版)或
+            ``{"proxy": url}``(回落),交由 :meth:`_fetch_impl` 合并。
+        """
+        proxy_config_cls = getattr(crawl4ai, "ProxyConfig", None)
+        from_string = getattr(proxy_config_cls, "from_string", None)
+        if callable(from_string):
+            try:
+                return {"proxy_config": from_string(self._active_proxy_url)}
+            except Exception as exc:  # noqa: BLE001 - 构造失败即回落,不裸逃
+                self._warn_proxy_fallback(f"ProxyConfig.from_string 解析失败({exc})")
+        else:
+            self._warn_proxy_fallback("当前 crawl4ai 版本无 ProxyConfig.from_string(旧版库)")
+        return {"proxy": self._active_proxy_url}
+
+    @staticmethod
+    def _warn_proxy_fallback(reason: str) -> None:
+        """代理注入回落的进程级一次性 WARNING(global flag 去重)。"""
+        global _PROXY_FALLBACK_WARNED
+        if _PROXY_FALLBACK_WARNED:
+            return
+        _PROXY_FALLBACK_WARNED = True
+        logger.warning(
+            "crawl4ai 代理注入回退弃用 proxy 参数:%s;浏览器仍走该代理,"
+            "建议升级 crawl4ai 以使用 proxy_config", reason,
+        )
 
     @staticmethod
     def _browser_failure(exc: Exception) -> FetchError:

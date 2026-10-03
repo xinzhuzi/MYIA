@@ -37,7 +37,7 @@ error carries the field path):
 1. **No plaintext credentials**: values of credential-like keys (key name
    containing `cookie` / `authorization` / `token` / `secret` / `password` /
    `apikey` / `session`, case- and hyphen-insensitive) may only be
-   `env:VAR` or `keychain:shishi/<scope>/<name>` references.
+   `env:VAR` or `keychain:myia/<scope>/<name>` references.
 2. **Never fingerprint titles**: `dedup.key` must not use `{title}` — URL or
    composite keys only.
 3. **Unknown fields fail fast**: outside the open `sources[]` extension
@@ -179,8 +179,8 @@ push:
 ## Credential rules
 
 - Credentials are **never written in plaintext** in a plugin YAML — only
-  `env:VAR_NAME` or `keychain:shishi/<scope>/<name>` references.
-- Store a keychain value with `shishi secret set shishi/<scope>/<name>`; the
+  `env:VAR_NAME` or `keychain:myia/<scope>/<name>` references.
+- Store a keychain value with `shishi secret set myia/<scope>/<name>`; the
   value goes through a stdin pipe or a hidden prompt (**never** `--value` —
   it would land in shell history and process lists); `shishi secret list`
   lists names only; `shishi secret delete <name>` removes one.
@@ -199,6 +199,9 @@ token; details in [skill/SKILL.md](../../skill/SKILL.md) §2.13):
   bot token is read from `env:FEISHU_BOT_TOKEN`.
 - `telegram`: `target` = chat id (`env:TELEGRAM_CHAT_ID`); the token is read
   from `env:TELEGRAM_BOT_TOKEN`.
+- `ntfy`: `target` = `{server}/{topic}` string reference (e.g. `env:NTFY_TARGET`); optional auth token is read from `env:NTFY_TOKEN` (unset = anonymous public topic).
+- `dingtalk`: `target` = custom-robot webhook URL (`env:DINGTALK_WEBHOOK_URL`); optional HMAC signing secret via the `dingtalk_secret` field (unset = bare webhook).
+- `wecom`: `target` = touser userid (`env:WECOM_TUSER`); the self-built-app credentials are read from `env:WECOM_CORPID` / `env:WECOM_CORPSECRET` / `env:WECOM_AGENTID`.
 - `webhook`: `target` = endpoint URL reference (e.g. `env:MYIA_WEBHOOK_URL`).
 - `stdout`: zero credentials, first choice for local verification.
 
@@ -243,7 +246,7 @@ Common findings and repairs:
 | `source_degraded` (0 items / halved) | the page structure likely changed: rerun `shishi test --json`, fix the extract selectors |
 | `env_ref_missing` | set the environment variable (e.g. `export FEISHU_CHAT_ID=...`) |
 | `keychain_ref_missing` | store it with `shishi secret set <name>` |
-| `keychain_name_noncanonical` | rename the reference to `shishi/<scope>/<name>` and update the YAML |
+| `keychain_name_noncanonical` | rename the reference to `myia/<scope>/<name>` and update the YAML |
 | `store_error` | corrupt SQLite or a too-new schema version: switch `--db` or rebuild (history is lost) |
 | plugin finding (v0.3) | a market plugin that cannot install or is unreachable degrades to a finding and **never blocks the core pipeline**; fix the `plugin:` section or reinstall per the message |
 | `telegram_token_poll_conflict` | two or more categories share one bot token (`env:TELEGRAM_BOT_TOKEN`) and each `--loop` process polls `getUpdates` → Telegram answers 409 Conflict; keep the `telegram` channel on at most one resident category and move the others to other push channels (single runs never poll, so they are unaffected) |

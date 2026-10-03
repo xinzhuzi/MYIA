@@ -34,7 +34,7 @@ uv sync --extra llm         # enrich 精评 / aggregate 事件聚合(openai 客�
 世事 **不允许在 YAML 里写明文凭据**,只能写引用,运行时解析:
 
 - `env:VAR_NAME` —— 运行时读环境变量;
-- `keychain:shishi/<scope>/<name>` —— 读系统钥匙链(macOS Keychain /
+- `keychain:myia/<scope>/<name>` —— 读系统钥匙链(macOS Keychain /
   Windows DPAPI)。名空间必须规范;先用 `shishi secret set` 写入值,再在 YAML
   里引用。扁平旧名(如 `keychain:linuxsb_cookie`)在解析期被拒。
 
@@ -49,7 +49,7 @@ export MYIA_LLM_KEY=...
 
 # 不进环境变量的凭据(如源站 Cookie)入钥匙链:值走 stdin 管道,
 # 不要用命令行参数传(会落 shell history 与进程列表)
-shishi secret set shishi/stocks/site_cookie < cookie.txt
+shishi secret set myia/stocks/site_cookie < cookie.txt
 ```
 
 不想配付费端点?看图与精评都有零成本走法(本地 mlx-vlm/Ollama → 云端

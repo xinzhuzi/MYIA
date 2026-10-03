@@ -21,7 +21,7 @@
 | 7 | `classify` | First funnel: built-in seven-category keyword scan (`builtin`; unmatched titles drop) and/or custom `rules` (name / when expression / tag). Zero token. |
 | 8 | `dedup` | Dedup key template, e.g. `{symbol}-{date}` or `{url}`. Composite keys only — never title fingerprints. |
 | 9 | `enrich` | Second funnel: LLM precision scoring — `enabled`, `model` (any OpenAI-compatible endpoint), `scores` (value/relevance/credibility, 0–10), `batch`, `cache` (per-URL result cache), `budget_per_run` (token guardrail; exhausted → keyword-only for the rest of the run), plus `base_url` / `api_key` — each must be a pure `env:`/`keychain:` reference (世事 has no built-in endpoint and no default key). |
-| 10 | `push` | Delivery channels: `channel` (`feishu_card` / `telegram` / `webhook` / `stdout`), `target` (`env:` / `keychain:` refs only; `stdout` takes none), `template` (Jinja2, optional), and webhook-only transport knobs `timeout` / `retries` / `retry_backoff_seconds`. |
+| 10 | `push` | Delivery channels: `channel` (`feishu_card` / `telegram` / `ntfy` / `dingtalk` / `wecom` / `webhook` / `stdout`), `target` (`env:` / `keychain:` refs only; `stdout` takes none), `template` (Jinja2, optional), and webhook-only transport knobs `timeout` / `retries` / `retry_backoff_seconds`. |
 | 11 | `push.route` | Threshold routing per channel, first match wins: `score >= 8` → `immediate`, `>= 5` → `digest` (AM/PM slots), `< 5` → `archive`. Score rules stay dormant until LLM scoring backfills a score. |
 | 12 | `storage` | Data lifecycle: `retention` (e.g. `90d`, expired items auto-purged) and `vacuum` (SQLite VACUUM cadence). |
 
@@ -78,7 +78,7 @@ See [plugins/stocks.yaml](../plugins/stocks.yaml) for the complete
   run time) or `keychain:myia/<scope>/<name>` (system keychain — macOS
   Keychain / Windows DPAPI; the canonical namespace groups secrets by
   purpose, e.g. `keychain:myia/stocks/linuxsb_cookie`. Write the value with
-  `shishi secret set shishi/<scope>/<name>`; a flat legacy name like
+  `shishi secret set myia/<scope>/<name>`; a flat legacy name like
   `keychain:linuxsb_cookie` is refused at resolve time).
 - An auth-scheme prefix round-trips: `Authorization: "Bearer env:TOKEN"`.
 - A YAML containing a plaintext credential **refuses to start** (exit code 1,
@@ -94,6 +94,9 @@ token; details in `skill/SKILL.md` §2.13):
   bot token is read from `env:FEISHU_BOT_TOKEN`.
 - `telegram`: `target` = chat id (`env:TELEGRAM_CHAT_ID`); the token is read
   from `env:TELEGRAM_BOT_TOKEN`.
+- `ntfy`: `target` = `{server}/{topic}` string reference (e.g. `env:NTFY_TARGET`); optional auth token is read from `env:NTFY_TOKEN` (unset = anonymous public topic).
+- `dingtalk`: `target` = custom-robot webhook URL (`env:DINGTALK_WEBHOOK_URL`); optional HMAC signing secret via the `dingtalk_secret` field (unset = bare webhook).
+- `wecom`: `target` = touser userid (`env:WECOM_TUSER`); the self-built-app credentials are read from `env:WECOM_CORPID` / `env:WECOM_CORPSECRET` / `env:WECOM_AGENTID`.
 - `webhook`: `target` = endpoint URL reference (e.g. `env:MYIA_WEBHOOK_URL`).
 - `stdout`: zero credentials, first choice for local verification.
 

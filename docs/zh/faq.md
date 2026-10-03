@@ -70,7 +70,7 @@ intelligence hub)`)。有站点对产品 UA 返回 429、对浏览器 UA 放行�
 
 配置文件会被复制、提交、分享——明文凭据是泄露的第一源头。世事 在**加载期**
 就拒绝凭据类键的明文值(错误码 `credential_plaintext`,退出码 1),只接受
-`env:` / `keychain:shishi/<scope>/<name>` 引用;凭据值永不回显、永不落日志。
+`env:` / `keychain:myia/<scope>/<name>` 引用;凭据值永不回显、永不落日志。
 `shishi doctor --json` 会核验每个引用是否存在并给出修复动作。
 
 ### 我的 Cookie 会泄露吗?

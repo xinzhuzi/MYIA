@@ -31,7 +31,7 @@ YAML(或环境)→ 复验,用户只做决策。
 
 1. **凭据禁明文**:凭据类键(键名含 `cookie` / `authorization` / `token` /
    `secret` / `password` / `apikey` / `session` 子串,大小写与连字符不敏感)
-   的值只允许 `env:VAR` 或 `keychain:shishi/<scope>/<name>` 引用。
+   的值只允许 `env:VAR` 或 `keychain:myia/<scope>/<name>` 引用。
 2. **永不标题指纹**:`dedup.key` 禁用 `{title}`,只用 URL 或字段组合键。
 3. **未知字段 fail-fast**:除 `sources[]` 开放源级扩展参数外,拼错字段名即拒
    载;与已知字段接近的未知键按拼写错误报。
@@ -162,8 +162,8 @@ push:
 ## 凭据规则
 
 - 凭据**永不明文**写进插件 YAML;只写 `env:VAR_NAME` 或
-  `keychain:shishi/<scope>/<name>` 引用。
-- 写入钥匙链:`shishi secret set shishi/<scope>/<name>`,值走 stdin 管道或安全
+  `keychain:myia/<scope>/<name>` 引用。
+- 写入钥匙链:`shishi secret set myia/<scope>/<name>`,值走 stdin 管道或安全
   输入(**不要**用 `--value` 传——会落 shell history 与进程列表);
   `shishi secret list` 只列名字;`shishi secret delete <name>` 删除。
 - 可带认证 scheme 前缀:`Authorization: "Bearer env:AIPOCKET_TOKEN"`。
@@ -179,6 +179,9 @@ push:
   token 从 `env:FEISHU_BOT_TOKEN` 读。
 - `telegram`:`target` = chat id(`env:TELEGRAM_CHAT_ID`),token 从
   `env:TELEGRAM_BOT_TOKEN` 读。
+- `ntfy`:`target` = `{server}/{topic}` 整串引用(如 `env:NTFY_TARGET`),可选鉴权 token 从 `env:NTFY_TOKEN` 读(未设 = 匿名公共 topic)。
+- `dingtalk`:`target` = 自定义机器人 webhook URL(`env:DINGTALK_WEBHOOK_URL`),可选加签密钥配 `dingtalk_secret` 字段(不配 = 裸 webhook)。
+- `wecom`:`target` = touser userid(`env:WECOM_TUSER`),自建应用三凭据从`env:WECOM_CORPID` / `env:WECOM_CORPSECRET` / `env:WECOM_AGENTID` 读。
 - `webhook`:`target` = 端点 URL 引用(如 `env:MYIA_WEBHOOK_URL`)。
 - `stdout`:零凭据,本地验证首选。
 
@@ -218,7 +221,7 @@ shishi doctor --json                    # 缺省体检 plugins/ 全部插件;也
 | `source_degraded`(0 条/腰斩) | 页面结构疑似变化:重跑 `shishi test --json`,修 extract 选择器 |
 | `env_ref_missing` | 设置环境变量(如 `export FEISHU_CHAT_ID=...`) |
 | `keychain_ref_missing` | `shishi secret set <引用名>` 写入钥匙链 |
-| `keychain_name_noncanonical` | 引用名改为 `shishi/<scope>/<name>` 后改 YAML |
+| `keychain_name_noncanonical` | 引用名改为 `myia/<scope>/<name>` 后改 YAML |
 | `store_error` | SQLite 库损坏或 schema 版本过新:换 `--db` 路径或删除重建(会丢历史) |
 | 插件类 finding(v0.3) | 市场插件装不上/remote 不可达只降级为 finding,**不拦核心流水线**;按 message 修 `plugin:` 节或重装 |
 | `telegram_token_poll_conflict` | 两个及以上品类共用同一 bot token(`env:TELEGRAM_BOT_TOKEN`)且各自 `--loop` 都会轮询 `getUpdates` → Telegram 回 409 Conflict;同一 token 下至多一个常驻品类保留 telegram 通道,其余品类改用其他推送渠道(单次 run 不轮询,不受影响) |

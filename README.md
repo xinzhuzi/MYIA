@@ -97,7 +97,7 @@ URL 键去重注册表 + 早/晚摘要槽位 —— 生产验证过的语义;同
 <td width="50%" valign="top">
 
 🔐 **凭据永不落明文**
-凭据永不进 YAML —— 只允许 `env:VAR` / `keychain:shishi/<scope>/<name>` 引用;
+凭据永不进 YAML —— 只允许 `env:VAR` / `keychain:myia/<scope>/<name>` 引用;
 配置文件里出现明文凭据,加载即拒。落 macOS Keychain / Windows DPAPI。
 
 </td>
@@ -389,7 +389,7 @@ stdout channels.
 <td width="50%" valign="top">
 
 🔐 **Secrets stay secret**
-Credentials never live in YAML — only `env:VAR` / `keychain:shishi/<scope>/<name>`
+Credentials never live in YAML — only `env:VAR` / `keychain:myia/<scope>/<name>`
 references. A plaintext credential in a config file is rejected at load time.
 macOS Keychain / Windows DPAPI backed.
 
