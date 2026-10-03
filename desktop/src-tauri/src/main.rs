@@ -158,8 +158,41 @@ fn yield_focus_after_silent_start(app: AppHandle) {
     });
 }
 
+/// 单实例锁(主人规则 2026-10-03:同项目只许一个实例)。macOS LaunchServices
+/// 只防 bundle 重复打开,防不住 `open -n` / 直跑二进制 / dev 与 release 混跑;
+/// 官方 single-instance 插件在 macOS 是空操作,故自持 flock。锁落数据根
+/// (与 sidecar 的 MYIA_HOME 同规则):dev 构建与装机包共用默认根即互斥,
+/// 验证流用 MYIA_HOME 沙箱时属独立实例域(沙箱=独立环境,合理)。
+#[cfg(target_os = "macos")]
+fn acquire_instance_lock() -> Option<std::fs::File> {
+    use std::os::fd::AsRawFd;
+    let root = if let Some(home) = std::env::var_os("MYIA_HOME") {
+        PathBuf::from(home)
+    } else {
+        PathBuf::from(std::env::var_os("HOME")?).join("Library/Application Support/MYIA")
+    };
+    std::fs::create_dir_all(&root).ok()?;
+    let file = std::fs::File::create(root.join(".instance.lock")).ok()?;
+    let held = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0;
+    held.then_some(file) // 进程退出由内核放锁,File 永不显式关闭(mem::forget 持有)
+}
+
 fn main() {
     let started = Instant::now();
+    // 单实例门:已有实例持锁 → 转激活它并退出。激活须等本进程退干净再执行:
+    // 两进程短暂共存同 bundle id 时 LaunchServices 可能选中将死的这个(实测踩过),
+    // 故甩孤儿 shell 延时半秒后 open -b —— 既有实例经 Reopen 亮窗,不夺屏不弹窗。
+    #[cfg(target_os = "macos")]
+    match acquire_instance_lock() {
+        Some(lock) => std::mem::forget(lock),
+        None => {
+            eprintln!("desktop: 已有 MYIA 实例在跑(单实例锁),转激活既有实例后退出");
+            let _ = std::process::Command::new("/bin/sh")
+                .args(["-c", "sleep 0.5; exec /usr/bin/open -b com.myia.app"])
+                .spawn();
+            return;
+        }
+    }
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         // updater:前端经 @tauri-apps/plugin-updater 检查/下载/安装;签名公钥见 tauri.conf.json

@@ -1,0 +1,13 @@
+# 验收转录 2026-10-03(纯文字)
+
+## 单实例锁(重装后实测)
+- 首启 open -g -a MYIA:静默,1 进程,前台不变(Finder/微信均未被夺)
+- open -n -a MYIA(强制新实例):仍 1 进程;既有实例亮窗置前(窗口数 0→1,frontmost=MYIA)——首版当场 open -b 有竞态(两进程短暂同 bundle id,LaunchServices 选中将死者,实测窗口不亮),改孤儿 shell sleep 0.5 后激活,复测过
+- 直跑二进制二次启动:打印「已有 MYIA 实例在跑(单实例锁)」秒退,仍 1 进程
+- quit 后重启 open -g:正常(锁随进程退出由内核释放),sidecar myia-core serve ×2(onefile 双进程正常)起
+- cargo check 绿;tauri build exit 0(app 124.98MiB);重装 /Applications
+- 终态:恰好 1 个 MYIA 实例静默在跑(open -g)
+
+## 清理转录(主人令「只能保持1个实例,无用清理」)
+- 已退:target/debug/myia-desktop dev 实例(99135)+其 dev sidecar、5173 陈旧 vite+esbuild(72779/72780)、/tmp/myia-repro 孤儿 server.py:8731(45505,1d10h 零引用零流量)
+- 留守:5199 vite(并行 yaml-editor 工作流现役)、binaries/myia-core serve ×2(父进程 .zcode/smoke/bridge.mjs 活体在守,自清)

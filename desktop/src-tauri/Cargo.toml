@@ -27,6 +27,8 @@ tokio = { version = "1", features = ["time"] }
 # 启动期无条件 activateIgnoringOtherApps(true)。版本随锁内 tao 侧一致。
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3.2", features = ["NSApplication"] }
+# 单实例锁 flock 用(10-03-single-instance);版本随锁内 tao 侧一致。
+libc = "0.2"
 
 [profile.release]
 strip = true
