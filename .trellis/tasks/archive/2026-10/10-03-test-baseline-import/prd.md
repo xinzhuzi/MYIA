@@ -38,3 +38,12 @@
 - `uv run --no-sync pytest -q` → `1 failed, 1703 passed, 14 skipped`(唯一红即上述并行 WIP)。
 - `uv run --no-sync python -m pytest -q` → `1 failed, 1703 passed, 14 skipped`(同一红)。
 - 2026-10-03 收尾复验:批次工作流最终全量 pytest(CI 同款 `uv run --no-sync python -m pytest -q`,收尾员复跑)= 1759 passed / 14 skipped / 0 failed——先前唯一红(并行 WIP test_sources_write_backup_stops_comment_loss)已随并行线收口清零;任务维持 review,详细结论见工作流报告《MYIA 批次报告:写回保注释+基线+代验收》。
+
+## 验收记录(2026-10-03,受主人委托代验)
+
+**verdict:accepted**(三项 AC 全有仓库内证据)。
+
+- AC3 单独小 commit:`718d56c`(HEAD 链上)"fix(tests): bare pytest fails on tests.conftest import — use prepend-mode path",diff 仅 tests/test_baseline.py 1 行,message 明确引用本任务(gap-census D3, task 10-03-test-baseline-import)。
+- AC2 单独跑绿(代验实测):`uv run --no-sync python -m pytest tests/test_baseline.py -q` → 58 passed;`uv run --no-sync pytest tests/test_baseline.py -q`(裸跑)→ 58 passed。双跑法均绿,rootdir 依赖已消除。
+- AC1 全量绿:代验按委托规则未复跑全量套件;采信本档验证记录(收尾员 CI 同款复跑 1759 passed / 14 skipped / 0 failed)+ 抽查佐证——`tests/test_baseline.py:789` 现为 `from conftest import FakeClock`(带防回归注记),`grep -rn "from tests" tests/ --include='*.py'` 仅 conftest.py:4 防回归注记一条命中、零代码残留。
+- 处置:已执行 `python3 .trellis/scripts/task.py archive 10-03-test-baseline-import`。
