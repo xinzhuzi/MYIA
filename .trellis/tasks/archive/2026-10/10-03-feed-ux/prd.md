@@ -69,3 +69,5 @@
 > desktop/ui-src/src/lib/api/client.ts、types.ts、
 > desktop/ui-src/src/screens/settings/settings-screen.tsx、desktop/ui-src/src/App.tsx、
 > tests/test_desktop_sidecar_protocol.py、src/myia/pipeline.py)
+
+> **2026-10-04 归档会话注记**:AC 框为交付会话遗留未逐勾,不作为未完成证据;交付与验收以既录证据为准——六件套已入 HEAD(769ebd1/1d255b7);dwfrun-6adbfbd0 独立质检+全量门禁全绿(vitest 262/262、协议 pytest 105/105、全量 3037)。装机/真机类冒烟项统一移交 `10-04-wrapup-checklist` 装机验收节。
