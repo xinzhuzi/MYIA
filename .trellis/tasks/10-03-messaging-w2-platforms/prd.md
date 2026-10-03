@@ -35,3 +35,12 @@ grill round-2 四决议(2026-10-03,全按推荐):W2=企微+钉钉+ntfy 打包一
 - 企微 AI Bot(WS)/钉钉 Stream Mode(会话内 session_webhook)——蓝本事实决定它们不属于无常驻出站形态
 - 三平台任何入站/目录自动发现(蓝本没有)
 - 微信(独立任务 10-03-messaging-weixin-bridge)
+
+> **冲突裁定注记(2026-10-03 · 来源:零冲突收尾工作流)**
+>
+> 双拦:schema.py / test_schema.py 在途(vision 线)+ messaging 域活跃(域规则);等
+> src/myia/schema.py、tests/test_schema.py 净 + messaging 域线(channel JSON 落定、
+> ui-deep-imitation 收尾)净后即可开工;三个适配器新文件(push/ntfy.py 等)本身零冲突,
+> 但 implement 步骤 4-6(注册/schema/UI)与之连续,不建议拆单文件抢跑。
+> (冲突证据:文件硬撞(git status 实查):src/myia/schema.py 在途 M(diff +119 行
+> ImagesConfig,vision 线)、tests/test_schema.py 在途 M)

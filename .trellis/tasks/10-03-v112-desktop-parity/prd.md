@@ -97,3 +97,14 @@
 - 排程前置:v1.1.1 tag 后开工(grill 2026-10-03 Q5)
 - 并行批(C8/C9 划入、协议合参):`.trellis/tasks/10-03-feed-ux/prd.md`(G2/C8 项;
   C1×G1/G3 游标/查询协议统一设计,PROTOCOL_VERSION 统一 +1)
+
+> **冲突裁定注记(2026-10-03 · 来源:零冲突收尾工作流)**
+>
+> 排程门 v1.1.1 tag 已过;等 types.ts / client.ts / feed-screen.tsx / settings-screen.tsx /
+> sidecar-protocol.md / test_desktop_sidecar_protocol.py / App.tsx 净、且 spec 注册表演变
+> (27→23 回撤)落定后,按本档 design.md §11.3 七条核对清单复核再开工;main.rs 与
+> entry.py 此刻干净但属并行会话近期活跃域(entry.py 最近提交 60022ff),开工时须再核。
+> (冲突证据:在途同文件(git status 实查):desktop/ui-src/src/lib/api/types.ts、
+> lib/api/client.ts、screens/feed/feed-screen.tsx、screens/settings/settings-screen.tsx、
+> desktop/ui-src/src/App.tsx、tests/test_desktop_sidecar_protocol.py、
+> .trellis/spec/desktop/sidecar-protocol.md)

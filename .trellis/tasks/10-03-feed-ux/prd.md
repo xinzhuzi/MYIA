@@ -57,3 +57,15 @@
 - 需求源:`.trellis/tasks/10-03-ui-feature-census/prd.md`(G 矩阵与证据)
 - 并行批:`.trellis/tasks/10-03-v112-desktop-batch/prd.md`(C5/C13/C1 划界)
 - 未入选项(G5 主体告警规则等)→ `10-03-v12-backlog` 池
+
+> **冲突裁定注记(2026-10-03 · 来源:零冲突收尾工作流)**
+>
+> 排程门已过(git tag 实查存在 v1.1.1),拦路是并行 UI/视觉线占用 8 个在途文件;等
+> feed-screen.tsx / feed-screen.test.tsx / client.ts / types.ts / settings-screen.tsx /
+> App.tsx / test_desktop_sidecar_protocol.py / pipeline.py 净后即可开工;entry.py、
+> store/sqlite.py、top-bar.tsx、app-layout.tsx、dashboard、sources 屏此刻干净,
+> 开工时复测 git status 即可。(冲突证据:在途同文件(git status 实查):
+> desktop/ui-src/src/screens/feed/feed-screen.tsx、feed-screen.test.tsx、
+> desktop/ui-src/src/lib/api/client.ts、types.ts、
+> desktop/ui-src/src/screens/settings/settings-screen.tsx、desktop/ui-src/src/App.tsx、
+> tests/test_desktop_sidecar_protocol.py、src/myia/pipeline.py)

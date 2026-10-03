@@ -27,3 +27,11 @@ grill round-2 Q3 定案:微信走**可选桥接插件**(整个消息层桥接此
 - 在 MYIA 内实现 iLink 协议/QR 登录/context_token 轮询(蓝本自实现路线已否决)
 - 微信入站/双向(定向出站决议)
 - W3 长尾平台
+
+> **冲突裁定注记(2026-10-03 · 来源:零冲突收尾工作流)**
+>
+> messaging 域活跃(域规则 conflict)+ schema.py 在途 + 与 platforms/W2 同屏同注册面
+> 须排队;等 src/myia/schema.py 净 + messaging 域线收尾(platforms/W2 先后皆可,
+> 同屏后动者 rebase)后即可开工;README 披露与桥接新文件(subprocess/httpx)本身
+> 零冲突。(冲突证据:域级佐证同 messaging-platforms(channel_directory.json /
+> channel_aliases.json untracked 在途)+ src/myia/schema.py 在途 M)

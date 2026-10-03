@@ -34,3 +34,12 @@
 
 - 未实装平台的任何后端实装(仍按 W2/W3 波次)
 - 入站/双向功能(决议未翻案)
+
+> **冲突裁定注记(2026-10-03 · 来源:零冲突收尾工作流)**
+>
+> messaging 域并行活跃(域规则 conflict):目录 JSON 13:53 仍在途、ui-deep-imitation
+> 末批排消息屏 token 微调;messaging/ 屏文件本身此刻干净,属域级而非文件级冲突——
+> 等 channel_aliases.json / channel_directory.json 落定(提交或入忽略规则)+
+> ui-deep-imitation 收尾后即可开工。(冲突证据:域级佐证(实查):
+> channel_directory.json updated_at=2026-10-03T13:53:03、channel_aliases.json
+> untracked 在途(仓根 ?? ))
