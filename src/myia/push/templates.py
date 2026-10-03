@@ -128,8 +128,10 @@ def item_metric_key(view: Mapping[str, Any]) -> str | None:
     条目 dedup 键带上状态后(games 的 ``{url}-{final_price}``、stocks 的
     ``{symbol}-{date}-{slot}`` 都随价格态/槽位轮换),dedup_key 不再是跨轮
     稳定身份——键一换,昨日/上周快照就断链,vs_yesterday/vs_last_week 恒空。
-    价格基线的稳定身份是商品 url:url 缺失(如 stocks 以 symbol 充 url 的
-    兜底形态)或为空时才退回 dedup_key。
+    价格基线的稳定身份是商品 url(url 恒为 schema 必填的真值——stocks 以
+    symbol 充 url,取到的就是 "NVDA" 这样的稳定码,同样受益);url 缺失
+    或为空的兜底形态才退回 dedup_key(stocks 若将来开基线,其键带槽位轮换
+    正是本反转的动机例)。
     """
     key = view.get("url") or view.get("dedup_key")
     return key if isinstance(key, str) and key else None

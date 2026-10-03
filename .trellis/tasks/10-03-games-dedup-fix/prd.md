@@ -17,7 +17,7 @@ grill Round 1 Q1=A(主人 /workflow 做完令按推荐)。自查实锤:pipeline.
 ### make_key 缺失占位实锤(`.venv/bin/python` 直跑)
 
 - `DedupRegistry.make_key("{url}-{final_price}", {"url": ...})`(字段**不在** values
-  映射)→ **抛 `ValueError`**「字段校验失败: dedup.key.key 模板缺少字段 'final_price'」
+  映射)→ **抛 `ValueError`**「字段校验失败: dedup.key 模板缺少字段 'final_price'」
   (dedup.py make_key 的 missing-field 分支);pipeline `_stage_dedup` 捕获后按
   `dedup_key_error` **整条丢弃**——不是渲染空串。
 - 字段在但值为 `None` → 渲染为字符串 `"None"`(键尾 `-None`,不抛错)。

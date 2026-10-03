@@ -257,7 +257,11 @@ dedup:
   # 格态每槽重推一遍(seen 全期语义下只有价格变化才值得再推)。{title}
   # schema 永拒。四源都携带 final_price(Epic/Steam 人民币分 int;CS/GOG
   # 美元元字符串,补齐理由与安全性论证见各源 fields 注释)。
-  key: "{url}-{final_price}"
+  key: "{url}-{final_price}"      # 部署过渡注记:存量库首轮旧键({url} 无价
+                                # 格后缀)全不在注册表→现役条目一次性全量
+                                # 重推一遍(含在途限免多推一次 immediate),
+                                # items 表同 url 会落第二行;一次性、次日起
+                                # 自愈(键稳定)。升级日看到重复卡属预期。
 
 enrich:                         # 零 token 路线:游戏价格数值自解释,不烧
   enabled: false                # LLM 精评(趋势交给 baseline 数值基线)

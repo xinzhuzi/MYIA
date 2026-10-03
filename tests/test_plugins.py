@@ -882,6 +882,8 @@ def test_plugin_builds_a_pipeline(name):
 # One representative live source per plugin; second-run payloads change the
 # content (new price / new topic) so the fetch-level change fingerprint does
 # NOT swallow the second run — the interception under test is the dedup stage.
+# (games 例外:键带价格态后,拦截用例要求第二跑提取内容不变——只搅动未被
+# extract 的 endDate 来骗过指纹;变价=新键的反向语义由专测钉住。)
 def _epic_free_body(
     discount_price: int, fmt_price: str, *, promo_end: str = "2026-10-08T15:00:00.000Z"
 ) -> dict:
