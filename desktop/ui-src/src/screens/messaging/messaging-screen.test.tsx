@@ -449,7 +449,7 @@ describe("消息:平台总览三态徽标", () => {
 });
 
 describe("消息:平台总览筛选 tabs", () => {
-  it("全部(25)/已连接/未启用 正确分组;tab 文案带计数", async () => {
+  it("全部(28)/已连接/未启用 正确分组;tab 文案带计数", async () => {
     const sidecar = okSidecar();
     installSidecar(sidecar.map, sidecar.record);
     render(
@@ -459,10 +459,10 @@ describe("消息:平台总览筛选 tabs", () => {
     );
     const overview = await screen.findByTestId("platform-overview");
 
-    // 缺省 = 全部:已实装 2 + 未实装 23 = 25 张卡
-    expect(within(overview).getByTestId("platform-filter-all").textContent).toBe("全部(25)");
+    // 缺省 = 全部:已实装 2 + 未实装 26 = 28 张卡
+    expect(within(overview).getByTestId("platform-filter-all").textContent).toBe("全部(28)");
     expect(within(overview).getByTestId("platform-filter-connected").textContent).toBe("已连接(2)");
-    expect(within(overview).getByTestId("platform-filter-disabled").textContent).toBe("未启用(23)");
+    expect(within(overview).getByTestId("platform-filter-disabled").textContent).toBe("未启用(26)");
     expect(within(overview).getByTestId("platform-card-weixin")).toBeTruthy();
 
     // 已连接:只剩已实装且已连接的卡
@@ -489,7 +489,7 @@ describe("消息:平台总览筛选 tabs", () => {
     );
     const overview = await screen.findByTestId("platform-overview");
     expect(within(overview).getByTestId("platform-filter-connected").textContent).toBe("已连接(0)");
-    expect(within(overview).getByTestId("platform-filter-disabled").textContent).toBe("未启用(25)");
+    expect(within(overview).getByTestId("platform-filter-disabled").textContent).toBe("未启用(28)");
     fireEvent.click(within(overview).getByTestId("platform-filter-disabled"));
     expect(within(overview).getByTestId("platform-card-feishu")).toBeTruthy();
   });
@@ -590,12 +590,12 @@ describe("消息:平台总览派生纯函数", () => {
     expect(deriveImplementedStatus([], [])).toBe("needs_setup");
   });
 
-  it("buildPlatformCards:2 已实装 + 23 未实装;灰卡无指南、id 唯一", () => {
+  it("buildPlatformCards:2 已实装 + 26 未实装;灰卡无指南、id 唯一", () => {
     const cards = buildPlatformCards({}, []);
-    expect(cards).toHaveLength(25);
+    expect(cards).toHaveLength(28);
     expect(cards.filter((card) => card.status === "needs_setup")).toHaveLength(2);
-    expect(cards.filter((card) => card.status === "coming_soon")).toHaveLength(23);
-    expect(new Set(cards.map((card) => card.id)).size).toBe(25);
+    expect(cards.filter((card) => card.status === "coming_soon")).toHaveLength(26);
+    expect(new Set(cards.map((card) => card.id)).size).toBe(28);
     for (const card of cards.filter((c) => c.status === "coming_soon")) {
       expect(card.guide).toBeNull();
       expect(card.directoryCount).toBe(0);

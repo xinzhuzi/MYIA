@@ -134,6 +134,9 @@ export const UPCOMING_PLATFORMS: readonly UpcomingPlatform[] = [
   { id: "a2a", name: "A2A", wave: "W3" },
   { id: "photon", name: "Photon", wave: "W3" },
   { id: "homeassistant", name: "Home Assistant", wave: "W3" },
+  { id: "msgraph_webhook", name: "MS Graph Webhook", wave: "W3" },
+  { id: "buzz", name: "Buzz", wave: "W3" },
+  { id: "raft", name: "Raft", wave: "W3" },
 ];
 
 // ---------------------------------------------------------------------------
