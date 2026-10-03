@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { Loader2, PlugZap, Unplug } from "lucide-react";
+import { ChevronRight, Search } from "lucide-react";
+import { NavLink, useLocation } from "react-router-dom";
 
-import { useSidecarStatus } from "@/hooks/use-sidecar-status";
 import { GlobalRun } from "@/components/layout/global-run";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { resolveNav } from "@/components/layout/sidebar";
 import {
   Select,
   SelectContent,
@@ -20,10 +19,14 @@ interface CategoryOption {
   label: string;
 }
 
+/** 命令位快捷键文案:macOS ⌘K,其余平台 Ctrl K(桌面跨平台惯例) */
+const COMMAND_KEY =
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform ?? "") ? "⌘K" : "Ctrl K";
+
 /**
- * 顶栏:左侧品类选择(全局过滤器,选中即服务端过滤情报流),右侧 sidecar
- * 全局状态。品类选项来自 health().plugins(C8,10-03-feed-ux 接线;
- * 加载失败静默收敛为「全部品类」单选项,不遮蔽界面)。
+ * 顶栏(D4 壳层对标 Linear):左侧面包屑(工作区 › 分组 › 页面,与侧栏
+ * 导航同一解析口径),右侧品类全局过滤 + 全局跑一次 + 全局命令位。
+ * sidecar 状态已迁侧栏底部账户区(Linear 底部状态区)。
  */
 export function TopBar({
   category,
@@ -32,7 +35,6 @@ export function TopBar({
   category: string | null;
   onCategoryChange: (next: string | null) => void;
 }) {
-  const { status, info, error, reprobe } = useSidecarStatus();
   const [options, setOptions] = useState<CategoryOption[]>([]);
 
   useEffect(() => {
@@ -66,6 +68,10 @@ export function TopBar({
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-background/80 px-4">
+      <Breadcrumb />
+
+      <div className="flex-1" />
+
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground">品类</span>
         <Select
@@ -86,108 +92,53 @@ export function TopBar({
         </Select>
       </div>
 
-      <div className="flex-1" />
-
       <GlobalRun category={category} />
-      <SidecarStatusBadge status={status} info={info} error={error} onRetry={reprobe} />
+      <CommandSlot />
     </header>
   );
 }
 
-function SidecarStatusBadge({
-  status,
-  info,
-  error,
-  onRetry,
-}: {
-  status: ReturnType<typeof useSidecarStatus>["status"];
-  info: ReturnType<typeof useSidecarStatus>["info"];
-  error: ReturnType<typeof useSidecarStatus>["error"];
-  onRetry: () => void;
-}) {
-  if (status === "online") {
-    // 界面不放开发期文案:在线态只留状态点,版本/协议退到 title 悬浮供排障
-    // (排障三件套:sidecar 版 · 协议版 · app 版(C10;dev/CLI 场景未注入则省略))
-    const appPart = info?.app_version ? ` · app v${info.app_version}` : "";
-    return (
-      <Badge
-        variant="ok"
-        className="px-2 py-1"
-        aria-label="sidecar 已连接"
-        title={`sidecar v${info?.version} · 协议 v${info?.protocol}${appPart}`}
-      >
-        <span className="relative flex size-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ok opacity-60" />
-          <span className="relative inline-flex size-2 rounded-full bg-ok" />
-        </span>
-      </Badge>
-    );
-  }
-
-  if (status === "connecting") {
-    return (
-      <Badge variant="unknown" className="gap-1.5 px-2 py-1">
-        <Loader2 className="size-3 animate-spin" />
-        连接 sidecar…
-      </Badge>
-    );
-  }
-
-  if (status === "respawning") {
-    // 壳层自动重拉中(main.rs 退避序列):静待,动作按钮保持可点(提前手动拉起)
-    return (
-      <Badge variant="warning" className="gap-1.5 px-2 py-1" title="sidecar 已退出,壳层按退避自动重拉">
-        <Loader2 className="size-3 animate-spin" />
-        重拉 sidecar…
-      </Badge>
-    );
-  }
-
-  if (status === "dead") {
-    // 自动重拉超限:唯一修复动作 = 手动拉起(reprobe 内含 sidecar_restart)
-    return (
-      <div className="flex items-center gap-1">
-        <Badge
-          variant="destructive"
-          className="gap-1.5 px-2 py-1"
-          title={error ? `${error.code}: ${error.message}` : undefined}
-        >
-          <Unplug className="size-3" />
-          sidecar 已停止
-        </Badge>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-6"
-          title="拉起 sidecar"
-          aria-label="拉起 sidecar"
-          onClick={onRetry}
-        >
-          <PlugZap className="size-3" />
-        </Button>
-      </div>
-    );
-  }
-
+/** 面包屑:世事 › 分组 › 页面(当前页为末段,foreground 中字重;前段弱色) */
+function Breadcrumb() {
+  const location = useLocation();
+  const nav = resolveNav(location.pathname);
+  if (!nav) return null;
   return (
-    <div className="flex items-center gap-1">
-      <Badge
-        variant="warning"
-        className="gap-1.5 px-2 py-1"
-        title={error ? `${error.code} @ ${error.path}: ${error.message}` : undefined}
+    <nav aria-label="面包屑" className="flex min-w-0 items-center gap-1">
+      <NavLink
+        to="/"
+        className="text-xs text-muted-foreground transition-colors duration-(--duration-fast) ease-out-expo hover:text-foreground"
       >
-        <Unplug className="size-3" />
-        {error?.code === "sidecar_unavailable" ? "未在 Tauri 环境中" : "sidecar 未连接"}
-      </Badge>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-6"
-        title="重新探测 sidecar(失败时自动拉起)"
-        onClick={onRetry}
-      >
-        <PlugZap className="size-3" />
-      </Button>
+        世事
+      </NavLink>
+      {nav.group ? (
+        <>
+          <ChevronRight className="size-3 shrink-0 text-muted-foreground/50" aria-hidden />
+          <span className="text-xs text-muted-foreground">{nav.group}</span>
+        </>
+      ) : null}
+      <ChevronRight className="size-3 shrink-0 text-muted-foreground/50" aria-hidden />
+      <span className="truncate text-sm font-medium text-foreground">{nav.entry.label}</span>
+    </nav>
+  );
+}
+
+/**
+ * 全局命令位(D4 明确「留白」):只预留位置与视觉锚点(Linear 顶栏搜索/
+ * 命令触发器形态),命令面板属功能件归后续任务,此处非交互、对辅助技术隐藏。
+ */
+function CommandSlot() {
+  return (
+    <div
+      aria-hidden
+      title="全局命令位:命令面板属后续版本,此处仅预留位置"
+      className="flex h-7 w-44 select-none items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 text-xs text-muted-foreground/70"
+    >
+      <Search className="size-3 shrink-0" />
+      <span className="flex-1 truncate">搜索或跳转…</span>
+      <kbd className="rounded-sm border border-border/60 bg-muted px-1 font-mono text-2xs leading-4 text-muted-foreground">
+        {COMMAND_KEY}
+      </kbd>
     </div>
   );
 }
