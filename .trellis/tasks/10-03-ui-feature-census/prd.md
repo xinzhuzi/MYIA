@@ -31,15 +31,16 @@
 | G8 | AI 呈现增强 | Feedly 卡片摘要/去噪折叠;Visualping AI 告警摘要;Brand24 情绪标注 | 仅精评分数 Badge(已有);无摘要动作、无情绪/优先级标注 | **P2**:卡片「AI 摘要」按钮(enrich 管线现成);情绪标注 v2 再议 |
 | G9 | 快捷键与批量操作 | Feedly S/T/X 快捷键;各阅读器全部标已读 | 零快捷键、无批量已读 | **P3** |
 | G10 | 代理可用性测试 | changedetection Proxy Scanner 逐个实测+按 watch 绑定 | 设置只有池凭据录入,无连通性测试/状态 | **P3**(doctor --config 探测已有,差 UI 按钮) |
-| G11 | 凭据整包迁移 | SpiderFoot API key 导入导出(换机) | 钥匙链凭据无导出/备份 UI | **P3**(有安全权衡,需单独拍板) |
+| G11 | 凭据整包迁移 | SpiderFoot API key 导入导出(换机) | 钥匙链凭据无导出/备份 UI | **不做**(并入 F 类,2026-10-03 拍板;换机走 secret set 重录) |
 | G12 | 就地订阅(亮点) | OpenCTI 实体页快捷订阅铃铛:结果就地转监控触发器 | 无(看到好情报无法就地沉淀为关键词/源) | **P2 候选亮点**:条目卡「沉淀为关键词」入口,衔接 yaml-editor |
 
-## 明确不适用/刻意不做(F 类延伸)
+## 明确不适用/刻意不做(F 类延伸,2026-10-03 grill 主人认可五条)
 
 - **无代码点选构建器**(Octoparse/ParseHub 路线):MYIA 定调 agent 读 SKILL.md 写 YAML,构建器与 AI-native 定位冲突,不做。
 - **案件/图谱/协作域**(Maltego Cases、OpenCTI Investigations、MISP 共享/权限/RBAC、Hunchly 取证包):单人桌面无协作模型,整体不适用。
 - **OPML/订阅发现/模板市场**(Inoreader/Feedly 生态):MYIA 源=git 源码化插件,非 RSS 订阅器;「模板」已按 yaml-editor 决议收敛为单最小模板。
 - **云端索引类能力**(Inoreader 全局搜索、Brand24 社交语料、Feedly AI Feeds/Newsletter 投递、Storm Alerts):依赖全网索引,本地版天然不可行,不追。
+- **凭据整包导出**(原 G11,SpiderFoot 式 API key 导入导出):明文出钥匙链违背 security-baseline 红线,不做;换机迁移走 `myia secret set` 重录。
 - **资源编排类**(Apify 每 run 内存分配/秒级触发、云排队):单机只有并发上限+队列,只借鉴 UI 呈现。
 
 ## 与已有任务档的关系(不重复立档)
@@ -56,7 +57,7 @@
 - [x] MYIA 基线为源码实读结论(五屏+顶栏,commit d84ec05 时点)
 - [x] 缺口矩阵 G1-G12 落档,含业界证据/MYIA 现状/优先级建议
 - [x] 不适用域(F 类延伸)与已有任务档关系明确,无重复立档
-- [ ] 路由拍板(待主人;见下)
+- [x] 路由拍板(2026-10-03 grill Round 1,主人四问全按推荐;注记见文末)
 
 ## 待主人拍板
 
@@ -64,3 +65,16 @@
 2. G5 告警规则(Rules 式条件→动作)是否纳入 v1.2 范围(涉 sidecar 协议扩展)
 3. G11 凭据导出的安全口径(默认不做/明文导出需二次确认)
 4. F 类四条「刻意不做」是否认可归档
+
+> **2026-10-03 拍板注记(grill Round 1,主人四问全按推荐):**
+> - **Q1 ✅ feed-ux 批次立项**(`10-03-feed-ux`):范围=G1 搜索+G2 详情与打开原文(含 C9)
+>   +G3 导出+G4 排程管理与手动触发+C8 选择器接线+G5 推送测试按钮搭车;C5/C13 留
+>   v112-desktop-batch;G1/G3 协议扩展与 C1 游标合参、协议版本统一 +1;排 v1.1.1 tag 后
+>   与 v112-batch 并行;批内顺序 G2→G4→G1/G3。
+> - **Q2 ✅ 全部入池不加码**:G5 主体(告警 Rules)+G6-G12 未入选项全部登记 v12-backlog;
+>   v1.2 承诺仍=Windows+crawl4ai L3+proxy_pool+B2/B3/B4,不因普查扩围。
+> - **Q3 ✅ F 类五条全认可**:原四条 + G11 凭据导出并入「刻意不做」(换机走 secret set
+>   重录;security-baseline 明文出钥匙链红线)。
+> - **Q4 ✅ v1.2 两项主人侧前置已答,都有**:Windows 真机/VM 有(完整安装冒烟口径)、
+>   proxy 服务商与预算有(具体服务商拆任务时提供)——已回写 v12-backlog。
+> 本档路由全闭环,状态转 review 待归档。

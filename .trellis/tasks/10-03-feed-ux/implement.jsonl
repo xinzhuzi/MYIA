@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/10-03-ui-feature-census/prd.md", "reason": "G1-G5/C8/C9 的业界证据与现状基线;G2 详情面板、G4 Next runs 预览的交互参照"}
+{"file": ".trellis/tasks/10-03-v112-desktop-batch/prd.md", "reason": "划界与合参:C5/C13/C1 归属 v112-batch;G1/G3 协议扩展与 C1 游标合并设计、协议版本统一 +1"}
+{"file": ".trellis/tasks/archive/2026-10/10-03-gap-census/prd.md", "reason": "C1/C8/C9/C12 原始证据(file:line);C12 run 单点触发即本批 G4"}
+{"file": ".trellis/spec/python/index.md", "reason": "桌面发行数据根与协议测试红线:协议扩展必须同步 test_desktop_sidecar_protocol"}

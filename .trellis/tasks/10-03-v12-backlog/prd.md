@@ -30,6 +30,24 @@ grill 决议 2026-10-03 Q1:发布工程(v1.1.1)先行,以下三项排 v1.2。本
    - dashboard 采集量趋势(v1.1 PRD 承诺项)
    - 与第 2 项 C 组批次(10-03-v112-desktop-batch)的取舍:实现顺序上
      C2/C1/C7 优先于本项。
+5. **UI 普查 P2/P3 项入池**(2026-10-03 ui-feature-census grill Q2 批复「全部入池不加码」;
+   证据与业界参照见 `.trellis/tasks/10-03-ui-feature-census/prd.md` G 矩阵)
+   - G5 主体:告警规则(Inoreader Rules 式条件→动作,涉 sidecar 协议扩展;
+     G5 前半「推送测试按钮」已随 `10-03-feed-ux` 批次先行)
+   - G6:采集量/成功率趋势折线(与 B4 采集量趋势同属一块,拆任务时合并考虑)
+   - G7:run 重跑/按品类状态过滤/日志内搜索(重跑依赖 feed-ux G4 的手动触发通道)
+   - G8:情报流卡片「AI 摘要」按钮(enrich 管线现成);情绪标注 v2 再议
+   - G9:快捷键与批量操作(全部标已读等)
+   - G10:代理池连通性测试按钮(doctor --config 探测已有,差 UI)
+   - G12:条目卡「就地沉淀为关键词」入口(OpenCTI 快捷订阅铃铛式,衔接 yaml-editor)
+   - G11 不入池:并入 F 类刻意不做(凭据导出,security-baseline 红线)
+
+## 主人侧前置(2026-10-03 grill Q4 已答)
+
+- **Windows 真机/VM:有**——v1.2 Windows 拆任务按完整安装冒烟口径(对齐 macOS 的
+  cwd 无关路径解析 + 首跑种子 + 五屏数据/空态),不做降级。
+- **proxy 服务商与预算:有**——拆 proxy_pool 任务时主人提供具体服务商,先做池化
+  抽象 + 该服务商实装。
 
 ## Acceptance Criteria(池档口径)
 

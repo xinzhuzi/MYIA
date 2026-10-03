@@ -20,6 +20,11 @@
    C9(条目卡打开原文)/C13(试抓此源);C4/C6/C11 属协议缺口登记,
    有余力再议。
 
+> **划界注记(2026-10-03 ui-feature-census grill Q1 批复)**:C8(品类选择器
+> 接线)与 C9(打开原文)划归 `10-03-feed-ux` 批次随批修(feed-ux 的 G2/C8 项);
+> 本批留守 C5/C13。G1/G3 的 store 查询扩展与本批 C1(游标协议)同一协议面,
+> 两批设计期合并考虑,协议版本号(entry.py PROTOCOL_VERSION)统一 +1。
+
 ## Constraints
 
 - 不动 v1.1.1 已修的数据通路语义(spec python/index.md「桌面发行数据根」节)。
