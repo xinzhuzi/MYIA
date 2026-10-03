@@ -341,6 +341,9 @@ your messaging apps. The YAML itself is written by your coding agent: it
 reads the schema, generates the config, trial-fetches with `shishi test`, and
 repairs broken sources on its own from `shishi doctor` output.
 
+Weixin outbound is a bridge via a local Hermes-Agent install — without one,
+the weixin channel is unavailable (MYIA itself holds zero WeChat credentials).
+
 **Humans decide; AI does the rest.**
 
 ### Why 世事

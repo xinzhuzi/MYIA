@@ -21,16 +21,17 @@ afterEach(() => {
 });
 
 describe("平台头像:规格表全覆盖", () => {
-  it("28 平台全部有规格;已实装 5 家 brand 精确标,23 家 generic 通用标随波次", () => {
+  it("28 平台全部有规格;已实装 6 家 brand 精确标,22 家 generic 通用标随波次", () => {
     const expected = [
       ...IMPLEMENTED_PLATFORMS.map((p) => p.id),
       ...UPCOMING_PLATFORMS.map((p) => p.id),
     ];
     expect(Object.keys(PLATFORM_ICON_SPECS).sort()).toEqual([...expected].sort());
     expect(Object.keys(PLATFORM_ICON_SPECS)).toHaveLength(28);
-    // W2 转实装的三家(ntfy/钉钉/企微)已从 UPCOMING 移入 IMPLEMENTED
+    // W2 转实装的四家(ntfy/钉钉/企微/微信)已从 UPCOMING 移入 IMPLEMENTED
     expect(IMPLEMENTED_PLATFORMS.map((p) => p.id)).toContain("ntfy");
-    expect(UPCOMING_PLATFORMS.map((p) => p.id)).not.toContain("ntfy");
+    expect(IMPLEMENTED_PLATFORMS.map((p) => p.id)).toContain("weixin");
+    expect(UPCOMING_PLATFORMS.map((p) => p.id)).not.toContain("weixin");
 
     for (const id of IMPLEMENTED_PLATFORMS.map((p) => p.id)) {
       const spec = PLATFORM_ICON_SPECS[id];
@@ -45,7 +46,7 @@ describe("平台头像:规格表全覆盖", () => {
       expect(spec.wave).toBe(platform.wave);
       waves.add(spec.wave ?? "");
     }
-    expect(waves).toEqual(new Set(["W2", "W3"]));
+    expect(waves).toEqual(new Set(["W3"])); // W2 未实装已清零(微信转实装)
   });
 });
 
@@ -76,21 +77,15 @@ describe("平台头像:芯片画法", () => {
     expect(chip.style.color).toContain("rgb(51, 112, 255)");
   });
 
-  it("未实装平台通用标灰态随波次:W2 全灰,W3 底与字形各再弱一档", () => {
-    const { rerender, getByTestId } = render(
-      <PlatformAvatar platformId="weixin" platformName="微信" />,
-    );
-    const w2 = getByTestId("platform-avatar-weixin");
-    expect(w2.querySelector("svg")).toBeTruthy(); // lucide 通用标也是 SVG
-    // 类名数组精确匹配(bg-muted/50 的子串会误判命中 bg-muted)
-    expect(w2.className.split(/\s+/)).toContain("bg-muted");
-    expect(w2.className.split(/\s+/)).not.toContain("bg-muted/50");
-
-    rerender(<PlatformAvatar platformId="slack" platformName="Slack" />);
+  it("未实装平台通用标灰态随波次:W3 底与字形各再弱一档(W2 未实装已清零)", () => {
+    // 微信随 10-03-messaging-weixin-bridge 转实装后,UPCOMING 只余 W3 波次
+    expect(UPCOMING_PLATFORMS.filter((p) => p.wave === "W2")).toEqual([]);
+    const { getByTestId } = render(<PlatformAvatar platformId="slack" platformName="Slack" />);
     const w3 = getByTestId("platform-avatar-slack");
+    expect(w3.querySelector("svg")).toBeTruthy(); // lucide 通用标也是 SVG
     expect(w3.className).toContain("bg-muted/50");
     expect(w3.className).toContain("text-muted-foreground/60");
-    expect(w3.className.split(/\s+/)).not.toContain("bg-muted"); // W3 不用全灰档
+    expect(w3.className.split(/\s+/)).not.toContain("bg-muted"); // 不用全灰档
   });
 
   it("W2 转实装三家:ntfy 官方字形品牌色;钉钉/企微官方主色 monogram(与飞书同范式)", () => {
@@ -110,6 +105,12 @@ describe("平台头像:芯片画法", () => {
     const wecom = getByTestId("platform-avatar-wecom");
     expect(wecom.textContent).toBe("企");
     expect(wecom.style.color).toContain("38, 126, 240"); // #267EF0 企微标准蓝(官方色值表 blue_btn)
+
+    // 微信(10-03-messaging-weixin-bridge 转实装):官方绿 + 「微」monogram
+    rerender(<PlatformAvatar platformId="weixin" platformName="微信" />);
+    const weixin = getByTestId("platform-avatar-weixin");
+    expect(weixin.textContent).toBe("微");
+    expect(weixin.style.color).toContain("7, 193, 96"); // #07C160 微信官方绿
   });
 
   it("未登记平台兜底:中性底 + 名称首字 monogram(上游 monogramFor 同语义)", () => {

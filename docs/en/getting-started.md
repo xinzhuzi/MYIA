@@ -61,6 +61,11 @@ export MYIA_LLM_KEY=...
 shishi secret set myia/stocks/site_cookie < cookie.txt
 ```
 
+The Weixin channel is an optional bridge: outbound goes through a local
+resident Hermes-Agent install that holds the login — without one, that
+platform is unavailable (MYIA stores zero WeChat credentials; the platform
+card honestly says "needs a local Hermes").
+
 Don't want to configure a paid endpoint? Both vision and enrich have
 zero-cost paths (local mlx-vlm/Ollama → cloud free tiers → light Gemini
 daily batches); see [Zero-cost setup](zero-cost.md) for endpoint choices

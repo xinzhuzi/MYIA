@@ -79,8 +79,9 @@ export const PLATFORM_ICON_SPECS: Record<string, PlatformIconSpec> = {
   ntfy: { Icon: NtfyGlyph, color: "#317F6F", kind: "brand" },
   dingtalk: { color: "#0089FF", kind: "brand", monogram: "钉" },
   wecom: { color: "#267EF0", kind: "brand", monogram: "企" },
-  // —— 未实装 W2(近期)通用标 ——
-  weixin: { Icon: MessageSquareText, kind: "generic", wave: "W2" },
+  // 微信随 10-03-messaging-weixin-bridge 转实装:generic → brand 精确标
+  // (官方绿 #07C160 + 「微」monogram,钉钉/企微同范式)
+  weixin: { color: "#07C160", kind: "brand", monogram: "微" },
   // —— 未实装 W3(远期)通用标(按形态分组;未知形态用默认消息标) ——
   slack: { Icon: Hash, kind: "generic", wave: "W3" },
   discord: { Icon: MessageSquareText, kind: "generic", wave: "W3" },

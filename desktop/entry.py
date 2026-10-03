@@ -44,6 +44,13 @@ run.cancel        (进程组杀 run 子进程)           SIGTERM→5s 后 SIGKIL
 runs.list         (SQLiteStore.list_runs 直读)   历史 run(新→旧;重启后可达)
 logs.tail         (sidecar 内环形缓冲)            最近日志行(可按 run_id 过滤)
 store.items       (SQLiteStore.list_items 直读)  情报流条目(新→旧;游标/搜索)
+feed.export       (list_items 同一查询面直写)     当前过滤视图导出 JSONL/CSV
+                                                 (sidecar 直写,数据不经
+                                                 webview;只写对话框选定的
+                                                 单个文件)
+schedule.preview  (build_cron_trigger 纯计算)     品类排程未来 count 次时刻
+                                                 (Apify 式 Next runs 预览,
+                                                 防 cron 写错)
 secret.set        ``myia secret set``            只入系统钥匙链,值零回显
 secret.list       ``myia secret list``           只有名字,值不可读
 secret.delete     ``myia secret delete``         误存凭据的 UI 清除口
@@ -79,6 +86,10 @@ push.write         (push[] 全量替换写回)           围栏→push 块文本
                                                  保真)→反解析深等门→load_category
                                                  同门(含同平台约束)→.bak→原子
                                                  写;校验失败零写入
+push.test          (通道 send(items, context))    合成单条测试条目真发指定通道
+                                                 (凭据沿用 env:/keychain: 引用
+                                                 链;stdout 通道卡片入应答
+                                                 preview,协议流零污染)
 ================= ============================== ============================
 
 - ``run.start`` params:``yaml``(必填)、``dry``(bool,缺省 false)、``db``、
@@ -102,6 +113,17 @@ push.write         (push[] 全量替换写回)           围栏→push 块文本
   ``timeout``(≤120)、``config``;应答 ``{job_id, state:"running", source?}``,
   结果走事件 ``test.completed {job_id, ok, exit_code, result?|error?, ts}``;
   单飞 = ``test_busy``,装不上品类 = ``source_file_unreadable``。
+- ``feed.export`` params(task 10-03-feed-ux,契约钉死于任务档 design.md §1):
+  ``format``(``jsonl``/``csv``)、``path``(绝对路径,前端 ``dialog.save()``
+  选定;空/相对/父目录不存在 = ``export_path_invalid``)、``category``/``query``
+  (与 ``store.items`` 同一查询面);应答 ``{path, count, bytes}``,写盘 IO 失败 =
+  ``export_write_failed``。只写该一个文件,不建目录不删除任何东西。
+- ``schedule.preview`` params:``file``(围栏同 yaml.*/sources.test)、``count``
+  (缺省 5,钳制 [1,20]);应答 ``{file, schedule, timezone, runs[]}``,品类装不上 =
+  ``source_file_unreadable``,纯计算零副作用。
+- ``push.test`` params:``channel``(∈ myia.push.CHANNELS)、``target?``
+  (凭据引用)、``template?``;应答 ``{ok: true, channel, preview?}``(preview 仅
+  stdout 通道);失败沿用通道 PushSendError code 原文直传。
 - ``run.status`` / ``logs.tail`` params:``run_id``(可省)/ ``lines``(tail 上限)。
 - ``health`` params:``plugins_dir``、``db``;``plugins.list`` params:``dir``;
   ``doctor`` params:``yamls[]``、``plugins_dir``、``db``、``config``、``probe_timeout``。
@@ -166,6 +188,7 @@ from myia import push as myia_push
 from myia.cli import DEFAULT_DB_PATH, DEFAULT_PLUGINS_DIR, main as cli_main
 from myia.plugins.installed import INSTALL_ROOT_ENV, default_install_root
 from myia.push import ChannelDirectory, DeliveryLedger, DirectoryDiscoverUnsupported, PushSendError
+from myia.push.weixin import probe_bridge
 from myia.schema import (
     CATEGORY_ID_RE,
     CHANNEL_PLATFORMS,
@@ -190,7 +213,10 @@ from myia.vision import (
 
 #: v2 = 消息族(channels.*/push.write)入表;yaml.*/image.* 并线期未及 bump,
 #: 本次统一收口(v1 停在 10 方法时代)。
-PROTOCOL_VERSION = 2
+#: v3 = feed-ux 批(feed.export / push.test / schedule.preview;store.items 的
+#: query/before/before_id 已随 v112 桌面对齐批在 v2 期内落地,不重复计)。
+#: v4 = weixin-bridge 批(bridge.status 微信桥接探测,10-03-messaging-weixin-bridge)。
+PROTOCOL_VERSION = 4
 #: 日志环形缓冲容量(行);logs.tail 的硬上限。
 LOG_RING_CAPACITY = 4000
 #: 单次 run 的日志事件与环形上限一致;超限仅丢最旧行。
@@ -653,6 +679,85 @@ def _m_secret_delete(params: dict[str, Any]) -> dict[str, Any]:
     except SecretError as exc:
         raise ProtocolError(exc.code, str(exc), path="params.name") from exc
     return {"name": name, "deleted": True}
+
+
+# ---------------------------------------------------------------------------
+# 方法:feed.export(情报流导出;G3,10-03-feed-ux)
+# ---------------------------------------------------------------------------
+
+
+def _m_feed_export(params: dict[str, Any]) -> dict[str, Any]:
+    """导出情报流当前过滤视图为 JSONL / CSV(sidecar 直写,数据不经 webview)。
+
+    查询面 = ``store.items`` 同源(:func:`SQLiteStore.list_items` 的
+    ``category``/``query``,不带游标 —— 导出的是整个过滤视图而非单页);
+    ``path`` = 前端 ``dialog.save()`` 用户选定(绝对路径,父目录必须已存在,
+    覆盖确认归对话框侧)。只写这一个文件:不建目录、不删除任何东西;
+    逐行流式写,大结果集不整载内存(design §1)。
+
+    err:``export_path_invalid``(空/相对路径/父目录不存在)/
+    ``export_write_failed``(IO 原文)。
+    """
+    import csv
+
+    fmt = params.get("format")
+    if fmt not in ("jsonl", "csv"):
+        raise ProtocolError(
+            "invalid_params", "format 必须是 jsonl 或 csv", path="params.format"
+        )
+    path_raw = params.get("path")
+    if not isinstance(path_raw, str) or not path_raw.strip():
+        raise ProtocolError("export_path_invalid", "缺少导出路径 path", path="params.path")
+    target = Path(path_raw).expanduser()
+    if not target.is_absolute():
+        raise ProtocolError(
+            "export_path_invalid", f"导出路径必须是绝对路径: {path_raw}", path="params.path"
+        )
+    parent = target.parent
+    if not parent.is_dir():
+        raise ProtocolError(
+            "export_path_invalid", f"导出父目录不存在: {parent}", path="params.path"
+        )
+    category = params.get("category")
+    if category is not None and (not isinstance(category, str) or not category):
+        raise ProtocolError("invalid_params", "category 必须为非空字符串", path="params.category")
+    query = params.get("query")
+    if query is not None and not isinstance(query, str):
+        raise ProtocolError("invalid_params", "query 必须为字符串", path="params.query")
+
+    db = params.get("db") or _serve_context().db
+    try:
+        store = SQLiteStore(db)
+    except StoreSchemaError as exc:
+        raise ProtocolError(exc.code, str(exc), path="params.db", data=exc.details) from exc
+    try:
+        items = store.list_items(category=category, query=query or None)
+    except ValueError as exc:
+        raise ProtocolError("invalid_params", str(exc), path="params") from exc
+    finally:
+        store.close()
+
+    csv_columns = ("id", "first_seen", "category", "source", "title", "url", "content")
+    written = 0
+    try:
+        with open(target, "w", encoding="utf-8", newline="") as handle:
+            if fmt == "jsonl":
+                for item in items:
+                    handle.write(json.dumps(_item_dict(item), ensure_ascii=False) + "\n")
+                    written += 1
+            else:
+                writer = csv.writer(handle)
+                writer.writerow(csv_columns)  # 表头计入文件,不计入 count(条目数)
+                for item in items:
+                    row = _item_dict(item)
+                    writer.writerow([row.get(column) for column in csv_columns])
+                    written += 1
+    except OSError as exc:
+        raise ProtocolError(
+            "export_write_failed", f"导出写盘失败: {target} ({exc})", path="params.path"
+        ) from exc
+    size = target.stat().st_size
+    return {"path": str(target), "count": written, "bytes": size}
 
 
 # ---------------------------------------------------------------------------
@@ -1647,6 +1752,56 @@ def _m_yaml_delete(params: dict[str, Any]) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# 方法:schedule.preview(排程未来时刻预览;G4,10-03-feed-ux)
+# ---------------------------------------------------------------------------
+
+
+def _m_schedule_preview(params: dict[str, Any]) -> dict[str, Any]:
+    """品类排程的 Next runs 预览(Apify 式,防 cron 写错;纯计算零副作用)。
+
+    ``build_cron_trigger`` → ``get_next_fire_time`` 链推进 ``count`` 次
+    (ISO-8601 本地时刻串;时区随品类 ``timezone`` 节,缺省系统时区)。
+    ``file`` 过 :func:`_fence_yaml_path` 围栏 + ``load_category_file`` 同门
+    装载(装不上 = ``source_file_unreadable``,与 sources.test 同款错误);
+    品类无排程(schedule 空串)明示 ``schedule: null`` + ``runs: []``,
+    不是错误(design §1)。``count`` 缺省 5,钳制 [1, 20]。
+    """
+    from myia.pipeline import build_cron_trigger
+
+    resolved, _ctx = _fence_yaml_path(params.get("file"))
+    count = params.get("count", 5)
+    if not isinstance(count, int) or isinstance(count, bool) or count < 1:
+        raise ProtocolError("invalid_params", "count 必须为正整数", path="params.count")
+    count = min(count, 20)
+    try:
+        config = load_category_file(resolved)
+    except LoadError as exc:
+        raise ProtocolError(
+            "source_file_unreadable", f"品类 YAML 装不上: {exc}",
+            path="params.file", data={"file": str(resolved)},
+        ) from exc
+    schedule = config.schedule or None
+    runs: list[str] = []
+    if schedule:
+        try:
+            trigger = build_cron_trigger(schedule, config.timezone)
+        except ValueError as exc:  # schema 已校验 cron,此处防御性兜底
+            raise ProtocolError("invalid_cron", str(exc), path="params.file") from exc
+        # 推进姿势:previous 恒 None + now = 上一时刻 +1µs —— 严格递增,
+        # 不依赖 apscheduler 对 previous_fire_time 分支的版本细节。
+        from datetime import timedelta
+
+        cursor = datetime.now(timezone.utc)
+        while len(runs) < count:
+            fire = trigger.get_next_fire_time(None, cursor)  # type: ignore[assignment]
+            if fire is None:
+                break
+            runs.append(fire.isoformat())
+            cursor = fire + timedelta(microseconds=1)
+    return {"file": str(resolved), "schedule": schedule, "timezone": config.timezone, "runs": runs}
+
+
+# ---------------------------------------------------------------------------
 # 方法:sources.test(试抓此源,异步 job;C13)
 # ---------------------------------------------------------------------------
 
@@ -2205,6 +2360,7 @@ def _push_raw_dict(push: Any) -> dict[str, Any]:
         "wecom_corpid",
         "wecom_corpsecret",
         "wecom_agentid",
+        "weixin_hermes_bin",
     ):
         value = getattr(push, field, None)
         if value is not None:
@@ -2353,6 +2509,32 @@ def _m_channels_alias(params: dict[str, Any]) -> dict[str, Any]:
             data={"platform": platform, "chat_id": chat_id},
         )
     return {"platform": platform, "chat_id": chat_id, "deleted": deleting, "name": cleaned or None}
+
+
+def _m_bridge_status(params: dict[str, Any]) -> dict[str, Any]:
+    """微信桥接探测(#28,10-03-messaging-weixin-bridge design D4)。
+
+    result = :func:`myia.push.weixin.probe_bridge` 全量(BridgeStatus 七键:
+    available/reason/fix_hint/bin_found/weixin_configured/gateway_alive/
+    bin_path)。纯文件系统存在性探测(永不读 Hermes 私有文件内容),
+    无凭据、无出网、无入站;bin 路径取品类 YAML 首个 weixin 条目的
+    ``weixin_hermes_bin`` 覆写(design D2),缺省 DEFAULT_HERMES_BIN。
+    prd R2:UI 灰卡据此如实披露「需本机 Hermes」,不装可用。
+    """
+    ctx = _serve_context()
+    hermes_bin: str | None = None
+    for path in _yaml_files(Path(ctx.plugins_dir)):
+        try:
+            config = load_category_file(path)
+        except LoadError:
+            continue  # 坏文件不阻塞探测(yaml.list 会如实展示其错误)
+        for push in config.push:
+            if push.channel == "weixin" and push.weixin_hermes_bin:
+                hermes_bin = push.weixin_hermes_bin
+                break
+        if hermes_bin:
+            break
+    return probe_bridge(hermes_bin).to_payload()
 
 
 #: push.write 重序列化行宽(官方 YAML 阅读宽一致;模板长行不被硬拆)。
@@ -2561,6 +2743,75 @@ def _m_push_write(params: dict[str, Any]) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# 方法:push.test(推送通道连通性测试;G5 前半,10-03-feed-ux)
+# ---------------------------------------------------------------------------
+
+
+def _m_push_test(params: dict[str, Any]) -> dict[str, Any]:
+    """合成单条测试条目走既有通道 ``send(items, context)`` —— **真发消息**。
+
+    ``channel`` ∈ :data:`myia.push.CHANNELS`(通道名与品类 YAML ``push[]``
+    同一注册表);``target`` 可选 ``env:``/``keychain:`` 凭据引用(设置屏
+    表单的 scope/secretName 组合出 ``keychain:myia/<scope>/<name>``),
+    缺省走通道默认 env 引用链 —— 凭据缺失/发送失败沿用通道既有结构化
+    错误分类直传(PushSendError code 原文,design §1)。
+
+    ``stdout`` 通道特殊处理:serve 模式 stdout 是协议流,卡片行改写入
+    内存缓冲并随应答 ``preview`` 字段回显(同 ``Pipeline._build_channel``
+    的 ``--json`` 模式 ``out`` 注入先例),协议流零污染。
+    """
+    channel_name = params.get("channel")
+    if not isinstance(channel_name, str) or channel_name not in myia_push.CHANNELS:
+        raise ProtocolError(
+            "invalid_params",
+            f"channel 必须是 {sorted(myia_push.CHANNELS)} 之一",
+            path="params.channel",
+        )
+    target = params.get("target")
+    if target is not None and (not isinstance(target, str) or not target):
+        raise ProtocolError(
+            "invalid_params", "target 必须为非空凭据引用(env:/keychain:)", path="params.target"
+        )
+    template = params.get("template")
+    if template is not None and not isinstance(template, str):
+        raise ProtocolError("invalid_params", "template 必须为字符串", path="params.template")
+
+    kwargs: dict[str, Any] = {}
+    if target is not None:
+        kwargs["target"] = target
+    if template is not None:
+        kwargs["template"] = template
+    preview_io: io.StringIO | None = None
+    if channel_name == "stdout":
+        # serve 模式 stdout = 协议流:卡片行入内存缓冲,应答 preview 回显
+        preview_io = io.StringIO()
+        kwargs["out"] = preview_io
+    channel = myia_push.CHANNELS[channel_name](**kwargs)
+
+    now = datetime.now()
+    item = {
+        "url": "https://example.com/myia-push-test",
+        "dedup_key": f"myia-push-test-{now.strftime('%Y%m%d%H%M%S')}",
+        "title": f"MYIA 推送测试({now.strftime('%Y-%m-%d %H:%M:%S')})",
+        "source": "myia",
+        "category": None,
+    }
+    context = myia_push.SendContext(
+        slot="am" if now.hour < 12 else "pm",
+        date=now.strftime("%Y-%m-%d"),
+        category=None,
+        kind="immediate",
+    )
+    try:
+        asyncio.run(channel.send([item], context))
+    except PushSendError as exc:
+        # 通道契约:凭据缺失/模板/传输/API 失败一律结构化 PushSendError(code 原文直传)
+        raise ProtocolError(exc.code, str(exc), path="params.channel") from exc
+    preview = preview_io.getvalue() if preview_io is not None else None
+    return {"ok": True, "channel": channel_name, **({"preview": preview} if preview else {})}
+
+
+# ---------------------------------------------------------------------------
 # 分发与 serve 循环
 # ---------------------------------------------------------------------------
 
@@ -2575,6 +2826,8 @@ _HANDLERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "runs.list": _m_runs_list,
     "logs.tail": _m_logs_tail,
     "store.items": _m_store_items,
+    "feed.export": _m_feed_export,
+    "schedule.preview": _m_schedule_preview,
     "secret.set": _m_secret_set,
     "secret.list": _m_secret_list,
     "secret.delete": _m_secret_delete,
@@ -2592,6 +2845,8 @@ _HANDLERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "channels.refresh": _m_channels_refresh,
     "channels.alias": _m_channels_alias,
     "push.write": _m_push_write,
+    "push.test": _m_push_test,
+    "bridge.status": _m_bridge_status,
 }
 
 

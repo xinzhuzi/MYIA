@@ -16,6 +16,10 @@
  *   push.write       {file, push} → {file, written, changed, backed_up?, push}
  *                      **push = 该文件完整 push 数组**(全量替换;空数组=摘除
  *                      push 节);服务端文本手术保注释,校验失败零写入
+ *   bridge.status    {} → {available, reason, fix_hint, bin_found,
+ *                      weixin_configured, gateway_alive, bin_path}
+ *                      微信桥接探测(probe_bridge 全量;纯文件存在性检查,
+ *                      零读取零出网;10-03-messaging-weixin-bridge D4,协议 v4 #31)
  *
  * 惯例与 sources 屏一致:invoke 直连壳命令 `sidecar_request` +
  * asSidecarError 归一化(错误必得 code/path/message)。
@@ -134,6 +138,18 @@ export interface PushWriteResult {
   push: unknown[];
 }
 
+/** bridge.status 应答(微信桥接探测;形状逐字段对照 desktop/entry.py
+ * `_m_bridge_status` → myia.push.weixin.probe_bridge 的 BridgeStatus)。 */
+export interface BridgeStatusView {
+  available: boolean;
+  reason: string | null;
+  fix_hint: string | null;
+  bin_found: boolean;
+  weixin_configured: boolean;
+  gateway_alive: boolean;
+  bin_path: string;
+}
+
 // ---------------------------------------------------------------------------
 // 协议方法封装(走壳命令 sidecar_request;方法名与 entry.py 双侧同步)
 // ---------------------------------------------------------------------------
@@ -200,6 +216,21 @@ export async function pushWrite(file: string, push: unknown[]): Promise<PushWrit
       method: "push.write",
       params: { file, push },
     });
+  } catch (raw) {
+    throw asSidecarError(raw);
+  }
+}
+
+/**
+ * 微信桥接探测(10-03-messaging-weixin-bridge D4;屏私有封装,invoke 直连
+ * 不入共享门面——sidecar-protocol.md 变更纪律 3)。
+ *
+ * 纯展示信号:调用方对失败降级为 null(平台卡按灰态「需本机 Hermes」
+ * 呈现,不挡整屏目录视图;发送期的结构化 `bridge_unavailable` 是通道层事)。
+ */
+export async function bridgeStatus(): Promise<BridgeStatusView> {
+  try {
+    return await invoke<BridgeStatusView>("sidecar_request", { method: "bridge.status", params: {} });
   } catch (raw) {
     throw asSidecarError(raw);
   }

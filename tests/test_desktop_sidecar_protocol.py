@@ -1860,7 +1860,7 @@ def test_push_write_mid_file_block_and_template_roundtrip(tmp_path, monkeypatch)
 
 
 # ---------------------------------------------------------------------------
-# v1.1.2 桌面对齐批(10-03-v112-desktop-batch):run.cancel / runs.list /
+# v1.1.2 桌面对齐批(10-03-v112-desktop-parity):run.cancel / runs.list /
 # secret.delete / sources.test / store.items 游标与搜索(C2/C3/C5/C13/C1)
 # ---------------------------------------------------------------------------
 
@@ -2142,10 +2142,302 @@ def test_sources_test_single_flight_and_refusals(tmp_path, monkeypatch):
 
 def test_method_registry_allowed_matches_handlers():
     """对账(spec 变更纪律第 2 条):data.allowed 与 _HANDLERS 键集一致;
-    v1.1.2 桌面对齐批(run.cancel/runs.list/secret.delete/sources.test)后 = 27。"""
+    v1.1.2 桌面对齐批(run.cancel/runs.list/secret.delete/sources.test)+
+    feed-ux 批(feed.export/push.test/schedule.preview)+
+    weixin-bridge 批(bridge.status)后 = 31。"""
     code, responses, _ = rpc({"id": 1, "method": "no.such.method", "params": {}})
     allowed = responses[0]["error"]["data"]["allowed"]
     assert allowed == sorted(entry._HANDLERS)
-    assert len(allowed) == 27
-    for method in ("run.cancel", "runs.list", "secret.delete", "sources.test"):
+    assert len(allowed) == 31
+    for method in ("run.cancel", "runs.list", "secret.delete", "sources.test",
+                   "feed.export", "push.test", "schedule.preview", "bridge.status"):
         assert method in allowed
+
+
+def test_protocol_version_bumped_for_feed_ux():
+    """feed-ux 批新增三方法 → PROTOCOL_VERSION 3;weixin-bridge 批
+    (bridge.status,10-03-messaging-weixin-bridge)→ v4。"""
+    code, responses, _ = rpc({"id": 1, "method": "version", "params": {}})
+    assert responses[0]["result"]["protocol"] == 4
+
+
+# ---------------------------------------------------------------------------
+# feed-ux 批(10-03-feed-ux):feed.export / schedule.preview / push.test
+# ---------------------------------------------------------------------------
+
+
+def _seed_items_for_export(db, titles):
+    """三个标题 + 类目/来源各异的可查询条目(新→旧入库)。"""
+    from datetime import datetime, timezone
+
+    from myia.store.models import ItemRecord
+    store = SQLiteStore(str(db))
+    base = datetime(2026, 10, 3, tzinfo=timezone.utc)
+    for index, (title, category, source) in enumerate(titles):
+        store.save_item(ItemRecord(
+            url=f"https://example.com/e{index}", dedup_key=f"e{index}", title=title,
+            content=f"{title} 正文", source=source, category=category,
+            first_seen=base.replace(hour=index + 1),
+        ))
+    store.close()
+
+
+def test_feed_export_jsonl_csv_roundtrip(tmp_path):
+    """G3 feed.export:JSONL/CSV 双格式落盘可查,query/category 过滤生效,
+    应答带 path/count/bytes。"""
+    db = tmp_path / "export.db"
+    _seed_items_for_export(db, [
+        ("RSS 甲", "news", "blog"),
+        ("RSS 乙", "news", "hackernews"),
+        ("股票丙", "stocks", "api"),
+    ])
+    jsonl_path = tmp_path / "feed.jsonl"
+    code, responses, _ = rpc(
+        {"id": 1, "method": "feed.export",
+         "params": {"format": "jsonl", "path": str(jsonl_path), "db": str(db)}},
+    )
+    result = responses[0]["result"]
+    assert result["path"] == str(jsonl_path) and result["count"] == 3
+    assert result["bytes"] == jsonl_path.stat().st_size
+    lines = jsonl_path.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 3
+    first = json.loads(lines[0])  # 新→旧:股票丙最新
+    assert first["title"] == "股票丙" and first["source"] == "api"
+
+    csv_path = tmp_path / "feed.csv"
+    code, responses, _ = rpc(
+        {"id": 2, "method": "feed.export",
+         "params": {"format": "csv", "path": str(csv_path), "db": str(db),
+                    "category": "news", "query": "rss"}},
+    )
+    result = responses[0]["result"]
+    assert result["count"] == 2  # category × query 组合过滤
+    rows = csv_path.read_text(encoding="utf-8").splitlines()
+    assert rows[0] == "id,first_seen,category,source,title,url,content"  # 表头
+    assert len(rows) == 3  # 表头 + 2 条(新→旧:乙小时=2 晚于甲=1)
+    assert "RSS 乙" in rows[1] and "RSS 甲" in rows[2]
+
+
+def test_feed_export_path_refusals(tmp_path):
+    """G3 err 矩阵:format 外值 / path 空 / 相对路径 / 父目录不存在。"""
+    db = tmp_path / "export.db"
+    SQLiteStore(str(db)).close()
+    cases = [
+        ({"format": "xml", "path": str(tmp_path / "f.xml")}, "invalid_params"),
+        ({"format": "jsonl", "path": ""}, "export_path_invalid"),
+        ({"format": "jsonl", "path": "relative.jsonl"}, "export_path_invalid"),
+        ({"format": "jsonl", "path": str(tmp_path / "no-such-dir" / "f.jsonl")}, "export_path_invalid"),
+    ]
+    for index, (extra, expected) in enumerate(cases):
+        code, responses, _ = rpc({"id": index, "method": "feed.export",
+                                  "params": {"db": str(db), **extra}})
+        assert responses[0]["error"]["code"] == expected, extra
+
+
+def test_schedule_preview_next_runs_and_clamp(tmp_path, monkeypatch):
+    """G4 schedule.preview:Next runs 数量 = count(钳制 ≤20)、严格递增、
+    时刻可解析;schedule/timezone 原文回显。"""
+    from datetime import datetime
+
+    plugins = _editor_plugins(tmp_path, monkeypatch, ("demo.yaml", VALID_YAML))
+    code, responses, _ = rpc({"id": 1, "method": "schedule.preview",
+                              "params": {"file": str(plugins / "demo.yaml"), "count": 3}})
+    result = responses[0]["result"]
+    assert result["schedule"] == "0 9 * * *" and result["timezone"] is None
+    assert len(result["runs"]) == 3
+    times = [datetime.fromisoformat(value) for value in result["runs"]]
+    assert times == sorted(times) and len(set(times)) == 3  # 严格递增无重复
+    # 钳制:count=99 → 20;count=0 → invalid_params
+    code, responses, _ = rpc({"id": 2, "method": "schedule.preview",
+                              "params": {"file": str(plugins / "demo.yaml"), "count": 99}})
+    assert len(responses[0]["result"]["runs"]) == 20
+    code, responses, _ = rpc({"id": 3, "method": "schedule.preview",
+                              "params": {"file": str(plugins / "demo.yaml"), "count": 0}})
+    assert responses[0]["error"]["code"] == "invalid_params"
+
+
+def test_schedule_preview_refusals(tmp_path, monkeypatch):
+    """G4 err 矩阵:file 缺失 / 围栏外 / 装不上品类(source_file_unreadable)。"""
+    plugins = _editor_plugins(tmp_path, monkeypatch,
+                              ("demo.yaml", VALID_YAML), ("bad.yaml", BAD_CRON_YAML))
+    code, responses, _ = rpc({"id": 1, "method": "schedule.preview", "params": {}})
+    assert responses[0]["error"]["code"] == "invalid_params"
+    code, responses, _ = rpc({"id": 2, "method": "schedule.preview",
+                              "params": {"file": "/etc/hosts"}})
+    assert responses[0]["error"]["code"] == "not_yaml_suffix"
+    code, responses, _ = rpc({"id": 3, "method": "schedule.preview",
+                              "params": {"file": str(plugins / "bad.yaml")}})
+    assert responses[0]["error"]["code"] == "source_file_unreadable"
+
+
+def test_push_test_stdout_preview_and_refusals():
+    """G5 push.test:stdout 通道真跑(卡片入应答 preview,协议流零污染);
+    channel 未知名拒;凭据缺失走通道结构化错误原文(feishu 默认 env 链)。"""
+    code, responses, events = rpc({"id": 1, "method": "push.test",
+                                   "params": {"channel": "stdout"}})
+    result = responses[0]["result"]
+    assert result["ok"] is True and result["channel"] == "stdout"
+    assert "MYIA 推送测试" in result["preview"]
+    assert events == []  # stdout 卡片绝不落协议流
+
+    code, responses, _ = rpc({"id": 2, "method": "push.test", "params": {"channel": "nope"}})
+    assert responses[0]["error"]["code"] == "invalid_params"
+
+    # 凭据缺失 = 通道既有错误分类直传(feishu 未配 target → 默认 env 引用链
+    # 先在 bot token 处断:env_var_missing)
+    code, responses, _ = rpc({"id": 3, "method": "push.test", "params": {"channel": "feishu_card"}})
+    assert responses[0]["error"]["code"] == "env_var_missing"
+
+
+def test_push_test_sends_via_channel_with_target(monkeypatch):
+    """G5 push.test:target 引用下传通道构造;send 收到合成条目(标题带
+    「MYIA 推送测试」)与 immediate 上下文 —— monkeypatch 假 send,不真发。"""
+    sent: dict = {}
+
+    class FakeChannel:
+        def __init__(self, *, target=None, template=None, **kwargs):
+            sent["target"] = target
+            sent["template"] = template
+            sent["extra"] = kwargs
+
+        async def send(self, items, context):
+            sent["items"] = list(items)
+            sent["context"] = context
+
+    monkeypatch.setitem(entry.myia_push.CHANNELS, "feishu_card", FakeChannel)
+    code, responses, _ = rpc(
+        {"id": 1, "method": "push.test",
+         "params": {"channel": "feishu_card", "target": "keychain:myia/feishu/chat_id"}},
+    )
+    result = responses[0]["result"]
+    assert result == {"ok": True, "channel": "feishu_card"}  # 非 stdout 无 preview
+    assert sent["target"] == "keychain:myia/feishu/chat_id"
+    assert "MYIA 推送测试" in sent["items"][0]["title"]
+    assert sent["context"].kind == "immediate"
+
+
+# ---------------------------------------------------------------------------
+# bridge.status(10-03-messaging-weixin-bridge,协议 v4 #31):微信桥接探测
+# ---------------------------------------------------------------------------
+
+
+def _weixin_bridge_fixture(tmp_path, monkeypatch, *, bin_=True, accounts=True, with_yaml=True):
+    """桥接探测夹具:HERMES_HOME 指向 tmp(MYIA home 复用),YAML 带 weixin
+    条目的 ``weixin_hermes_bin`` 覆写 → 探测完全密闭(不触真机 ~/.hermes)。"""
+    script = tmp_path / "hermes-bin"
+    yaml_text = None
+    if with_yaml:
+        yaml_text = WEIXIN_BRIDGE_YAML.format(bin_path=str(script))
+    home = _messaging_home(tmp_path, monkeypatch, yaml_text=yaml_text)
+    monkeypatch.setenv("HERMES_HOME", str(home))
+    if bin_:
+        script.write_text("#!/bin/sh\n:", encoding="utf-8")
+        script.chmod(0o755)
+    if accounts:
+        acc = home / "weixin" / "accounts"
+        acc.mkdir(parents=True, exist_ok=True)
+        (acc / "bot@im.bot.json").write_text("{}", encoding="utf-8")
+    return home, script
+
+
+#: 桥接品类夹具:weixin push 条目带 targets + bin 路径覆写(占位符运行期代入)。
+WEIXIN_BRIDGE_YAML = """
+id: weixin-bridge-demo
+name: 桥接夹具
+schedule: "0 9 * * *"
+sources:
+  - name: local-api
+    engine: direct_api
+    url: "http://127.0.0.1:9/list"
+    rate_limit:
+      qps: 1000.0
+      respect_robots: false
+    retry: 0
+    extract:
+      type: json_path
+      fields:
+        title: "$.data[*].title"
+        url: "$.data[*].url"
+push:
+  - channel: weixin
+    targets:
+      - weixin:peer123@im.wechat
+    weixin_hermes_bin: "{bin_path}"
+"""
+
+
+def test_bridge_status_all_present_available(tmp_path, monkeypatch):
+    """正例:bin + accounts 在场 → available=True、reason=None,七键齐全,
+    bin 路径取 YAML ``weixin_hermes_bin`` 覆写(design D2/D4)。"""
+    _home, script = _weixin_bridge_fixture(tmp_path, monkeypatch)
+
+    code, responses, _ = rpc({"id": 1, "method": "bridge.status", "params": {}})
+
+    assert code == 0
+    result = responses[0]["result"]
+    assert set(result) == {
+        "available",
+        "reason",
+        "fix_hint",
+        "bin_found",
+        "weixin_configured",
+        "gateway_alive",
+        "bin_path",
+    }
+    assert result["available"] is True
+    assert (result["reason"], result["fix_hint"]) == (None, None)
+    assert result["bin_found"] is True and result["weixin_configured"] is True
+    assert result["gateway_alive"] is False  # 咨询信号:无 sock 不影响 available
+    assert result["bin_path"] == str(script)
+
+
+def test_bridge_status_bin_missing_structured(tmp_path, monkeypatch):
+    """bin 缺失形态:hermes_missing + 修复指引含 weixin_hermes_bin(R2)。"""
+    _home, _script = _weixin_bridge_fixture(tmp_path, monkeypatch, bin_=False)
+
+    code, responses, _ = rpc({"id": 1, "method": "bridge.status", "params": {}})
+
+    result = responses[0]["result"]
+    assert result["available"] is False
+    assert result["reason"] == "hermes_missing"
+    assert "weixin_hermes_bin" in result["fix_hint"]
+    assert result["bin_found"] is False and result["weixin_configured"] is True
+
+
+def test_bridge_status_weixin_not_configured_structured(tmp_path, monkeypatch):
+    """accounts 缺失形态:weixin_not_configured + 扫码指引(available=False)。"""
+    _home, _script = _weixin_bridge_fixture(tmp_path, monkeypatch, accounts=False)
+
+    code, responses, _ = rpc({"id": 1, "method": "bridge.status", "params": {}})
+
+    result = responses[0]["result"]
+    assert result["available"] is False
+    assert result["reason"] == "weixin_not_configured"
+    assert "gateway setup" in result["fix_hint"]
+    assert result["bin_found"] is True and result["weixin_configured"] is False
+
+
+def test_bridge_status_without_yaml_uses_default_bin_path(tmp_path, monkeypatch):
+    """无 weixin 条目:探测缺省 bin 路径(只断言路径键,存在性随真机)。"""
+    home, _script = _weixin_bridge_fixture(
+        tmp_path, monkeypatch, bin_=False, accounts=False, with_yaml=False
+    )
+
+    code, responses, _ = rpc({"id": 1, "method": "bridge.status", "params": {}})
+
+    result = responses[0]["result"]
+    assert result["bin_path"].endswith(".hermes/bin/hermes")
+    # 缺省路径(真机形态未知)但应答本身永不报错:探测是纯展示信息
+    assert isinstance(result["available"], bool)
+
+
+def test_bridge_status_bad_yaml_does_not_block_probe(tmp_path, monkeypatch):
+    """坏品类 YAML:跳过不阻塞探测(yaml.list 自会如实展示其错误)。"""
+    home = _messaging_home(tmp_path, monkeypatch, yaml_text=None)
+    (home / "plugins" / "broken.yaml").write_text("id: [broken", encoding="utf-8")
+    monkeypatch.setenv("HERMES_HOME", str(home))
+
+    code, responses, _ = rpc({"id": 1, "method": "bridge.status", "params": {}})
+
+    assert code == 0
+    assert "available" in responses[0]["result"]

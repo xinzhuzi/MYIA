@@ -99,6 +99,7 @@ from myia.push.telegram_feedback import (
     parse_callback_data,
 )
 from myia.push.wecom import WecomChannel
+from myia.push.weixin import WeixinChannel
 from myia.push.templates import (
     STOCKS_EXAMPLE_TEMPLATE,
     TemplateRenderer,
@@ -117,6 +118,7 @@ CHANNELS: dict[str, type] = {
     "ntfy": NtfyChannel,
     "dingtalk": DingTalkChannel,
     "wecom": WecomChannel,
+    "weixin": WeixinChannel,
     "webhook": WebhookChannel,
     "stdout": StdoutChannel,
 }
@@ -131,13 +133,15 @@ CHANNELS: dict[str, type] = {
 #: sink,不入本表发现路径)。ntfy/dingtalk/wecom 于
 #: 10-03-messaging-w2-platforms 登记(蓝本事实:三平台零目录发现,抛
 #: :class:`~myia.push.directory.DirectoryDiscoverUnsupported`;条目唯一来源
-#: = 别名手工登记 + 直达 id)。
+#: = 别名手工登记 + 直达 id)。weixin 于 10-03-messaging-weixin-bridge
+#: 登记(可选桥接:出站经本机 Hermes CLI,直达 peer id,亦无目录发现)。
 PLATFORMS: dict[str, type] = {
     "feishu": FeishuCardChannel,
     "telegram": TelegramChannel,
     "ntfy": NtfyChannel,
     "dingtalk": DingTalkChannel,
     "wecom": WecomChannel,
+    "weixin": WeixinChannel,
 }
 
 __all__ = [
@@ -182,6 +186,7 @@ __all__ = [
     "TemplateRenderer",
     "WebhookChannel",
     "WecomChannel",
+    "WeixinChannel",
     "also_seen_list",
     "build_card",
     "build_markdown_card",

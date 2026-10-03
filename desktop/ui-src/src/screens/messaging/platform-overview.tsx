@@ -12,7 +12,10 @@
  * - 三态色彩(R3,走 MYIA 语义 tokens,不硬编码色值):已连接=绿(--ok)、
  *   需要设置=黄(--warning)、即将支持=灰(--muted/--muted-foreground);
  *   状态点(StateDotTone)+ 状态胶囊(StatePill)+ 卡片描边共用同一套
- *   tone 映射,筛选 tabs 激活态与对应 tone 呼应。
+ *   tone 映射,筛选 tabs 激活态与对应 tone 呼应。第四态 bridge_unavailable
+ *   (微信桥接灰「需本机 Hermes」,10-03-messaging-weixin-bridge D4)复用
+ *   coming_soon 的 muted 灰值;微信卡不走通用三态派生(凭据不在 MYIA 侧,
+ *   永黄不了),状态来自 sidecar bridge.status 探测。
  * - 筛选(全部/已连接/未启用)沿用;切筛选时若当前选中平台不再匹配,选中
  *   栏自动切入该筛选下第一张卡(上游 handleStatusFilter 同交互流)。
  * - 三态派生纯函数(目录桶 + secret.list 名单 → 状态)零协议往返,见下方。
@@ -26,7 +29,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-import { isDeadEntry, type ChannelEntry } from "./api";
+import { isDeadEntry, type BridgeStatusView, type ChannelEntry } from "./api";
 import { PlatformAvatar } from "./platform-icons";
 
 // ---------------------------------------------------------------------------
@@ -227,13 +230,35 @@ export const IMPLEMENTED_PLATFORMS: readonly ImplementedPlatform[] = [
       ],
     },
   },
+  {
+    id: "weixin",
+    name: "微信",
+    wave: "W2",
+    discovery: "manual",
+    description:
+      "微信桥接(W2 已实装,task 10-03-messaging-weixin-bridge):微信无官方出站 API,本通道是桥接实现——出站经本机常驻 Hermes-Agent 持有微信登录态与 context_token。无 Hermes 的环境此平台不可用,这是如实披露,不是缺陷。",
+    guide: {
+      // keys 段为空是刻意事实:MYIA 侧零凭据(登录态只存 Hermes 侧),
+      // 没有任何环境变量/钥匙链可录(R2「不装可用」)。
+      keys: [],
+      steps: [
+        "安装 Hermes-Agent(NousResearch/Hermes-Agent)并完成初始化;缺省 CLI 路径 ~/.hermes/hermes-agent/.hermes/bin/hermes,装在别处时在品类 YAML 的 push 条目配 weixin_hermes_bin: <路径>。",
+        "在 Hermes 侧执行 hermes gateway setup 扫码登录微信;登录态与 context_token 只存 Hermes 侧,MYIA 不持有任何微信凭据(本指南无密钥可录)。",
+        {
+          text: "自查推送对象的 peer id(会话地址,形如 xxx@im.wechat 私聊 / xxx@chatroom 群):",
+          code: "~/.hermes/hermes-agent/.hermes/bin/hermes send --list weixin",
+        },
+        "推送规则 targets 直达写 weixin:<peer id>;常用对象可在数据根 channel_aliases.json 登记别名(微信无自动发现,直达/别名是仅有的两条寻址路)。",
+        "注意:对方长期没给 bot 发过消息时,冷发送会得到「会话未就绪」指引(先让对方发条消息再推)——这是微信协议的固有限制,不是故障;修复后无需任何配置变更。",
+      ],
+    },
+  },
 ];
 
-/** W2/W3 未实装平台(父任务 PRD 波次表登记锚点;灰卡,零交互)。微信走独立
- * 任务 10-03-messaging-weixin-bridge,仍在 W2 灰卡;ntfy/钉钉/企微已于
- * 10-03-messaging-w2-platforms 转实装(见 IMPLEMENTED_PLATFORMS)。 */
+/** W3 未实装平台(父任务 PRD 波次表登记锚点;灰卡,零交互)。微信已于
+ * 10-03-messaging-weixin-bridge 转实装(桥接,见 IMPLEMENTED_PLATFORMS);
+ * ntfy/钉钉/企微已于 10-03-messaging-w2-platforms 转实装。 */
 export const UPCOMING_PLATFORMS: readonly UpcomingPlatform[] = [
-  { id: "weixin", name: "微信", wave: "W2" },
   { id: "slack", name: "Slack", wave: "W3" },
   { id: "discord", name: "Discord", wave: "W3" },
   { id: "whatsapp_cloud", name: "WhatsApp", wave: "W3" },
@@ -268,8 +293,10 @@ const UPCOMING_DESCRIPTION: Record<"W2" | "W3", string> = {
 // 三态派生(纯函数,零协议往返、零后端概念)
 // ---------------------------------------------------------------------------
 
-/** 平台卡三态:已连接 / 需要设置 / 即将支持。 */
-export type PlatformCardStatus = "connected" | "needs_setup" | "coming_soon";
+/** 平台卡四态:已连接 / 需要设置 / 即将支持 / 需本机 Hermes(微信桥接灰态,
+ * task 10-03-messaging-weixin-bridge D4:微信凭据不在 MYIA 侧,黄态「按凭据
+ * 指南录入」是误导,永黄不了——桥接探测可用=绿,否则=灰)。 */
+export type PlatformCardStatus = "connected" | "needs_setup" | "coming_soon" | "bridge_unavailable";
 
 /** 筛选档(R2):全部 / 已连接 / 未启用。 */
 export type PlatformFilter = "all" | "connected" | "disabled";
@@ -289,6 +316,8 @@ export interface PlatformCard {
   description: string;
   /** 目录来源(已实装平台才有;灰卡无目录概念,恒 undefined)。 */
   discovery?: PlatformDiscovery;
+  /** 桥接探测结果(仅微信卡携带;null = 探测未完成/失败,如实按不可用呈现)。 */
+  bridge: BridgeStatusView | null;
 }
 
 /**
@@ -330,10 +359,17 @@ export function deriveImplementedStatus(
   return credentialsFound || refreshSucceeded ? "connected" : "needs_setup";
 }
 
-/** 目录桶 + 钥匙链名单 → 全量平台卡(已实装在前,波次序在后)。 */
+/** 目录桶 + 钥匙链名单 + 微信桥接探测 → 全量平台卡(已实装在前,波次序在后)。
+ *
+ * 微信卡不走通用 deriveImplementedStatus(凭据不在 MYIA 侧,
+ * 永黄不了):bridge.status available → connected,否则(含探测缺位/
+ * 失败的 null)→ bridge_unavailable 灰态。第三参缺省不传 = 其余平台卡
+ * 逐字段不变(向后兼容;微信按灰态呈现)。
+ */
 export function buildPlatformCards(
   directory: Record<string, readonly ChannelEntry[]>,
   secretNames: readonly string[],
+  bridgeStatus?: BridgeStatusView | null,
 ): PlatformCard[] {
   return [
     ...IMPLEMENTED_PLATFORMS.map((platform) => {
@@ -343,16 +379,22 @@ export function buildPlatformCards(
         platform.guide.keys.map((entry) => entry.key),
         secretNames,
       );
+      const isBridge = platform.id === "weixin";
       return {
         id: platform.id,
         name: platform.name,
         wave: platform.wave,
-        status: deriveImplementedStatus(bucket, matched),
+        status: isBridge
+          ? bridgeStatus?.available
+            ? ("connected" as const)
+            : ("bridge_unavailable" as const)
+          : deriveImplementedStatus(bucket, matched),
         directoryCount: bucket.length,
         matchedSecretNames: matched,
         guide: platform.guide,
         description: platform.description,
         discovery: platform.discovery,
+        bridge: isBridge ? (bridgeStatus ?? null) : null,
       };
     }),
     ...UPCOMING_PLATFORMS.map((platform) => ({
@@ -365,6 +407,7 @@ export function buildPlatformCards(
       guide: null,
       description: UPCOMING_DESCRIPTION[platform.wave],
       discovery: undefined,
+      bridge: null,
     })),
   ];
 }
@@ -384,13 +427,16 @@ const STATUS_LABEL: Record<PlatformCardStatus, string> = {
   connected: "已连接",
   needs_setup: "需要设置",
   coming_soon: "即将支持",
+  bridge_unavailable: "需本机 Hermes",
 };
 
-/** 状态点 tone(R3):绿 --ok / 黄 --warning / 灰 --muted-foreground,全走语义 token。 */
+/** 状态点 tone(R3):绿 --ok / 黄 --warning / 灰 --muted-foreground,全走语义 token。
+ * 桥接灰态(bridge_unavailable)复用 coming_soon 的 muted 组(D4 同款灰值)。 */
 const STATUS_DOT_TONE: Record<PlatformCardStatus, string> = {
   connected: "bg-ok",
   needs_setup: "bg-warning",
   coming_soon: "bg-muted-foreground/50",
+  bridge_unavailable: "bg-muted-foreground/50",
 };
 
 /** 状态胶囊 tone(R3):与 Badge 语义色变体同源(border/bg/text 三段全 token)。 */
@@ -398,6 +444,7 @@ const STATE_PILL_TONE: Record<PlatformCardStatus, string> = {
   connected: "border-ok/30 bg-ok/10 text-ok",
   needs_setup: "border-warning/30 bg-warning/10 text-warning",
   coming_soon: "border-border bg-muted/50 text-muted-foreground",
+  bridge_unavailable: "border-border bg-muted/50 text-muted-foreground",
 };
 
 /** 左卡描边 tone(R3):已连接绿框 / 需要设置黄框 / 即将支持中性灰框。 */
@@ -405,6 +452,7 @@ const CARD_BORDER_TONE: Record<PlatformCardStatus, string> = {
   connected: "border-ok/30",
   needs_setup: "border-warning/30",
   coming_soon: "border-border/60",
+  bridge_unavailable: "border-border/60",
 };
 
 /** 筛选 tab 激活态 tone(R3):全部=品牌青 / 已连接=绿 / 未启用=黄(可行动子集)。 */
@@ -435,18 +483,29 @@ interface PlatformOverviewProps {
   secretNames: string[];
   /** 死信键清单(`platform:chat_id`;目录速览的死信徽标用)。 */
   dead: string[];
+  /** bridge.status 探测(微信卡状态派生;null/缺省 = 灰态「需本机 Hermes」)。 */
+  bridgeStatus?: BridgeStatusView | null;
 }
 
 /**
  * 平台总览区:筛选 tabs(与状态 tone 呼应)+ 左平台卡网格 / 右详情面板
  * 双栏(R2;窄屏折叠上下布局)。凭据指南唯一入口在右栏详情面板。
  */
-export function PlatformOverview({ dead, directory, secretNames, status }: PlatformOverviewProps) {
+export function PlatformOverview({
+  bridgeStatus,
+  dead,
+  directory,
+  secretNames,
+  status,
+}: PlatformOverviewProps) {
   const [filter, setFilter] = useState<PlatformFilter>("all");
   // 缺省选中第一张已实装卡(上游 platformIds[0] 同缺省);详情面板随之就位
   const [selectedId, setSelectedId] = useState<string>(IMPLEMENTED_PLATFORMS[0]?.id ?? "");
 
-  const cards = useMemo(() => buildPlatformCards(directory, secretNames), [directory, secretNames]);
+  const cards = useMemo(
+    () => buildPlatformCards(directory, secretNames, bridgeStatus),
+    [directory, secretNames, bridgeStatus],
+  );
   const counts = useMemo(() => {
     const connected = cards.filter((card) => card.status === "connected").length;
     return { all: cards.length, connected, disabled: cards.length - connected };
@@ -594,10 +653,25 @@ function SectionTitle({ children }: { children: ReactNode }) {
   return <h4 className="text-[11px] font-semibold tracking-wide text-muted-foreground">{children}</h4>;
 }
 
-/** 状态说明文案(三态证据来源;连接态列命中信号,缺配置态给下一步动作)。 */
+/** 状态说明文案(四态证据来源;连接态列命中信号,缺配置态给下一步动作,
+ * 桥接灰态带修复指引——R2「不装可用」的如实披露)。 */
 function statusExplanation(card: PlatformCard): string {
   if (card.status === "coming_soon") {
     return `${card.wave} 波次排期平台,尚未实装:无凭据可言,目录恒空;实装节奏见接入路线图。`;
+  }
+  if (card.bridge) {
+    if (card.status === "connected") {
+      return "已连接:本机 Hermes 桥接探测通过(CLI 在场 + 微信已扫码登录)。该平台无自动发现:推送对象在规则里写直达 peer id(weixin:xxx@im.wechat),或用别名登记。";
+    }
+    const cause =
+      card.bridge.reason === "weixin_not_configured"
+        ? "Hermes 在场但微信未扫码登录"
+        : card.bridge.bin_found
+          ? "Hermes 微信账号文件缺失"
+          : "未找到可用的 Hermes CLI";
+    return `需本机 Hermes:微信无官方出站 API,本通道是桥接实现(${cause})。${
+      card.bridge.fix_hint ?? "安装 Hermes-Agent 并在其侧扫码登录微信"
+    }。修复后回本屏刷新即转绿;无 Hermes 的环境此平台不可用——这是如实披露的边界,不是故障。`;
   }
   if (card.status === "connected") {
     const signals = [

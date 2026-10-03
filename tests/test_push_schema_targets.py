@@ -43,6 +43,7 @@ class TestChannelPlatformMap:
     def test_builtin_literal_map(self):
         # design D4:内置字面表 feishu_card→feishu、telegram→telegram;
         # W2(10-03-messaging-w2-platforms)增 ntfy/dingtalk/wecom 三行;
+        # weixin(10-03-messaging-weixin-bridge,可选 Hermes 桥接)再增一行;
         # webhook/stdout 不在表内(不支持目录寻址)。
         assert CHANNEL_PLATFORMS == {
             "feishu_card": "feishu",
@@ -50,6 +51,7 @@ class TestChannelPlatformMap:
             "ntfy": "ntfy",
             "dingtalk": "dingtalk",
             "wecom": "wecom",
+            "weixin": "weixin",
         }
 
 
@@ -352,3 +354,67 @@ class TestW2PlatformChannels:
         })
         push = cfg.push[0]
         assert (push.ntfy_token, push.dingtalk_secret, push.wecom_corpid) == (None, None, None)
+
+
+# ---------------------------------------------------------------------------
+# 微信桥接(10-03-messaging-weixin-bridge):入表 + 同平台约束 + bin 路径守门
+# ---------------------------------------------------------------------------
+
+
+class TestWeixinBridgeChannels:
+    """weixin:Literal 收录、weixin: 前缀 targets 合法、hermes_bin 宿主守门。"""
+
+    def test_push_channel_vocabulary_accepts_weixin(self):
+        from myia.schema import PUSH_CHANNELS
+
+        assert "weixin" in PUSH_CHANNELS
+        assert "weixin" in CHANNEL_PLATFORMS
+
+    def test_weixin_targets_and_hermes_bin_load(self):
+        """合法形态:targets 直达 peer + 本地 bin 路径(非凭据,原样落位)。"""
+        cfg = load_category({
+            **_minimal_data(),
+            "push": [
+                {
+                    "channel": "weixin",
+                    "targets": ["weixin:peer123@im.wechat", "weixin:家人群"],
+                    "weixin_hermes_bin": "/opt/hermes/bin/hermes",
+                }
+            ],
+        })
+        push = cfg.push[0]
+        assert push.target is None  # targets 在场时 target 可省
+        assert push.targets == ["weixin:peer123@im.wechat", "weixin:家人群"]
+        # 本地路径不走 env:/keychain: 引用校验(design D1:非凭据)
+        assert push.weixin_hermes_bin == "/opt/hermes/bin/hermes"
+
+    def test_weixin_same_platform_constraint(self):
+        """weixin 条目混他平台前缀 = platform_mismatch(同表约束自动生效)。"""
+        error = _load_error({
+            **_minimal_data(),
+            "push": [{"channel": "weixin", "targets": ["feishu:某群"]}],
+        })
+        detail = _error_of_type(error, "platform_mismatch")
+        assert detail.path == "$.push[0].targets"
+        assert "feishu:某群" in detail.message
+
+    def test_hermes_bin_on_wrong_channel_rejected(self):
+        """``weixin_hermes_bin`` 仅 weixin 通道可配(别处即 SchemaValueError)。"""
+        error = _load_error({
+            **_minimal_data(),
+            "push": [
+                {"channel": "ntfy", "target": "env:NTFY_TARGET", "weixin_hermes_bin": "/x/hermes"}
+            ],
+        })
+        detail = _error_of_type(error, "unexpected_platform_field")
+        assert detail.path == "$.push[0].weixin_hermes_bin"
+
+    def test_weixin_legacy_target_ref_still_valid(self):
+        """legacy 单 target 引用路径不因桥接改动变化(引用形态照旧校验)。"""
+        cfg = load_category({
+            **_minimal_data(),
+            "push": [{"channel": "weixin", "target": "env:WEIXIN_PEER_ID"}],
+        })
+        assert cfg.push[0].target == "env:WEIXIN_PEER_ID"
+        assert cfg.push[0].targets == []
+        assert cfg.push[0].weixin_hermes_bin is None  # 不配 = 缺省路径

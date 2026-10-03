@@ -161,7 +161,7 @@ ENGINES = (
 PAGINATION_MODES = ("template", "selector", "scroll")
 EXTRACT_TYPES = ("list", "item", "json_path", "rss")
 BACKOFF_POLICIES = ("exponential", "linear", "none")
-PUSH_CHANNELS = ("feishu_card", "telegram", "ntfy", "dingtalk", "wecom", "webhook", "stdout")
+PUSH_CHANNELS = ("feishu_card", "telegram", "ntfy", "dingtalk", "wecom", "weixin", "webhook", "stdout")
 ROUTE_MODES = ("immediate", "digest", "archive")
 ENRICH_SCORES = ("value", "relevance", "credibility")
 VACUUM_CADENCES = ("daily", "weekly", "monthly", "never")
@@ -178,7 +178,7 @@ EngineName = Literal[
 PaginationMode = Literal["template", "selector", "scroll"]
 ExtractType = Literal["list", "item", "json_path", "rss"]
 BackoffPolicy = Literal["exponential", "linear", "none"]
-PushChannel = Literal["feishu_card", "telegram", "ntfy", "dingtalk", "wecom", "webhook", "stdout"]
+PushChannel = Literal["feishu_card", "telegram", "ntfy", "dingtalk", "wecom", "weixin", "webhook", "stdout"]
 RouteMode = Literal["immediate", "digest", "archive"]
 ScoreName = Literal["value", "relevance", "credibility"]
 VacuumCadence = Literal["daily", "weekly", "monthly", "never"]
@@ -220,6 +220,9 @@ DEFAULT_IMAGES_MAX_IMAGES = 3
 DEFAULT_IMAGES_MAX_PER_RUN = 30
 #: 图片处理环缺省最小字节(<10KB 视为图标/追踪像素跳过)。
 DEFAULT_IMAGES_MIN_BYTES = 10_240
+#: 详情页追抓缺省每 run 条目上限(10-03-detail-images:fetch 尾部对本轮
+#: 无图条目追抓详情页,串行 + 每请求 ≥1s + 10s/页;N 上限兜底 SPA 白抓)。
+DEFAULT_IMAGES_DETAIL_MAX_ITEMS = 10
 
 #: dedup.key placeholders resolvable for every item without appearing in
 #: extract.fields: the Item top-level pipeline fields plus the slot context
@@ -901,13 +904,15 @@ class EnrichConfig(_StrictModel):
 
 #: 通道名 → 平台前缀的内置字面映射(10-03-messaging-core design D4:targets
 #: 同平台约束;schema 不反依赖 push 层,新平台接入目录寻址时同步登记;
-#: ntfy/dingtalk/wecom 三行随 10-03-messaging-w2-platforms 登记)。
+#: ntfy/dingtalk/wecom 三行随 10-03-messaging-w2-platforms 登记;weixin 随
+#: 10-03-messaging-weixin-bridge 登记)。
 CHANNEL_PLATFORMS: dict[str, str] = {
     "feishu_card": "feishu",
     "telegram": "telegram",
     "ntfy": "ntfy",
     "dingtalk": "dingtalk",
     "wecom": "wecom",
+    "weixin": "weixin",
 }
 
 #: targets 元素形态 ``platform:名称或id``(与 myia.push.targets.SPEC_RE 同源;
@@ -998,6 +1003,11 @@ class PushConfig(_StrictModel):
     wecom_corpid: str | None = None
     wecom_corpsecret: str | None = None
     wecom_agentid: str | None = None
+    # ---- 微信桥接可选字段(10-03-messaging-weixin-bridge design D1/D2)----
+    #: Hermes CLI 本地路径覆写(缺省 ``~/.hermes/hermes-agent/.hermes/bin/
+    #: hermes``)。**本地路径,非凭据**——不走 env:/keychain: 引用体系,
+    #: 也不含任何秘密;MYIA 对微信零凭据(登录态只存在 Hermes 侧)。
+    weixin_hermes_bin: str | None = None
 
     #: 各通道专属可选凭据字段的合法宿主(仅本通道可配;与 timeout/retries
     #: 仅 webhook 同一 fail-fast 哲学,不留静默忽略)。
@@ -1005,6 +1015,7 @@ class PushConfig(_StrictModel):
         "ntfy": ("ntfy_token",),
         "dingtalk": ("dingtalk_secret",),
         "wecom": ("wecom_corpid", "wecom_corpsecret", "wecom_agentid"),
+        "weixin": ("weixin_hermes_bin",),
     }
 
     @model_validator(mode="before")
@@ -1309,7 +1320,8 @@ class ImagesConfig(_StrictModel):
 
     源级覆写:``SourceConfig`` 本就 ``extra="allow"``,约定同键平铺参数
     ``images_enabled`` / ``images_max_images`` / ``images_min_bytes`` /
-    ``images_vl`` / ``images_ocr_engine`` 覆写品类节(装载期不做 schema
+    ``images_vl`` / ``images_ocr_engine`` / ``images_detail_fetch`` /
+    ``images_detail_max_items`` 覆写品类节(装载期不做 schema
     强校验,非法值告警忽略——与引擎扩展参数同一宽容度;
     ``max_per_run`` 是 run 级硬闸,不开放源级覆写)。
 
@@ -1333,6 +1345,15 @@ class ImagesConfig(_StrictModel):
     #: OCR 引擎覆写(vision | rapidocr);缺省 None = 按 vision.yaml 的
     #: ``ocr.engine_default``。
     ocr_engine: Literal["vision", "rapidocr"] | None = None
+    #: 详情页追抓开关(10-03-detail-images):开 = fetch 尾部对本轮**无图**
+    #: 条目(metadata 无可用 image/images URL)按管线顺序追抓其详情页,
+    #: HTML 同域收 ``<img>`` 写回 ``metadata.images`` 后进同一识图环;
+    #: 缺省 false 整链零进入(零影响默认)。列表页已带图的条目不追抓。
+    detail_fetch: bool = False
+    #: 每 run 追抓条目上限(1-50):串行 + 每请求 ≥1s 间隔 + 10s/页超时,
+    #: 耗尽后其余无图条目照常入库(零标记);追抓失败/超时只写
+    #: ``metadata.detail_status = failed:<原因>``,绝不阻管线。
+    detail_max_items: int = Field(default=DEFAULT_IMAGES_DETAIL_MAX_ITEMS, ge=1, le=50)
 
 
 # ---------------------------------------------------------------------------

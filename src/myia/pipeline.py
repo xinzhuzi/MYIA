@@ -179,7 +179,8 @@ from myia.vision.settings import (
 logger = logging.getLogger(__name__)
 
 #: W2 平台可选凭据字段 → 通道构造参数(10-03-messaging-w2-platforms
-#: design D2;schema 已保证字段只在宿主通道出现,这里只做下传)。
+#: design D2;schema 已保证字段只在宿主通道出现,这里只做下传)。weixin 行
+#: 随 10-03-messaging-weixin-bridge 增(非凭据:本地 bin 路径,同款下传)。
 _W2_CHANNEL_FIELD_KWARGS: dict[str, tuple[tuple[str, str], ...]] = {
     "ntfy": (("ntfy_token", "token_ref"),),
     "dingtalk": (("dingtalk_secret", "secret_ref"),),
@@ -188,6 +189,7 @@ _W2_CHANNEL_FIELD_KWARGS: dict[str, tuple[tuple[str, str], ...]] = {
         ("wecom_corpsecret", "corpsecret_ref"),
         ("wecom_agentid", "agentid_ref"),
     ),
+    "weixin": (("weixin_hermes_bin", "hermes_bin"),),
 }
 
 __all__ = [

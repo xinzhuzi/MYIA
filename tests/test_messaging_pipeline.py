@@ -23,6 +23,7 @@ from conftest import FakeClock
 from myia.pipeline import Pipeline
 from myia.push.base import PushSendError
 from myia.push.directory import ChannelDirectory, ChannelEntry
+from myia.push.weixin import DEFAULT_BRIDGE_TIMEOUT_SECONDS, WeixinChannel
 from myia.schema import load_category
 from myia.store import SQLiteStore
 
@@ -595,5 +596,73 @@ class TestW2PipelineWiring:
             # 无自动发现是 debug 级说明,不是 warning 失败
             assert not any("目录刷新失败" in r.message for r in caplog.records)
             assert any("无自动发现" in r.message for r in caplog.records)
+        finally:
+            pipeline.close()
+
+
+class TestWeixinBridgePipelineWiring:
+    """微信桥接(10-03-messaging-weixin-bridge):bin 路径经 _build_channel 下传。"""
+
+    def _pipeline(self, tmp_path, push: list[dict[str, Any]]) -> Pipeline:
+        config = load_category(
+            {
+                "id": "weixin-wiring",
+                "name": "桥接接线",
+                "schedule": "0 9 * * *",
+                "timezone": "UTC",
+                "sources": [
+                    {
+                        "name": "api",
+                        "engine": "direct_api",
+                        "url": "https://api.demo.local/list",
+                        "extract": {
+                            "type": "json_path",
+                            "fields": {"title": "$[*].title", "url": "$[*].url"},
+                        },
+                    }
+                ],
+                "push": push,
+            }
+        )
+        return Pipeline(
+            config,
+            db_path=tmp_path / "p.db",
+            store=SQLiteStore(tmp_path / "p.db"),
+            client=httpx.AsyncClient(
+                transport=httpx.MockTransport(lambda request: httpx.Response(404, text=""))
+            ),
+        )
+
+    def test_build_channel_passes_hermes_bin(self, tmp_path):
+        """``weixin_hermes_bin`` 经真实 _build_channel 到达通道构造参数。"""
+        pipeline = self._pipeline(
+            tmp_path,
+            [
+                {
+                    "channel": "weixin",
+                    "targets": ["weixin:peer123@im.wechat"],
+                    "weixin_hermes_bin": "/opt/hermes/bin/hermes",
+                }
+            ],
+        )
+        try:
+            channel = pipeline._build_channel(pipeline.config.push[0])
+            assert isinstance(channel, WeixinChannel)
+            assert channel._hermes_bin == "/opt/hermes/bin/hermes"
+            assert channel._target is None  # targets-only 条目不带 legacy target
+        finally:
+            pipeline.close()
+
+    def test_bare_weixin_entry_keeps_default_bin(self, tmp_path):
+        """不配 bin = 缺省路径(零影响默认;构造期零文件系统检查,R2)。"""
+        pipeline = self._pipeline(
+            tmp_path,
+            [{"channel": "weixin", "target": "env:WEIXIN_PEER_ID"}],
+        )
+        try:
+            channel = pipeline._build_channel(pipeline.config.push[0])
+            assert isinstance(channel, WeixinChannel)
+            assert channel._hermes_bin is None  # None → 发送期取 DEFAULT_HERMES_BIN
+            assert channel._timeout == DEFAULT_BRIDGE_TIMEOUT_SECONDS
         finally:
             pipeline.close()

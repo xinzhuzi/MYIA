@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: mocks.invoke }));
 
 import { MessagingScreen } from "./messaging-screen";
-import type { ChannelsView } from "./api";
+import type { BridgeStatusView, ChannelsView } from "./api";
 import {
   buildPlatformCards,
   deriveImplementedStatus,
@@ -494,7 +494,9 @@ describe("消息:平台总览三态与头像卡", () => {
     );
   });
 
-  it("灰卡(weixin)点击选中 → 详情即将支持 + W2 排期说明;无凭据指南、无目录速览", async () => {
+  it("灰卡(slack,未实装代表)点击选中 → 详情即将支持 + W3 排期说明;无凭据指南、无目录速览", async () => {
+    // 微信已随 10-03-messaging-weixin-bridge 转实装(桥接灰卡另测),
+    // coming_soon 行为以 W3 未实装平台代表覆盖。
     const sidecar = okSidecar();
     installSidecar(sidecar.map, sidecar.record);
     render(
@@ -503,14 +505,14 @@ describe("消息:平台总览三态与头像卡", () => {
       </MemoryRouter>,
     );
     const overview = await screen.findByTestId("platform-overview");
-    fireEvent.click(within(overview).getByTestId("platform-card-weixin"));
+    fireEvent.click(within(overview).getByTestId("platform-card-slack"));
 
     const detail = within(overview).getByTestId("platform-detail");
-    expect(within(detail).getByText("微信")).toBeTruthy();
+    expect(within(detail).getByText("Slack")).toBeTruthy();
     expect(within(detail).getByText("即将支持")).toBeTruthy();
-    expect(detail.textContent).toContain("W2");
+    expect(detail.textContent).toContain("W3");
     expect(detail.textContent).toContain("尚未实装");
-    expect(within(detail).queryByTestId("platform-guide-weixin")).toBeNull();
+    expect(within(detail).queryByTestId("platform-guide-slack")).toBeNull();
     expect(within(detail).queryByText("目录速览")).toBeNull();
   });
 });
@@ -754,19 +756,24 @@ describe("消息:平台总览派生纯函数", () => {
     expect(deriveImplementedStatus([], [])).toBe("needs_setup");
   });
 
-  it("buildPlatformCards:5 已实装(全缺凭据=需要设置)+ 23 未实装;灰卡无指南、id 唯一", () => {
+  it("buildPlatformCards:6 已实装(5 缺凭据=需要设置 + 微信桥接灰态)+ 22 未实装;灰卡无指南、id 唯一", () => {
     const cards = buildPlatformCards({}, []);
     expect(cards).toHaveLength(28);
     expect(cards.filter((card) => card.status === "needs_setup")).toHaveLength(5);
-    expect(cards.filter((card) => card.status === "coming_soon")).toHaveLength(23);
+    expect(cards.filter((card) => card.status === "coming_soon")).toHaveLength(22);
+    // 微信桥接(10-03-messaging-weixin-bridge):不传 bridgeStatus = 灰态
+    // 「需本机 Hermes」,永黄不了(凭据不在 MYIA 侧,needs_setup 是误导)
+    expect(cards.find((c) => c.id === "weixin")!.status).toBe("bridge_unavailable");
     expect(new Set(cards.map((card) => card.id)).size).toBe(28);
-    // W2 三平台已转实装:有指南、discovery=manual(无自动发现,蓝本事实)
-    for (const id of ["ntfy", "dingtalk", "wecom"]) {
+    // W2 四平台已转实装:有指南、discovery=manual(无自动发现,蓝本事实)
+    for (const id of ["ntfy", "dingtalk", "wecom", "weixin"]) {
       const card = cards.find((c) => c.id === id)!;
       expect(card.guide).not.toBeNull();
       expect(card.wave).toBe("W2");
       expect(card.discovery).toBe("manual");
     }
+    // 微信指南 keys 为空是刻意事实:MYIA 侧零凭据(R2「不装可用」如实披露)
+    expect(cards.find((c) => c.id === "weixin")!.guide!.keys).toEqual([]);
     expect(cards.find((c) => c.id === "feishu")!.discovery).toBe("auto");
     expect(cards.find((c) => c.id === "telegram")!.discovery).toBe("passive");
     for (const card of cards.filter((c) => c.status === "coming_soon")) {
@@ -791,5 +798,133 @@ describe("消息:平台总览派生纯函数", () => {
     const needsSetup = emptyCards.find((card) => card.status === "needs_setup")!;
     expect(needsSetup).toBeTruthy();
     expect(matchesFilter(needsSetup, "disabled")).toBe(true); // 需要设置 → 未启用
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 微信桥接灰卡(10-03-messaging-weixin-bridge D4):bridge.status 四态接线
+// ---------------------------------------------------------------------------
+
+/** bridge.status 应答夹具(形状对照 ./api.ts BridgeStatusView / entry.py probe_bridge)。 */
+function bridgeFixture(overrides: Partial<BridgeStatusView> = {}): BridgeStatusView {
+  return {
+    available: false,
+    reason: "hermes_missing",
+    fix_hint:
+      "安装 Hermes-Agent,或在本品类 push[].weixin_hermes_bin 配置其 hermes bin 的路径(缺省 ~/.hermes/hermes-agent/.hermes/bin/hermes)",
+    bin_found: false,
+    weixin_configured: false,
+    gateway_alive: false,
+    bin_path: "/Users/demo/.hermes/hermes-agent/.hermes/bin/hermes",
+    ...overrides,
+  };
+}
+
+describe("微信桥接:纯函数派生", () => {
+  it("不传 bridgeStatus:微信灰态、其余平台卡逐字段不变(向后兼容)", () => {
+    const without = buildPlatformCards(
+      { feishu: [channelEntry("feishu", "oc_1", "群")] },
+      ["myia/telegram/bot_token"],
+    );
+    const withProbe = buildPlatformCards(
+      { feishu: [channelEntry("feishu", "oc_1", "群")] },
+      ["myia/telegram/bot_token"],
+      bridgeFixture({ available: true }),
+    );
+    // 其余平台卡与传不传探测无关(快照不变:向后兼容)
+    for (const card of without.filter((c) => c.id !== "weixin")) {
+      const twin = withProbe.find((c) => c.id === card.id)!;
+      expect({ ...twin, bridge: null }).toEqual({ ...card, bridge: null });
+    }
+    // 微信:不传 = 灰;探测可用 = 绿——两态都不落 needs_setup(永黄不了)
+    expect(without.find((c) => c.id === "weixin")!.status).toBe("bridge_unavailable");
+    expect(withProbe.find((c) => c.id === "weixin")!.status).toBe("connected");
+  });
+
+  it("探测不可用两种原因都归灰态(修复指引随卡携带)", () => {
+    for (const reason of ["hermes_missing", "weixin_not_configured"]) {
+      const cards = buildPlatformCards({}, [], bridgeFixture({ reason, available: false }));
+      const weixin = cards.find((c) => c.id === "weixin")!;
+      expect(weixin.status).toBe("bridge_unavailable");
+      expect(weixin.bridge?.reason).toBe(reason);
+      expect(weixin.bridge?.fix_hint).toBeTruthy();
+    }
+  });
+});
+
+describe("微信桥接:屏级灰卡披露(AC2 UI 侧)", () => {
+  function renderScreenWithBridge(bridge: BridgeStatusView | null) {
+    const sidecar = okSidecar();
+    if (bridge) {
+      sidecar.map["bridge.status"] = () => ({ ...bridge });
+    }
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+    return sidecar;
+  }
+
+  it("探测不可用:微信卡灰态「需本机 Hermes」+ 详情披露桥接/Hermes + 指南含自查命令", async () => {
+    renderScreenWithBridge(bridgeFixture());
+
+    const weixinCard = await screen.findByTestId("platform-card-weixin");
+    // 卡面 tone:灰描边(复用 coming_soon 灰值;卡上无文字状态,文案在详情 pill)
+    expect(weixinCard.className).toContain("border-border/60");
+    expect(weixinCard.className).not.toContain("border-ok/30");
+    // 点选微信卡 → 详情面板:状态胶囊「需本机 Hermes」+ 披露文案含「桥接」「Hermes」
+    fireEvent.click(weixinCard);
+    const detail = await screen.findByTestId("platform-detail");
+    expect(within(detail).getByText("需本机 Hermes")).toBeTruthy();
+    const detailText = detail.textContent ?? "";
+    expect(detailText).toContain("桥接");
+    expect(detailText).toContain("Hermes");
+    expect(detailText).toContain("如实披露");
+    // 凭据指南:peer id 自查步骤(send --list weixin)在列
+    expect(detailText).toContain("send --list weixin");
+    // 灰态不出目录速览(coming_soon/bridge_unavailable 均无目录区)
+    expect(detail.textContent ?? "").not.toContain("目录速览");
+  });
+
+  it("探测可用:微信卡绿态「已连接」+ 目录速览走 manual 空桶文案", async () => {
+    renderScreenWithBridge(
+      bridgeFixture({
+        available: true,
+        reason: null,
+        fix_hint: null,
+        bin_found: true,
+        weixin_configured: true,
+        gateway_alive: true,
+      }),
+    );
+
+    const weixinCard = await screen.findByTestId("platform-card-weixin");
+    expect(weixinCard.className).toContain("border-ok/30"); // 绿描边(桥接探测通过)
+    fireEvent.click(weixinCard);
+    const detail = await screen.findByTestId("platform-detail");
+    expect(within(detail).getByText("已连接")).toBeTruthy();
+    const detailText = detail.textContent ?? "";
+    // 已连接 → 目录速览出现,且 manual 平台空桶如实说明「无自动发现」
+    expect(detailText).toContain("目录速览");
+    expect(detailText).toContain("无自动发现");
+    expect(detailText).toContain("channel_aliases.json");
+  });
+
+  it("bridge.status 失败(旧版 sidecar):降级灰态,不挡整屏目录视图", async () => {
+    const sidecar = okSidecar(); // 无 bridge.status 处理器 → method_not_found
+    installSidecar(sidecar.map, sidecar.record);
+    render(
+      <MemoryRouter>
+        <MessagingScreen />
+      </MemoryRouter>,
+    );
+
+    // 目录视图照常(通道目录区渲染 = 整屏未被探测失败拖挂)
+    const feishu = await screen.findByTestId("platform-feishu");
+    expect(within(feishu).getByText("AI中转站合伙人群")).toBeTruthy();
+    const weixinCard = screen.getByTestId("platform-card-weixin");
+    expect(weixinCard.className).toContain("border-border/60"); // 降级灰态
   });
 });

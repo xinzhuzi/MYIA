@@ -52,6 +52,9 @@ export MYIA_LLM_KEY=...
 shishi secret set myia/stocks/site_cookie < cookie.txt
 ```
 
+微信通道是可选桥接:出站经本机常驻的 Hermes-Agent 持有登录态,无 Hermes
+的环境该平台不可用(MYIA 侧零微信凭据,平台卡会如实标「需本机 Hermes」)。
+
 不想配付费端点?看图与精评都有零成本走法(本地 mlx-vlm/Ollama → 云端
 免费档 → Gemini 轻量日批),端点选型与额度快照见[零成本接入](zero-cost.md)。
 

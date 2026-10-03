@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { ErrorBox } from "../sources/error-box";
 import {
   asSidecarError,
+  bridgeStatus,
   channelsAliasDelete,
   channelsAliasSet,
   channelsList,
@@ -24,7 +25,13 @@ import {
   pushWrite,
   targetSpec,
 } from "./api";
-import type { ChannelEntry, ChannelsView, PushRuleEntry, PushRuleFile } from "./api";
+import type {
+  BridgeStatusView,
+  ChannelEntry,
+  ChannelsView,
+  PushRuleEntry,
+  PushRuleFile,
+} from "./api";
 import { buildPlatformCards, PlatformOverview } from "./platform-overview";
 
 interface LoadState {
@@ -75,13 +82,16 @@ export function MessagingScreen() {
   const [notice, setNotice] = useState<Notice | null>(null);
   /** 钥匙链凭据名清单(平台总览凭据探测;加载失败降级为空名单)。 */
   const [secretNames, setSecretNames] = useState<string[]>([]);
+  /** 微信桥接探测(bridge.status;失败降级 null = 灰态「需本机 Hermes」,
+   * 不挡整屏目录视图——发送期的结构化错误是通道层的事)。 */
+  const [bridge, setBridge] = useState<BridgeStatusView | null>(null);
   /** R4 状态条:sidecar 健康(health 一来一回成功即 true;null = 检测中)。 */
   const [sidecarHealthy, setSidecarHealthy] = useState<boolean | null>(null);
 
   const reload = useCallback(async () => {
     setState({ status: "loading", data: null, error: null });
     try {
-      const [data, names, healthy] = await Promise.all([
+      const [data, names, healthy, bridgeProbe] = await Promise.all([
         channelsList(),
         // 凭据探测(secret.list)是平台卡的次要信号:钥匙链不可用时降级为
         // 空名单,三态回退到「目录非空」单一证据,不挡整屏目录视图。
@@ -92,9 +102,12 @@ export function MessagingScreen() {
           () => true,
           () => false,
         ),
+        // 微信桥接探测:失败降级 null(灰态),绝不挡目录视图
+        bridgeStatus().catch(() => null),
       ]);
       setSecretNames(names);
       setSidecarHealthy(healthy);
+      setBridge(bridgeProbe);
       setState({ status: "ready", data, error: null });
     } catch (error) {
       // channels.list 都失败了:sidecar 显然不可达,状态条如实转红
@@ -250,8 +263,8 @@ export function MessagingScreen() {
 
   /** R4 状态条信号二:已连接平台计数(与平台总览同一纯函数派生,不另立口径)。 */
   const cards = useMemo(
-    () => buildPlatformCards(data?.platforms ?? {}, secretNames),
-    [data, secretNames],
+    () => buildPlatformCards(data?.platforms ?? {}, secretNames, bridge),
+    [data, secretNames, bridge],
   );
   const connectedCount = useMemo(
     () => cards.filter((card) => card.status === "connected").length,
@@ -302,6 +315,7 @@ export function MessagingScreen() {
         directory={data?.platforms ?? {}}
         secretNames={secretNames}
         dead={data?.dead ?? []}
+        bridgeStatus={bridge}
       />
 
       {/* ---------------- 上区:通道目录(按平台分组) ---------------- */}
