@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { SidecarRequestError } from "@/lib/api";
+import { api, type SidecarRequestError } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 import { ErrorBox } from "../sources/error-box";
 import {
@@ -24,7 +25,7 @@ import {
   targetSpec,
 } from "./api";
 import type { ChannelEntry, ChannelsView, PushRuleEntry, PushRuleFile } from "./api";
-import { PlatformOverview } from "./platform-overview";
+import { buildPlatformCards, PlatformOverview } from "./platform-overview";
 
 interface LoadState {
   status: "loading" | "error" | "ready";
@@ -46,18 +47,21 @@ interface Notice {
 }
 
 /**
- * 消息(task 10-03-messaging-ui):平台总览 + 通道目录 + 推送规则三区布局。
+ * 消息(task 10-03-messaging-ui):平台总览 + 通道目录 + 推送规则 + 底部状态条。
  *
- * 最上区·平台总览(task 10-03-messaging-platforms):平台卡片网格 —— 已实装
- * 平台带三态徽标(已连接/需要设置,前端派生:secret.list 凭据探测 +
- * channels.list 目录信号)与可展开的出站凭据指南;W2/W3 未实装平台灰卡
- * 「即将支持」;全部/已连接/未启用三档筛选。
+ * 最上区·平台总览(task 10-03-messaging-hermes-look):左平台卡网格(头像 +
+ * 名称 + 状态点)/ 右详情面板双栏 —— 详情含平台描述、三态状态说明、出站
+ * 凭据指南(唯一入口;已实装平台)、已连接时的目录速览;三态(已连接绿 /
+ * 需要设置黄 / 即将支持灰)由 secret.list 凭据探测 + channels.list 目录
+ * 信号纯前端派生;全部/已连接/未启用三档筛选,切筛选带动选中切换。
  * 上区·通道目录:按平台分组(名称/类型/最后发现/死信徽标),每平台一个
  * 「刷新」按钮(触发 sidecar channels.refresh → discover_directory;失败
  * toast 结构化错误,旧目录不动),别名行内编辑写 channel_aliases.json 语义。
  * 下区·推送规则:按品类 YAML 分组列出 push 条目,每条目一个 targets 多选器
  * (选项 = 上区该平台目录条目,产出 `platform:名称`),保存走 push.write
  * 全量替换(服务端同门校验,失败零写入、界面如实报错)。
+ * 底部·状态条(R4;MYIA 版语义,不做 RAM/网关):sidecar 健康(health
+ * 一来一回成功即存活证明)+ 已连接平台计数;常驻(sticky)于滚动底部。
  * 空态(目录为空)给「先配平台凭据」指引;断连态与现有屏同范式(ErrorBox+重试)。
  */
 export function MessagingScreen() {
@@ -71,19 +75,30 @@ export function MessagingScreen() {
   const [notice, setNotice] = useState<Notice | null>(null);
   /** 钥匙链凭据名清单(平台总览凭据探测;加载失败降级为空名单)。 */
   const [secretNames, setSecretNames] = useState<string[]>([]);
+  /** R4 状态条:sidecar 健康(health 一来一回成功即 true;null = 检测中)。 */
+  const [sidecarHealthy, setSidecarHealthy] = useState<boolean | null>(null);
 
   const reload = useCallback(async () => {
     setState({ status: "loading", data: null, error: null });
     try {
-      const [data, names] = await Promise.all([
+      const [data, names, healthy] = await Promise.all([
         channelsList(),
         // 凭据探测(secret.list)是平台卡的次要信号:钥匙链不可用时降级为
         // 空名单,三态回退到「目录非空」单一证据,不挡整屏目录视图。
         listSecretNames().catch(() => [] as string[]),
+        // R4 状态条信号一:health 方法本身即存活证明(成功应答 = true;
+        // 任何失败降级为 false,不挡目录视图)
+        api.health().then(
+          () => true,
+          () => false,
+        ),
       ]);
       setSecretNames(names);
+      setSidecarHealthy(healthy);
       setState({ status: "ready", data, error: null });
     } catch (error) {
+      // channels.list 都失败了:sidecar 显然不可达,状态条如实转红
+      setSidecarHealthy(false);
       setState({ status: "error", data: null, error: asSidecarError(error) });
     }
   }, []);
@@ -233,8 +248,18 @@ export function MessagingScreen() {
 
   const data = state.data;
 
+  /** R4 状态条信号二:已连接平台计数(与平台总览同一纯函数派生,不另立口径)。 */
+  const cards = useMemo(
+    () => buildPlatformCards(data?.platforms ?? {}, secretNames),
+    [data, secretNames],
+  );
+  const connectedCount = useMemo(
+    () => cards.filter((card) => card.status === "connected").length,
+    [cards],
+  );
+
   return (
-    <div className="flex flex-col gap-4 pb-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         title="消息"
         description="平台总览与接入态;通道目录浏览与别名命名;给推送规则挑选具体会话(保存写回品类 YAML)"
@@ -271,11 +296,12 @@ export function MessagingScreen() {
         </div>
       ) : null}
 
-      {/* ---------------- 最上区:平台总览(卡片网格 + 三态 + 筛选 + 凭据指南) ---------------- */}
+      {/* ---------------- 最上区:平台总览(左卡网格 + 右详情面板 + 三态 tone + 筛选) ---------------- */}
       <PlatformOverview
         status={state.status}
         directory={data?.platforms ?? {}}
         secretNames={secretNames}
+        dead={data?.dead ?? []}
       />
 
       {/* ---------------- 上区:通道目录(按平台分组) ---------------- */}
@@ -444,6 +470,36 @@ export function MessagingScreen() {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      {/* ---------------- 底部:状态条(R4;常驻滚动底;MYIA 版语义,不做 RAM/网关) ---------------- */}
+      <div
+        className="sticky bottom-0 z-10 flex items-center justify-between gap-3 border-t border-border bg-background/95 px-6 py-2 text-[11px] text-muted-foreground backdrop-blur"
+        data-testid="messaging-statusbar"
+      >
+        <span className="flex items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            className={cn(
+              "inline-block size-1.5 rounded-full",
+              sidecarHealthy === true
+                ? "bg-ok"
+                : sidecarHealthy === false
+                  ? "bg-destructive"
+                  : "bg-muted-foreground/50",
+            )}
+          />
+          {sidecarHealthy === true
+            ? "sidecar 正常"
+            : sidecarHealthy === false
+              ? "sidecar 不可达"
+              : "sidecar 检测中"}
+        </span>
+        <span>
+          {state.status === "ready"
+            ? `已连接平台 ${connectedCount}/${cards.length}`
+            : "已连接平台 …"}
+        </span>
       </div>
     </div>
   );

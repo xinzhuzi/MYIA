@@ -1,29 +1,33 @@
 /**
- * 平台总览(task 10-03-messaging-platforms R1-R4):消息屏最上区的平台卡片网格。
+ * 平台总览(task 10-03-messaging-hermes-look R2/R3):消息屏最上区,布局照上游
+ * Hermes 蓝本(~/.hermes/hermes-agent/apps/desktop/src/app/messaging/index.tsx)
+ * 的「左列平台卡 + 右栏详情面板」(MasterDetail)结构重排 —— MYIA 栈内贴近,
+ * 不逐字拷贝 TSX:
  *
- * - R1 网格:已实装平台(feishu/telegram,W1)带真实状态与目录条数;W2/W3
- *   未实装平台渲染「即将支持」灰卡(清单硬编码自父任务
- *   10-03-hermes-messaging PRD 波次表,不做后端注册表)。
- * - R2 筛选:全部 / 已连接 / 未启用 三档;「未启用」= 已实装但凭据缺失
- *   (需要设置)+ 未实装平台(即将支持)。
- * - R3 三态徽标(纯前端派生,零后端概念):已连接(绿)= 凭据可解析或
- *   目录非空;需要设置(黄)= 凭据缺失且目录为空;即将支持(灰)= W2/W3。
- *   凭据探测 = 现有 secret.list 名单(钥匙链命名空间 myia/<platform>/<name>
- *   或叶子名等于该平台凭据 key;env: 令牌对协议面不可见,由目录信号兜底);
- *   刷新状态 = channels.list 返回的平台目录桶(条目只能经一次成功发现或
- *   真实 bot 流量进入,非空即刷新成功的可见证据)。
- * - R4 凭据指南:点开已实装平台卡片展开出站凭据获取步骤(中文直白,
- *   本地常量,不引外链依赖);只覆盖定向出站所需,入站项零出现。
+ * - 左列:平台卡网格(头像 + 名称 + 状态点;R1 头像芯片见 platform-icons)。
+ *   点击卡选中,右栏切换内容;窄屏(<lg)折叠为上下布局。
+ * - 右栏:详情面板 = 平台描述 / 三态状态说明(证据来源)/ 出站凭据指南
+ *   (platforms 任务 R4 内容移入此处,左卡不再内嵌展开)/ 已连接时的目录
+ *   条目速览(只读;改名/别名编辑仍在下方「通道目录」)。
+ * - 三态色彩(R3,走 MYIA 语义 tokens,不硬编码色值):已连接=绿(--ok)、
+ *   需要设置=黄(--warning)、即将支持=灰(--muted/--muted-foreground);
+ *   状态点(StateDotTone)+ 状态胶囊(StatePill)+ 卡片描边共用同一套
+ *   tone 映射,筛选 tabs 激活态与对应 tone 呼应。
+ * - 筛选(全部/已连接/未启用)沿用;切筛选时若当前选中平台不再匹配,选中
+ *   栏自动切入该筛选下第一张卡(上游 handleStatusFilter 同交互流)。
+ * - 三态派生纯函数(目录桶 + secret.list 名单 → 状态)零协议往返,见下方。
  */
-import { LayoutGrid } from "lucide-react";
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
-import type { ChannelEntry } from "./api";
+import { isDeadEntry, type ChannelEntry } from "./api";
+import { PlatformAvatar } from "./platform-icons";
 
 // ---------------------------------------------------------------------------
 // 平台清单(前端常量;数据源:父任务 10-03-hermes-messaging PRD W1/W2/W3 波次表)
@@ -40,7 +44,7 @@ export interface PlatformGuideKey {
 /** 指南一步:纯文本,或「文字 + 命令块」(curl 等可复制命令)。 */
 export type PlatformGuideStep = string | { text: string; code: string };
 
-/** 已实装平台的出站凭据指南(R4;点开卡片展开)。 */
+/** 已实装平台的出站凭据指南(R4;唯一入口在右栏详情面板)。 */
 export interface PlatformGuide {
   keys: PlatformGuideKey[];
   steps: PlatformGuideStep[];
@@ -50,6 +54,8 @@ export interface PlatformGuide {
 export interface ImplementedPlatform {
   id: string;
   name: string;
+  /** 详情面板头部的一行直白描述(只陈述已实装的事实,不预告功能)。 */
+  description: string;
   guide: PlatformGuide;
 }
 
@@ -64,6 +70,7 @@ export const IMPLEMENTED_PLATFORMS: readonly ImplementedPlatform[] = [
   {
     id: "feishu",
     name: "飞书",
+    description: "飞书开放平台机器人(W1 已实装):tenant_access_token 出站卡片发送 + 群目录发现;凭据经环境变量注入 run。",
     guide: {
       keys: [
         {
@@ -87,6 +94,7 @@ export const IMPLEMENTED_PLATFORMS: readonly ImplementedPlatform[] = [
   {
     id: "telegram",
     name: "Telegram",
+    description: "Telegram Bot API(W1 已实装):BotFather 令牌出站发送 + 会话随真实 bot 流量被动积累入目录。",
     guide: {
       keys: [
         {
@@ -139,8 +147,14 @@ export const UPCOMING_PLATFORMS: readonly UpcomingPlatform[] = [
   { id: "raft", name: "Raft", wave: "W3" },
 ];
 
+/** 未实装平台的详情描述(按波次;不虚构平台功能,只说排期与实装后的去处)。 */
+const UPCOMING_DESCRIPTION: Record<"W2" | "W3", string> = {
+  W2: "尚未实装;已排入 W2(近期)波次。实装后此处将给出出站凭据指南与目录速览。",
+  W3: "尚未实装;在 W3(远期)波次排期中。实装后此处将给出出站凭据指南与目录速览。",
+};
+
 // ---------------------------------------------------------------------------
-// 三态派生(R3;纯函数,零协议往返、零后端概念)
+// 三态派生(纯函数,零协议往返、零后端概念)
 // ---------------------------------------------------------------------------
 
 /** 平台卡三态:已连接 / 需要设置 / 即将支持。 */
@@ -149,7 +163,7 @@ export type PlatformCardStatus = "connected" | "needs_setup" | "coming_soon";
 /** 筛选档(R2):全部 / 已连接 / 未启用。 */
 export type PlatformFilter = "all" | "connected" | "disabled";
 
-/** 一张平台卡的视图模型(网格渲染与筛选的最小完整单元)。 */
+/** 一张平台卡的视图模型(左网格渲染、筛选与详情面板的最小完整单元)。 */
 export interface PlatformCard {
   id: string;
   name: string;
@@ -157,9 +171,11 @@ export interface PlatformCard {
   status: PlatformCardStatus;
   /** 目录条数(仅已实装平台有;灰卡恒 0)。 */
   directoryCount: number;
-  /** 钥匙链探测命中的凭据名(展示「已录几项」;空 = 无钥匙链证据)。 */
+  /** 钥匙链探测命中的凭据名(状态说明里展示「已录几项」;空 = 无钥匙链证据)。 */
   matchedSecretNames: string[];
   guide: PlatformGuide | null;
+  /** 详情面板头部的一行描述(已实装 = 事实描述;未实装 = 波次排期说明)。 */
+  description: string;
 }
 
 /**
@@ -222,6 +238,7 @@ export function buildPlatformCards(
         directoryCount: bucket.length,
         matchedSecretNames: matched,
         guide: platform.guide,
+        description: platform.description,
       };
     }),
     ...UPCOMING_PLATFORMS.map((platform) => ({
@@ -232,6 +249,7 @@ export function buildPlatformCards(
       directoryCount: 0,
       matchedSecretNames: [],
       guide: null,
+      description: UPCOMING_DESCRIPTION[platform.wave],
     })),
   ];
 }
@@ -244,7 +262,7 @@ export function matchesFilter(card: PlatformCard, filter: PlatformFilter): boole
 }
 
 // ---------------------------------------------------------------------------
-// 展示常量(徽标文案/变体直白中文;变体复用现有 Badge 语义色)
+// 展示常量(三态文案与 tone 映射;文案直白中文,tone 走 MYIA 语义 tokens)
 // ---------------------------------------------------------------------------
 
 const STATUS_LABEL: Record<PlatformCardStatus, string> = {
@@ -253,10 +271,32 @@ const STATUS_LABEL: Record<PlatformCardStatus, string> = {
   coming_soon: "即将支持",
 };
 
-const STATUS_VARIANT: Record<PlatformCardStatus, "ok" | "warning" | "secondary"> = {
-  connected: "ok",
-  needs_setup: "warning",
-  coming_soon: "secondary",
+/** 状态点 tone(R3):绿 --ok / 黄 --warning / 灰 --muted-foreground,全走语义 token。 */
+const STATUS_DOT_TONE: Record<PlatformCardStatus, string> = {
+  connected: "bg-ok",
+  needs_setup: "bg-warning",
+  coming_soon: "bg-muted-foreground/50",
+};
+
+/** 状态胶囊 tone(R3):与 Badge 语义色变体同源(border/bg/text 三段全 token)。 */
+const STATE_PILL_TONE: Record<PlatformCardStatus, string> = {
+  connected: "border-ok/30 bg-ok/10 text-ok",
+  needs_setup: "border-warning/30 bg-warning/10 text-warning",
+  coming_soon: "border-border bg-muted/50 text-muted-foreground",
+};
+
+/** 左卡描边 tone(R3):已连接绿框 / 需要设置黄框 / 即将支持中性灰框。 */
+const CARD_BORDER_TONE: Record<PlatformCardStatus, string> = {
+  connected: "border-ok/30",
+  needs_setup: "border-warning/30",
+  coming_soon: "border-border/60",
+};
+
+/** 筛选 tab 激活态 tone(R3):全部=品牌青 / 已连接=绿 / 未启用=黄(可行动子集)。 */
+const FILTER_TONE_CLASS: Record<PlatformFilter, string> = {
+  all: "border-primary/40 bg-primary/10 text-primary",
+  connected: "border-ok/40 bg-ok/10 text-ok",
+  disabled: "border-warning/40 bg-warning/10 text-warning",
 };
 
 const FILTER_LABEL: Record<PlatformFilter, string> = {
@@ -274,17 +314,22 @@ const FILTER_ORDER: readonly PlatformFilter[] = ["all", "connected", "disabled"]
 interface PlatformOverviewProps {
   /** 与消息屏同款加载态;error 时本区不渲染(ErrorBox 已在屏顶如实报错)。 */
   status: "loading" | "error" | "ready";
-  /** channels.list 的 platforms 视图(平台 → 目录桶)。 */
+  /** channels.list 的 platforms 视图(平台 → 目录桶;详情面板目录速览用)。 */
   directory: Record<string, ChannelEntry[]>;
   /** secret.list 名单(凭据探测;钥匙链不可用时为空 = 降级无证据)。 */
   secretNames: string[];
+  /** 死信键清单(`platform:chat_id`;目录速览的死信徽标用)。 */
+  dead: string[];
 }
 
-/** 平台总览区:筛选 tabs + 平台卡片网格 + 可展开的出站凭据指南。 */
-export function PlatformOverview({ status, directory, secretNames }: PlatformOverviewProps) {
+/**
+ * 平台总览区:筛选 tabs(与状态 tone 呼应)+ 左平台卡网格 / 右详情面板
+ * 双栏(R2;窄屏折叠上下布局)。凭据指南唯一入口在右栏详情面板。
+ */
+export function PlatformOverview({ dead, directory, secretNames, status }: PlatformOverviewProps) {
   const [filter, setFilter] = useState<PlatformFilter>("all");
-  /** 当前展开凭据指南的平台 id(一次一张;null = 全收起)。 */
-  const [guideOpen, setGuideOpen] = useState<string | null>(null);
+  // 缺省选中第一张已实装卡(上游 platformIds[0] 同缺省);详情面板随之就位
+  const [selectedId, setSelectedId] = useState<string>(IMPLEMENTED_PLATFORMS[0]?.id ?? "");
 
   const cards = useMemo(() => buildPlatformCards(directory, secretNames), [directory, secretNames]);
   const counts = useMemo(() => {
@@ -292,6 +337,23 @@ export function PlatformOverview({ status, directory, secretNames }: PlatformOve
     return { all: cards.length, connected, disabled: cards.length - connected };
   }, [cards]);
   const visible = useMemo(() => cards.filter((card) => matchesFilter(card, filter)), [cards, filter]);
+  // 选中卡从全量卡里找(非 visible):平台状态自行变化离开筛选时,详情栏
+  // 保持打开 —— 只有「点击筛选 tab」这一个动作会带动选中切换(上游同交互流)。
+  const selected = useMemo(
+    () => cards.find((card) => card.id === selectedId) ?? cards[0] ?? null,
+    [cards, selectedId],
+  );
+
+  function handleFilter(next: PlatformFilter) {
+    setFilter(next);
+    // 切筛选后若当前选中平台不再匹配,选中栏切入该筛选下第一张卡
+    if (selected && !matchesFilter(selected, next)) {
+      const first = cards.find((card) => matchesFilter(card, next));
+      if (first) {
+        setSelectedId(first.id);
+      }
+    }
+  }
 
   if (status === "error") return null;
 
@@ -300,10 +362,9 @@ export function PlatformOverview({ status, directory, secretNames }: PlatformOve
       <Card>
         <CardContent className="flex flex-col gap-3 p-4">
           <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-            <LayoutGrid className="size-4 text-muted-foreground" />
             平台总览
             <span className="text-xs font-normal text-muted-foreground">
-              (已实装平台带真实状态与目录条数;灰卡平台按波次排期,尚未实装)
+              (左列点选平台,右栏看详情:状态说明 / 出站凭据指南 / 目录速览;灰卡平台按波次排期,尚未实装)
             </span>
           </p>
 
@@ -320,27 +381,52 @@ export function PlatformOverview({ status, directory, secretNames }: PlatformOve
                   <Button
                     key={id}
                     size="sm"
-                    variant={filter === id ? "default" : "outline"}
+                    variant="outline"
+                    className={cn(
+                      "rounded-full",
+                      filter === id ? FILTER_TONE_CLASS[id] : "text-muted-foreground",
+                    )}
                     aria-pressed={filter === id}
                     data-testid={`platform-filter-${id}`}
-                    onClick={() => setFilter(id)}
+                    onClick={() => handleFilter(id)}
                   >
                     {FILTER_LABEL[id]}({counts[id]})
                   </Button>
                 ))}
               </div>
 
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-2">
-                {visible.map((card) => (
-                  <PlatformCardView
-                    key={card.id}
-                    card={card}
-                    guideOpen={guideOpen === card.id}
-                    onToggleGuide={() =>
-                      setGuideOpen((current) => (current === card.id ? null : card.id))
-                    }
-                  />
-                ))}
+              {/* R2 双栏:左平台卡网格 + 右详情面板;窄屏(<lg)折叠上下布局 */}
+              <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                <ul
+                  className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-1.5"
+                  data-testid="platform-card-list"
+                  aria-label="平台卡列表"
+                >
+                  {visible.map((card) => (
+                    <li key={card.id}>
+                      <PlatformCardButton
+                        card={card}
+                        selected={selected?.id === card.id}
+                        onSelect={() => setSelectedId(card.id)}
+                      />
+                    </li>
+                  ))}
+                  {visible.length === 0 ? (
+                    <li className="col-span-full text-xs text-muted-foreground">该筛选下暂无平台。</li>
+                  ) : null}
+                </ul>
+
+                <div
+                  className="min-w-0 rounded-md border border-border bg-muted/20 p-4"
+                  data-testid="platform-detail"
+                  aria-label="平台详情面板"
+                >
+                  {selected ? (
+                    <PlatformDetailPanel card={selected} dead={dead} directory={directory} />
+                  ) : (
+                    <p className="text-xs text-muted-foreground">暂无平台。</p>
+                  )}
+                </div>
               </div>
             </>
           )}
@@ -350,80 +436,181 @@ export function PlatformOverview({ status, directory, secretNames }: PlatformOve
   );
 }
 
-/** 单张平台卡:已实装 = 可展开凭据指南的交互卡;未实装 = 灰卡零交互。 */
-function PlatformCardView({
+/** 左列平台卡(R2):头像 + 名称 + 状态点;点击选中(右栏切换详情)。 */
+function PlatformCardButton({
   card,
-  guideOpen,
-  onToggleGuide,
+  selected,
+  onSelect,
 }: {
   card: PlatformCard;
-  guideOpen: boolean;
-  onToggleGuide: () => void;
+  selected: boolean;
+  onSelect: () => void;
 }) {
-  const meta =
-    card.status === "coming_soon" ? (
-      <p className="text-[11px] text-muted-foreground">{card.wave} 波次排期中,尚未实装</p>
-    ) : (
-      <p className="text-[11px] text-muted-foreground">
-        {card.directoryCount > 0
-          ? `目录 ${card.directoryCount} 个会话`
-          : "目录为空(先配凭据再刷新/等会话进入)"}
-        {card.matchedSecretNames.length > 0
-          ? `;钥匙链已录 ${card.matchedSecretNames.length} 项`
-          : ""}
-      </p>
-    );
-
-  if (card.status === "coming_soon" || !card.guide) {
-    return (
-      <div
-        data-testid={`platform-card-${card.id}`}
-        className="flex flex-col gap-1 rounded-md border border-border/60 bg-muted/30 p-3 opacity-70"
-        title="尚未实装的平台(按 W2/W3 波次排期)"
-      >
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-medium text-foreground">{card.name}</span>
-          <Badge variant={STATUS_VARIANT[card.status]}>{STATUS_LABEL[card.status]}</Badge>
-        </div>
-        <p className="truncate font-mono text-[11px] text-muted-foreground">{card.id}</p>
-        {meta}
-      </div>
-    );
-  }
-
   return (
-    <div
+    <button
+      type="button"
+      aria-pressed={selected}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-md border p-2 text-left transition-colors hover:bg-accent/60 hover:text-accent-foreground",
+        card.status === "coming_soon" && "opacity-70",
+        CARD_BORDER_TONE[card.status],
+        // 选中态:品牌青环 + 浅底,叠加在三态描边之上(状态色不被选中色吃掉)
+        selected && "bg-primary/10 ring-1 ring-primary/40",
+      )}
       data-testid={`platform-card-${card.id}`}
-      className="flex flex-col gap-1 rounded-md border border-border/60 p-3"
+      onClick={onSelect}
     >
-      <button
-        type="button"
-        className="flex flex-col items-start gap-1 text-left"
-        aria-expanded={guideOpen}
-        aria-label={`${card.name} 凭据指南`}
-        onClick={onToggleGuide}
-      >
-        <div className="flex w-full items-center justify-between gap-2">
-          <span className="truncate text-sm font-medium text-foreground">{card.name}</span>
-          <Badge variant={STATUS_VARIANT[card.status]}>{STATUS_LABEL[card.status]}</Badge>
+      <PlatformAvatar platformId={card.id} platformName={card.name} />
+      <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{card.name}</span>
+      <StatusDotTone status={card.status} />
+    </button>
+  );
+}
+
+/** 状态点(照上游 StatusDot 画法:1.5px 圆点,tone 全走语义 token)。 */
+function StatusDotTone({ status }: { status: PlatformCardStatus }) {
+  return (
+    <span aria-hidden="true" className={cn("inline-block size-1.5 shrink-0 rounded-full", STATUS_DOT_TONE[status])} />
+  );
+}
+
+/** 详情栏小节标题(照上游 SectionTitle 节奏:小号大写间距,中文取 tracking-wide)。 */
+function SectionTitle({ children }: { children: ReactNode }) {
+  return <h4 className="text-[11px] font-semibold tracking-wide text-muted-foreground">{children}</h4>;
+}
+
+/** 状态说明文案(三态证据来源;连接态列命中信号,缺配置态给下一步动作)。 */
+function statusExplanation(card: PlatformCard): string {
+  if (card.status === "coming_soon") {
+    return `${card.wave} 波次排期平台,尚未实装:无凭据可言,目录恒空;实装节奏见接入路线图。`;
+  }
+  if (card.status === "connected") {
+    const signals = [
+      card.matchedSecretNames.length > 0 ? `钥匙链命中 ${card.matchedSecretNames.length} 项凭据名` : null,
+      card.directoryCount > 0 ? `目录非空(${card.directoryCount} 个会话)` : null,
+    ]
+      .filter(Boolean)
+      .join("、");
+    return `已连接:${signals || "信号已就绪"}。可直接在下方「推送规则」勾选该平台目录里的会话为推送对象。`;
+  }
+  return "需要设置:钥匙链未探测到该平台凭据名,且目录为空(无一次成功发现或真实 bot 流量的证据)。按下方「出站凭据指南」录入凭据,再到下方「通道目录」点该平台的「刷新」验证。";
+}
+
+/** 右栏详情面板(R2):描述 / 状态说明 / 凭据指南 / 已连接时的目录速览。 */
+function PlatformDetailPanel({
+  card,
+  dead,
+  directory,
+}: {
+  card: PlatformCard;
+  dead: string[];
+  directory: Record<string, ChannelEntry[]>;
+}) {
+  const bucket = card.status === "coming_soon" ? [] : (directory[card.id] ?? []);
+  return (
+    <div className="flex flex-col gap-4">
+      {/* 头(照上游 PlatformDetail header:头像 + 名称 + 状态胶囊 + 描述) */}
+      <header className="flex items-start gap-3">
+        <PlatformAvatar platformId={card.id} platformName={card.name} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="min-w-0 truncate text-[0.9375rem] font-semibold tracking-tight text-foreground">
+              {card.name}
+            </h3>
+            <StatePill status={card.status}>{STATUS_LABEL[card.status]}</StatePill>
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{card.description}</p>
+          <p className="truncate font-mono text-[11px] text-muted-foreground">{card.id}</p>
         </div>
-        <p className="truncate font-mono text-[11px] text-muted-foreground">{card.id}</p>
-        {meta}
-        <p className="text-[11px] text-primary">{guideOpen ? "收起凭据指南" : "出站凭据指南"}</p>
-      </button>
-      {guideOpen ? <PlatformGuideView platformId={card.id} guide={card.guide} /> : null}
+      </header>
+
+      <section>
+        <SectionTitle>状态说明</SectionTitle>
+        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{statusExplanation(card)}</p>
+      </section>
+
+      {card.guide ? (
+        <section className="flex flex-col gap-2">
+          <SectionTitle>出站凭据指南</SectionTitle>
+          <PlatformGuideView guide={card.guide} platformId={card.id} />
+        </section>
+      ) : null}
+
+      {card.status === "connected" ? (
+        <section className="flex flex-col gap-2">
+          <SectionTitle>目录速览</SectionTitle>
+          <DirectoryQuickView bucket={bucket} dead={dead} platformId={card.id} />
+        </section>
+      ) : null}
     </div>
   );
 }
 
-/** 出站凭据指南面板(R4):凭据 key 用途 + 获取步骤(中文直白)。 */
-function PlatformGuideView({ platformId, guide }: { platformId: string; guide: PlatformGuide }) {
+/** 状态胶囊(照上游 StatePill 画法:胶囊 + 内嵌状态点 + 文案,tone 走语义 token)。 */
+function StatePill({ children, status }: { children: string; status: PlatformCardStatus }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+        STATE_PILL_TONE[status],
+      )}
+    >
+      <StatusDotTone status={status} />
+      {children}
+    </span>
+  );
+}
+
+/** 目录速览(R2;已连接时):只读条目列表;改名/别名/死信处理仍在下方「通道目录」。 */
+function DirectoryQuickView({
+  bucket,
+  dead,
+  platformId,
+}: {
+  bucket: ChannelEntry[];
+  dead: string[];
+  platformId: string;
+}) {
+  if (bucket.length === 0) {
+    return (
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        目录为空:到下方「通道目录」点 {platformId} 组的「刷新」(飞书主动发现)或等会话被动进入(telegram 随
+        bot 流量积累)。
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p className="text-[11px] text-muted-foreground">
+        {bucket.length} 个会话;只读速览,改名 / 别名 / 死信处理在下方「通道目录」。
+      </p>
+      <ul className="flex flex-col gap-1">
+        {bucket.map((entry) => (
+          <li
+            key={entry.chat_id}
+            className="flex items-center justify-between gap-2 rounded-md border border-border/50 px-2.5 py-1.5"
+          >
+            <span className="flex min-w-0 items-center gap-1.5 text-xs">
+              <Badge variant="outline">{entry.type}</Badge>
+              <span className="truncate font-medium text-foreground">{entry.name}</span>
+              {isDeadEntry(entry, dead) ? <Badge variant="destructive">死信</Badge> : null}
+            </span>
+            <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{entry.chat_id}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** 出站凭据指南面板(R4 内容移入详情栏):凭据 key 用途 + 获取步骤(中文直白)。 */
+function PlatformGuideView({ guide, platformId }: { guide: PlatformGuide; platformId: string }) {
   return (
     <div
       className="flex flex-col gap-2 rounded-md bg-muted/30 p-2.5"
       data-testid={`platform-guide-${platformId}`}
     >
-      <p className="text-xs font-medium text-foreground">出站凭据指南(定向推送只需要这些)</p>
+      <p className="text-xs font-medium text-foreground">定向推送只需要这些;凭据只覆盖出站,入站项零出现。</p>
       <div className="flex flex-col gap-1">
         {guide.keys.map((entry) => (
           <p key={entry.key} className="text-[11px] leading-relaxed text-muted-foreground">
