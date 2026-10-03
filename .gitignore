@@ -63,8 +63,16 @@ desktop/src-tauri/target/
 desktop/src-tauri/gen/
 desktop/.venv-build/
 desktop/build-pyi/
+desktop/.pyinstaller-cache/
 desktop/ui/
 desktop/src-tauri/binaries/
+
+# ---- GitNexus 本地索引(知识图谱 DB,本机私有;WAL 损坏勿提交)----
+.gitnexus/
+# gitnexus analyze 的自动副作用副本:MYIA 用全局技能(~/.agents/skills)+ AGENTS.md,不提交
+# (将来要手写 CLAUDE.md 时,先移除下一行规则)
+.claude/
+CLAUDE.md
 
 # ---- 编辑器 / OS ----
 .idea/

@@ -23,6 +23,8 @@ These guides help you **ask the right questions before coding**.
 |-------|---------|-------------|
 | [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md) | Identify patterns and reduce duplication | When you notice repeated patterns |
 | [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md) | Think through data flow across layers | Features spanning multiple layers |
+| [Engineering Discipline](./engineering-discipline.md) | 长任务监控 / 先报量再动手(查改分家) / 高星参考 | Before launching long tasks, before >30min work, before writing nontrivial code |
+| [Search SOP](./search-sop.md) | 搜索范围/工具/排噪/热路径 + 仓库外路径 + 网络路由 + GitNexus 用法 | Before ANY search (repo / local / web) |
 
 ---
 

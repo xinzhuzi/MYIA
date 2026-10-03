@@ -14,5 +14,7 @@
 | [desktop/sidecar-protocol.md](./desktop/sidecar-protocol.md) | 桌面 sidecar 协议:方法注册表(23)与错误码(事实源 = entry.py `_HANDLERS`) |
 | [guides/](./guides/index.md) | 通用思维指南(复用/跨层) |
 | [guides/ai-dispatch-template.md](./guides/ai-dispatch-template.md) | AI 任务分发模板(v1.1 协议与顺序) |
+| [guides/engineering-discipline.md](./guides/engineering-discipline.md) | 工程纪律:长任务监控 / 先报量再动手(查改分家) / 高星参考 |
+| [guides/search-sop.md](./guides/search-sop.md) | 搜索 SOP:热路径/工具分工/仓库外路径/网络路由/GitNexus(先读后搜) |
 
 权威产品规划:`LOCAL-NOTES.md 索引的规划文档(本地)`(仅本地,勿提交)。
