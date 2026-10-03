@@ -1,0 +1,5 @@
+{"file": ".trellis/tasks/10-03-ui-deep-imitation/research/baseline.md", "reason": "核对改造后 git diff 与基线差异,均属任务范围且无 scope 漂移"}
+{"file": ".trellis/tasks/10-03-ui-deep-imitation/design.md", "reason": "对照 D4 改造点与 D7 边界逐条核;决策点执行口径与推荐一致或有主人批复"}
+{"file": ".trellis/spec/desktop/sidecar-protocol.md", "reason": "协议零改动回归:27 方法面无新增无语义变化"}
+{"file": ".trellis/tasks/archive/2026-10/10-03-ui-feature-census/prd.md", "reason": "质检反查:未引入 census 归 feed-ux/v112 的功能实现"}
+{"file": ".trellis/spec/domain/os-etiquette.md", "reason": "证据截图姿势合规:静默产出,无前台自动化"}

@@ -1,0 +1,8 @@
+{"file": ".trellis/tasks/10-03-ui-deep-imitation/research/baseline.md", "reason": "前端地面真值:七屏清单/token 已有与缺口/组件基件/依赖;改造前必读"}
+{"file": ".trellis/tasks/10-03-ui-deep-imitation/design.md", "reason": "D2 token 深化清单+D4 逐屏方向+D5 图表决策+D6 拆解表模板;实现以此为准"}
+{"file": ".trellis/tasks/10-03-ui-deep-imitation/prd.md", "reason": "取材策略三档(闭源=拆解表前置)+AC+五条 grill 待决"}
+{"file": ".trellis/spec/desktop/sidecar-protocol.md", "reason": "27 方法协议面零改动红线;UI 层不得触发协议变更"}
+{"file": ".trellis/spec/domain/os-etiquette.md", "reason": "UI 验收纪律:无头冒烟/open -g 静默截图,禁抢前台禁全屏截图"}
+{"file": ".trellis/tasks/10-03-feed-ux/prd.md", "reason": "G1-G5 功能件归属边界;本任务视觉层给容器留白但不实现功能"}
+{"file": ".trellis/tasks/archive/2026-10/10-03-ui-feature-census/prd.md", "reason": "G1-G12 全景与 17 工具对标证据;防止视觉改造搭车功能项"}
+{"file": ".trellis/spec/guides/engineering-discipline.md", "reason": "长任务监控+先报量再动手(>30 分钟报规模清单)"}
