@@ -20,20 +20,18 @@
 给 MYIA 加 **RSS 提取小能力**(L1/L2 级,非新引擎层级),接入机核游戏资讯,
 交付「游戏资讯」情报品类。
 
-## 待决(主人批复即可开工;均带推荐)
+## 待决(已全部拍板:2026-10-03 主人「按推荐」)
 
-1. **依赖**:feedparser(RSS 事实标准库,BSD-2 合规;RSS1/2/Atom/CDATA/
-   编码坑全覆盖)vs stdlib `xml.etree` 手写(零新依赖,但 RSS 变体/CDATA/
-   编码坑全自己扛)。
-   ➡️ **推荐 feedparser**(uv workspace 运行依赖;解析坑是这类库存在的全部理由)。
-2. **品类归属**:独立品类 `plugins/news.yaml`(资讯条目无价格字段,games 的
-   规则/基线/模板全是价格语义,混进去规则面别扭;独立 12 段各自干净,feed
-   品类选择器自然多一项「游戏资讯」)vs 并入 games 第五源(同卡聚合)。
-   ➡️ **推荐独立品类**(要合并将来拆装容易,反向难)。
-3. **v1 源数**:只机核 vs 机核+IGN 双源。
-   ➡️ **推荐 v1 只机核**(中文阅读顺、单源先钉稳;IGN 是加一行的事)。
+1. **依赖 = feedparser**(BSD-2 合规;RSS1/2/Atom/CDATA/编码坑全覆盖;
+   纯 Python 轻依赖,uv workspace 运行依赖)。
+2. **品类归属 = 独立 `plugins/news.yaml`**(资讯无价格字段,games 规则面
+   全是价格语义;feed 品类选择器自然多一项「游戏资讯」)。
+3. **v1 源 = 只机核**(IGN 探查已留终 URL 与 302 注意点,后续加一行)。
 
-## Requirements(批复后细化 design)
+技术设计(design.md)与执行单(implement.md 六步)已齐,达「可 start
+等开工令」。
+
+## Requirements
 
 1. **提取能力**:extend `extract.type` 词表(EXTRACT_TYPES 加 `"rss"`)——
    引擎路径(direct_api 收 XML 还是 static_html 层分发)、字段映射形态
