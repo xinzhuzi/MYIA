@@ -166,10 +166,11 @@ class TestOcr:
         )
         lines = run_ocr(png_file, "vision")
         assert lines == [OcrLine("中文行一", 0.98), OcrLine("IP 2403:27c0:c03:1::71", 0.50)]
-        # 关键 kwargs 钉死:accurate + 中英语言 + 语言纠正关(报错码/ID 保真)。
+        # 关键 kwargs 钉死:accurate + 中英语言(ocrmac 1.x 无 use_language_correction,
+        # VNRecognizeTextRequest 缺省即关语言纠正;装机冒烟 10-03 实测签名)。
         assert record["kwargs"]["recognition_level"] == "accurate"
         assert record["kwargs"]["language_preference"] == ["zh-Hans", "en-US"]
-        assert record["kwargs"]["use_language_correction"] is False
+        assert "use_language_correction" not in record["kwargs"]
         assert record["path"] == str(png_file)
 
     def test_vision_low_confidence_lines_pass_through_unchanged(self, monkeypatch, png_file):
@@ -293,9 +294,10 @@ class TestVisionClient:
         assert isinstance(result, VisionResult)
         assert result.text == "解读文本" and result.total_tokens == 17
         underlying = created[0]
-        # 本地通道:占位 key 过 SDK 构造,Authorization 头显式剥离(httpx None=删头)。
+        # 本地通道:占位 key 过 SDK 构造,Authorization 头以空串覆写(10-03 装机
+        # 冒烟:httpx 无 None=删头语义,None 头值运行期 TypeError;空串零凭据)。
         assert underlying.init_kwargs["api_key"] == vision_client.LOCAL_PLACEHOLDER_KEY
-        assert underlying.init_kwargs["default_headers"] == {"Authorization": None}
+        assert underlying.init_kwargs["default_headers"] == {"Authorization": ""}
         assert underlying.init_kwargs["base_url"] == "http://127.0.0.1:8080/v1"
         # image part 组装:image_url(data URL)在前、text part 在后(local-ocr 配方)。
         (call,) = underlying.create_calls

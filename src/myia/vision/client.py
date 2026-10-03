@@ -70,7 +70,9 @@ class VisionClient:
         model: 模型名;本地 mlx-vlm 场景即模型目录路径(「设置本地模型路径」落点)。
         api_key: 已解析的云端 key;``None`` = 本地通道(占位构造 + 剥离
             Authorization 头,见 :data:`LOCAL_PLACEHOLDER_KEY`)。
-        timeout_seconds: 单请求硬上限(asyncio.wait_for + SDK timeout 双保险)。
+        timeout_seconds: 单请求硬上限(asyncio.wait_for + SDK timeout 双保险;
+            缺省 180s —— 60s 在 Metal JIT 首请求/长 describe/低速主机下实测越线,
+            见 10-03 装机冒烟 protocol-e2e2-summary.md)。
         max_output_tokens: 端点侧输出上限。
 
     Raises:
@@ -84,7 +86,11 @@ class VisionClient:
         model: str,
         *,
         api_key: str | None = None,
-        timeout_seconds: float = 60.0,
+        # 10-03 装机冒烟定量:60s 余量不足 —— 首视觉请求 Metal JIT ~55s、
+        # describe 结构化输出 500-800 token、争用主机 4-5 tok/s 三者任一即越线
+        # (实测 describe 448 token / 110.5s 全程跑通,机制无恙,唯超时线太紧)。
+        # 事件流本就不受壳 120s 限制,180s 只放宽单请求硬上限。
+        timeout_seconds: float = 180.0,
         max_output_tokens: int = 2048,
     ) -> None:
         self._base_url = base_url
@@ -104,8 +110,11 @@ class VisionClient:
                 "timeout": self._timeout_seconds,
             }
             if self._api_key is None:
-                # httpx 头值 None = 删除:本地端点零鉴权头(占位 key 只为过 SDK 构造)。
-                init_kwargs["default_headers"] = {"Authorization": None}
+                # 本地端点零鉴权头:httpx 不支持 None 头值(10-03 装机冒烟实测
+                # TypeError: Header value must be str or bytes, not NoneType;
+                # None=删头是 requests 的语义,httpx 没有),以空串覆写占位 Bearer ——
+                # ``Authorization:``(空)不含任何凭据,本地端点(mlx-vlm)不受影响。
+                init_kwargs["default_headers"] = {"Authorization": ""}
             self._async_client = openai.AsyncOpenAI(**init_kwargs)
         return self._async_client
 

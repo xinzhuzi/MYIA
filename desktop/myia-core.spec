@@ -1,15 +1,24 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_all
 
+datas = [('/Users/zhengbingjin/Project/Github/MYIA/myia-classifier/myia_classifier/data/keywords.json', 'myia_classifier/data')]
+binaries = []
 hiddenimports = ['myia.secrets']
 hiddenimports += collect_submodules('myia')
+tmp_ret = collect_all('ocrmac')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('rapidocr_onnxruntime')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('openai')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
     ['/Users/zhengbingjin/Project/Github/MYIA/desktop/entry.py'],
     pathex=[],
-    binaries=[],
-    datas=[('/Users/zhengbingjin/Project/Github/MYIA/myia-classifier/myia_classifier/data/keywords.json', 'myia_classifier/data')],
+    binaries=binaries,
+    datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
@@ -26,7 +35,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='myia',
+    name='myia-core',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

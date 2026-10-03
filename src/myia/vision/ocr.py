@@ -5,9 +5,9 @@
 
 - ``vision``(默认):ocrmac 封装 macOS Vision(zh-Hans+en-US、accurate、逐行
   置信度),零模型下载;宽 <1000px 先 ``sips -Z 2000`` 放大再识别(local-ocr
-  实证:小图不放大,行识别质量塌);``use_language_correction`` 显式关闭 ——
-  报错码/ID/金额场景语言纠正会把原文「改对」,恰恰毁证据。置信度刻度
-  0.30-1.0 真实分布,≤0.5 警示阈值主要对此引擎有意义。
+  实证:小图不放大,行识别质量塌);ocrmac 1.x 无 use_language_correction 参
+  (VNRecognizeTextRequest 缺省即关语言纠正,报错码/ID 保真语义保持)。
+  置信度刻度 0.30-1.0 真实分布,≤0.5 警示阈值主要对此引擎有意义。
 - ``rapidocr``:rapidocr-onnxruntime 内置默认 det/rec/cls 模型,零下载;
   置信度刻度普遍 ≥0.9(与 Vision 不可直接互比,UI 注记来源引擎,阈值统一)。
 
@@ -104,6 +104,11 @@ def _run_vision(path: Path) -> list[OcrLine]:
     """macOS Vision via ocrmac;小图先放大,识别后临时文件即弃。"""
     try:
         ocrmac = importlib.import_module("ocrmac")
+        # ocrmac 1.x(1.0.1 实测,10-03 装机冒烟):OCR 类在 ocrmac.ocrmac 子模块,
+        # 顶层包不再导出;旧版/测试桩顶层带 OCR —— 先取顶层,缺失再下钻子模块。
+        ocr_cls = getattr(ocrmac, "OCR", None)
+        if ocr_cls is None:
+            ocr_cls = importlib.import_module("ocrmac.ocrmac").OCR
     except ImportError as exc:
         raise OCRError(
             "dependency_missing",
@@ -122,11 +127,14 @@ def _run_vision(path: Path) -> list[OcrLine]:
             ) from exc
         feed = upscaled
     try:
-        request = ocrmac.OCR(
+        # ocrmac 1.x(装机冒烟实测)不收 use_language_correction(0.x 参数);
+        # VNRecognizeTextRequest 的 usesLanguageCorrection 缺省即关,语义保持。
+        # unit 保持缺省 token:Vision 框架 observation 即行级、置信度真实;
+        # unit="line" 反而把置信度硬编码 1.0(ocrmac 源码 253-260 行),不可用。
+        request = ocr_cls(
             str(feed),
             language_preference=list(_VISION_LANGUAGES),
             recognition_level="accurate",
-            use_language_correction=False,
         )
         observations = request.recognize()
     except Exception as exc:  # noqa: BLE001 — 引擎内部任何失败统一结构化包装

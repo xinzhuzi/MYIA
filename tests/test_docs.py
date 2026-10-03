@@ -47,8 +47,14 @@ ZH_DIR = DOCS_DIR / "zh"
 EN_DIR = DOCS_DIR / "en"
 DEMO_DIR = DOCS_DIR / "demo"
 
-#: 双语页面清单:两棵树必须同时存在这四页,并逐页结构对齐。
-BILINGUAL_PAGES = ("getting-started.md", "write-a-plugin.md", "schema.md", "faq.md")
+#: 双语页面清单:两棵树必须同时存在这五页,并逐页结构对齐。
+BILINGUAL_PAGES = (
+    "getting-started.md",
+    "write-a-plugin.md",
+    "schema.md",
+    "faq.md",
+    "zero-cost.md",
+)
 
 _YAML_BLOCK_RE = re.compile(r"```yaml\n(.*?)```", re.DOTALL)
 _FENCED_RE = re.compile(r"^```.*?^```", re.DOTALL | re.MULTILINE)

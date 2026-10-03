@@ -36,7 +36,8 @@ function installSidecar(initial: VisionConfig = configFixture()): SidecarState {
     async (_command: string, args: { method: string; params?: unknown }) => {
       switch (args.method) {
         case "image.config.read":
-          return state.config;
+          // 协议应答是 {file, exists, config} 包装(entry.py 锁定形状)
+          return { file: "/home/vision.yaml", exists: true, config: state.config };
         case "image.config.save": {
           const { config } = args.params as { config: VisionConfig };
           state.config = config;

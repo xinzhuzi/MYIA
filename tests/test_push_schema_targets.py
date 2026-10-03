@@ -243,7 +243,32 @@ class TestGoldenRegression:
             cfg = load_category_file(Path(name))
             actual = cfg.model_dump(mode="json")
             _strip_additive_targets(actual)
-            assert actual == expected, f"{name} 加载结果与改动前不等价"
+            _assert_additive_equivalent(actual, expected, name)
+
+
+def _assert_additive_equivalent(actual, expected, path: str) -> None:
+    """actual 允许比 expected 多出『缺省为空』的新增键(None/[]/{});其余零漂移。
+
+    多会话仓库里其他任务的 additive 字段(如 10-03-games 的 ``url_template:
+    None``)会合法出现在 model_dump 里——本测试的承诺边界是「本任务的
+    schema 改动不改变旧 YAML 的加载语义」,不是冻结整个模型;取值漂移、
+    字段丢失、非空新增键仍然失败。
+    """
+    assert isinstance(actual, type(expected)), f"{path}: 类型漂移 {type(expected).__name__} -> {type(actual).__name__}"
+    if isinstance(expected, dict):
+        for key, exp in expected.items():
+            assert key in actual, f"{path}.{key}: 字段丢失"
+            _assert_additive_equivalent(actual[key], exp, f"{path}.{key}")
+        for key in set(actual) - set(expected):
+            assert actual[key] in (None, [], {}), (
+                f"{path}.{key}: 非空新增键 {actual[key]!r}(只容忍缺省为空的纯增字段)"
+            )
+    elif isinstance(expected, list):
+        assert len(actual) == len(expected), f"{path}: 列表长度漂移 {len(expected)} -> {len(actual)}"
+        for i, (a, e) in enumerate(zip(actual, expected)):
+            _assert_additive_equivalent(a, e, f"{path}[{i}]")
+    else:
+        assert actual == expected, f"{path}: 取值漂移 {expected!r} -> {actual!r}"
 
 
 def _strip_additive_targets(dump: dict) -> None:

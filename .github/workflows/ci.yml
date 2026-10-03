@@ -69,7 +69,7 @@ jobs:
       - name: Create placeholder externalBin
         run: |
           mkdir -p binaries
-          touch "binaries/myia-$(rustc -vV | sed -n 's/^host: //p')"
+          touch "binaries/myia-core-$(rustc -vV | sed -n 's/^host: //p')"
       - name: cargo check
         run: cargo check --locked
 

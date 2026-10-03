@@ -76,7 +76,7 @@ Ranked by "rate-limited free" (no total quota, speed caps only) ahead of
 Zhipu is the default vendor for the vision cloud channel — going zero
 cost is just a model-name change plus recording a key:
 
-```yaml
+```text
 # <data root>/vision.yaml (same source as the desktop "Vision settings"; hand edits take effect too)
 channel_default: cloud          # the default is local; switch to cloud
 cloud:
@@ -101,14 +101,30 @@ myia secret set myia/image/api_key < key.txt    # value goes over stdin, never i
 In the category YAML's `enrich:` section (fields: `enabled` / `model` /
 `base_url` / `api_key`, etc.), write both the endpoint and the key as
 credential references; the default model `glm-4-flash` is itself Zhipu's
-free tier:
+free tier. Complete category example (every other section is a minimal
+skeleton — the `enrich:` section is the star):
 
 ```yaml
+id: zero-cost-demo                    # save as plugins/zero-cost-demo.yaml and run
+name: Zero-cost enrich demo
+schedule: "0 9 * * *"
+sources:
+  - name: example-news
+    engine: static_html
+    url: "https://example.com/news"
+    extract:
+      type: list
+      item: "article"
+      fields:
+        title: "h2 a"
+        url: "h2 a@href"
 enrich:
   enabled: true
   model: glm-4-flash                              # the default; exact identifier per Zhipu's model page
   base_url: env:MYIA_LLM_BASE_URL
   api_key: env:MYIA_LLM_KEY
+push:
+  - channel: stdout
 ```
 
 ```bash

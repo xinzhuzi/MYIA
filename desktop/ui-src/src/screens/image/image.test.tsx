@@ -32,6 +32,7 @@ const onSidecarEventMock = vi.mocked(onSidecarEvent);
 import { ImageScreen } from "./image-screen";
 import {
   confTone,
+  DEFAULT_VISION_CONFIG,
   extOf,
   importImageByBase64,
   importImageByPath,
@@ -63,6 +64,11 @@ function configFixture(overrides: Partial<VisionConfig> = {}): VisionConfig {
     ocr: { enabled: true, engine_default: "vision" },
     ...overrides,
   };
+}
+
+/** image.config.read 协议应答:{file, exists, config} 包装(entry.py 锁定形状) */
+function configReadFixture(config: VisionConfig = configFixture()) {
+  return { file: "/home/vision.yaml", exists: true, config };
 }
 
 function ocrFixture(engine: "vision" | "rapidocr"): ImageOcrResult {
@@ -159,7 +165,7 @@ afterEach(() => {
 describe("看图屏:导入与一级 OCR", () => {
   it("拖入文件 → image.import(kind=base64)→ 自动 OCR(默认引擎来自配置)→ 逐行置信度色阶", async () => {
     installSidecar({
-      "image.config.read": () => configFixture(),
+      "image.config.read": () => configReadFixture(),
       "image.import": () => ({ id: "abc123def4567890", path: "/data/images/abc123def4567890.png", bytes: 1234, ext: "png" }),
       "image.ocr": () => ocrFixture("vision"),
     });
@@ -184,7 +190,7 @@ describe("看图屏:导入与一级 OCR", () => {
 
   it("引擎切换(Vision→RapidOCR)即重跑;结果改标新引擎(刻度注记不互比)", async () => {
     installSidecar({
-      "image.config.read": () => configFixture(),
+      "image.config.read": () => configReadFixture(),
       "image.import": () => ({ id: "img-1", path: "/data/images/img-1.png", bytes: 10, ext: "png" }),
       "image.ocr": (params: never) => {
         const { engine } = params as { engine?: string };
@@ -205,7 +211,7 @@ describe("看图屏:导入与一级 OCR", () => {
   it("系统选择器路径导入(kind=path);路径入口无缩略图占位说明", async () => {
     mocks.open.mockResolvedValue("/Users/u/报错截图.png");
     installSidecar({
-      "image.config.read": () => configFixture(),
+      "image.config.read": () => configReadFixture(),
       "image.import": () => ({ id: "img-2", path: "/data/images/img-2.png", bytes: 4096, ext: "png" }),
       "image.ocr": () => ocrFixture("vision"),
     });
@@ -241,7 +247,7 @@ describe("看图屏:导入与一级 OCR", () => {
   it("OCR 失败 → 结构化错误态(code=path=);重试再发 image.ocr", async () => {
     let failures = 0;
     installSidecar({
-      "image.config.read": () => configFixture(),
+      "image.config.read": () => configReadFixture(),
       "image.import": () => ({ id: "img-3", path: "/x/img-3.png", bytes: 1, ext: "png" }),
       "image.ocr": () => {
         failures += 1;
@@ -282,7 +288,7 @@ describe("看图屏:导入与一级 OCR", () => {
 describe("看图屏:二级看图事件流", () => {
   function installAnalyzeSidecar() {
     installSidecar({
-      "image.config.read": () => configFixture(),
+      "image.config.read": () => configReadFixture(),
       "image.import": () => ({ id: "img-1", path: "/x/img-1.png", bytes: 1, ext: "png" }),
       "image.ocr": () => ocrFixture("vision"),
       "image.analyze": () => ({ job_id: 7 }) satisfies ImageAnalyzeResult,
@@ -356,9 +362,37 @@ describe("看图屏:二级看图事件流", () => {
     expect(box.textContent).toContain("启动指引");
   });
 
+  it("completed 在订阅建立前被丢 → 订阅就绪后经 image.status 对账恢复(不卡进行中)", async () => {
+    // 瞬时失败场景(如 OCR 毫秒级失败):completed 事件先于订阅写出被丢 ——
+    // 全程零 emitEvent,错误态必须仍能经 image.status 携带的 last 终态出现
+    installSidecar({
+      "image.config.read": () => configReadFixture(),
+      "image.import": () => ({ id: "img-1", path: "/x/img-1.png", bytes: 1, ext: "png" }),
+      "image.ocr": () => ocrFixture("vision"),
+      "image.analyze": () => ({ job_id: 9 }) satisfies ImageAnalyzeResult,
+      "image.status": () => ({
+        busy: false,
+        last: {
+          type: "image.completed",
+          job_id: 9,
+          ok: false,
+          error: { code: "image_ocr_failed", path: "$", message: "read 模式 OCR 初稿失败: 引擎依赖缺失" },
+        },
+      }),
+    });
+    await importImageAndReady();
+
+    fireEvent.click(screen.getByTestId("vision-start"));
+    const box = await screen.findByTestId("vision-error", {}, { timeout: 3000 });
+    expect(box.textContent).toContain("read 模式 OCR 初稿失败");
+    expect(box.textContent).toContain("code=image_ocr_failed");
+    // 对账按 job_id 精确查询(终态自带 job_id,不匹配即忽略)
+    expect(lastParamsOf("image.status")?.params).toEqual({ job_id: 9 });
+  });
+
   it("analyze 立即拒绝(image_busy)→ 结构化错误态", async () => {
     installSidecar({
-      "image.config.read": () => configFixture(),
+      "image.config.read": () => configReadFixture(),
       "image.import": () => ({ id: "img-1", path: "/x/img-1.png", bytes: 1, ext: "png" }),
       "image.ocr": () => ocrFixture("vision"),
       "image.analyze": () => {
@@ -513,6 +547,11 @@ describe("看图 api:色阶 / 预检 / 方法映射", () => {
 
     await imageStatus();
     expect(mocks.invoke).toHaveBeenLastCalledWith("sidecar_request", { method: "image.status", params: {} });
+    await imageStatus(9); // 对账查询:携带 job_id
+    expect(mocks.invoke).toHaveBeenLastCalledWith("sidecar_request", {
+      method: "image.status",
+      params: { job_id: 9 },
+    });
 
     await readImageConfig();
     expect(mocks.invoke).toHaveBeenLastCalledWith("sidecar_request", { method: "image.config.read", params: {} });
@@ -534,6 +573,23 @@ describe("看图 api:色阶 / 预检 / 方法映射", () => {
       path: "params.value",
       message: "图片超过 10MB",
     });
+  });
+
+  it("readImageConfig:解包 {file, exists, config} 协议包装,返裸 VisionConfig", async () => {
+    const config = configFixture();
+    mocks.invoke.mockResolvedValue(configReadFixture(config));
+    await expect(readImageConfig()).resolves.toEqual(config);
+    // 形状不符(mock/异常应答缺 config):原样透传,由调用方形状防御如实呈现
+    mocks.invoke.mockResolvedValue(undefined);
+    const raw = await readImageConfig();
+    expect(raw).toBeUndefined();
+  });
+
+  it("DEFAULT_VISION_CONFIG 与 Python 缺省对齐(settings.py:local base_url 带 /v1 后缀)", () => {
+    expect(DEFAULT_VISION_CONFIG.local.base_url).toBe("http://127.0.0.1:8080/v1");
+    expect(DEFAULT_VISION_CONFIG.cloud.base_url).toBe("https://open.bigmodel.cn/api/paas/v4");
+    expect(DEFAULT_VISION_CONFIG.cloud.model).toBe("glm-4.6v");
+    expect(DEFAULT_VISION_CONFIG.ocr.engine_default).toBe("vision");
   });
 });
 

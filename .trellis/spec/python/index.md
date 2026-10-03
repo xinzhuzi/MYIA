@@ -12,7 +12,7 @@
 - `src/` 下**全部是 MYIA 自有代码,不含任何外部框架的引用或复制源码**;也没有 git 子模块/vendored 代码
 - 外部项目只以两种方式接入:
   1. **核心必装轻量依赖**(pyproject `dependencies`,5 个):httpx、selectolax、PyYAML、APScheduler、pydantic——运行时作为库调用
-  2. **引擎可选依赖**(pyproject `[project.optional-dependencies]`):crawl4ai / scrapling / firecrawl-py / skyvern / openai——只 **import 对方的库写适配层,永不复制对方源码进仓库**(许可与体积红线);按 roadmap 分版本实装,v0.1 只做 L1/L2 + firecrawl
+  2. **引擎可选依赖**(pyproject `[project.optional-dependencies]`):crawl4ai / scrapling / firecrawl-py / skyvern / openai / vision(看图:ocrmac + rapidocr-onnxruntime + openai)——只 **import 对方的库写适配层,永不复制对方源码进仓库**(许可与体积红线);按 roadmap 分版本实装,v0.1 只做 L1/L2 + firecrawl
 - engines/ 下 crawl4ai.py、scrapling.py、stealth_browser.py、llm_browser.py 当前为占位壳(仅 `__future__` import,未引任何第三方库);实装排期见各 `vXX-engine-*` 任务,提前实装属越界
 - 判断一个依赖放核心还是 extras 的标准:核心流水线(L1/L2+分类+推送)能跑 = 核心依赖;只有特定引擎/通道需要 = extras
 
@@ -27,6 +27,7 @@ classify/       builtin(七大类+双信号,数据与代码分离)/ custom(YAML 
 dedup.py store/ SQLite + 去重注册表 + 变更基线;接口可插拔(PG 留位)
 enrich/         LLM 精评(批量/缓存/预算护栏)
 push/           通道(feishu_card/telegram/webhook/stdout)+ 阈值分级路由
+vision/         看图:双引擎 OCR(ocrmac+rapidocr-onnxruntime)+ OpenAI 兼容 VisionClient + vision.yaml 配置(extras myia[vision],惰性 import)
 ```
 
 - 现有文件多为薄壳:任务是**填充**而非新建;新模块先在对应 PRD 登记

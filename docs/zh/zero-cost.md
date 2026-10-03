@@ -59,7 +59,7 @@ export MYIA_LLM_KEY=ollama            # 占位值,本地端点不校验
 
 智谱是看图云端通道的缺省厂商,零成本只需换模型名 + 录 key:
 
-```yaml
+```text
 # <数据根>/vision.yaml(桌面端「看图设置」同源;手改亦生效)
 channel_default: cloud          # 缺省 local,切到云端
 cloud:
@@ -80,14 +80,30 @@ myia secret set myia/image/api_key < key.txt    # 值走 stdin,不落 shell hist
 ### 接入:精评(enrich)
 
 品类 YAML 的 `enrich:` 节(字段:`enabled` / `model` / `base_url` / `api_key`
-等),端点与 key 都写凭据引用;缺省模型 `glm-4-flash` 本身就是智谱免费档:
+等),端点与 key 都写凭据引用;缺省模型 `glm-4-flash` 本身就是智谱免费档。
+完整品类示例(其余节取最小骨架,`enrich:` 节即主角):
 
 ```yaml
+id: zero-cost-demo                    # 存成 plugins/zero-cost-demo.yaml 即可跑
+name: 零成本精评演示
+schedule: "0 9 * * *"
+sources:
+  - name: example-news
+    engine: static_html
+    url: "https://example.com/news"
+    extract:
+      type: list
+      item: "article"
+      fields:
+        title: "h2 a"
+        url: "h2 a@href"
 enrich:
   enabled: true
   model: glm-4-flash                              # 缺省即此;确切标识以智谱模型页为准
   base_url: env:MYIA_LLM_BASE_URL
   api_key: env:MYIA_LLM_KEY
+push:
+  - channel: stdout
 ```
 
 ```bash

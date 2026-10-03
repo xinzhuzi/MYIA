@@ -28,7 +28,7 @@ struct Sidecar {
     next_id: AtomicU64,
 }
 
-/// sidecar 常驻进程:`myia serve`,启动时 spawn,pump 任务独占消费其 stdout。
+/// sidecar 常驻进程:`myia-core serve`,启动时 spawn,pump 任务独占消费其 stdout。
 #[tauri::command]
 async fn sidecar_request(
     state: State<'_, Sidecar>,
@@ -206,7 +206,9 @@ fn main() {
             // 冷启动打点(沿用 spike 惯例):进程启动 → sidecar spawn 完成。
             // MYIA_HOME 注入尊重用户显式设置(自动化/自定位数据根的逃生口):
             // 已设则原样继承,不夺权;未设才计算平台根并注入 + 预建目录。
-            let mut command = app.shell().sidecar("myia")?.args(["serve"]); // entry.py RPC 模式;直通模式(无参数)留给 CLI 场景
+            // sidecar 叫 myia-core:主程序 mainBinaryName=MYIA,macOS APFS 大小写
+            // 不敏感,叫 myia 会在 Contents/MacOS/ 与 MYIA 撞名互相覆盖
+            let mut command = app.shell().sidecar("myia-core")?.args(["serve"]); // entry.py RPC 模式;直通模式(无参数)留给 CLI 场景
             if std::env::var_os("MYIA_HOME").is_none() {
                 command = command.env("MYIA_HOME", myia_home_dir(app.handle())?);
             }
@@ -217,29 +219,6 @@ fn main() {
                 next_id: AtomicU64::new(1),
             });
             pump_task(app.handle().clone(), rx);
-            // MYIA_SMOKE_ROUTE 静默冒烟钩子(v1.1.1 装机五屏截图用):launchctl
-            // setenv 传入路由名(如 "feed"),启动即设 window.location.hash("#/feed");
-            // 未设则零行为变化。立即 + 1500ms 两次 eval 兜底 webview 未就绪的窗口期,
-            // 同值幂等;不 show 不 focus,静默启动语义不受影响。
-            if let Ok(route) = std::env::var("MYIA_SMOKE_ROUTE") {
-                let hash = if route.starts_with('#') {
-                    route
-                } else {
-                    format!("#/{}", route.trim_start_matches('/'))
-                };
-                if let Some(win) = app.get_webview_window("main") {
-                    let script = format!(
-                        "window.location.hash = {}",
-                        serde_json::to_string(&hash).unwrap_or_else(|_| "\"#/\"".into())
-                    );
-                    let _ = win.eval(&script);
-                    let (win, script) = (win.clone(), script.clone());
-                    tauri::async_runtime::spawn(async move {
-                        tokio::time::sleep(Duration::from_millis(1500)).await;
-                        let _ = win.eval(&script);
-                    });
-                }
-            }
             // 静默启动(10-03-quiet-launch):主窗口 visible:false 出厂,Dock 点击
             // (RunEvent::Reopen)或对运行中实例再 open -a 才亮出。dev 构建与
             // MYIA_SHOW_ON_START=1 例外照旧启动即显示(open 不透传 shell env,

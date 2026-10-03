@@ -7,8 +7,8 @@
 # 流程:
 #   1) 桌面构建隔离 venv .venv-build(不动项目 .venv / pyproject / uv.lock)
 #   2) pip 安装 pyinstaller + 本项目(依赖从 PyPI 拉,仅进本 venv)
-#   3) PyInstaller --onefile 打包 entry.py → dist/myia
-#   4) 拷贝为 src-tauri/binaries/myia-<target>[.exe](tauri.conf externalBin 约定命名,
+#   3) PyInstaller --onefile 打包 entry.py → dist/myia-core
+#   4) 拷贝为 src-tauri/binaries/myia-core-<target>[.exe](tauri.conf externalBin 约定命名,
 #      Tauri 按当前 target triple 自动拾取)
 # 注意:PyInstaller 不支持交叉编译——目标平台与主机不符时直接报错退出。
 set -euo pipefail
@@ -56,7 +56,7 @@ if [[ -n "$TARGET_OS" && "$TARGET_OS" != "$HOST_OS" ]]; then
 fi
 EXT=""
 [[ "$TARGET_OS" == "windows" ]] && EXT=".exe"
-SIDECAR_OUT="$BIN_DIR/myia-$TARGET$EXT"
+SIDECAR_OUT="$BIN_DIR/myia-core-$TARGET$EXT"
 
 # ---- 幂等跳过(仅显式 MYIA_SIDECAR_SKIP=1 时) --------------------------------
 if [[ "${MYIA_SIDECAR_SKIP:-0}" == "1" && -f "$SIDECAR_OUT" ]]; then
@@ -78,7 +78,9 @@ PYBIN="$VENV/bin/python"
 # 依赖解析必须走 uv 的 workspace 语义:pip 无法解析 myia-classifier(workspace
 # 成员,不在 PyPI);借 UV_PROJECT_ENVIRONMENT 把锁定的依赖集(含 workspace
 # 成员、可编辑安装的 myia 本体)装进隔离 venv,不动项目 .venv。
-UV_PROJECT_ENVIRONMENT="$VENV" uv sync --frozen --no-dev --project "$ROOT_DIR" --quiet
+# --extra vision:看图双引擎(ocrmac + rapidocr-onnxruntime,task 10-03-image-input
+# AC10 装包冒烟;核心依赖不动,extras 走 uv.lock 冻结集)
+UV_PROJECT_ENVIRONMENT="$VENV" uv sync --frozen --no-dev --extra vision --project "$ROOT_DIR" --quiet
 uv pip install --python "$PYBIN" --quiet "pyinstaller>=6.10"
 # --hidden-import myia.secrets:src/myia/schema.py 的 `from myia import secrets`
 # 与 stdlib secrets 同名,PyInstaller modulegraph 会解析到 stdlib 而漏收
@@ -91,16 +93,26 @@ uv pip install --python "$PYBIN" --quiet "pyinstaller>=6.10"
 # 缺失即 classify(builtin: true)构造期 config_error「分类关键词表加载失败」
 # (2026-10-03 真机冒烟实测)。落位 _MEIPASS/myia_classifier/data/,与冻结后
 # __file__ 同基(--add-data 目标分隔符 POSIX ':' / Windows ';')。
+# --collect-all ocrmac / rapidocr_onnxruntime:vision 双引擎经 importlib 惰性
+# import(同 myia 引擎的动态 import 问题),静态分析看不见;rapidocr 的内置
+# onnx 模型是包内数据文件,须连带采集(task 10-03-image-input AC10)。
+# --collect-all openai:VisionClient 同为 importlib 惰性 import(10-03 装机
+# 冒烟:漏收时运行期 image_provider_error「vision 依赖 openai 未安装」)。
 DATA_SEP=":"
 [[ "$HOST_OS" == "windows" ]] && DATA_SEP=";"
 mkdir -p "$DIST" "$BIN_DIR"
 PYINST="$VENV/bin/pyinstaller"
 [[ -x "$PYINST" ]] || PYINST="$VENV/Scripts/pyinstaller.exe"
-"$PYINST" --onefile --name myia --clean --noconfirm \
+# 命名:sidecar 叫 myia-core 而非 myia——主程序 mainBinaryName=MYIA,macOS APFS
+# 大小写不敏感,sidecar 若叫 myia 会与 MYIA 在 Contents/MacOS/ 撞名互相覆盖。
+"$PYINST" --onefile --name myia-core --clean --noconfirm \
   --hidden-import myia.secrets \
   --collect-submodules myia \
+  --collect-all ocrmac \
+  --collect-all rapidocr_onnxruntime \
+  --collect-all openai \
   --add-data "$ROOT_DIR/myia-classifier/myia_classifier/data/keywords.json${DATA_SEP}myia_classifier/data" \
   --distpath "$DIST" --workpath "$SPIKE_DIR/build-pyi" \
   --specpath "$SPIKE_DIR" "$SPIKE_DIR/entry.py"
-cp "$DIST/myia$EXT" "$SIDECAR_OUT"
+cp "$DIST/myia-core$EXT" "$SIDECAR_OUT"
 echo "sidecar built: $SIDECAR_OUT (target: $TARGET)"
