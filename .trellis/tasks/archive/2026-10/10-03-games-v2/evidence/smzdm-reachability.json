@@ -1,0 +1,15 @@
+{
+  "what": "smzdm 游戏频道可达性复测(10-03-games-v2 决议③ C 项补档;PRD 原断言只有行文,无实存证据,本件补上)",
+  "date": "2026-10-03",
+  "probe": "curl -sS -o /tmp/smzdm_youxi.html -w '%{http_code} %{size_download}' --max-time 15",
+  "results": {
+    "channel_url": "https://www.smzdm.com/fenlei/youxi/",
+    "http": 200,
+    "bytes": 932594,
+    "title": "【游戏】价格_评测_品牌_推荐_什么值得买",
+    "verdict": "可达,未被墙未被拦;932KB HTML 与 PRD 记载的 ~914KB 同页量级,断言复现"
+  },
+  "path_nuance": "短路径 https://www.smzdm.com/youxi/ 返回 404(60KB 挑战页,含 probev3.js);https://www.smzdm.com/game/ 同 404。游戏频道规范路径是 /fenlei/youxi/",
+  "extraction_note": "原始 HTML 中常见 L1 feed 标记(feed-row-wide / feed-block-title)计数为 0——列表可能 JS 装配,L2 选择器设计须按引擎降级链评估而非纯 static_html 直取。与 PRD 口径一致:深度提取另探,backlog 维持",
+  "scope": "仅可达性记档;提取设计与判重口径不在本档(见 PRD 遗留节)"
+}

@@ -73,6 +73,46 @@ ci.yml 新增 job(如 `rust-check`):ubuntu-latest → rust toolchain → **先�
 - [ ] 普查档活清单(已归档:`.trellis/tasks/archive/2026-10/10-03-gap-census/prd.md`
       文末注记)回标 D1/D2/D4/D5 状态;journal 记一笔
 
+## 收口补记(2026-10-03 下午,接手会话;原实现偏离③④两笔在此补齐)
+
+门禁本体(rust-check/ruff 两 job、ruff.toml、D3 注记、D5 文档)已随
+fbba437/dee8e24/b4e2787/845f64a 落库;本补记只补证据与遗留项,零代码改动。
+
+- **D1 三态实证**:①CI 检出无 binaries/(gitignore)——`rust-check` job 在
+  全部近期 run 绿,含最新 37101247124(f814161)✓ 2m2s,**不误红成立**;
+  ②本机 /tmp 干净克隆(HEAD=1f74878)按 ci.yml 同款造占位后
+  `cargo check --locked` exit 0(18.69s);③同克隆 src/main.rs 注入未闭合
+  定界符 → exit 101(`unclosed delimiter`),撤错复绿 exit 0——门禁真拦得住,
+  非永远绿。
+- **D2 同款核验**:本地 `uvx ruff@0.16.10 check .` 于**全工作树**(含并行
+  会话在途未跟踪 .py)All checks passed exit 0;CI ruff job 同绿。
+- **绿 run 证据**:run 37097686620(push 0a9f83f,2026-10-03T04:47:06Z,
+  845f64a 之后)**四 job 全绿**(test/ui-test/rust-check/ruff)——验收
+  「push 真跑一次全绿」达成。**注**:05:33:42Z 起(60022ff,crawl4ai L3
+  批次)`test` job 连续红 10 run:该提交删 desktop/entry.py 的 image.* 与
+  `_IMAGE_ACTIVE_JOB` 但未同步 tests/test_desktop_sidecar_protocol.py
+  (fixture setattr 引用已删属性,setup 期 AttributeError);修复已在并行
+  vision-pipeline 会话工作区在途(test 文件已改)。**红在 test job,两道
+  新门禁在全部红 run 上依旧 ✓**——非 ci-gates 缺陷,归属他线收口。
+- **D3 双跑双绿**(2026-10-03,本机):`uv run pytest -q` 与
+  `uv run python -m pytest -q` 结果见下方勾选行;ci.yml test job 用
+  `python -m pytest` 风格一致;README/docs 零 pytest 跑法字样,无口径漂移面。
+- **mypy 评估(实跑)**:`uv run --with mypy --no-sync mypy src/myia
+  --ignore-missing-imports` = **45 errors / 12 files / 58 checked**(exit 1);
+  分布 arg-type×26、return-value×5、misc×5、union-attr×3、assignment×2、
+  override/operator/list-item/call-overload 各 1;热点 store/sqlite.py×13、
+  pipeline.py×7、cli.py×7。结论:全部为注解严格性形态,无一运行期 bug;
+  清零+持续门禁是独立工程量(逐文件补注解),**不立项搭车**;若将来做,
+  建议新文件先行渐进(per-file),不进 ci.yml(与本档「不做的事」一致)。
+- **D4 以演化形态关闭**:原判「过期生成物直接删」被 845f64a 覆盖——
+  myia.spec → **myia-core.spec**(sidecar 更名避 macOS APFS 与主程序
+  MYIA 大小写撞名),且相对路径化(SPECPATH 推 _REPO_ROOT,全文件零
+  绝对路径,任何 checkout 可复跑);入库副本由「含机器路径的噪声」变为
+  「可复跑模板」,build-sidecar.sh:112-120 每次构建仍重新生成。不删。
+- **D5 已落(文档路线)**:desktop/UPDATER.md:20-23「`tauri dev` 前先
+  `bash build-sidecar.sh`」+ sidecar 生成后不必每次重跑;未加
+  beforeDevCommand(dev 启动零额外耗时)。
+
 ## 不做的事(防蔓延)
 
 - **不**清 498 条 ruff 存量、**不**扩规则集(I001/F401/UP 等另行立项)——起步集

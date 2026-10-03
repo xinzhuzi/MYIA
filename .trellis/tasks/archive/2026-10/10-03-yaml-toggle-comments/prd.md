@@ -49,3 +49,5 @@
 - AC5 零新依赖:手术提交 `e7dec54`(引用本任务)未触碰 pyproject.toml;ruamel 全仓(pyproject/classifier/entry/测试)零命中;实现仅用既有 PyYAML+stdlib。
 - 附加核对:desktop/entry.py 工作树与 HEAD 零 diff(委托所述并行暂存已随 d359a3e 前收口),验收即 HEAD 实况。
 - 处置:已执行 `python3 .trellis/scripts/task.py archive 10-03-yaml-toggle-comments`。
+
+两 low 已于 2026-10-03 修复(见工作流报告)

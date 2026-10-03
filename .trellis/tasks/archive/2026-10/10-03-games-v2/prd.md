@@ -59,3 +59,27 @@ grill 决议留下的三条尾巴:决议②(upcoming 预告=v2 首项)、决议�
 - CheapShark 接入 = **10-03-games-v3 候选首项**(单源盖 GOG/Humble/Fanatical)。
 - gpu-prices 的 zol 源生产连通性(反爬)——独立探查。
 - smzdm 提取设计与判重口径——要中文源再立项。
+
+## 执行记录(2026-10-03 收尾)
+
+- 2026-10-03 收尾:批次工作流最终全量 pytest(CI 同款 `uv run --no-sync python -m pytest -q`,收尾员复跑)= **1822 passed / 14 skipped / 0 failed**(上方门禁节所记 7 条并行在途红已随并行线收口清零);任务维持 review,详细结论见工作流报告。
+
+## 验收记录(2026-10-03,受主人委托代验)
+
+**结论:accepted**(证据全在场,无遗留主人手动项)。
+
+逐项对照(行号均为本日工作区实况):
+
+- **A. Epic 下周免费预告**:字段 `upcoming_pct`/`upcoming_start` 在 `plugins/games.yaml:50-51`;规则「下周免费」`upcoming_pct >= 100` 在 `games.yaml:202-204`;模板徽标 `📅{{ item.upcoming_start[:10] }}起免费` 在 `games.yaml:257`;预告不设 immediate(immediate 路由仅限免析取)。commit `b665236` 在案(`git show` 实证:games.yaml +11、tests +47)。fixture 钉 TerraScape 实录 upcoming 0% 形状(`tests/test_plugins.py:620-644`,expect_second 断 `upcoming_pct: 0`);合成 100% 断言 `test_games_upcoming_free_hits_tag_rule_and_stays_digest`(`test_plugins.py:319-337`:tag 命中+限免不命中+双通道落 digest)。
+- **B. gpu-prices 全套电池**:`OFFICIAL_PLUGINS` 五元组含 gpu-prices(`test_plugins.py:48`);显式 digest 路由分支在 `plugins/gpu-prices.yaml:67-73`;golden 基件(`tests/fixtures/push_targets_golden_before.json`)含 gpu-prices 键。commits `da390fc`(电池+route 显式化)与 `63bbe82`(golden 再生成,B 漏项补齐)均在案。
+- **C. 平台探查证据**:`evidence/cs-stores.json`(35 店全量,含 storeID 7/11/15/25)、`evidence/smzdm-reachability.json`(http 200 / 932,594 字节,件内自注「PRD 原断言只有行文,本件补上」——诚实补档);Switch 无 API 负结论记档于 PRD 正文。
+
+本次实跑(2026-10-03):
+
+- `uv run --no-sync python -m pytest tests/test_plugins.py -q` → **86 passed, 6 skipped**,exit 0(6 skip = `MYIA_SMOKE_REAL` 真实源 smoke 默认跳,非失败;门禁节所记 79 → 现 86 系 v3/wrap 电池扩容,非本档回归)。
+- `uv run --no-sync python -m pytest tests/test_push_schema_targets.py -q`(golden 回归)→ **23 passed**,exit 0。
+- `uv run --no-sync shishi run plugins/games.yaml --dry-run --json` → exit 0,`status: success`,fetch 4 源 42 条全 ok(入口名 `shishi` = `myia.cli:main`,pyproject.toml:41)。
+
+观察(不阻塞验收):①dry-run 实测 129 条「自定义规则求值失败→按不命中」WARNING(route→digest 40 / 下周免费 37 / 多店大折扣 22 / 大折扣 30)——系既有 fail-open 语义(`games.yaml:193` 与测试 docstring 明文记载该代价),结论不受影响;后续打磨可循 wrap 的 None 守卫先例给「下周免费」加 `(upcoming_pct or 0) >= 100` 形消音,行为不变。②「全量 1822 passed」为收尾员 2026-10-03 复跑存档,本次代验按 scoped 口径实跑,未复跑全量。
+
+处置:accepted → 执行 archive(set-branch main)。
