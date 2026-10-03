@@ -1,0 +1,8 @@
+# gog-probe-robots.txt — catalog.gog.com/robots.txt status probe (body discarded)
+# probe_time_utc: 2026-10-03T06:12:32Z
+# command: curl -sS -o /dev/null -w '%{http_code}' https://catalog.gog.com/robots.txt
+# output(http_code): 404
+# curl exit: 0
+# wall time: 1.161s (zsh time: 0.01s user 0.00s system 0% cpu 1.161 total)
+# => catalog.gog.com serves no robots.txt (HTTP 404); gog-free channel has no
+#    robots rules to respect on this host. Plain curl, default UA, no headers.

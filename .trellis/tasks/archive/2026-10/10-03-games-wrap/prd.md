@@ -31,3 +31,26 @@ games 线尾巴清零(主人令 2026-10-03「按照你的建议,将剩下的尾�
 5. **CS 扩店/Switch 检查后关闭**:维持 v3 决议③三店集合(storeID=7,11,15 = GOG/Humble/Fanatical)不变——GOG 零元通道已由本任务第四源直连官方 catalog 收口(比经 CS 转手更上游),付费折扣三店与 Steam featured 零重叠的结构性理由不变,扩店只引入小众 key 店噪音;Switch 维持无 API 结论(官方无公开商店价格 API,爬页面受反爬与 robots 约束,收益不抵成本),不立项。
 
 6. **文案漂移注记(本任务不碰)**:`tests/test_push_schema_targets.py` docstring 的「改动前 7 个已跟踪夹具」文案漂移归 messaging 线在途的承诺边界收窄改造顺带覆盖(commit 2e7e252 已收窄为 push 子树断言);本任务按防踩踏纪律不改动该文件,仅同步 golden 基件 games 条目(push 子树断言下全量维护口径不变)。
+
+## 验收记录(2026-10-03,受主人委托代验)
+
+**结论:accepted**(六项执行结论逐条对上仓库实况,无遗留主人手动项;注记两处见末尾,均不阻塞)。
+
+逐项对照(行号均为本日工作区实况):
+
+1. **telegram 加挂(v1 决议⑤)** ✅:`plugins/games.yaml:268-280` 第二 push 条目(channel telegram / `target: env:TELEGRAM_CHAT_ID`);路由 when 与 feishu 条目逐字一致(`games.yaml:241` vs `:272` 逐字符比对相同,含 GOG 双保险析取);模板为无 markdown 链接的纯文本变体(测试钉 `"](" not in template`,`tests/test_plugins.py:265`)。`test_games_telegram_push_entry_mounted_per_v1_decision5`(:247-265)在电池中且绿。真跑实证:`evidence/live-run-wrap-2026-10-03.json` telegram 通道决策 immediate 2 / digest 39(与 feishu_card 同数)。
+2. **GOG 限免第四源** ✅:`games.yaml:142-172`,url 锁 `price=between:0,0&productType=in:game,pack&discounted=eq:true`(横线/冒号坑注释在案);`$.products[*]` 字段 title/url/gog_id/image/sale_price/normal_price,无 url_template(storeLink 直出);`respect_robots: true`(robots 404)。测试 `test_games_gog_source_declares_catalog_query_and_double_insurance`(:191-244)钉住:双保险命中(0.00/19.99)、永久免费(0.00/0.00)不命中不刷 immediate、双通道 giveaway→immediate / permfree→digest、None 守卫形防回退。探查证据 `evidence/gog-probe-summary.json` 四路交叉验证(当日无活动,与 live-run gog-free item_count 0 一致)。
+3. **资讯源关闭记档** ✅:`evidence/news-probe-*`(gcores RSS/robots、IGN RSS/robots、reddit json-403/atom/robots、summary.txt、两个提取脚本)齐备;RSS 能力缺口(fetch 层无 XML 解析)记档为未来小能力,gcores 首选/IGN 次之——「探后立结论」达成。
+4. **smzdm 关闭记档** ✅:`evidence/smzdm-probe-*`(p1/p2 HTML、headers、pagination、robots、cards、summary.json)齐备;三判据过二缺一(无 discount_pct/original_price 致规则永不命中)+ 字段图留档——「探后立结论」达成。
+5. **CS 扩店/Switch 检查后关闭** ✅:PRD 结论五记档维持三店集合与无 API 结论;仓库无相应代码改动需求(核对 games.yaml 无扩店痕迹)。
+6. **文案漂移不碰** ✅:`tests/test_push_schema_targets.py` 工作区与 HEAD 零改动(git status 核对);commit `2e7e252`(golden 回归收窄为 push 子树断言)在案。
+
+本次实跑(2026-10-03):
+
+- `uv run --no-sync python -m pytest tests/test_plugins.py -q` → **86 passed, 6 skipped**,exit 0(6 skip = MYIA_SMOKE_REAL 真实源 smoke 默认跳;执行结论一所记 86 passed 复现)。
+- `uv run --no-sync python -m pytest tests/test_push_schema_targets.py -q`(golden,push 子树)→ **23 passed**,exit 0;基件 games 条目已含双通道 push 与四源(golden 同步实证)。
+- `uv run --no-sync shishi run plugins/games.yaml --dry-run --json` → exit 0,`status: success`,gog-free 在源列表(fetch 4 源 42 条)。
+
+注记(不阻塞):①PRD 的 Requirements/Acceptance Criteria 节为 TBD 占位,实际验收口径=「执行结论」六项;目标节「测试文件 7 个夹具文案漂移修(v3 low)」被结论六以防踩踏纪律合法接管(归 messaging 线),非未完成项。②`evidence/live-run-wrap-2026-10-03.json` status=partial 系该会话未设 `FEISHU_BOT_TOKEN`/`TELEGRAM_BOT_TOKEN`,发送层 env_var_missing——抓取/分类/路由决策层全 ok(failures 空),真实投递实证属 messaging 线 bd6092d 冒烟,非本档代码缺陷。
+
+处置:accepted → 执行 archive(set-branch main)。
