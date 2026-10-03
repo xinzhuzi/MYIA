@@ -28,3 +28,5 @@
 
 - 不改 schema、不改 push 层任何行为——纯测试基建加固。
 - 不替别的会话修他们的 fixture 演进(那是他们的合法工作)。
+
+> **2026-10-04 归档会话注记**:AC 框为交付会话遗留未逐勾,不作为未完成证据;交付与验收以既录证据为准——冻结副本 tests/fixtures/push_targets_golden 已接线;evidence/ 落档(cbcaf71)。装机/真机类冒烟项统一移交 `10-04-wrapup-checklist` 装机验收节。
