@@ -71,17 +71,19 @@ MYIA 是情报中枢不是聊天助手(五屏无输入框),「看图」落成**�
 
 ## Acceptance Criteria
 
-1. 拖一张报错截图进「看图」屏 → **自动**出逐行 OCR 结果带置信度,2s 内返回
-2. 点「解读」走本地通道 → Qwen3-VL-8B 返回中文解读,**全程零出网**(可断网验证)
-3. 切云端(填 key,首次切换弹知情确认)→ 同图 GLM 视觉(glm-4.6v)通道走通——账户 2026-10-03 探针核实恢复可用(HTTP 200),此条**实跑联调**;不填 key → 结构化 `image_no_credentials` 错误,绝不假装成功
-4. 本地服务没起 → 结构化 `image_unreachable` 错误(附启动指引提示),应用不崩
-5. 13-33s 的 VL 调用与首请求 Metal JIT 编译不被壳 120s 超时杀(事件流模式实证)
-6. 设置持久化:重启 app 后看图配置生效;`vision.yaml` 无明文凭据,key 只在钥匙链
-7. 协议契约测试(`tests/test_desktop_sidecar_protocol.py`):`image.import/ocr/analyze/status` + `image.config.read/save` 全方法往返 + 错误矩阵,mock 零外网
-8. 无文字图片 → describe 模式走通(local-ocr 裁定:无文字不是终点)
-9. 基线不回归:pytest / vitest 全绿且数字 ≥ 开工当轮基线(建档时为 1397 / 40;v111-release、yaml-editor 并行落地后以开工重跑为准),`tsc -b` 零错
-10. 装包冒烟:build-sidecar(PyInstaller)含 ocrmac + RapidOCR(onnxruntime+内置模型)打包成功,装机后看图屏可用;侧车体积增量如实记录
-11. **引擎切换**:同图分别用 `vision`/`rapidocr` 跑 OCR,均返回逐行结果并标注来源引擎;非法 engine 值 → 结构化 `image_engine_unknown`
+> 勾选口径(2026-10-03 装机冒烟 r2 收尾核验):`[x]` = 已实跑/自动化验证且绿;`[ ]` = 存 ⏳ 人工项,行尾注明。
+
+- [ ] 1. 拖一张报错截图进「看图」屏 → **自动**出逐行 OCR 结果带置信度,2s 内返回 —— ⏳ **manual(待主人手验)**:拖拽交互无法自动化;替代证据:真截图自动 OCR vision 55 行/881ms、rapidocr 56 行/780ms 均 <2s(evidence/protocol-e2e3-transcript.jsonl),看图屏 UI 见 evidence/app-01-dashboard.png 与 app-02-image-screen.png
+- [x] 2. 点「解读」走本地通道 → Qwen3-VL-8B 返回中文解读,**全程零出网**(可断网验证)——describe 全量 ok=True elapsed=52,995ms 结构化中文;零出网采样 162 条对端全 loopback、非 loopback 0 条(evidence/zero-egress-sample3.txt,方法=lsof 进程树,未断网;系统代理中转披露维持:trust_env 本轮未改)
+- [x] 3. 切云端(填 key,首次切换弹知情确认)→ 同图 GLM 视觉(glm-4.6v)通道走通——账户 2026-10-03 探针核实恢复可用(HTTP 200),此条**实跑联调**;不填 key → 结构化 `image_no_credentials` 错误,绝不假装成功——r2 补轮:无 key → `image_no_credentials` ✅;bak-20260906 备份可用令牌经 secret.set(新建路径 stored=True)入钥匙串 → 云端 describe ok=True elapsed=21,103ms 中文结构化(channel=cloud, model=glm-4.6v);config.json 现行 MCP key 仍 429/1113(无余额令牌)弃用。发现:钥匙串既有项跨进程更新报 `keychain_operation_failed`(-25244 需 GUI 授权),新建路径正常——已记档待修(evidence/protocol-e2e3-transcript.jsonl:38-40)
+- [x] 4. 本地服务没起 → 结构化 `image_unreachable` 错误(附启动指引提示),应用不崩——死端口 127.0.0.1:9 → ok=False code=image_unreachable,message 含 `uvx mlx_vlm` 启动指引,进程不崩(evidence/protocol-e2e3-transcript.jsonl)
+- [x] 5. 13-33s 的 VL 调用与首请求 Metal JIT 编译不被壳 120s 超时杀(事件流模式实证)——提交往返 0ms vs 任务耗时 52,995ms:同步应答毫秒级即返、长调用经 image.progress/completed 事件流完整返回;上轮发现的 60s 余量不足已修(client.py 缺省 180s,注释引用本轮定量),52.99s 任务实测吃满旧线、新线下无恙
+- [x] 6. 设置持久化:重启 app 后看图配置生效;`vision.yaml` 无明文凭据,key 只在钥匙链——r2 重跑(新二进制):save → SIGTERM → 重启 → config.read 全字段对齐;vision.yaml 仅 `keychain:myia/image/api_key` 引用,明文形状 0 命中
+- [x] 7. 协议契约测试(`tests/test_desktop_sidecar_protocol.py`):`image.import/ocr/analyze/status` + `image.config.read/save` 全方法往返 + 错误矩阵,mock 零外网——全量 pytest 1759 passed/0 failed(含 image.* 全部契约与错误矩阵;r1 定向 102 过亦在档)
+- [x] 8. 无文字图片 → describe 模式走通(local-ocr 裁定:无文字不是终点)——无文字渐变图 vision OCR 0 行;describe ok=True elapsed=32,766ms,结构化中文「渐变色块…无人物」(180s 修复+主机速率回升 26.2 tok/s 后全量走通,上轮 failed 已翻绿)
+- [x] 9. 基线不回归:pytest / vitest 全绿且数字 ≥ 开工当轮基线(建档时为 1397 / 40;v111-release、yaml-editor 并行落地后以开工重跑为准),`tsc -b` 零错——r2 复测:pytest 1759 passed/0 failed/14 skipped(≥1397,上轮 3 败全消);vitest 97/97(≥40);`npm run build`(tsc -b && vite build)exit 0 零错
+- [x] 10. 装包冒烟:build-sidecar(PyInstaller)含 ocrmac + RapidOCR(onnxruntime+内置模型)打包成功,装机后看图屏可用;侧车体积增量如实记录——r2 照现状重打包 exit 0(116,877,424B);npm run tauri build exit 0,bundle 内嵌 sidecar 与 dist 构建逐字节一致(cmp 通过);沙箱静默验证:前台 WeChat 全程不变、AX窗口0、内嵌 sidecar 194ms 拉起、SIGTERM 干净退出零残留(evidence/app-sandbox-launch-r2.txt);/Applications 未动(其世事.app+2 sidecar 系并行会话所装)
+- [x] 11. **引擎切换**:同图分别用 `vision`/`rapidocr` 跑 OCR,均返回逐行结果并标注来源引擎;非法 engine 值 → 结构化 `image_engine_unknown`——vision(55 行/881ms)与 rapidocr(56 行/780ms)各标 engine、前 3 行一致;engine=paddle-不存在 → `image_engine_unknown`
 
 ## 已拍板决议(grill Round 1,2026-10-03,主人「全按推荐」)
 
