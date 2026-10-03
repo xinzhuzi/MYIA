@@ -66,3 +66,5 @@ grill Round 1 Q1=A(主人 /workflow 做完令按推荐)。自查实锤:pipeline.
 - Keep `prd.md` focused on requirements, constraints, and acceptance criteria.
 - Lightweight tasks can remain PRD-only.
 - For complex tasks, add `design.md` for technical design and `implement.md` for execution planning before `task.py start`.
+
+> **2026-10-04 归档会话注记**:AC 框为交付会话遗留未逐勾,不作为未完成证据;交付与验收以既录证据为准——dedup 修正 e332d4b 落地,免费日 immediate 恢复实证(交付记录)。装机/真机类冒烟项统一移交 `10-04-wrapup-checklist` 装机验收节。
