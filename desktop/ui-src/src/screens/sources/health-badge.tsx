@@ -1,12 +1,16 @@
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import type { SourceHealthState } from "@/lib/api";
 
-/** 健康度 → 徽标三色(+unknown 中性灰):ok 绿 / degraded 琥珀 / dead 红。 */
-const HEALTH_BADGE: Record<SourceHealthState, { variant: "ok" | "warning" | "destructive" | "unknown"; label: string }> = {
-  ok: { variant: "ok", label: "正常" },
-  degraded: { variant: "warning", label: "退化" },
-  dead: { variant: "destructive", label: "失效" },
-  unknown: { variant: "unknown", label: "未知" },
+/**
+ * 健康度四态语义色(D2 token:--ok / --warning / --dead / --unknown,全屏统一):
+ * Ant Table 状态徽章范式 —— 圆点 + 文字,不做胶囊底(暗色面上胶囊底噪,密集
+ * 表格里点+字扫读更快)。评判原因(reason)走 title 悬浮提示。
+ */
+const HEALTH_STATE: Record<SourceHealthState, { dot: string; label: string }> = {
+  ok: { dot: "bg-ok", label: "正常" },
+  degraded: { dot: "bg-warning", label: "退化" },
+  dead: { dot: "bg-dead", label: "失效" },
+  unknown: { dot: "bg-unknown", label: "未知" },
 };
 
 interface HealthBadgeProps {
@@ -16,14 +20,17 @@ interface HealthBadgeProps {
   className?: string;
 }
 
-/** 源健康度三色徽标(数据语义:src/myia/cli.py evaluate_source_health)。 */
+/** 源健康度状态徽章(数据语义:src/myia/cli.py evaluate_source_health)。 */
 export function HealthBadge({ state, reason, className }: HealthBadgeProps) {
-  const badge = HEALTH_BADGE[state];
+  const health = HEALTH_STATE[state];
   return (
-    <span title={reason} className={className}>
-      <Badge variant={badge.variant} data-health={state}>
-        {badge.label}
-      </Badge>
+    <span
+      data-health={state}
+      title={reason}
+      className={cn("inline-flex items-center gap-1.5 text-xs text-foreground", className)}
+    >
+      <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", health.dot)} />
+      {health.label}
     </span>
   );
 }

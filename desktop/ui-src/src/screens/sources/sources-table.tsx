@@ -11,6 +11,8 @@ import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
 import { HealthBadge } from "./health-badge";
@@ -55,24 +57,41 @@ function pluginLabel(row: SourceRow): string {
   return row.pluginName ?? row.pluginId ?? row.pluginFile;
 }
 
+/** 最近产出列的单行摘要 title(完整 run 明细收进悬浮提示,compact 行不折行) */
+function observedTitle(row: SourceRow): string {
+  const latest = row.health.latest;
+  if (!latest) return `${row.health.observed} 次 · 暂无运行记录`;
+  return latest.failed
+    ? `${row.health.observed} 次 · run#${latest.run_id} 失败${latest.skip_reason ? `:${latest.skip_reason}` : ""}`
+    : `${row.health.observed} 次 · run#${latest.run_id} ${latest.item_count} 条`;
+}
+
+/**
+ * 列定义:单行紧凑单元格(compact 36px 行密度,细节走 title 悬浮提示)。
+ * size/minSize = 列宽拖拽的初始值与下限(Ant Table 手感:拖右缘手柄实时改宽)。
+ */
 const COLUMNS: ColumnDef<SourceRow>[] = [
   {
     id: "sourceName",
     accessorKey: "sourceName",
     header: "源名称",
-    cell: (info) => <span className="font-medium text-foreground">{info.getValue<string>()}</span>,
+    size: 150,
+    minSize: 96,
+    cell: (info) => <span className="block truncate font-medium text-foreground">{info.getValue<string>()}</span>,
   },
   {
     id: "plugin",
     accessorFn: (row) => pluginLabel(row),
     header: "品类",
+    size: 240,
+    minSize: 150,
     cell: ({ row }) => (
-      <div className="flex min-w-0 flex-col gap-0.5" title={row.original.pluginFile}>
-        <span className="truncate">{pluginLabel(row.original)}</span>
-        <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-          <span className="truncate font-mono">{row.original.pluginFile}</span>
-          {!row.original.pluginLoaded ? <Badge variant="warning">加载失败</Badge> : null}
+      <div className="flex min-w-0 items-center gap-1.5" title={row.original.pluginFile}>
+        <span className="min-w-0 truncate text-foreground">{pluginLabel(row.original)}</span>
+        <span className="shrink-0 truncate font-mono text-2xs text-muted-foreground">
+          {row.original.pluginFile}
         </span>
+        {!row.original.pluginLoaded ? <Badge variant="warning">加载失败</Badge> : null}
       </div>
     ),
   },
@@ -80,8 +99,10 @@ const COLUMNS: ColumnDef<SourceRow>[] = [
     id: "url",
     accessorKey: "url",
     header: "URL",
+    size: 280,
+    minSize: 120,
     cell: (info) => (
-      <span className="block max-w-56 truncate font-mono text-xs text-muted-foreground" title={info.getValue<string>()}>
+      <span className="block max-w-full truncate font-mono text-xs text-muted-foreground" title={info.getValue<string>()}>
         {info.getValue<string>()}
       </span>
     ),
@@ -90,6 +111,8 @@ const COLUMNS: ColumnDef<SourceRow>[] = [
     id: "engine",
     accessorKey: "engine",
     header: "引擎",
+    size: 100,
+    minSize: 76,
     cell: ({ row }) => (
       <span className="font-mono text-xs" title={row.original.engineHint ?? undefined}>
         {row.original.engine}
@@ -102,42 +125,37 @@ const COLUMNS: ColumnDef<SourceRow>[] = [
     // 健康度列按严重度秩精确匹配(过滤值 = chips 选中档的秩)
     filterFn: (row, columnId, filterValue) => row.getValue<number>(columnId) === filterValue,
     header: "健康度",
+    size: 96,
+    minSize: 80,
     cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5">
-        <HealthBadge state={row.original.health.state} reason={row.original.health.reason} />
-        {row.original.health.state === "degraded" || row.original.health.state === "dead" ? (
-          <span className="max-w-40 truncate text-[11px] text-muted-foreground" title={row.original.health.reason}>
-            {row.original.health.reason}
-          </span>
-        ) : null}
-      </div>
+      <HealthBadge state={row.original.health.state} reason={row.original.health.reason} />
     ),
   },
   {
     id: "observed",
     accessorFn: (row) => row.health.observed,
     header: "最近产出",
+    size: 210,
+    minSize: 130,
     cell: ({ row }) => {
       const health = row.original.health;
       const latest = health.latest;
       return (
-        <div className="flex flex-col gap-0.5 text-xs">
-          <span className="text-foreground">
-            {health.observed} 次
-            {health.baseline !== null ? (
-              <span className="text-muted-foreground"> · 均值 {health.baseline}</span>
-            ) : null}
-          </span>
+        <span className="block truncate text-xs" title={observedTitle(row.original)}>
+          <span className="text-foreground">{health.observed} 次</span>
+          {health.baseline !== null ? (
+            <span className="text-muted-foreground"> · 均值 {health.baseline}</span>
+          ) : null}
           {latest ? (
-            <span className={cn("text-[11px]", latest.failed ? "text-destructive" : "text-muted-foreground")}>
-              {latest.failed
-                ? `run#${latest.run_id} 失败${latest.skip_reason ? `:${latest.skip_reason}` : ""}`
-                : `run#${latest.run_id} ${latest.item_count} 条`}
-            </span>
+            latest.failed ? (
+              <span className="text-destructive"> · run#{latest.run_id} 失败</span>
+            ) : (
+              <span className="text-muted-foreground"> · run#{latest.run_id} {latest.item_count} 条</span>
+            )
           ) : (
-            <span className="text-[11px] text-muted-foreground">暂无运行记录</span>
+            <span className="text-muted-foreground"> · 暂无运行记录</span>
           )}
-        </div>
+        </span>
       );
     },
   },
@@ -146,6 +164,8 @@ const COLUMNS: ColumnDef<SourceRow>[] = [
     header: "启停",
     enableSorting: false,
     enableGlobalFilter: false,
+    enableResizing: false,
+    size: 64,
     cell: ({ row, table }) => {
       const key = sourceKey(row.original.pluginFile, row.original.sourceName);
       const meta = table.options.meta as SourcesTableMeta;
@@ -165,6 +185,7 @@ const COLUMNS: ColumnDef<SourceRow>[] = [
     header: "操作",
     enableSorting: false,
     enableGlobalFilter: false,
+    enableResizing: false,
     cell: ({ row, table }) => {
       const meta = table.options.meta as SourcesTableMeta;
       const key = sourceKey(row.original.pluginFile, row.original.sourceName);
@@ -211,7 +232,10 @@ interface SourcesTableMeta {
 }
 
 /**
- * 插件/源表格(TanStack Table:排序/筛选/分页;shadcn 暗色样式)。
+ * 插件/源表格:引擎仍是 TanStack Table(排序/筛选/分页),渲染层迁 Phase1
+ * 基件 ui/table(D4):compact 36px 行密度、细边框分层、表头 2xs;列宽拖拽
+ * (columnResizeMode=onChange,拖右缘手柄实时改宽,双击手柄复位);末列(操作)
+ * 不定宽,吃掉剩余宽度 —— 其余列渲染宽度 = getSize() 像素原值,拖拽所见即所得。
  * 列头点击循环排序(升→降→取消);全局文本框与健康度 chips 由父组件受控传入。
  */
 export function SourcesTable({
@@ -245,18 +269,24 @@ export function SourcesTable({
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
     globalFilterFn: "includesString",
+    columnResizeMode: "onChange",
     meta: { disabledKeys, pendingKeys, testingKey, onToggle, onEdit, onTest } satisfies SourcesTableMeta,
   });
+
+  // v8 字段为 isResizingColumn(false | string;v9 才更名 isResizingActive):非 false = 拖拽中
+  const resizing = table.getState().columnSizingInfo.isResizingColumn !== false;
+  const leafColumns = table.getVisibleLeafColumns();
+  const headers = table.getHeaderGroups()[0]?.headers ?? [];
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <input
+        <Input
           value={globalFilter}
           onChange={(event) => setGlobalFilter(event.target.value)}
           placeholder="筛选:源名 / URL / 品类…"
           aria-label="全局筛选"
-          className="h-8 w-64 rounded-md border border-input bg-transparent px-2.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-[3px] focus-visible:ring-ring/40"
+          className="w-64"
         />
         <div className="flex items-center gap-1" role="group" aria-label="健康度筛选">
           {HEALTH_FILTERS.map(({ value, label }) => (
@@ -272,50 +302,80 @@ export function SourcesTable({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-              {table.getFlatHeaders().map((header) => {
-                const canSort = header.column.getCanSort();
-                const direction = header.column.getIsSorted();
-                return (
-                  <th
-                    key={header.id}
-                    className={cn("px-4 py-2 text-left font-medium", canSort && "cursor-pointer select-none hover:text-foreground")}
-                    onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
-                    aria-sort={direction === "asc" ? "ascending" : direction === "desc" ? "descending" : undefined}
-                  >
-                    <span className="flex items-center gap-1">
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {canSort ? (
-                        direction === "asc" ? (
-                          <ChevronUp className="size-3" />
-                        ) : direction === "desc" ? (
-                          <ChevronDown className="size-3" />
-                        ) : (
-                          <ChevronsUpDown className="size-3 opacity-50" />
-                        )
-                      ) : null}
+      <Table className={cn("table-fixed", resizing && "select-none")}>
+        {/* 列宽拖拽:定宽列渲染 getSize() 原值;末列(操作)不定宽吃剩余宽度 */}
+        <colgroup>
+          {leafColumns.map((column, index) =>
+            index === leafColumns.length - 1 ? (
+              <col key={column.id} />
+            ) : (
+              <col key={column.id} style={{ width: column.getSize() }} />
+            ),
+          )}
+        </colgroup>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            {headers.map((header, index) => {
+              const canSort = header.column.getCanSort();
+              const direction = header.column.getIsSorted();
+              const canResize = header.column.getCanResize();
+              const columnResizing = header.column.getIsResizing();
+              return (
+                <TableHead
+                  key={header.id}
+                  style={index === headers.length - 1 ? undefined : { width: header.getSize() }}
+                  className={cn("relative", canSort && "cursor-pointer select-none hover:text-foreground")}
+                  onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                  aria-sort={direction === "asc" ? "ascending" : direction === "desc" ? "descending" : undefined}
+                >
+                  <span className="flex items-center gap-1">
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {canSort ? (
+                      direction === "asc" ? (
+                        <ChevronUp className="size-3" />
+                      ) : direction === "desc" ? (
+                        <ChevronDown className="size-3" />
+                      ) : (
+                        <ChevronsUpDown className="size-3 opacity-50" />
+                      )
+                    ) : null}
+                  </span>
+                  {canResize ? (
+                    <span
+                      aria-hidden
+                      data-column-resize-handle={header.id}
+                      onPointerDown={header.getResizeHandler()}
+                      onDoubleClick={() => header.column.resetSize()}
+                      onClick={(event) => event.stopPropagation()}
+                      className={cn(
+                        "group absolute inset-y-0 right-0 z-10 flex w-2 cursor-col-resize touch-none items-stretch justify-center",
+                      )}
+                    >
+                      {/* Ant Table 手感:平时一缕 hairline,悬浮/拖拽中亮品牌青 */}
+                      <span
+                        className={cn(
+                          "h-full w-px bg-border transition-colors duration-(--duration-fast) ease-out-expo",
+                          "group-hover:bg-primary",
+                          columnResizing && "bg-primary",
+                        )}
+                      />
                     </span>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-b border-border/50 transition-colors hover:bg-muted/30">
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-4 py-2.5 align-middle">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  ) : null}
+                </TableHead>
+              );
+            })}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.map((row) => (
+            <TableRow key={row.id}>
+              {row.getVisibleCells().map((cell) => (
+                <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>

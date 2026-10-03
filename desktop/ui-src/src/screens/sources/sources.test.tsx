@@ -5,6 +5,9 @@
 // 排序筛选分页 / 启停写回+doctor 往返复核 / 写回失败结构化错误态 / 空态 / 加载错误态 /
 // 行动作「编辑」当场弹出 YAML 编辑对话框并加载该文件原文(不离开本屏)。
 // 协议缺口(method_not_found)也是被测行为之一 —— sources.write 未收编前如实呈现。
+// D4(10-03-ui-deep-imitation)结构性重做另测:渲染层迁 ui/table 基件(compact
+// 36px 行密度/colgroup 定宽)、列宽拖拽(Ant Table 手感:拖右缘手柄实时改宽,
+// 手柄点击不误触排序)、健康徽章四态语义(dot+文字)。
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
@@ -653,5 +656,105 @@ describe("源管理:排程一览(G4)", () => {
 
     const overview = await screen.findByTestId("schedule-overview");
     expect(overview.textContent).toContain("没有品类 YAML");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D4(10-03-ui-deep-imitation)结构性重做:ui/table 基件迁移 + 列宽拖拽 + 紧凑密度
+// ---------------------------------------------------------------------------
+
+describe("源管理:D4 表格基件迁移(ui/table + 列宽拖拽 + compact 密度)", () => {
+  function twoRowsSidecar() {
+    const { map } = okSidecar(["beta", "alpha"]);
+    map.health = () =>
+      healthResult([
+        pluginReport(FILE, "ai-news", [
+          sourceReport("beta", "ok", "https://example.com/beta"),
+          sourceReport("alpha", "unknown", "https://example.com/alpha"),
+        ]),
+      ]);
+    return { map };
+  }
+
+  it("渲染层走 ui/table 基件:table-fixed + colgroup 定宽 + 36px 紧凑行", async () => {
+    installSidecar(twoRowsSidecar().map);
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText("beta")).toBeTruthy();
+
+    const table = document.querySelector('[data-slot="table"]') as HTMLTableElement;
+    expect(table.className).toContain("table-fixed");
+    // colgroup:除末列(操作,吃剩余宽)外每列钉 getSize() 像素宽
+    const cols = Array.from(table.querySelectorAll("col"));
+    expect(cols).toHaveLength(8);
+    expect(cols[0].style.width).toBe("150px"); // 源名称 size
+    expect(cols[2].style.width).toBe("280px"); // URL size
+    expect(cols[7].style.width).toBe(""); // 操作列不定宽
+    // compact 密度:行 h-9(36px)由基件 TableRow 提供
+    const compactRow = table.querySelector('[data-slot="table-row"]') as HTMLElement;
+    expect(compactRow.className).toContain("h-9");
+  });
+
+  it("健康徽章四态语义:圆点 + 文字(unknown 在列,非 pill 底)", async () => {
+    installSidecar(twoRowsSidecar().map);
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText("beta")).toBeTruthy();
+
+    const okBadge = document.querySelector("[data-health='ok']");
+    const unknownBadge = document.querySelector("[data-health='unknown']");
+    expect(okBadge?.textContent).toBe("正常");
+    expect(unknownBadge?.textContent).toBe("未知");
+    // dot+文字范式:徽标内首子元素是圆点(span,无文本)
+    expect(okBadge?.querySelector("span")?.className).toContain("rounded-full");
+    expect(okBadge?.querySelector("span")?.textContent).toBe("");
+  });
+
+  it("列宽拖拽(Ant Table 手感):拖右缘手柄实时改宽,手柄点击不误触排序", async () => {
+    installSidecar(twoRowsSidecar().map);
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText("beta")).toBeTruthy();
+
+    const urlHeader = screen.getByRole("columnheader", { name: /URL/ }) as HTMLTableCellElement;
+    expect(urlHeader.style.width).toBe("280px");
+    // 可拖列才有手柄;启停/操作(定宽控件列)没有
+    const handles = document.querySelectorAll("[data-column-resize-handle]");
+    expect(handles).toHaveLength(6);
+    const urlHandle = urlHeader.querySelector('[data-column-resize-handle="url"]') as HTMLElement;
+    expect(urlHandle).toBeTruthy();
+
+    // pointerdown 在手柄 → document mousemove/mouseup(TanStack 鼠标路径)
+    // clientX 400→460:URL 列 280 → 340(onChange 模式拖中即变)
+    fireEvent.pointerDown(urlHandle, {
+      clientX: 400,
+      button: 0,
+    });
+    fireEvent.mouseMove(document, { clientX: 460 });
+    fireEvent.mouseUp(document, { clientX: 460 });
+    await waitFor(() => {
+      expect(urlHeader.style.width).toBe("340px");
+    });
+    // colgroup 同步(th 与 col 同源 getSize())
+    const table = document.querySelector('[data-slot="table"]') as HTMLTableElement;
+    expect(Array.from(table.querySelectorAll("col"))[2].style.width).toBe("340px");
+
+    // 拖拽收尾的 click 停在手柄上,不冒泡成表头排序
+    expect(urlHeader.getAttribute("aria-sort")).toBeNull();
+
+    // 双击手柄复位列宽(TanStack resize 惯例)
+    fireEvent.dblClick(urlHandle);
+    await waitFor(() => {
+      expect(urlHeader.style.width).toBe("280px");
+    });
   });
 });

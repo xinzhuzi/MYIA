@@ -1,9 +1,10 @@
-import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 
 /**
- * 启停开关(本屏私有;共享 components/ui 无 switch,按边界不新增共享件)。
- * 语义 = WAI-ARIA switch:role="switch" + aria-checked;启 = 品牌青轨。
- * pending 时禁点并降低不透明度(写回/复核期间防抖)。
+ * 启停开关:内部转接 Phase1 基件 ui/switch(本屏私有 API 不变:ariaLabel
+ * 中文命名)。动效走基件 —— 轨道变色与滑块位移均 180ms(--duration-base)
+ * expo-out,Linear 克制级,无弹跳;语义 = WAI-ARIA switch(role=switch +
+ * aria-checked),启 = 品牌青轨;pending 时禁点并降不透明度(写回/复核期间防抖)。
  */
 interface ToggleSwitchProps {
   checked: boolean;
@@ -22,28 +23,12 @@ export function ToggleSwitch({
   className,
 }: ToggleSwitchProps) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={ariaLabel}
+    <Switch
+      checked={checked}
       disabled={disabled}
-      onClick={() => onCheckedChange(!checked)}
-      className={cn(
-        "relative inline-flex h-4.5 w-8 shrink-0 items-center rounded-full border border-border transition-colors",
-        "focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none",
-        "disabled:cursor-not-allowed disabled:opacity-50",
-        checked ? "border-primary/40 bg-primary/70" : "bg-muted",
-        className,
-      )}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          "pointer-events-none block size-3.5 rounded-full bg-foreground/80 shadow-sm transition-transform",
-          checked ? "translate-x-4 bg-background" : "translate-x-0.5",
-        )}
-      />
-    </button>
+      aria-label={ariaLabel}
+      onCheckedChange={onCheckedChange}
+      className={className}
+    />
   );
 }
