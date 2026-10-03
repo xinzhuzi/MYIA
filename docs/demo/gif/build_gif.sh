@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rebuild docs/demo/assets/myia-demo.gif from the real transcripts.
+# Rebuild docs/demo/assets/shishi-demo.gif from the real transcripts.
 #
 # Path A (shipped): terminal-composited frames — make_ass.py turns the real
 #   command outputs (transcript/*.txt, see storyboard.md) into frames.ass,
@@ -19,7 +19,7 @@ DURATION=42.5   # keep in sync with the last scene end in make_ass.py
 FPS=12
 SIZE=1100x640
 BG=0x0D1117     # GitHub dark canvas
-OUT=../assets/myia-demo.gif
+OUT=../assets/shishi-demo.gif
 
 python3 make_ass.py
 
