@@ -240,6 +240,13 @@
 - 口径追批入 grill-v112:世事更名发布口径/密钥代执行/tag 由来,全记录
 - 剩余:PyPI(主人 PYPI_API_TOKEN+test.pypi 演练开关未实现)、四帖素材(截图已备)
 
+## 2026-10-03 games v3 执行完毕(task 10-03-games-v3,工作流 dwfrun-45ed0405→review)
+
+- 主人经 /workflow「按照trellis方式做完」=决议⑦开工令;单跑收口(无止损无修订):实现者按 PRD 七决议落地——cheapshark 第三源(storeID=7,11,15,$[*] 顶层数组、dealID 直拼 .com redirect、respect_robots:false 判例注释 games.yaml:119-123)+规则 float(savings_pct)>=50 tag 多店半价+模板 $ 价与 -97% 徽标+snippet fixture(savings 45.0 形状注释如实)+合成断言(规则命中/路由 digest)+golden games 条目;门禁:全量 1771→1772 零新红、ruff 零错、dry-run 0(immediate 2=Epic 限免/digest 39 含 CS 20 全 conservative_default)、真跑 CS 20 条/全品类 41 条;提交 f768e4e(7 文件 405 行,白名单),任务 review,未 push
+- 独立质检 4 发现全 low 0 修(都立得住):①验收「三店条目>0」措辞歧义——top-20 里 GOG 零条(仅 Humble×7+Fanatical×13),sortBy=Savings 数据行为非代码缺陷,GOG 何时入榜看行情;②**golden 是 games 条目首次整块加入**(v1 落地时从未加过——PRD R5「同步」前提与 HEAD 事实不符,我写错;结果正确且更全,消费方测试「7 个夹具」措辞漂移留档);③dry-run 验收经落档证据核实非复跑(只读纪律),且真跑 baseline 写入路径已核安全(CS 无 final_price 不会写基线不会炸);④三币种形态渲染守卫链沙盒探针验证安全(None/空串/缺字段全静默)
+- 遗留:测试文件「7 个夹具」文案漂移(low,下次碰该文件顺手改);games 线 v1+v2+v3 全部收口
+
 ## 2026-10-03 E6 尾巴收口:4 归档/28 保留
 
 - messaging-core(交付 2b54865 在 main)、shared-build-races(e45e650,验收 3/3 实跑 EXIT=0)、v12-crawl4ai-l3(60022ff,验收 6/6、全量 1822 passed)、yaml-editor(c74eda0+cf0eb32,验收 14/14)四档目录 git status 干净,task.py archive 落 archive/2026-10/(均直落 main 无独立分支,--skip-branch-validation + --no-commit);其余 28 个活动档(games-v2/v3、shishi-everywhere、v12-backlog 在途改动及 games-wrap/vision-pipeline 等新立项)未收口,一律保留不动
+- a40c632:README 发帖前置清零(cd shishi×2、Windows 如实化 zh+en;连带收编并行会话在途的 dmg 名/v1.1.2 口径 4 个正确 hunk,提交信息注明);docs 锁 80 绿。发布线 AI 侧全清,主人侧剩 PYPI_API_TOKEN/四帖定稿/私钥备份。
