@@ -60,3 +60,18 @@ dev 构建(`tauri dev`)与 `MYIA_SHOW_ON_START=1` 例外,启动即显示,保住�
   cfg 在 macOS,若未来扩平台需补显示路径。
 - 发布包 UI 验证流(重装→open→OCR 截图)受影响:改为直跑二进制带 env,或 open 两次。
   后续 v112-desktop-parity 冒烟步骤落 implement 时要用新姿势。
+
+## 验收记录(2026-10-03,受主人委托代验)
+
+**verdict:conditional(归档;功能全过,余 2 项主人手动目验)**。
+
+代码面全部核实(HEAD 已提交版):
+- `desktop/src-tauri/tauri.conf.json` 主窗口 `visible:false` + `focus:false`;
+- `desktop/src-tauri/src/main.rs:253-263` show_on_start = `cfg!(debug_assertions)` || `MYIA_SHOW_ON_START` → show+set_focus;否则 macOS 走 yield_focus_after_silent_start(main.rs:147-159,启动 500ms 后主线程 `NSApp.deactivate()`;objc2 0.6.4 / objc2-app-kit 0.3.2 已入 Cargo.lock);
+- `RunEvent::Reopen{has_visible_windows:false}` → show+set_focus(main.rs:271-281,cfg 门控 macOS)。
+
+AC 对照:evidence/acceptance-transcript.txt 覆盖 open -g 前台不变/无窗/sidecar 在跑/quit 干净、
+运行中再 open -a 亮窗、MYIA_SHOW_ON_START=1 直跑二进制(sidecar 212ms)、cargo check/build
+(转录;代验未重跑)。**余主人手动项**:①点 Dock 图标验证亮窗(与 open -a 同一 Reopen 回调,
+点即目验);②`npm run tauri dev` 验证启动即显示(cfg!(debug_assertions) 编译期恒真,
+跑 dev 即目验)。未发现应修缺陷。
