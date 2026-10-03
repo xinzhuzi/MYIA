@@ -57,7 +57,7 @@ git tag v0.2.0 && git push origin v0.2.0
 
 1. `desktop/build-sidecar.sh aarch64-apple-darwin` 出 sidecar;
 2. 写 `tauri.release.conf.json` 合并片(真实 pubkey + `createUpdaterArtifacts: true` + tag 版本号),`npx tauri build --bundles app,dmg --config tauri.release.conf.json`(**必须带 `app` 目标**:updater 的 tar.gz/.sig 只在 MacOsBundle 目标在列时产出,仅 `dmg` 会跳过更新包且随后删除 .app 中间产物,后续 `cat *.sig` 步骤必失败);
-3. 产物上传 Release:**dmg**、**`MYIA.app.tar.gz` + `.sig`**(updater 增量包与签名)、**`latest.json`**(按 tag 生成)。
+3. 产物上传 Release:**dmg**、**`世事.app.tar.gz` + `.sig`**(updater 增量包与签名)、**`latest.json`**(按 tag 生成)。
 
 Windows job(msi)为**构建级验证**:`continue-on-error: true`——失败不阻塞 macOS 发布;成功时 msi + `.sig` 也附到 Release(不写 latest.json,Windows 条目见下文手工补)。Windows 实机升级交互标注**需主人**。
 
@@ -72,8 +72,8 @@ Windows job(msi)为**构建级验证**:`continue-on-error: true`——失败不�
   "pub_date": "2026-10-02T12:00:00Z",
   "platforms": {
     "darwin-aarch64": {
-      "signature": "<MYIA.app.tar.gz.sig 文件内容(一行)>",
-      "url": "https://github.com/xinzhuzi/MYIA/releases/download/v0.2.0/MYIA.app.tar.gz"
+      "signature": "<世事.app.tar.gz.sig 文件内容(一行)>",
+      "url": "https://github.com/xinzhuzi/MYIA/releases/download/v0.2.0/世事.app.tar.gz"
     },
     "windows-x86_64": {
       "signature": "<MYIA_0.2.0_x64-setup.exe.sig 或 .msi.sig 内容>",
@@ -93,7 +93,7 @@ export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/myia.key)"
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="…"    # 未设密码则留空
 npx tauri build --bundles app,dmg --config \
   <(printf '{"version":"9.9.9","bundle":{"createUpdaterArtifacts":true},"plugins":{"updater":{"pubkey":"%s"}}}' "$(cat ~/.tauri/myia.key.pub)")
-# 产物:src-tauri/target/release/bundle/{dmg/*.dmg, macos/MYIA.app.tar.gz{,.sig}}
+# 产物:src-tauri/target/release/bundle/{dmg/*.dmg, macos/世事.app.tar.gz{,.sig}}
 # (--bundles 必须含 app,理由见第三节)
 ```
 
@@ -101,7 +101,7 @@ npx tauri build --bundles app,dmg --config \
 
 ## 五、演示「签名校验 + 静默升级」(PRD 验收,用测试更新源)
 
-1. 本地按第四节构建一个 `9.9.9` 签名包,把 `MYIA.app.tar.gz`、`.sig`、手工 `latest.json` 放到一个可达的静态服务(如 GitHub 某个 draft/test release,或本地 `python3 -m http.server`);
+1. 本地按第四节构建一个 `9.9.9` 签名包,把 `世事.app.tar.gz`、`.sig`、手工 `latest.json` 放到一个可达的静态服务(如 GitHub 某个 draft/test release,或本地 `python3 -m http.server`);
 2. 把正式版客户端(版本号较低)的更新源临时指到它:环境变量不可改 conf 时,直接在本地改 `tauri.conf.json` 的 `endpoints` 后重构建一个测试壳(**测试 conf 不提交**);
 3. 客户端内检查更新 → 下载 → 校验签名 → passive 静默安装 → relaunch,版本变为 `9.9.9` 即演示完成;
 4. 篡改实验(可选证明签名生效):改 `latest.json` 的 `signature` 任意一位,客户端应拒绝安装并报错。
