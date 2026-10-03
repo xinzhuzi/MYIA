@@ -27,7 +27,12 @@ from typing import Any
 
 import yaml
 
-from myia.schema import SchemaValueError, parse_secret_value
+from myia.schema import (
+    CredentialResolveError,
+    SchemaValueError,
+    parse_secret_value,
+    resolve_credential,
+)
 
 __all__ = [
     "CHANNELS",
@@ -35,11 +40,13 @@ __all__ = [
     "DEFAULT_CLOUD_MODEL",
     "DEFAULT_LOCAL_BASE_URL",
     "KEYCHAIN_API_KEY",
+    "KEYCHAIN_LLM_API_KEY",
     "OCR_ENGINES",
     "VISION_FILE_NAME",
     "VisionConfig",
     "VisionConfigError",
     "load_vision_config",
+    "resolve_cloud_api_key",
     "save_vision_config",
 ]
 
@@ -47,6 +54,9 @@ __all__ = [
 VISION_FILE_NAME = "vision.yaml"
 #: 云端 api_key 的缺省钥匙链名(桌面端 secret.set 录入;canonical myia/<scope>/<name>)。
 KEYCHAIN_API_KEY = "myia/image/api_key"
+#: 既有 GLM 凭据链路(设置屏 LLM 表单经 secret.set 录入,enrich 同链)——云端
+#: 看图未录专用 key 时的回落解析点;「云默认 glm-4.6v 走既有 GLM 凭据链路」落点。
+KEYCHAIN_LLM_API_KEY = "myia/llm/api_key"
 
 #: 二级看图通道(local=本地 OpenAI 兼容端点零出网;cloud=显式切换才出网)。
 CHANNELS = ("local", "cloud")
@@ -285,3 +295,39 @@ def save_vision_config(path: Path | str, config: VisionConfig) -> Path:
         handle.write(text)
     os.replace(tmp, file_path)
     return file_path
+
+
+def resolve_cloud_api_key(
+    config: VisionConfig, *, backend: Any | None = None
+) -> str | None:
+    """解析云端看图 key:显式 ``cloud.api_key`` 引用优先,缺省回落既有 GLM 链路。
+
+    解析序(2026-10-03 收口拍板:云默认 ``glm-4.6v`` 走既有 GLM 凭据链路):
+
+    1. ``vision.yaml`` 显式 ``cloud.api_key``(``keychain:myia/image/api_key`` 等)
+       —— 配了专用 key 就用它;解析失败**原样上抛**由调用方按通道语义翻译
+       结构化错误(如 ``credential_resolve_failed``),与显式配置必须 fail fast
+       的门风一致;
+    2. 未配专用 key → 回落 ``keychain:myia/llm/api_key``(设置屏 LLM 表单录入、
+       enrich 同链的既有 GLM 凭据)——已配 GLM 的主机云端看图开箱即用,免二次
+       录 key。回落段任何解析失败(未录/无钥匙链后端/操作失败)都只是「无 key」
+       返回 ``None``,不报错:回落是便利不是契约。
+
+    Args:
+        config: 已过构造校验的看图配置。
+        backend: 注入钥匙链后端(测试 ``InMemoryKeychainBackend``);``None`` =
+            系统钥匙链惰性发现(与 :func:`myia.schema.resolve_credential` 同参)。
+
+    Returns:
+        已解析的 key;两条链路都无 key 时 ``None``(调用方按 ``无凭据`` 降级)。
+
+    Raises:
+        CredentialResolveError: 仅第 1 步(显式引用)解析失败时。
+    """
+    if config.cloud_api_key_ref:
+        return resolve_credential(config.cloud_api_key_ref, backend=backend)
+    try:
+        return resolve_credential(f"keychain:{KEYCHAIN_LLM_API_KEY}", backend=backend)
+    except CredentialResolveError:
+        # 回落段失败 = 无 key(未录/无后端都算),不是错误路径。
+        return None

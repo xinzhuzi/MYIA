@@ -33,6 +33,8 @@ import pytest
 from conftest import run
 
 from myia.enrich import (
+    IMAGE_CAPTION_SNIPPET_CHARS,
+    IMAGE_OCR_SNIPPET_CHARS,
     EnrichConfigError,
     EnrichOutcome,
     EnrichSettings,
@@ -944,3 +946,92 @@ class TestEnrichWiring:
         assert captured["fetch"] is False
         assert captured["analyze"] is False
         assert captured["dedup"] is True
+
+
+# ---------------------------------------------------------------------------
+# 图析产物进 payload(10-03-vision-pipeline 拍板⑤:image_ocr/image_caption
+# 两键,无图条目不带;prompt version bump 让旧缓存整体失效一次)
+# ---------------------------------------------------------------------------
+
+
+class TestRenderBatchImageFields:
+    @pytest.fixture(autouse=True)
+    def _endpoint_env(self, endpoint_env):
+        return endpoint_env
+
+    @staticmethod
+    def _items_json(user: str) -> list[dict[str, Any]]:
+        """从渲染后的 user 消息里抠出条目 JSON(user_template 钉了单行嵌入)。"""
+        line = next(part for part in user.splitlines() if part.startswith("["))
+        return json.loads(line)
+
+    def test_image_fields_carried_and_truncated(self):
+        enricher = make_enricher(FakeCompletionClient())
+        item = FakeItem("https://a.example/x", "带图条目")
+        item.metadata["image_ocr"] = "字" * 1000
+        item.metadata["image_caption"] = "描" * 500
+
+        user = enricher._render_batch([item], ["关键词"])
+
+        (entry,) = self._items_json(user)
+        assert entry["image_ocr"] == "字" * IMAGE_OCR_SNIPPET_CHARS, "OCR 截 800 字"
+        assert entry["image_caption"] == "描" * IMAGE_CAPTION_SNIPPET_CHARS, "caption 截 300 字"
+        assert entry["url"] == "https://a.example/x"
+        assert entry["title"] == "带图条目"
+
+    def test_items_without_images_omit_both_keys(self):
+        enricher = make_enricher(FakeCompletionClient())
+        bare = FakeItem("https://a.example/plain", "无图条目")
+        empty_ocr = FakeItem("https://a.example/empty", "空串条目")
+        empty_ocr.metadata["image_ocr"] = "   "
+        empty_ocr.metadata["image_caption"] = ""
+
+        user = enricher._render_batch([bare, empty_ocr], ["关键词"])
+
+        entries = {entry["url"]: entry for entry in self._items_json(user)}
+        assert set(entries) == {"https://a.example/plain", "https://a.example/empty"}
+        for entry in entries.values():
+            assert "image_ocr" not in entry, "无图/空串条目不带键,payload 不膨胀"
+            assert "image_caption" not in entry
+
+    def test_content_and_image_fields_coexist(self):
+        enricher = make_enricher(FakeCompletionClient())
+        item = FakeItem("https://a.example/both", "图文条目", content="正文摘要")
+        item.metadata["image_ocr"] = "图中文字"
+
+        user = enricher._render_batch([item], [])
+
+        (entry,) = self._items_json(user)
+        assert entry["content"] == "正文摘要"
+        assert entry["image_ocr"] == "图中文字"
+
+    def test_prompt_version_bumped_and_documents_image_fields(self):
+        """拍板⑤:version +1(旧缓存一次性失效)+ user 模板补图析说明一行。"""
+        import json as _json
+        from pathlib import Path
+
+        data = _json.loads(
+            (Path(__file__).resolve().parents[1] / "src" / "myia" / "enrich" / "data" / "prompt.json")
+            .read_text(encoding="utf-8")
+        )
+        assert data["version"] == 2, "图析键进 payload 必须伴随 version bump(缓存指纹)"
+        assert "image_ocr" in data["user_template"]
+        assert "image_caption" in data["user_template"]
+
+    def test_version_bump_invalidates_old_cache(self, store):
+        """同条目:v1 指纹写入的缓存,v2 指纹不复用(第二跑起建新缓存)。"""
+        client = FakeCompletionClient(responses=[
+            score_response([{"url": "https://a.example/x", "value": 9, "relevance": 9, "credibility": 9}]),
+            score_response([{"url": "https://a.example/x", "value": 8, "relevance": 8, "credibility": 8}]),
+        ])
+        v1 = LLMEnricher(make_config(), make_settings(prompt_version=1), client=client)
+        run(v1.enrich([FakeItem("https://a.example/x", "标题")], watchlist=WatchlistConfig(), store=store))
+        assert len(client.calls) == 1
+
+        default = make_enricher(client)  # 数据文件已是 version 2
+        assert default.prompt.version == 2
+        outcome = run(default.enrich(
+            [FakeItem("https://a.example/x", "标题")], watchlist=WatchlistConfig(), store=store
+        ))
+        assert outcome.cached == 0, "旧版本指纹的缓存行不得复用"
+        assert len(client.calls) == 2

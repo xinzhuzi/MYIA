@@ -16,12 +16,15 @@ from typing import Any
 import pytest
 from conftest import run
 
+from myia.schema import CredentialResolveError
+from myia.secrets import InMemoryKeychainBackend
 from myia.vision import (
     VisionClient,
     VisionConfig,
     VisionConfigError,
     VisionResult,
     load_vision_config,
+    resolve_cloud_api_key,
     save_vision_config,
 )
 from myia.vision import client as vision_client
@@ -137,6 +140,40 @@ class TestVisionSettings:
         with pytest.raises(VisionConfigError):
             VisionConfig.from_payload({"cloud": {"api_key": "sk-plaintext"}})
         assert not path.exists()  # 拒载 = 零写入
+
+
+# ---------------------------------------------------------------------------
+# settings.resolve_cloud_api_key:显式 image key 优先,回落既有 GLM 链路
+# (mock 钥匙串注入 backend,零真实钥匙链触碰)
+# ---------------------------------------------------------------------------
+
+
+class TestResolveCloudApiKey:
+    def test_explicit_ref_resolves_and_wins_over_llm_fallback(self):
+        backend = InMemoryKeychainBackend()
+        backend.set_password("myia", "myia/image/api_key", "sk-img-secret")
+        backend.set_password("myia", "myia/llm/api_key", "sk-llm-secret")
+        config = VisionConfig(cloud_api_key_ref="keychain:myia/image/api_key")
+        assert resolve_cloud_api_key(config, backend=backend) == "sk-img-secret"
+
+    def test_no_explicit_ref_falls_back_to_llm_keychain(self):
+        backend = InMemoryKeychainBackend()
+        backend.set_password("myia", "myia/llm/api_key", "sk-llm-secret")
+        assert resolve_cloud_api_key(VisionConfig(), backend=backend) == "sk-llm-secret"
+
+    def test_no_key_anywhere_returns_none_not_raises(self):
+        # 两条链路都无 key(未录)=「无凭据」降级语义,不是错误路径。
+        backend = InMemoryKeychainBackend()
+        assert resolve_cloud_api_key(VisionConfig(), backend=backend) is None
+
+    def test_explicit_ref_resolve_failure_propagates(self):
+        # 显式引用配了却解析失败(如钥匙串项被删)必须 fail fast 上抛,
+        # 由调用方翻译 credential_resolve_failed —— 不静默回落 LLM key
+        # (配错要可见,回落只服务「未配置」不遮蔽「配置坏了」)。
+        backend = InMemoryKeychainBackend()
+        config = VisionConfig(cloud_api_key_ref="keychain:myia/image/api_key")
+        with pytest.raises(CredentialResolveError):
+            resolve_cloud_api_key(config, backend=backend)
 
 
 # ---------------------------------------------------------------------------

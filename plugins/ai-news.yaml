@@ -37,6 +37,10 @@ sources:
       fields:
         title: "h3"                 # headline text
         url: "h3 a@href"            # /items/<id>, resolved against the page URL
+        image: "img@src"            # card cover image, urljoin'ed against the
+                                    # page URL; lands in metadata["image"] for
+                                    # the images: ring below (cards without a
+                                    # cover simply omit the field)
     rate_limit:
       qps: 0.5
       jitter: "2s"
@@ -131,3 +135,20 @@ push:
 storage:
   retention: 90d
   vacuum: monthly
+
+# 图片处理环(10-03-vision-pipeline,sidecar 节):fetch 尾部对条目配图
+# (aihot 卡片封面)做本地 OCR,产物进 metadata.image_ocr / image_status,
+# 随 enrich 精评与推送模板即刻可读。失败只写降级标记,绝不阻断采集。
+images:
+  enabled: true        # 只 OCR(vl 缺省 off,零 VL 开销、零 token)
+  max_images: 3        # 每条上限;超出静默截断
+  max_per_run: 30      # 每 run 硬闸(VL 时长的护栏;本插件 OCR 毫秒级,
+                       # 30 张远够当日两槽的量)
+  min_bytes: 10240     # <10KB 视为图标/追踪像素跳过
+  # vl: local          # 可选视觉描述(情报向 caption,进 metadata.image_caption):
+  #                    # 通道走 vision.yaml 的 local 节(设置屏「看图」录入本地
+  #                    # 模型路径)。本地服务启动指引(mlx-vlm 示例):
+  #                    #   uvx --from mlx-vlm mlx_vlm.server --model <模型目录> \
+  #                    #     --host 127.0.0.1 --port 8080
+  #                    # 并发 1、45s/图超时降级;token 计入 enrich 预算池。
+  # ocr_engine: vision # vision | rapidocr;缺省按 vision.yaml 的 ocr.engine_default

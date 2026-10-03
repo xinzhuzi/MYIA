@@ -33,10 +33,12 @@ from myia.vision.settings import (
     DEFAULT_CLOUD_MODEL,
     DEFAULT_LOCAL_BASE_URL,
     KEYCHAIN_API_KEY,
+    KEYCHAIN_LLM_API_KEY,
     VISION_FILE_NAME,
     VisionConfig,
     VisionConfigError,
     load_vision_config,
+    resolve_cloud_api_key,
     save_vision_config,
 )
 
@@ -47,6 +49,7 @@ __all__ = [
     "DEFAULT_LOCAL_BASE_URL",
     "INSTALL_COMMAND",
     "KEYCHAIN_API_KEY",
+    "KEYCHAIN_LLM_API_KEY",
     "MAX_LONG_EDGE",
     "OCR_ENGINES",
     "OCRError",
@@ -60,6 +63,7 @@ __all__ = [
     "VisionResult",
     "image_dimensions",
     "load_vision_config",
+    "resolve_cloud_api_key",
     "run_ocr",
     "save_vision_config",
     "sips_resize",

@@ -77,6 +77,8 @@ if TYPE_CHECKING:  # 循环避免:仅类型注解引用 pipeline.Item(运行时�
 
 __all__ = [
     "CONTENT_SNIPPET_CHARS",
+    "IMAGE_CAPTION_SNIPPET_CHARS",
+    "IMAGE_OCR_SNIPPET_CHARS",
     "INSTALL_COMMAND",
     "AggregateOutcome",
     "EnrichConfigError",
@@ -95,6 +97,11 @@ logger = logging.getLogger(__name__)
 #: Per-item content snippet cap inside the prompt (token 成本护栏的一部分;
 #: 精评只需要摘要,不需要全文).
 CONTENT_SNIPPET_CHARS = 600
+#: 图析 OCR 文本截断(10-03-vision-pipeline 拍板⑤:image_ocr 进 payload 的
+#: 上限——OCR 全文动辄数屏,精评只要要点)。
+IMAGE_OCR_SNIPPET_CHARS = 800
+#: 图析视觉描述截断(同上;VL caption 比 OCR 短,上限更紧)。
+IMAGE_CAPTION_SNIPPET_CHARS = 300
 
 
 @dataclass
@@ -370,6 +377,15 @@ class LLMEnricher:
             content = getattr(item, "content", None) or item.metadata.get("content")
             if isinstance(content, str) and content.strip():
                 entry["content"] = content[:CONTENT_SNIPPET_CHARS]
+            # 图析产物(10-03-vision-pipeline 拍板⑤):有图条目携带配图 OCR
+            # 文本与视觉描述,评分与正文同权参考;无图条目不带键,payload
+            # 不膨胀(空串/非字符串同样不带)。
+            image_ocr = item.metadata.get("image_ocr")
+            if isinstance(image_ocr, str) and image_ocr.strip():
+                entry["image_ocr"] = image_ocr[:IMAGE_OCR_SNIPPET_CHARS]
+            image_caption = item.metadata.get("image_caption")
+            if isinstance(image_caption, str) and image_caption.strip():
+                entry["image_caption"] = image_caption[:IMAGE_CAPTION_SNIPPET_CHARS]
             payload.append(entry)
         return self.prompt.render_user(
             scores=list(self.config.scores),

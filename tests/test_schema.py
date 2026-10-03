@@ -689,3 +689,96 @@ def test_category_config_validates_into_typed_model():
     assert callable(CategoryConfig.model_validate)
     cfg = load_category(_minimal_data())
     assert isinstance(cfg, CategoryConfig)
+
+
+# ---------------------------------------------------------------------------
+# images: sidecar 节(10-03-vision-pipeline 图片处理环)
+# ---------------------------------------------------------------------------
+
+
+class TestImagesSection:
+    """照 aggregate/baseline 同门:PrivateAttr sidecar,$.images 前缀结构化错误。"""
+
+    def test_absent_section_leaves_config_images_none(self):
+        assert load_category(_minimal_data()).images is None
+
+    def test_null_section_treated_as_absent(self):
+        data = _minimal_data()
+        data["images"] = None
+        assert load_category(data).images is None
+
+    def test_defaults_match_pinned_decisions(self):
+        """缺省:false / 3 / 30 / 10KB / off / 引擎按 vision.yaml(拍板③④)。"""
+        data = _minimal_data()
+        data["images"] = {"enabled": True}
+        images = load_category(data).images
+        assert images is not None
+        assert images.enabled is True
+        assert images.max_images == 3
+        assert images.max_per_run == 30
+        assert images.min_bytes == 10_240
+        assert images.vl == "off"
+        assert images.ocr_engine is None
+
+    def test_full_section_loads(self):
+        data = _minimal_data()
+        data["images"] = {
+            "enabled": True,
+            "max_images": 5,
+            "max_per_run": 60,
+            "min_bytes": 2048,
+            "vl": "local",
+            "ocr_engine": "rapidocr",
+        }
+        images = load_category(data).images
+        assert images is not None
+        assert (images.max_images, images.max_per_run, images.min_bytes) == (5, 60, 2048)
+        assert images.vl == "local"
+        assert images.ocr_engine == "rapidocr"
+
+    def test_non_mapping_section_rejected_with_path(self):
+        data = _minimal_data()
+        data["images"] = "yes"
+        detail = _error_of_type(_load_error(data), "invalid_images_section")
+        assert detail.path == "$.images"
+
+    def test_unknown_field_rejected_with_path(self):
+        data = _minimal_data()
+        data["images"] = {"enabled": True, "oops": 1}
+        detail = _error_of_type(_load_error(data), "unknown_field")
+        assert detail.path == "$.images.oops"
+
+    def test_vl_enum_rejected_with_path(self):
+        data = _minimal_data()
+        data["images"] = {"enabled": True, "vl": "remote"}
+        detail = _error_of_type(_load_error(data), "invalid_value")
+        assert detail.path == "$.images.vl"
+
+    def test_ocr_engine_enum_rejected_with_path(self):
+        data = _minimal_data()
+        data["images"] = {"enabled": True, "ocr_engine": "tesseract"}
+        detail = _error_of_type(_load_error(data), "invalid_value")
+        assert detail.path == "$.images.ocr_engine"
+
+    def test_max_images_range_enforced(self):
+        for bad in (0, 11):
+            data = _minimal_data()
+            data["images"] = {"enabled": True, "max_images": bad}
+            errors = _load_error(data).errors
+            assert errors, "max_images 越界必须拒载"
+            assert errors[0].path == "$.images.max_images"
+
+    def test_min_bytes_range_enforced(self):
+        data = _minimal_data()
+        data["images"] = {"enabled": True, "min_bytes": 0}
+        assert _load_error(data).errors[0].path == "$.images.min_bytes"
+
+    def test_images_errors_merge_with_section_errors(self):
+        """sidecar 错误与 12 节错误同报(与 plugin/baseline/aggregate 同一契约)。"""
+        data = _minimal_data()
+        data["schedule"] = "not-cron"
+        data["images"] = {"vl": "bogus"}
+        load_error = _load_error(data)
+        paths = {detail.path for detail in load_error.errors}
+        assert "$.schedule" in paths
+        assert "$.images.vl" in paths
