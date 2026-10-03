@@ -88,6 +88,13 @@ Thumbs.db
 # ---- 冒烟运行态(本机私有,勿提交)----
 .zcode/smoke/
 
+# ---- 技能工具侧副本(本机私有,勿提交)----
+# .zcode/skills/ 下 trellis-* 系列是仓库内容(已跟踪,trellis 工作流件);
+# 其余(frontend-design/tauri/webapp-testing 等)是技能工具落盘的本地副本
+# (与 ~/.agents/skills 全局件同源),不入库——只挡副本,不误伤 trellis-*。
+.zcode/skills/*
+!.zcode/skills/trellis-*/
+
 # ---- 仓库根误落的运行时产物(防误提交)----
 # 消息屏目录/别名是运行态数据,正常应落数据根(MYIA_HOME);desktop serve 在
 # 仓库 cwd 下直跑时缺省写到仓库根——内容含真实平台 chat_id 与群名(私有
