@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/10-03-ui-feature-census/prd.md", "reason": "缺口矩阵 G1-G12 与 F 类清单:后续实现任务(如 feed-ux 批次)的取材源,路由待主人拍板"}
+{"file": ".trellis/tasks/10-03-ui-feature-census/research/feed-monitors.md", "reason": "订阅监听路原始报告:G1/G2/G5/G8 的业界证据出处"}
+{"file": ".trellis/tasks/10-03-ui-feature-census/research/crawler-platforms.md", "reason": "爬虫平台路原始报告:G3/G4/G7/G10 的业界证据出处"}
+{"file": ".trellis/tasks/10-03-ui-feature-census/research/osint-tools.md", "reason": "OSINT 路原始报告:G5/G11/G12 的业界证据出处与重平台适用性边界"}

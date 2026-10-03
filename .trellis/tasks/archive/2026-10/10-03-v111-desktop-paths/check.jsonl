@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/10-03-v111-desktop-paths/prd.md", "reason": "验收标准逐条对照(含 D7 口径修正)"}
+{"file": ".trellis/spec/python/error-handling.md", "reason": "结构化错误 spec 符合性"}
+{"file": "tests/test_desktop_sidecar_protocol.py", "reason": "协议回归面"}
