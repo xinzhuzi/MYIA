@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SidecarRequestError } from "@/lib/api";
+import { YamlEditorDialog } from "@/screens/yaml-editor/yaml-editor-dialog";
 
 import { ErrorBox } from "./error-box";
 import { asSidecarError, loadSourcesData, verifySourceRoundTrip, writeSourceToggle } from "./api";
@@ -34,6 +35,10 @@ interface ToggleOutcome {
  * 启停链路:ToggleSwitch → sources.write(协议扩展提案,契约见 api.ts)→
  * doctor({yamls:[file]}) 复核往返一致 → 刷新 health。任一步失败都回到
  * 结构化错误态(开关状态不动),绝不假装成功。
+ *
+ * 行「编辑」:当场弹出 YAML 编辑对话框(不离开本屏;dirty 关闭守卫在弹窗
+ * 内)。编辑内核与配置编辑屏共享(use-yaml-file-editor),深链 /yaml-editor
+ * ?file=… 仍可用(侧栏入口,本屏不再跳转)。
  */
 export function SourcesScreen() {
   const [state, setState] = useState<LoadState>({ status: "loading", data: null, error: null });
@@ -41,6 +46,8 @@ export function SourcesScreen() {
   const [disabledByFile, setDisabledByFile] = useState<Record<string, string[]>>({});
   const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set());
   const [outcome, setOutcome] = useState<ToggleOutcome | null>(null);
+  /** 当场编辑的品类文件(null = 弹窗关闭) */
+  const [editingFile, setEditingFile] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setState({ status: "loading", data: null, error: null });
@@ -53,6 +60,11 @@ export function SourcesScreen() {
   }, []);
 
   useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  /** 编辑弹窗保存成功:刷新表格(编辑可能改了源名单/健康度,与启停写回后同款 reload) */
+  const handleDialogSaved = useCallback(() => {
     void reload();
   }, [reload]);
 
@@ -162,6 +174,7 @@ export function SourcesScreen() {
                 disabledKeys={disabledKeys}
                 pendingKeys={pendingKeys}
                 onToggle={(row, next) => void handleToggle(row, next)}
+                onEdit={(row) => setEditingFile(row.pluginFile)}
               />
             ) : state.status === "ready" ? (
               <EmptyState
@@ -225,6 +238,11 @@ export function SourcesScreen() {
             </CardContent>
           </Card>
         </div>
+      ) : null}
+
+      {/* 当场编辑弹窗:行「编辑」打开;关闭守卫(dirty confirm)在弹窗内部;保存成功刷新表格 */}
+      {editingFile !== null ? (
+        <YamlEditorDialog file={editingFile} onClose={() => setEditingFile(null)} onSaved={handleDialogSaved} />
       ) : null}
     </div>
   );

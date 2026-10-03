@@ -11,11 +11,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import type { SidecarRequestError } from "@/lib/api";
 
+import { ErrorBox } from "./error-box";
 import { EditorPane } from "./editor-pane";
 import { FileList } from "./file-list";
 import { FindingsPanel } from "./findings-panel";
-import { asSidecarError, deleteYaml, getYamlTemplate, listYamlFiles, readYaml, saveYaml, validateYaml } from "./api";
-import type { YamlFileEntry, YamlFinding, YamlValidateResult } from "./api";
+import { asSidecarError, deleteYaml, listYamlFiles } from "./api";
+import type { YamlFileEntry } from "./api";
+import { sameFilePath, useYamlFileEditor } from "./use-yaml-file-editor";
 
 /** 列表态(loading/error/ready;坏文件也入列,交给 FileList 打损坏徽标) */
 interface ListState {
@@ -25,102 +27,27 @@ interface ListState {
   error: SidecarRequestError | null;
 }
 
-/** 编辑器文档态:idle(未选)→ loading → ready/error;ready 含未保存草稿(draft) */
-type DocState =
-  | { status: "idle" }
-  | { status: "loading"; file: string }
-  | { status: "error"; file: string; error: SidecarRequestError }
-  | {
-      status: "ready";
-      file: string;
-      fileName: string;
-      /** 编辑器当前内容 */
-      content: string;
-      /** 上次读盘/保存的原文;content !== savedContent 即 dirty */
-      savedContent: string;
-      /** save 乐观锁基线;新建草稿 = null(save 走新建语义) */
-      mtime: number | null;
-      /** 未保存草稿(模板回填而来;保存成功转正常编辑态) */
-      draft: boolean;
-    };
-
-/** 干跑校验视图(result 在内容变更时清空,防陈旧 findings 误导) */
-interface ValidateView {
-  running: boolean;
-  result: YamlValidateResult | null;
-  error: SidecarRequestError | null;
-}
-
-/** 保存成功后的 doctor 复核(决议 7:「myia 真认」的证据;失败也如实报) */
-interface DoctorCheck {
-  ok: boolean;
-  message: string;
-}
-
-interface SaveView {
-  saving: boolean;
-  created: boolean | null;
-  warnings: YamlFinding[];
-  doctor: DoctorCheck | null;
-  error: SidecarRequestError | null;
-}
-
 interface RunView {
   starting: boolean;
   runId: number | null;
   error: SidecarRequestError | null;
 }
 
-const INITIAL_VALIDATE: ValidateView = { running: false, result: null, error: null };
-const INITIAL_SAVE: SaveView = { saving: false, created: null, warnings: [], doctor: null, error: null };
 const INITIAL_RUN: RunView = { starting: false, runId: null, error: null };
-
-/** 路径比较用归一(Windows 分隔符统一;不涉及语义解析,围栏在后端) */
-function sameFilePath(a: string, b: string): boolean {
-  return a.replace(/\\/g, "/") === b.replace(/\\/g, "/");
-}
-
-function fileNameOf(file: string): string {
-  const parts = file.split(/[\\/]/);
-  return parts[parts.length - 1] ?? file;
-}
-
-function joinPath(dir: string, name: string): string {
-  return dir.endsWith("/") || dir.endsWith("\\") ? `${dir}${name}` : `${dir}/${name}`;
-}
 
 /**
  * 配置编辑第六屏:左文件列表 + 右 CodeMirror 原文编辑。
  *
- * 写链路:yaml.save(同门校验 error 级零容忍零写入 → .bak → 原子落盘,mtime
- * 乐观锁)→ 成功自动 doctor({yamls:[file]}) 复核 + 「跑一次」(run.start,
- * dirty 禁用);失败结构化错误展示,绝不假装成功。dirty 守卫 = 切文件/新建/
- * 删除前 window.confirm + SPA 路由离开 useBlocker(confirm)+ beforeunload
- * (窗口关闭/刷新)。源管理行「编辑」经 /yaml-editor?file=… 预选。
+ * 编辑内核(读取→dirty→校验→保存→doctor 复核)在 use-yaml-file-editor,
+ * 与源管理弹窗(yaml-editor-dialog.tsx)共享同一份保存逻辑。本屏独有:
+ * 文件列表/新建/删除/跑一次/路由级 dirty 守卫。源管理行「编辑」当场弹窗
+ * (不跳本屏);/yaml-editor 与 ?file= 深链保持可用(侧栏入口)。
  */
 export function YamlEditorScreen() {
   const [list, setList] = useState<ListState>({ status: "loading", files: [], pluginsDir: "", error: null });
-  const [doc, setDoc] = useState<DocState>({ status: "idle" });
-  const [validate, setValidate] = useState<ValidateView>(INITIAL_VALIDATE);
-  const [save, setSave] = useState<SaveView>(INITIAL_SAVE);
   const [run, setRun] = useState<RunView>(INITIAL_RUN);
   /** 删除等列表动作的结构化错误(列表整体仍可用,故不进 ListState.error) */
   const [actionError, setActionError] = useState<SidecarRequestError | null>(null);
-  /** 采集运行中提示(只提示不拦:run 启动时已读完 YAML,中途改文件无害) */
-  const [runNotice, setRunNotice] = useState<string | null>(null);
-  /** 快速切换文件时丢弃过期应答(openFile/草稿共用一个序号泉) */
-  const docSeq = useRef(0);
-
-  const docReady = doc.status === "ready" ? doc : null;
-  const dirty = docReady !== null && docReady.content !== docReady.savedContent;
-
-  const resetPanes = useCallback(() => {
-    setValidate(INITIAL_VALIDATE);
-    setSave(INITIAL_SAVE);
-    setRun(INITIAL_RUN);
-    setRunNotice(null);
-    setActionError(null);
-  }, []);
 
   const reloadList = useCallback(async () => {
     setList({ status: "loading", files: [], pluginsDir: "", error: null });
@@ -132,43 +59,39 @@ export function YamlEditorScreen() {
     }
   }, []);
 
+  /** 打开/新建文件时的伴随重置(跑一次结果与列表动作错误;编辑内核态由 hook 清) */
+  const resetAux = useCallback(() => {
+    setRun(INITIAL_RUN);
+    setActionError(null);
+  }, []);
+
+  const handleSaved = useCallback(() => {
+    void reloadList();
+  }, [reloadList]);
+
+  const {
+    doc,
+    docReady,
+    dirty,
+    validate,
+    save,
+    runNotice,
+    openFile,
+    createDraft,
+    setContent,
+    runValidate,
+    saveFile,
+    checkRunInFlight,
+    invalidate,
+    clear,
+    clearRunNotice,
+  } = useYamlFileEditor({ onSaved: handleSaved, onOpenStart: resetAux });
+
   useEffect(() => {
     void reloadList();
   }, [reloadList]);
 
-  /** dirty 守卫:放弃编辑前 window.confirm(v1 够用不花哨,design §3) */
-  const confirmDiscardIfDirty = useCallback((): boolean => {
-    if (!dirty) return true;
-    return window.confirm("当前文件有未保存的修改,放弃后将丢失(可先保存或复制留底)。确定继续?");
-  }, [dirty]);
-
-  const openFile = useCallback(
-    async (file: string) => {
-      if (!confirmDiscardIfDirty()) return;
-      const seq = ++docSeq.current;
-      resetPanes();
-      setDoc({ status: "loading", file });
-      try {
-        const result = await readYaml(file);
-        if (seq !== docSeq.current) return;
-        setDoc({
-          status: "ready",
-          file: result.file,
-          fileName: fileNameOf(result.file),
-          content: result.content,
-          savedContent: result.content,
-          mtime: result.mtime,
-          draft: false,
-        });
-      } catch (error) {
-        if (seq !== docSeq.current) return;
-        setDoc({ status: "error", file, error: asSidecarError(error) });
-      }
-    },
-    [confirmDiscardIfDirty, resetPanes],
-  );
-
-  /** 源管理「编辑」跳转预选:?file=… 只应用一次,后续由用户选择主导 */
+  /** 源管理「编辑」深链预选:?file=… 只应用一次,后续由用户选择主导 */
   const [searchParams] = useSearchParams();
   const preselectFile = searchParams.get("file");
   const appliedPreselect = useRef<string | null>(null);
@@ -178,111 +101,11 @@ export function YamlEditorScreen() {
     void openFile(preselectFile);
   }, [preselectFile, openFile]);
 
-  /** 新建流:stem 已过 FileList 前端正则预检 → 模板 → 回填 id → 未保存草稿态 */
-  const createDraft = useCallback(
-    async (stem: string) => {
-      if (!confirmDiscardIfDirty()) return;
-      const seq = ++docSeq.current;
-      resetPanes();
-      try {
-        const template = await getYamlTemplate();
-        if (seq !== docSeq.current) return;
-        const content = template.content.replace("id: my-category", `id: ${stem}`);
-        const file = joinPath(list.pluginsDir || "plugins", `${stem}.yaml`);
-        setDoc({
-          status: "ready",
-          file,
-          fileName: `${stem}.yaml`,
-          content,
-          savedContent: "",
-          mtime: null,
-          draft: true,
-        });
-      } catch (error) {
-        if (seq !== docSeq.current) return;
-        setDoc({ status: "error", file: `${stem}.yaml`, error: asSidecarError(error) });
-      }
-    },
-    [confirmDiscardIfDirty, list.pluginsDir, resetPanes],
-  );
-
-  const handleContentChange = useCallback((next: string) => {
-    setDoc((prev) => (prev.status === "ready" ? { ...prev, content: next } : prev));
-    // 内容变了,旧 findings/保存结果/复核即过期:清空防误导
-    setValidate((prev) => (prev.result !== null || prev.error !== null ? INITIAL_VALIDATE : prev));
-    setSave((prev) =>
-      prev.created !== null || prev.doctor !== null || prev.error !== null || prev.warnings.length > 0
-        ? { ...INITIAL_SAVE, saving: prev.saving }
-        : prev,
-    );
-  }, []);
-
-  /** 采集运行中检查(只提示不拦):发起保存/跑一次前查 run.status */
-  const checkRunInFlight = useCallback(async (file: string) => {
-    try {
-      const status = await api.runStatus();
-      const inflight = status.runs.find((entry) => entry.state === "running" && sameFilePath(entry.yaml, file));
-      if (inflight) {
-        setRunNotice(`采集进行中(run #${inflight.run_id}),改动下一次运行生效`);
-      }
-    } catch {
-      // run.status 不可用不拦主流程:提示是锦上添花
-    }
-  }, []);
-
-  /** 校验干跑:零写入,findings 分级展示 */
-  const handleValidate = useCallback(async () => {
-    if (docReady === null || validate.running) return;
-    setValidate({ running: true, result: null, error: null });
-    try {
-      const result = await validateYaml(docReady.content, docReady.file);
-      setValidate({ running: false, result, error: null });
-    } catch (error) {
-      setValidate({ running: false, result: null, error: asSidecarError(error) });
-    }
-  }, [docReady, validate.running]);
-
-  /** 保存流:失败结构化错误(绝不假装成功);成功 → 更新基线 → doctor 复核 → 刷新列表 */
-  const handleSave = useCallback(async () => {
-    if (docReady === null || save.saving) return;
-    if (!docReady.draft && !dirty) return;
-    const { file, content, mtime } = docReady;
-    setSave({ ...INITIAL_SAVE, saving: true });
-    setRunNotice(null);
-    void checkRunInFlight(file);
-    try {
-      const result = await saveYaml(file, content, mtime);
-      // 落盘成功:基线前移(mtime = 下次乐观锁对照值);草稿转正常编辑态
-      setDoc((prev) =>
-        prev.status === "ready" && sameFilePath(prev.file, result.file)
-          ? { ...prev, file: result.file, savedContent: content, mtime: result.mtime, draft: false }
-          : prev,
-      );
-      let doctor: DoctorCheck;
-      try {
-        const check = await api.doctor({ yamls: [result.file] });
-        const plugin = check.plugins.find((candidate) => sameFilePath(candidate.file, result.file));
-        doctor = plugin
-          ? {
-              ok: true,
-              message: `doctor 复核通过:识别「${plugin.name ?? plugin.id ?? fileNameOf(result.file)}」(${plugin.sources.length} 源)`,
-            }
-          : { ok: false, message: `doctor 未报告该品类(${result.file});请到仪表屏手动诊断` };
-      } catch (error) {
-        doctor = { ok: false, message: `doctor 复核失败:${asSidecarError(error).message}` };
-      }
-      setSave({ saving: false, created: result.created, warnings: result.warnings, doctor, error: null });
-      void reloadList();
-    } catch (error) {
-      setSave({ ...INITIAL_SAVE, error: asSidecarError(error) });
-    }
-  }, [checkRunInFlight, dirty, docReady, reloadList, save.saving]);
-
   /** 跑一次:复用 run.start;dirty 禁用(title 提示先保存);发起后引导去日志屏 */
   const handleRunOnce = useCallback(async () => {
     if (docReady === null || dirty || run.starting) return;
     setRun((prev) => ({ ...INITIAL_RUN, starting: true, error: prev.error }));
-    setRunNotice(null);
+    clearRunNotice();
     void checkRunInFlight(docReady.file);
     try {
       const started = await api.runStart({ yaml: docReady.file });
@@ -290,7 +113,7 @@ export function YamlEditorScreen() {
     } catch (error) {
       setRun({ starting: false, runId: null, error: asSidecarError(error) });
     }
-  }, [checkRunInFlight, dirty, docReady, run.starting]);
+  }, [checkRunInFlight, clearRunNotice, dirty, docReady, run.starting]);
 
   /** 删除:confirm 文案含 .bak 留底与官方件重建提示(决议 9);选中项被删回 idle */
   const handleDelete = useCallback(
@@ -305,20 +128,21 @@ export function YamlEditorScreen() {
       setActionError(null);
       try {
         await deleteYaml(entry.file);
-        docSeq.current += 1; // 使在途读取应答作废
         if (
           (doc.status === "ready" || doc.status === "loading") &&
           sameFilePath(doc.file, entry.file)
         ) {
-          setDoc({ status: "idle" });
-          resetPanes();
+          clear(); // 作废在途读取 + 编辑器回 idle + 清结果
+          resetAux();
+        } else {
+          invalidate(); // 删的是别的文件:仅作废在途应答,编辑器不动
         }
         await reloadList();
       } catch (error) {
         setActionError(asSidecarError(error));
       }
     },
-    [doc, reloadList, resetPanes],
+    [doc, invalidate, clear, reloadList, resetAux],
   );
 
   // Cmd+S = 保存(preventDefault 防 webview 默认行为;编辑器无快捷键等于没腿)
@@ -326,26 +150,17 @@ export function YamlEditorScreen() {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        void handleSave();
+        void saveFile();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [handleSave]);
+  }, [saveFile]);
 
-  // 应用级 dirty 守卫:窗口关闭/刷新
-  useEffect(() => {
-    if (!dirty) return;
-    const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirty]);
+  // 应用级 dirty 守卫(窗口关闭/刷新)在 use-yaml-file-editor(与弹窗共用)
 
   // SPA 路由级 dirty 守卫:侧栏切屏等应用内导航经 useBlocker 拦截(main.tsx 已
-  // 转数据路由);同屏仅变查询参数(源管理「编辑」预选)不拦,预选自身有切文件
+  // 转数据路由);同屏仅变查询参数(深链预选)不拦,预选自身有切文件
   // confirm 兜底。确认离开 = proceed,取消 = reset 留守(design §3 路由半边)
   const blocker = useBlocker(({ currentLocation, nextLocation }) =>
     dirty && currentLocation.pathname !== nextLocation.pathname,
@@ -390,12 +205,12 @@ export function YamlEditorScreen() {
 
       {list.status === "error" && list.error ? (
         <div className="px-6">
-          <ListErrorBox error={list.error} onRetry={() => void reloadList()} />
+          <ErrorBox error={list.error} onRetry={() => void reloadList()} />
         </div>
       ) : null}
       {actionError ? (
         <div className="px-6">
-          <ListErrorBox error={actionError} />
+          <ErrorBox error={actionError} />
         </div>
       ) : null}
 
@@ -415,7 +230,7 @@ export function YamlEditorScreen() {
                 draftName={draftName}
                 onSelect={(file) => void openFile(file)}
                 onDelete={(entry) => void handleDelete(entry)}
-                onCreate={(stem) => void createDraft(stem)}
+                onCreate={(stem) => void createDraft(stem, list.pluginsDir)}
               />
             ) : null}
           </CardContent>
@@ -446,7 +261,7 @@ export function YamlEditorScreen() {
                 size="sm"
                 variant="outline"
                 disabled={docReady === null || validate.running}
-                onClick={() => void handleValidate()}
+                onClick={() => void runValidate()}
               >
                 <ShieldCheck className="size-3.5" />
                 {validate.running ? "校验中…" : "校验"}
@@ -454,7 +269,7 @@ export function YamlEditorScreen() {
               <Button
                 size="sm"
                 disabled={docReady === null || !dirty || save.saving}
-                onClick={() => void handleSave()}
+                onClick={() => void saveFile()}
               >
                 <Save className="size-3.5" />
                 {save.saving ? "保存中…" : "保存"}
@@ -483,15 +298,15 @@ export function YamlEditorScreen() {
                   <Skeleton className="h-full w-full" />
                 </div>
               ) : doc.status === "error" ? (
-                <ListErrorBox error={doc.error} onRetry={() => void openFile(doc.file)} />
+                <ErrorBox error={doc.error} onRetry={() => void openFile(doc.file)} />
               ) : (
-                <EditorPane value={doc.content} onChange={handleContentChange} className="h-full" />
+                <EditorPane value={doc.content} onChange={setContent} className="h-full" />
               )}
             </div>
 
             {/* 结果区:校验 findings / 保存结构化错误 / doctor 复核 / 跑一次去向 */}
             <div className="flex max-h-44 shrink-0 flex-col gap-1.5 overflow-y-auto border-t border-border pt-2">
-              {validate.error ? <ListErrorBox error={validate.error} /> : null}
+              {validate.error ? <ErrorBox error={validate.error} /> : null}
               {validate.result ? (
                 <FindingsPanel
                   findings={validate.result.findings}
@@ -505,7 +320,7 @@ export function YamlEditorScreen() {
                 />
               ) : null}
 
-              {save.error ? <ListErrorBox error={save.error} /> : null}
+              {save.error ? <ErrorBox error={save.error} /> : null}
               {save.created !== null && save.error === null ? (
                 <p role="status" data-testid="save-ok" className="text-xs text-ok">
                   已保存{save.created ? "(新建)" : ""} · mtime 基线已更新
@@ -532,28 +347,11 @@ export function YamlEditorScreen() {
                   </Link>
                 </p>
               ) : null}
-              {run.error ? <ListErrorBox error={run.error} /> : null}
+              {run.error ? <ErrorBox error={run.error} /> : null}
             </div>
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
-}
-
-/** 本屏私有错误框:与 sources 屏同款结构化呈现(code/path/message 全量如实) */
-function ListErrorBox({ error, onRetry }: { error: SidecarRequestError; onRetry?: () => void }) {
-  return (
-    <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs">
-      <p className="font-medium text-destructive">{error.message}</p>
-      <p className="font-mono text-[11px] text-muted-foreground">
-        code={error.code} path={error.path}
-      </p>
-      {onRetry ? (
-        <Button variant="outline" size="sm" className="mt-1" onClick={onRetry}>
-          重试
-        </Button>
-      ) : null}
     </div>
   );
 }

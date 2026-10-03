@@ -3,7 +3,7 @@
 // 源管理组件测试:mock sidecar(壳命令 sidecar_request 的 JS 假实现,
 // 内存态模拟品类 YAML 的 sources 名单),覆盖:表格渲染与健康度三色 /
 // 排序筛选分页 / 启停写回+doctor 往返复核 / 写回失败结构化错误态 / 空态 / 加载错误态 /
-// 行动作「编辑」到配置编辑屏的链接。
+// 行动作「编辑」当场弹出 YAML 编辑对话框并加载该文件原文(不离开本屏)。
 // 协议缺口(method_not_found)也是被测行为之一 —— sources.write 未收编前如实呈现。
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +11,17 @@ import { MemoryRouter } from "react-router-dom";
 
 const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: mocks.invoke }));
+// 编辑器替身:受控 textarea(弹窗内 CodeMirror 以同款契约替身;真实渲染见
+// yaml-editor/editor-pane.test.tsx)
+vi.mock("@uiw/react-codemirror", () => ({
+  default: (props: { value?: string; onChange?: (value: string) => void }) => (
+    <textarea
+      aria-label="yaml-source"
+      value={props.value ?? ""}
+      onChange={(event) => props.onChange?.(event.target.value)}
+    />
+  ),
+}));
 
 import { SourcesScreen } from "./sources-screen";
 import type { DoctorResult, DoctorPluginReport, HealthResult, PluginReport, SourceReport, SourceHealthState } from "@/lib/api";
@@ -105,6 +116,19 @@ function okSidecar(initialSources: string[]) {
   const map: SidecarMap = {
     health: () =>
       healthResult([pluginReport(FILE, "ai-news", state.enabled.map((name) => sourceReport(name, "ok")))]),
+    "yaml.read": (params: never) => {
+      const { file } = params as { file: string };
+      return {
+        file,
+        content: `# 原文注释:逐字节保真\nid: ai-news\nname: AI 新闻\nschedule: "*/15 * * * *"\n`,
+        size: 64,
+        mtime: 111.5,
+      };
+    },
+    "yaml.save": (params: never) => {
+      const { file } = params as { file: string };
+      return { file, written: true, created: false, backed_up: `${file}.bak`, mtime: 222.25, warnings: [] };
+    },
     "sources.write": (params: never) => {
       const { file, enable = [], disable = [] } = params as {
         file: string;
@@ -151,6 +175,10 @@ function installSidecar(map: SidecarMap): void {
 function lastCall(method: string): { params: unknown } | undefined {
   const calls = mocks.invoke.mock.calls.filter(([, args]) => (args as { method: string }).method === method);
   return calls.at(-1)?.[1] as { params: unknown } | undefined;
+}
+
+function callCount(method: string): number {
+  return mocks.invoke.mock.calls.filter(([, args]) => (args as { method: string }).method === method).length;
 }
 
 beforeEach(() => {
@@ -369,7 +397,7 @@ describe("源管理:空态与错误态", () => {
     });
   });
 
-  it("行动作「编辑」:链接到 /yaml-editor?file=…(预选该品类文件)", async () => {
+  it("行动作「编辑」:当场弹出编辑对话框并加载该品类文件原文(不离开源管理屏)", async () => {
     const { map } = okSidecar(["hacker-news"]);
     installSidecar(map);
     render(
@@ -379,8 +407,34 @@ describe("源管理:空态与错误态", () => {
     );
     expect(await screen.findByText("hacker-news")).toBeTruthy();
 
-    const links = screen.getAllByRole("link", { name: "编辑" });
-    expect(links.length).toBe(1); // 单源品类一行一链接
-    expect(links[0].getAttribute("href")).toBe(`/yaml-editor?file=${encodeURIComponent(FILE)}`);
+    // 编辑改为弹窗:不再是跳转链接
+    expect(screen.queryByRole("link", { name: "编辑" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑" }));
+
+    // 模态对话框出现(遮罩 + role=dialog aria-modal),编辑器加载该文件原文
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(dialog.getAttribute("aria-label")).toContain("ai-news.yaml");
+    await waitFor(() => {
+      expect((screen.getByLabelText("yaml-source") as HTMLTextAreaElement).value).toContain("id: ai-news");
+    });
+    expect(lastCall("yaml.read")?.params).toEqual({ file: FILE });
+
+    // 弹窗内保存成功 → 表格数据刷新(health 二次拉取,防编辑后展示陈旧行)
+    fireEvent.change(screen.getByLabelText("yaml-source"), {
+      target: { value: "# 改稿\nid: ai-news\nname: AI 新闻\nschedule: \"0 9 * * *\"\n" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /保存/ }));
+    expect(await screen.findByTestId("save-ok")).toBeTruthy();
+    await waitFor(() => {
+      expect(callCount("health")).toBe(2);
+    });
+
+    // 保存后干净态关闭:ESC 直接关
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
   });
 });

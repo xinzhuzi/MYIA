@@ -185,3 +185,16 @@
 - PRD 勾 4/9:版本一致/CHANGELOG/README 升格/demo 首跑真数据;未勾 5 项=updater 密钥校验(主人三密钥)、密钥扫描(留终检)、tag/Release(主人 Secrets 门禁)、PyPI(主人凭据门禁)、四帖素材(截图已备,文案随 R2-4)
 - 遗留口径出入:README.md:277 B2/B3/B4 去向写「排 v1.2」,PRD 回标注记要求写「v1.1.2 桌面对齐批次」或去版本号化——发布前宜顺手改一行
 - 两任务 task.json 直改 review(不走 task.py finish,防跨会话指针踩踏);代码主体在 fbba437 链,本流程只补截图+簿记
+
+## 2026-10-03 游戏情报 v2 深化与补全(task 10-03-games-v2,轻量直做→review)
+
+- 主人令「深化与补全」=收 games grill 决议三条尾巴,循「low 收尾主会话直做」先例不另起 grill:A upcoming 预告(b665236,**字段融合方案**:upcoming_pct/upcoming_start 并入同条目,dedup 稳定 {url} 不动,预告日 digest/正式限免日新槽 immediate,决议②的切换碰撞由槽位语义自然消解;规则 upcoming_pct>=100→tag 下周免费,不设 immediate;模板徽标 📅日期起免费,值级断言);B gpu-prices 补全套电池(da390fc:route digest 显式化行为不变+合成 zol 两跑+模板裸渲染样条;**漏项补齐 63bbe82=golden 基件随路由再生成**——首提交后被全量红抓回,教训:改官方插件声明面必同步 golden);C 平台探查(**大发现:CheapShark api/1.0 盖 14 活跃店含 GOG/Epic Store/Humble/Fanatical,dealID 恰可 url_template 构跳转链=v3 候选首项**,单位冲突/float(savings) 设计要点已记档;smzdm 可达 914KB;Switch 无 API 维持 backlog;zol 真实页被反爬检查页拦记档= gpu-prices 生产连通性独立议题)
+- 门禁:scoped 79 passed、golden 23 passed、dry-run 0、全量本任务范围零失败(7 条外来红逐条归属并行发布线:docs×3+CLI 版本×2+sidecar/skill,其间还插进 smoke 合并 a39f8dd 与 shishi 改名 cb87302——多会话高峰期)
+- 交付四 commit:da390fc/63bbe82/b665236/4956b29;状态直改 review(并行在场禁 task.py);证据 evidence/cs-stores.json+cs-gog.json
+
+## 2026-10-03 yaml-editor 弹窗增补(主人追加需求,交付转 review)
+
+- 主人原话「我要的是可以弹窗出来一个界面进行编辑」+ 两问:用的插件吗(CodeMirror 6,是)/自己手写编辑器吗(否,手写仅业务壳)→ 源管理行「编辑」改当场弹 modal(80vw×75vh 手写 overlay,零新依赖,role=dialog/aria-modal),不再跳页;双栏屏保留零回归
+- 关键重构:单文件编辑状态机抽成 use-yaml-file-editor 共享 hook(读→dirty→校验→保存 mtime 乐观锁→doctor 复核),屏与弹窗一份保存逻辑;error-box 同步抽出共用
+- 质检 8/8 过,顺手修 2 中:弹窗保存后源管理表自动刷新(onSaved→reload)、beforeunload 防丢稿从屏移入共享 hook(弹窗同享);登记 1 中 2 低(SPA 导航 dirty 守卫需 useBlocker 耦合拍板/遮罩拖选误关/焦点陷阱)进 prd Backlog
+- vitest 105/105(dialog 8 新增+sources 扩展)、tsc/build 绿;协议零改动;工作树并行波(protocol 1→2、myia→shishi 改名、main.rs UU 冲突)一律未碰

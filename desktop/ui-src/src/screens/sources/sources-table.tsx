@@ -8,7 +8,6 @@ import {
 } from "@tanstack/react-table";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +42,8 @@ interface SourcesTableProps {
   /** 写回/复核进行中的源(开关禁点防抖) */
   pendingKeys: Set<string>;
   onToggle: (row: SourceRow, next: boolean) => void;
+  /** 行「编辑」:当场弹出 YAML 编辑对话框(屏层持有 dialog 状态) */
+  onEdit: (row: SourceRow) => void;
 }
 
 /** 品类插件列的排序/筛选键(名称优先,缺位回退 id/文件) */
@@ -160,15 +161,15 @@ const COLUMNS: ColumnDef<SourceRow>[] = [
     header: "操作",
     enableSorting: false,
     enableGlobalFilter: false,
-    cell: ({ row }) => (
-      // 编辑动作:跳配置编辑屏并预选该品类文件(?file= 由编辑屏 useSearchParams 读)
-      <Button asChild size="sm" variant="outline">
-        <Link
-          to={`/yaml-editor?file=${encodeURIComponent(row.original.pluginFile)}`}
-          title={`在配置编辑屏打开 ${row.original.pluginFile}`}
-        >
-          编辑
-        </Link>
+    cell: ({ row, table }) => (
+      // 编辑动作:当场弹出编辑对话框(不离开源管理屏;深链 /yaml-editor?file= 仍可用)
+      <Button
+        size="sm"
+        variant="outline"
+        title={`弹出编辑对话框:${row.original.pluginFile}`}
+        onClick={() => (table.options.meta as SourcesTableMeta).onEdit(row.original)}
+      >
+        编辑
       </Button>
     ),
   },
@@ -179,13 +180,14 @@ interface SourcesTableMeta {
   disabledKeys: Set<string>;
   pendingKeys: Set<string>;
   onToggle: (row: SourceRow, next: boolean) => void;
+  onEdit: (row: SourceRow) => void;
 }
 
 /**
  * 插件/源表格(TanStack Table:排序/筛选/分页;shadcn 暗色样式)。
  * 列头点击循环排序(升→降→取消);全局文本框与健康度 chips 由父组件受控传入。
  */
-export function SourcesTable({ rows, disabledKeys, pendingKeys, onToggle }: SourcesTableProps) {
+export function SourcesTable({ rows, disabledKeys, pendingKeys, onToggle, onEdit }: SourcesTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [healthFilter, setHealthFilter] = useState<HealthFilter>("all");
@@ -208,7 +210,7 @@ export function SourcesTable({ rows, disabledKeys, pendingKeys, onToggle }: Sour
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
     globalFilterFn: "includesString",
-    meta: { disabledKeys, pendingKeys, onToggle } satisfies SourcesTableMeta,
+    meta: { disabledKeys, pendingKeys, onToggle, onEdit } satisfies SourcesTableMeta,
   });
 
   return (
