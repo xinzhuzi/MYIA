@@ -22,7 +22,8 @@ dependency_missing 先例);本通道选 webhook 形态后该路径不需要】:
 
 寻址(design D1/D4):``supports_targeting=True``;``context.target.chat_id``
 优先(**完整 webhook URL**,与 dingtalk 同款语义:一个 webhook = 一个空间),
-退回 legacy ``target`` 引用(缺省 ``env:GOOGLE_CHAT_WEBHOOK_URL``)。直达
+退回 legacy ``target`` 引用(**须显式配置,无运行期 env 缺省回退**;
+推荐引用名 ``env:GOOGLE_CHAT_WEBHOOK_URL``)。直达
 形态:完整官方 webhook URL(host 锚定,防与人类别名撞车——dingtalk 先例)。
 目录无自动发现(蓝本事实:出站无列表路径),别名手工登记。
 
@@ -63,7 +64,8 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-#: 接收 webhook URL 凭据引用缺省(URL 内嵌 key/token,属凭据,零明文)。
+#: 接收 webhook URL 的推荐引用名(显式配置 ``target`` 用;运行期不自动
+#: 回退。URL 内嵌 key/token,属凭据,零明文)。
 DEFAULT_TARGET_ENV_REF = "env:GOOGLE_CHAT_WEBHOOK_URL"
 #: Chat text 消息上限余量(官方 4096;蓝本 max_message_length=4000 同值)。
 MESSAGE_LIMIT = 4000
@@ -166,11 +168,14 @@ class GoogleChatChannel(TrendAwareChannel):
                 "本次发送也未携带 context.target",
             )
         if not WEBHOOK_URL_RE.fullmatch(value):
+            # 解析值不回显:URL 的 ?key=…&token=… query 本身是凭据,任何前缀
+            # 片段都可能探进 key 值(自宣基线「错误只带引用名」)。
             raise PushSendError(
                 "invalid_credential_ref",
                 "google_chat webhook 形态非法(须为"
                 " https://chat.googleapis.com/v1/spaces/<id>/messages?key=…&token=…):"
-                f" {value[:80]!r}",
+                f"得到 {len(value)} 字符的值,不匹配该形态(URL 含 key/token"
+                " 凭据,内容不回显)",
             )
         return value
 

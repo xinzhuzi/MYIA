@@ -155,6 +155,32 @@ class TestTokenAndShape:
             _run(channel.send([{"title": "t"}], CONTEXT))
         assert excinfo.value.code == "invalid_response"
 
+    def test_token_non_200_error_body_reports_api_error_with_status(self, target_env):
+        """复核 B2 回归:token 端点非 200 + JSON 错误体 → ``qqbot_api_error``
+        带 ``HTTP <status>`` 与原厂片段(与 msgraph_webhook._post_token 同款;
+        不得报成「缺 access_token」的 invalid_response、不得丢状态码)。"""
+        from myia.push.delivery import classify_dead_error
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if str(request.url).startswith("https://bots.qq.com/"):
+                return httpx.Response(
+                    400, json={"code": 100036, "message": "invalid client secret"}
+                )
+            raise AssertionError("消息端点不应被触达")  # pragma: no cover
+
+        channel = QQBotChannel(
+            target="env:MYIA_TEST_QQBOT_TARGET",
+            appid_ref="env:MYIA_TEST_QQBOT_APPID",
+            secret_ref="env:MYIA_TEST_QQBOT_SECRET",
+            client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        )
+        with pytest.raises(PushSendError) as excinfo:
+            _run(channel.send([{"title": "t"}], CONTEXT))
+        assert excinfo.value.code == "qqbot_api_error"
+        assert "HTTP 400" in str(excinfo.value)
+        assert "invalid client secret" in str(excinfo.value)
+        assert classify_dead_error(excinfo.value) is None  # token 级失败无死信语义
+
     def test_msg_seq_range(self):
         for _ in range(50):
             seq = next_msg_seq()

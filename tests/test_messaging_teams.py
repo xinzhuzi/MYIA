@@ -176,12 +176,15 @@ class TestAddressing:
         ],
     )
     def test_malformed_webhook_url_rejected(self, webhook_env, bad):
+        """复核 C1 回归:形态错误不回显解析值(webhookb2/<guid> 路径段与
+        query 本身是凭据)。"""
         calls: list[dict] = []
         channel = _channel(calls)
 
         with pytest.raises(PushSendError) as excinfo:
             _run(channel.send([{"title": "t"}], replace(CONTEXT, target=_target(bad))))
         assert excinfo.value.code == "invalid_credential_ref"
+        assert bad not in str(excinfo.value) and bad[:40] not in str(excinfo.value)
         assert calls == []
 
     def test_direct_ref_parse(self):

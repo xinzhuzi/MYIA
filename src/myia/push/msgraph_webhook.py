@@ -26,7 +26,8 @@ Graph 直发形态【偏离注记:MYIA 侧无入站面,蓝本出站为空;微信
   (weixin 通道同款取舍:平台侧分块是平台的事)。
 
 寻址(design D1/D4):``supports_targeting=True``;``context.target.chat_id``
-优先(Graph chat id),退回 legacy ``target`` 引用(缺省
+优先(Graph chat id),退回 legacy ``target`` 引用(**须显式配置,无运行期
+env 缺省回退**;推荐引用名
 ``env:MSGRAPH_WEBHOOK_CHAT_ID``)。直达形态:``19:`` 前缀 chat id(含
 ``@unq.gbl.spaces``/``@thread.v2`` 等资源后缀)。目录无自动发现(蓝本事实:
 出站无列表路径——``/chats`` 列表是委托权限面,app-only 不可用),别名手工登记。
@@ -91,7 +92,7 @@ DEFAULT_TENANT_REF = "env:MSGRAPH_WEBHOOK_TENANT_ID"
 DEFAULT_CLIENT_ID_REF = "env:MSGRAPH_WEBHOOK_CLIENT_ID"
 #: 应用 client secret 凭据引用缺省。
 DEFAULT_CLIENT_SECRET_REF = "env:MSGRAPH_WEBHOOK_CLIENT_SECRET"
-#: 接收 chat id 凭据引用缺省。
+#: 接收 chat id 的推荐引用名(显式配置 ``target`` 用;运行期不自动回退)。
 DEFAULT_TARGET_ENV_REF = "env:MSGRAPH_WEBHOOK_CHAT_ID"
 #: 直达 chat id 形态:``19:`` 前缀(Graph chat/thread 资源 id 官方形态;
 #: 主体为 base64url 字符集,后缀 ``@unq.gbl.spaces``/``@thread.v2`` 等)。
@@ -227,10 +228,12 @@ class MSGraphWebhookChannel(TrendAwareChannel):
                 "本次发送也未携带 context.target",
             )
         if not CHAT_ID_RE.fullmatch(value):
+            # 解析值不回显(死信分类误判暴露面收敛,D1)。
             raise PushSendError(
                 "invalid_credential_ref",
                 "msgraph_webhook chat id 形态非法(须为 19: 前缀 Graph chat id,"
-                f" 如 19:…@unq.gbl.spaces): {value[:60]!r}",
+                f" 如 19:…@unq.gbl.spaces):得到 {len(value)} 字符的值,"
+                "不匹配该形态(解析值不回显)",
             )
         return value
 

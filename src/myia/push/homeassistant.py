@@ -25,7 +25,8 @@ MYIA 只做出站定向推送(入站 WebSocket ``state_changed`` 订阅是蓝本
   误标死信的代价高于多试一轮)。
 
 寻址(design D1):``supports_targeting=True``;``context.target.chat_id``
-优先、退回 legacy ``target`` 引用(缺省 :data:`DEFAULT_TARGET_ENV_REF`),
+优先、退回 legacy ``target`` 引用(**须显式配置,无运行期 env 缺省回退**;
+推荐引用名 :data:`DEFAULT_TARGET_ENV_REF`),
 两路全缺 ``missing_target``;目标形态非法(实体 id/slug 之外)→
 ``invalid_credential_ref``。直达 = 实体 id/notify 目标 slug
 (:data:`TARGET_RE`,``notify.mobile``/``mobile_app_pixel`` 形态);无目录
@@ -240,9 +241,11 @@ class HomeAssistantChannel(TrendAwareChannel):
                 "本次发送也未携带 context.target",
             )
         if not TARGET_RE.fullmatch(value):
+            # 解析值不回显(死信分类误判暴露面收敛,D1)。
             raise PushSendError(
                 "invalid_credential_ref",
-                f"homeassistant notify 目标形态非法(实体 id 或 slug): {value[:64]!r}",
+                f"homeassistant notify 目标形态非法(实体 id 或 slug):"
+                f"得到 {len(value)} 字符的值,不匹配该形态(解析值不回显)",
             )
         return value
 

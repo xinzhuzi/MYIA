@@ -20,9 +20,10 @@ MYIA 按本档语义重写,不整块复制:
   解析失败如实报 ``slack_api_error``(原厂 error 进文案)。
 
 寻址(design D1/D4):``supports_targeting=True``;``context.target.chat_id``
-优先,退回 legacy ``target`` 引用(缺省 ``env:SLACK_CHANNEL``;蓝本 cron
-delivery env 同名先例 ``SLACK_HOME_CHANNEL``,MYIA 按通道名取
-``SLACK_CHANNEL``)。直达形态 ``C/G/D/U/W`` 系 id(Hermes setup 指南:「频道
+优先,退回 legacy ``target`` 引用(**须显式配置,无运行期 env 缺省回退**;
+推荐引用名 ``env:SLACK_CHANNEL``——蓝本 cron delivery 同名先例
+``SLACK_HOME_CHANNEL``,MYIA 按通道名取 ``SLACK_CHANNEL``,schema 层
+target/targets 二选一强制)。直达形态 ``C/G/D/U/W`` 系 id(Hermes setup 指南:「频道
 ID 以 C 开头」)。目录无自动发现(蓝本事实:slack 适配器无列表 API 路径),
 别名手工登记。
 
@@ -66,7 +67,8 @@ logger = logging.getLogger(__name__)
 API_BASE = "https://slack.com/api"
 #: Bot token 凭据引用缺省(``xoxb-`` 系;发送期解析,值永不入日志)。
 DEFAULT_TOKEN_ENV_REF = "env:SLACK_BOT_TOKEN"
-#: 接收频道 id 凭据引用缺省(构造 ``target`` 覆写)。
+#: 接收频道 id 的推荐引用名(显式配置 ``target`` 用;运行期不自动回退,
+#: 两路全缺报 missing_target)。
 DEFAULT_TARGET_ENV_REF = "env:SLACK_CHANNEL"
 #: chat.postMessage text 上限(官方 40000;蓝本 39000 余量同款)。
 MESSAGE_LIMIT = 39000

@@ -147,10 +147,13 @@ class DingTalkChannel(TrendAwareChannel):
             context.target.chat_id if context.target is not None else self._resolve_webhook()
         )
         if not WEBHOOK_HOST_RE.fullmatch(webhook):
+            # 解析值不回显:webhook 的 access_token query 本身是凭据
+            # (10-03-messaging-w3-longtail 复核 C1 同病收敛)。
             raise PushSendError(
                 "invalid_credential_ref",
                 f"钉钉 webhook 形态非法(须为 https://oapi.dingtalk.com/robot/send?…):"
-                f" {webhook[:100]!r}",
+                f"得到 {len(webhook)} 字符的值,不匹配该形态(URL 含 access_token"
+                " 凭据,内容不回显)",
             )
         url = self._maybe_sign(webhook)
         body = {"msgtype": "text", "text": {"content": self._compose(items, context)}}

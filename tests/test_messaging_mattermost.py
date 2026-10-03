@@ -137,13 +137,19 @@ class TestRestShape:
         assert calls == []
 
     def test_bad_shape_target_is_rejected(self, mm_env):
-        """既非 26 位 id 亦非 URL → invalid_credential_ref(绝不猜端点)。"""
+        """既非 26 位 id 亦非 URL → invalid_credential_ref(绝不猜端点)。
+
+        复核 D1:解析值不回显(回显串可能含 ``403`` 等样式文本,放大死信
+        分类误判暴露面)。
+        """
         calls: list[dict] = []
         channel = _channel(calls)
 
         with pytest.raises(PushSendError) as excinfo:
-            _run(channel.send([{"title": "t"}], replace(CONTEXT, target=_target("town-square"))))
+            _run(channel.send([{"title": "t"}], replace(CONTEXT, target=_target("room 403"))))
         assert excinfo.value.code == "invalid_credential_ref"
+        assert "room 403" not in str(excinfo.value)  # 解析值不回显
+        assert classify_dead_error(excinfo.value) is None  # 配置类错误永不标死信
         assert calls == []
 
     def test_template_render_failure_is_structured(self, mm_env):
@@ -260,6 +266,23 @@ class TestErrorClassification:
             _run(channel.send([{"title": "t"}], CONTEXT))
         assert excinfo.value.code == "invalid_response"
         assert classify_dead_error(excinfo.value) is None
+
+    def test_2xx_non_dict_json_is_structured_not_typeerror(self, mm_env):
+        """复核 B1 回归:2xx + JSON 数组不得让 ``dict(data)`` 的 TypeError
+        裸逃 send()(契约:send 只抛 PushSendError;matrix 同款 Mapping 守卫)。"""
+        calls: list[dict] = []
+        channel = _channel(calls, response=httpx.Response(201, json=[1, 2]))
+
+        try:
+            _run(channel.send([{"title": "t"}], CONTEXT))
+        except PushSendError as exc:
+            assert exc.code == "invalid_response"
+            assert "HTTP 201" in str(exc)
+            assert classify_dead_error(exc) is None
+        except Exception as exc:  # noqa: BLE001 - 契约违约即测试失败
+            pytest.fail(f"NON-PushSendError escapes send(): {type(exc).__name__} - {exc}")
+        else:
+            pytest.fail("2xx 非 dict JSON 应结构化拒绝,却静默成功")
 
 
 # ---------------------------------------------------------------------------

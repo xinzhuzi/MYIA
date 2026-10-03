@@ -117,6 +117,38 @@ class TestClassifyDeadError:
 
         assert classify_dead_error(exc) == "not_found"
 
+    def test_bare_403_substring_no_longer_classifies_forbidden(self):
+        """复核 D1:裸 ``403`` 子串不再判 forbidden(锚定 ``http 403``)。
+
+        用户可控文本(如 chat id ``room 403``)混进错误文案不得把配置笔误
+        误标死信——dead 期间投递前跳过、自愈只发生在成功投递后,误标即
+        永不自愈。API 错误文案的 ``HTTP 403`` 锚定形态照常命中。
+        """
+        assert classify_dead_error("matrix target 形态非法: room 403 不匹配") is None
+        assert classify_dead_error("配额余量 403 tokens") is None
+        # 设计内命中不受锚定影响:全通道 API 错误统一 ``HTTP <status>`` 前缀。
+        assert classify_dead_error("google_chat HTTP 403: 'denied'") == "forbidden"
+
+    @pytest.mark.parametrize(
+        "code",
+        [
+            "missing_target",
+            "invalid_credential_ref",
+            "invalid_secret_name",
+            "env_var_missing",
+            "keychain_not_supported",
+            "template_render_error",
+        ],
+    )
+    def test_config_error_codes_never_classify_dead(self, code):
+        """复核 D1:配置类错误码先短路 → None(修配置才是出路,死信不成立)。
+
+        即便文案被恶意/巧合污染出 forbidden 样式子串,也不得标死信。
+        """
+        exc = PushSendError(code, "room 403 forbidden chat not found")
+
+        assert classify_dead_error(exc) is None
+
 
 # ---------------------------------------------------------------------------
 # DeliveryLedger(死信账本)
@@ -188,6 +220,40 @@ class TestDeliveryLedger:
 
         assert ledger.is_dead(platform="feishu", chat_id="oc_1") is True
         assert ledger.dead_keys() == ["feishu:oc_1"]
+
+    def test_webhook_url_chat_id_is_digested_on_disk(self, tmp_path: Path):
+        """复核 C2:webhook 型 chat_id(query 内嵌 key/token 凭据)摘要化落盘。
+
+        落盘文件与 dead_keys 只见 ``platform:webhook-url~<digest>``;原 URL
+        的任何片段(含 key/token 值)不落盘。is_dead 用原值查询照常命中
+        (键确定性),重载后仍命中。
+        """
+        secret_url = (
+            "https://chat.googleapis.com/v1/spaces/AAA/messages"
+            "?key=AIzaSySECRETKEY&token=SECRET-TOKEN"
+        )
+        ledger = DeliveryLedger(tmp_path)
+        target = ChannelTarget(platform="google_chat", chat_id=secret_url)
+
+        assert ledger.mark_dead(target, reason="forbidden: HTTP 403") is True
+
+        raw = (tmp_path / LEDGER_FILENAME).read_text(encoding="utf-8")
+        assert "AIzaSySECRETKEY" not in raw and "SECRET-TOKEN" not in raw
+        assert "chat.googleapis.com" not in raw
+        key = ledger.dead_keys()[0]
+        assert key.startswith("google_chat:webhook-url~") and len(key) == len(
+            "google_chat:webhook-url~"
+        ) + 16
+        # 原值查询 + 重载往返:确定性摘要,命中不因摘要化漂移。
+        assert ledger.is_dead(target) is True
+        assert DeliveryLedger(tmp_path).is_dead(target) is True
+
+    def test_non_url_chat_id_keeps_readable_key(self, tmp_path: Path):
+        """非 URL chat_id(feishu oc_ 族,非凭据)原样保留可读性。"""
+        ledger = DeliveryLedger(tmp_path)
+        ledger.mark_dead(platform="feishu", chat_id="oc_plain")
+
+        assert ledger.dead_keys() == ["feishu:oc_plain"]
 
 
 # ---------------------------------------------------------------------------

@@ -165,7 +165,7 @@ class MatrixChannel(TrendAwareChannel):
         parts = self._compose(items, context)
         for text in parts:
             txn_id = f"myia-{uuid.uuid4().hex}"  # 幂等键:每次发送全新
-            await self._put_message(server, token, room_send_url(server, room_id, txn_id), text)
+            await self._put_message(token, room_send_url(server, room_id, txn_id), text)
         logger.debug(
             "matrix 发送完成: slot=%s kind=%s count=%d parts=%d",
             context.slot,
@@ -223,9 +223,12 @@ class MatrixChannel(TrendAwareChannel):
         if ROOM_ID_RE.fullmatch(chat_id):
             return chat_id
         if not ROOM_ALIAS_RE.fullmatch(chat_id):
+            # 解析值不回显(模块自宣基线「错误文案只带引用名」;且回显串若含
+            # HTTP 状态样文本会污染死信分类的判读面)。
             raise PushSendError(
                 "invalid_credential_ref",
-                f"matrix target 形态非法(须为 !room:server 或 #alias:server): {chat_id[:120]!r}",
+                f"matrix target 形态非法(须为 !room:server 或 #alias:server):"
+                f"得到 {len(chat_id)} 字符的值,不匹配任一形态(解析值不回显)",
             )
         url = resolve_alias_url(server, chat_id)
         headers = {"Authorization": f"Bearer {token}"}
@@ -251,7 +254,7 @@ class MatrixChannel(TrendAwareChannel):
 
     # ---------------------------------------------------------------- post
 
-    async def _put_message(self, server: str, token: str, url: str, text: str) -> dict[str, Any]:
+    async def _put_message(self, token: str, url: str, text: str) -> dict[str, Any]:
         body = {"msgtype": "m.text", "body": text}
         headers = {"Authorization": f"Bearer {token}"}
         try:

@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Mapping
 from typing import Any, Sequence
 from urllib.parse import urlsplit
 
@@ -157,10 +158,13 @@ class MattermostChannel(TrendAwareChannel):
                 self._server_ref or DEFAULT_SERVER_ENV_REF, "mattermost server"
             )
             if not CHANNEL_ID_RE.fullmatch(chat_id):
+                # 解析值不回显(webhook 路的值内嵌凭据;REST 路 chat_id 亦为
+                # 解析产物)——长度 + 形态描述足够定位配置笔误。
                 raise PushSendError(
                     "invalid_credential_ref",
                     "mattermost target 形态非法(须为 26 位 channel id 或整条 "
-                    f"webhook URL): {chat_id[:120]!r}",
+                    f"webhook URL):得到 {len(chat_id)} 字符的值,不匹配任一形态"
+                    "(解析值不回显)",
                 )
             for text in parts:
                 await self._post_rest(server, token, chat_id, text)
@@ -273,6 +277,14 @@ class MattermostChannel(TrendAwareChannel):
             raise PushSendError(
                 "mattermost_api_error",
                 f"mattermost HTTP {response.status_code}: {api_id}: {api_message}",
+            )
+        if not isinstance(data, Mapping):
+            # 契约:send 只抛 PushSendError——2xx 但非 JSON 对象(如数组)
+            # 结构化拒绝,绝不 let dict(data) 的 TypeError 裸逃(matrix 同款守卫)。
+            raise PushSendError(
+                "invalid_response",
+                f"mattermost 2xx 应答不是 JSON 对象(HTTP {response.status_code}):"
+                f" {str(data)[:200]!r}",
             )
         return dict(data)
 

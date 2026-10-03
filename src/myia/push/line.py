@@ -19,7 +19,8 @@
   版式即纯文本(ntfy ``build_message`` 复用);URL 自动可链。
 
 寻址(design D1/D4):``supports_targeting=True``;``context.target.chat_id``
-优先,退回 legacy ``target`` 引用(缺省 ``env:LINE_TO``;token 引用
+优先,退回 legacy ``target`` 引用(**须显式配置,无运行期 env 缺省回退**;
+推荐引用名 ``env:LINE_TO``;token 引用
 ``env:LINE_CHANNEL_ACCESS_TOKEN``,蓝本同名 env)。直达形态:``U`` 用户 /
 ``C`` 群组 / ``R`` 聊天室 id(33 位十六进制,蓝本 ``get_chat_info`` 的
 U/C/R 前缀判据)。目录无自动发现(蓝本事实:出站无列表路径),别名手工登记。
@@ -70,7 +71,7 @@ logger = logging.getLogger(__name__)
 API_URL = "https://api.line.me/v2/bot/message/push"
 #: Channel access token(长-life)凭据引用缺省(蓝本同名 env)。
 DEFAULT_TOKEN_ENV_REF = "env:LINE_CHANNEL_ACCESS_TOKEN"
-#: 接收方 id 凭据引用缺省。
+#: 接收方 id 的推荐引用名(显式配置 ``target`` 用;运行期不自动回退)。
 DEFAULT_TARGET_ENV_REF = "env:LINE_TO"
 #: 单泡 text 硬上限(官方;蓝本 ``LINE_PER_BUBBLE_CHARS``)。
 LINE_PER_BUBBLE_LIMIT = 5000
@@ -210,9 +211,11 @@ class LineChannel(TrendAwareChannel):
                 "本次发送也未携带 context.target",
             )
         if not USER_ID_RE.fullmatch(value):
+            # 解析值不回显(死信分类误判暴露面收敛,D1)。
             raise PushSendError(
                 "invalid_credential_ref",
-                f"line id 形态非法(须为 U/C/R 前缀 33 位十六进制): {value[:40]!r}",
+                f"line id 形态非法(须为 U/C/R 前缀 33 位十六进制):"
+                f"得到 {len(value)} 字符的值,不匹配该形态(解析值不回显)",
             )
         return value
 

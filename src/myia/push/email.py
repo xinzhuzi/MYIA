@@ -24,7 +24,8 @@
   ``MAX_MESSAGE_LENGTH`` 50K 是 Gmail 单封上限,远超摘要体量)。
 
 寻址(design D1):``supports_targeting=True``;``context.target.chat_id``
-优先、退回 legacy ``target`` 引用(缺省 :data:`DEFAULT_TARGET_ENV_REF`),
+优先、退回 legacy ``target`` 引用(**须显式配置,无运行期 env 缺省回退**;
+推荐引用名 :data:`DEFAULT_TARGET_ENV_REF`),
 两路全缺 ``missing_target``(feishu_card 同款 fail-fast);收件人形态非法
 → ``invalid_credential_ref``(绝不猜地址)。直达 = 收件人邮箱地址
 (:data:`EMAIL_RE`);无目录发现(:class:`DirectoryDiscoverUnsupported`)
@@ -426,9 +427,11 @@ class EmailChannel(TrendAwareChannel):
                 "本次发送也未携带 context.target",
             )
         if not EMAIL_RE.fullmatch(value):
+            # 解析值不回显(死信分类误判暴露面收敛,D1;邮箱属通讯录敏感面)。
             raise PushSendError(
                 "invalid_credential_ref",
-                f"email 收件人不是邮箱地址形态: {value[:80]!r}",
+                f"email 收件人不是邮箱地址形态:得到 {len(value)} 字符的值,"
+                "不匹配该形态(解析值不回显)",
             )
         return value
 

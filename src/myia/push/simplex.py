@@ -267,7 +267,11 @@ class SimplexChannel(TrendAwareChannel):
         return f"myia-{self._corr_counter}-{int(time.time() * 1000)}"
 
     async def _connect(self, ws_url: str) -> SimplexWS:
-        """开一条短连接;连接层异常 → 结构化错误(依赖门在缺省连接器内)。"""
+        """开一条短连接;连接层异常 → 结构化错误(依赖门在缺省连接器内)。
+
+        文案只带地址引用名(自宣基线「错误文案只带引用名」):解析后的
+        ws 地址不进错误文案(即便通常是本机回环,也不开先例)。
+        """
         try:
             return await self._ws_connect(ws_url, OPEN_TIMEOUT_SECONDS)
         except PushSendError:
@@ -275,7 +279,8 @@ class SimplexChannel(TrendAwareChannel):
         except Exception as exc:  # noqa: BLE001 - websockets/注入桩各类连接异常
             raise PushSendError(
                 "simplex_api_error",
-                f"simplex 守护进程连接失败({ws_url}): {type(exc).__name__}: {exc}"
+                f"simplex 守护进程连接失败(地址引用 {self._ws_url_ref or DEFAULT_WS_URL_REF!r},"
+                f"缺省即本机 {DEFAULT_WS_URL}): {type(exc).__name__}: {exc}"
                 "(确认本机 simplex-chat 服务模式在跑、WS 端口正确)",
             ) from exc
 

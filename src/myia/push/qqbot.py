@@ -28,7 +28,8 @@
   消息 body 只带 ``content``,无 msg_seq——蓝本 guild 分支同形态)。
 
 寻址(design D1/D4):``supports_targeting=True``;``context.target.chat_id``
-优先,退回 legacy ``target`` 引用(缺省 ``env:QQBOT_TARGET``,值如
+优先,退回 legacy ``target`` 引用(**须显式配置,无运行期 env 缺省回退**;
+推荐引用名 ``env:QQBOT_TARGET``,值如
 ``group:ABCDEF``)。QQ 的 openid 系裸串无前缀可辨(蓝本靠入站元数据猜 chat
 类型,MYIA 零入站)→ **显式形态前缀**是该约束下的诚实设计。目录无自动发现
 (蓝本事实:出站无列表路径),别名手工登记。
@@ -91,7 +92,8 @@ TOKEN_EXPIRY_MARGIN_SECONDS = 60.0
 DEFAULT_APPID_REF = "env:QQBOT_APP_ID"
 #: clientSecret 凭据引用缺省。
 DEFAULT_SECRET_REF = "env:QQBOT_CLIENT_SECRET"
-#: legacy 目标引用缺省(值如 ``group:ABCDEF`` / ``c2c:XXX`` / ``guild:999``)。
+#: legacy 目标的推荐引用名(显式配置 ``target`` 用;运行期不自动回退。
+#: 值如 ``group:ABCDEF`` / ``c2c:XXX`` / ``guild:999``)。
 DEFAULT_TARGET_ENV_REF = "env:QQBOT_TARGET"
 #: 单条 content 上限(官方主动消息文本上限,蓝本 guild 分支的
 #: ``content[:MAX_MESSAGE_LENGTH]`` 截断同判据);超长按行边界拆多条。
@@ -217,10 +219,13 @@ class QQBotChannel(TrendAwareChannel):
             )
         match = REF_RE.fullmatch(value)
         if match is None:
+            # 解析值不回显(openid 系虽非凭据,但回显面会放大死信分类的
+            # 误判暴露;长度 + 形态描述足够定位配置笔误)。
             raise PushSendError(
                 "invalid_credential_ref",
                 f"qqbot 目标形态非法(须为 c2c:<openid> / group:<group_openid> /"
-                f" guild:<channel_id>): {value[:60]!r}",
+                f" guild:<channel_id>):得到 {len(value)} 字符的值,不匹配任一形态"
+                "(解析值不回显)",
             )
         return match.group(1), match.group(2)
 
@@ -264,7 +269,12 @@ class QQBotChannel(TrendAwareChannel):
         return value
 
     async def _post_token(self, app_id: str, client_secret: str) -> dict[str, Any]:
-        """``POST getAppAccessToken``(蓝本 body 形态同款)。"""
+        """``POST getAppAccessToken``(蓝本 body 形态同款)。
+
+        非 2xx(如 400 错误体)报 ``qqbot_api_error`` 带 ``HTTP <status>`` +
+        原厂片段(msgraph_webhook._post_token 同款取舍——状态码先于 JSON
+        形态判读,错误体未及 access_token 不算「缺字段」)。
+        """
         body = {"appId": app_id, "clientSecret": client_secret}
         try:
             if self._client is not None:
@@ -276,7 +286,26 @@ class QQBotChannel(TrendAwareChannel):
             raise PushSendError(
                 "http_error", f"qqbot token 请求失败: {type(exc).__name__}: {exc}"
             ) from exc
-        return self._parse_json(response, "getAppAccessToken")
+        try:
+            data = response.json()
+        except ValueError as exc:
+            raise PushSendError(
+                "invalid_response",
+                f"qqbot token 响应不是 JSON(HTTP {response.status_code}):"
+                f" {response.text[:200]!r}",
+            ) from exc
+        if response.status_code >= 400:
+            raise PushSendError(
+                "qqbot_api_error",
+                f"qqbot token 获取失败: HTTP {response.status_code}"
+                f" {response.text[:160]!r}",
+            )
+        if not isinstance(data, dict):
+            raise PushSendError(
+                "invalid_response",
+                f"qqbot token 响应不是 JSON 对象: {str(data)[:200]!r}",
+            )
+        return data
 
     # ------------------------------------------------------------- send
 
@@ -315,23 +344,6 @@ class QQBotChannel(TrendAwareChannel):
                 "qqbot_api_error",
                 f"qqbot HTTP {response.status_code}: {response.text[:200]!r}",
             )
-
-    @staticmethod
-    def _parse_json(response: httpx.Response, label: str) -> dict[str, Any]:
-        try:
-            data = response.json()
-        except ValueError as exc:
-            raise PushSendError(
-                "invalid_response",
-                f"qqbot {label} 响应不是 JSON(HTTP {response.status_code}):"
-                f" {response.text[:200]!r}",
-            ) from exc
-        if not isinstance(data, dict):
-            raise PushSendError(
-                "invalid_response",
-                f"qqbot {label} 响应不是 JSON 对象: {str(data)[:200]!r}",
-            )
-        return data
 
     # --------------------------------------------- 目录(无自动发现)+ 直达
 

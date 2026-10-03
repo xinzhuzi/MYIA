@@ -248,9 +248,11 @@ class TestProtocolErrors:
 
         assert "NICK myia-push-1" in harness.writer.lines
 
-    def test_join_403_is_forbidden_dead(self, irc_env):
-        """JOIN 403(频道不存在):原厂片段保留;403 → forbidden 死信(既有
-        403→forbidden 规则,IRC 语义为频道不可达,同为硬死信)。"""
+    def test_join_403_is_not_found_dead(self, irc_env):
+        """JOIN 403(频道不存在):原厂片段保留;ERR_NOSUCHCHANNEL → chat 级
+        not_found 死信(复核 D1:裸 ``403`` marker 收敛后,IRC 403 以锚定
+        ``IRC 403 ERR_NOSUCHCHANNEL`` 原厂片段归位 not_found 家族——IRC 语义
+        即频道不可达,仍为硬死信,仅家族标签从 forbidden 校正为 not_found)。"""
         harness = IrcHarness(
             [WELCOME, ":irc.example.com 403 myia-push #nope :No such channel"]
         )
@@ -260,7 +262,7 @@ class TestProtocolErrors:
             _run(channel.send([{"title": "t"}], replace(CONTEXT, target=_target("#nope"))))
         assert excinfo.value.code == "irc_api_error"
         assert "IRC 403 ERR_NOSUCHCHANNEL" in str(excinfo.value)
-        assert classify_dead_error(excinfo.value) == "forbidden"
+        assert classify_dead_error(excinfo.value) == "not_found"
 
     def test_bad_channel_key_is_transient(self, irc_env):
         """JOIN 475(错误频道 key)无 ASCII 死信 marker → 瞬态不标。"""

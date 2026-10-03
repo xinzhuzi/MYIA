@@ -19,14 +19,16 @@ MYIA 移植重写自 Hermes ``gateway/delivery.py``(派发循环/按对象投递
   :class:`~myia.push.base.PushSendError`(code + 中文消息),分类对
   ``(code, str(exc))`` 文本块做子串匹配——通道子任务(feishu/telegram)
   落地时如有更精确的 API 错误码,可在消息里带原厂描述即可命中;
-- 死信键 ``platform:chat_id``(:class:`~myia.push.targets.ChannelTarget.key`),
-  条目形态 ``{"reason": str, "marked_at": ts}``(design D3);
+- 死信键 ``platform:chat_id``(:class:`~myia.push.targets.ChannelTarget.key`;
+  webhook 型 chat_id(整条含凭据 URL)摘要化落盘,复核 C2),条目形态
+  ``{"reason": str, "marked_at": ts}``(design D3);
 - 派发入口为批量形态(digest 一批一卡 / immediate 单条),Hermes 无摘要
   聚合,无对应物。
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import threading
@@ -66,9 +68,14 @@ DEAD_ERROR_KINDS = frozenset({"forbidden", "not_found"})
 #:   仅在通道重取 token 后仍失败才浮到这里(蓝本 40001/42001 重试族),
 #:   ``60020``(不安全的访问 IP)/``60021``(userid 不在应用可见范围)/
 #:   ``81013``(touser 全部非法或无权限)为官方全局错误码表所列硬失败。
+#:
+#: 403 采用 ``http 403`` 锚定形态(10-03-messaging-w3-longtail 复核 D1):
+#: 全通道 API 错误文案统一为 ``HTTP <status>`` 前缀,锚定不影响任何设计内
+#: 命中;裸 ``403`` 子串会让「用户可控文本恰含 403」(如回显的 chat id
+#: ``room 403``)误判 forbidden → 误标死信且永不自愈。
 _FORBIDDEN_MARKERS = (
     "forbidden",
-    "403",
+    "http 403",
     "bot was blocked",
     "blocked by the user",
     "user is deactivated",
@@ -83,14 +90,32 @@ _FORBIDDEN_MARKERS = (
     "errcode=81013",
 )
 
+#: 配置类错误码(10-03-messaging-w3-longtail 复核 D1):寻址形态/凭据引用/
+#: 模板等加载-解析期问题。它们的文案可能携带用户可控文本,且与「会话
+#: 不可达」无关——重试无解、死信也不成立(修配置才是出路),分类一律
+#: None,绝不让消息子串误命中分类表。
+_CONFIG_ERROR_CODES = frozenset({
+    "missing_target",
+    "invalid_credential_ref",
+    "invalid_secret_name",
+    "env_var_missing",
+    "keychain_not_supported",
+    "template_render_error",
+})
+
 #: chat 级 not_found:整个会话不可达(仅此可判 dead)。
 #: W2 平台增量:ntfy 发布 404(topic 不存在;403 由上方 403 marker 命中);
 #: 企微 touser 的 userid 失效族——官方全局错误码:40003(无效的 UserID)、
 #: 60111(UserID 不存在)、46004(指定的用户不存在)。
+#: W3 增量(10-03-messaging-w3-longtail 复核 D1):IRC ``403
+#: ERR_NOSUCHCHANNEL``(频道不存在,IRC 语义即 chat 级不可达)按锚定
+#: ``IRC <numeric> <名称>`` 原厂片段命中——裸 ``403`` marker 收敛后,
+#: 各平台 4xx 语义以锚定形态归位各自家族。
 _CHAT_LEVEL_NOT_FOUND_MARKERS = (
     "chat not found",
     "chat_id is invalid",
     "http 404",
+    "irc 403 err_nosuchchannel",
     "errcode=40003",
     "errcode=60111",
     "errcode=46004",
@@ -130,17 +155,39 @@ def is_chat_level_not_found(error: BaseException | str) -> bool:
 
 def classify_dead_error(error: BaseException | str) -> str | None:
     """投递错误的死信类别:``forbidden`` / chat 级 ``not_found`` → 该类别;
-    其余(瞬态/未知/子会话级)→ None(不标 dead)。
+    其余(瞬态/未知/子会话级/配置类)→ None(不标 dead)。
 
     Hermes ``classify_dead_error`` 同语义;通道子任务如有精确 API 错误码
-    判定,可在 PushSendError 消息里保留原厂描述以命中本表。
+    判定,可在 PushSendError 消息里保留原厂描述以命中本表。配置类错误码
+    (:data:`_CONFIG_ERROR_CODES`)先短路返回 None——修配置才是出路,
+    死信语义(「会话确认不可达」)对它们不成立。
     """
+    code = getattr(error, "code", None)
+    if isinstance(code, str) and code in _CONFIG_ERROR_CODES:
+        return None
     blob = _error_blob(error)
     if any(m in blob for m in _FORBIDDEN_MARKERS):
         return "forbidden"
     if any(m in blob for m in _CHAT_LEVEL_NOT_FOUND_MARKERS):
         return "not_found" if is_chat_level_not_found(error) else None
     return None
+
+
+#: webhook 型 chat_id 的 URL 前缀判定(10-03-messaging-w3-longtail 复核 C2):
+#: google_chat/teams/mattermost(webhook 路)的 chat_id 是**整条含凭据的
+#: webhook URL**(query 带 key/token/access_token)——这类值摘要化后才允许
+#: 进死信键,凭据永不落盘、不进日志(与 qqbot「零落盘的凭据安全面」同一
+#: 取舍);sha256 前 16 位十六进制 = 碰撞面 2^64,对死信键足够。
+_URL_KEY_PREFIXES = ("http://", "https://")
+
+
+def _ledger_key(platform: str, chat_id: str) -> str:
+    """死信键:``platform:chat_id``;URL 形态的 chat_id 以稳定摘要替代。"""
+    id_part = str(chat_id).strip()
+    if id_part.lower().startswith(_URL_KEY_PREFIXES):
+        digest = hashlib.sha256(id_part.encode("utf-8")).hexdigest()[:16]
+        id_part = f"webhook-url~{digest}"
+    return f"{str(platform).strip().lower()}:{id_part}"
 
 
 class DeliveryLedger:
@@ -151,6 +198,12 @@ class DeliveryLedger:
     ``{key: {"reason": str, "marked_at": ts}}``;原子写(tmp+rename);损坏/
     不可写退化为内存态,绝不阻塞投递(best-effort,上游同款)。线程安全
     (RLock);成功投递调用 :meth:`clear` 自愈。
+
+    键的凭据安全(10-03-messaging-w3-longtail 复核 C2):webhook 型 chat_id
+    (整条 URL,query 内嵌 key/token)经 :func:`_ledger_key` 摘要化——
+    落盘文件与结构化日志只见 ``platform:webhook-url~<digest>``,原值
+    不落盘、不进日志;非 URL chat_id 原样保留(可读性,feishu oc_ 族
+    非凭据)。
     """
 
     def __init__(self, data_root: str | Path) -> None:
@@ -189,7 +242,7 @@ class DeliveryLedger:
 
     @staticmethod
     def _key(platform: str, chat_id: str) -> str:
-        return f"{str(platform).strip().lower()}:{str(chat_id).strip()}"
+        return _ledger_key(platform, chat_id)
 
     def is_dead(self, target: ChannelTarget | None = None, *, platform: str = "", chat_id: str = "") -> bool:
         """该对象是否已标 dead(键二选一:传 target 或 platform+chat_id)。"""

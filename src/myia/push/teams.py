@@ -24,7 +24,8 @@ outlook.office.com/webhook)已被微软退役(2024-2025),Workflows webhook
 
 寻址(design D1/D4):``supports_targeting=True``;``context.target.chat_id``
 优先(**完整 webhook URL**,一个 webhook = 一个频道,dingtalk 同款语义),
-退回 legacy ``target`` 引用(缺省 ``env:TEAMS_WEBHOOK_URL``)。直达形态:
+退回 legacy ``target`` 引用(**须显式配置,无运行期 env 缺省回退**;
+推荐引用名 ``env:TEAMS_WEBHOOK_URL``)。直达形态:
 完整官方 webhook URL(host 锚定 ``*.webhook.office.com/webhookb2/``)。
 目录无自动发现(蓝本事实:webhook 是静态端点),别名手工登记。
 
@@ -66,7 +67,8 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-#: 接收 webhook URL 凭据引用缺省(Workflows「入站 webhook」复制件,属凭据)。
+#: 接收 webhook URL 的推荐引用名(显式配置 ``target`` 用;运行期不自动
+#: 回退。Workflows「入站 webhook」复制件,属凭据)。
 DEFAULT_TARGET_ENV_REF = "env:TEAMS_WEBHOOK_URL"
 #: 单卡 TextBlock 文本上限(保守取 4000;Workflows 无已核实文本硬上限,
 #: 超长拆卡顺序投递)。
@@ -192,10 +194,13 @@ class TeamsChannel(TrendAwareChannel):
                 "本次发送也未携带 context.target",
             )
         if not WEBHOOK_URL_RE.fullmatch(value):
+            # 解析值不回显:webhookb2/<guid> 路径段本身是凭据(自宣基线
+            # 「错误只带引用名」)。
             raise PushSendError(
                 "invalid_credential_ref",
                 "teams webhook 形态非法(须为 https://<tenant>.webhook.office.com/"
-                f"webhookb2/… Workflows 端点): {value[:80]!r}",
+                f"webhookb2/… Workflows 端点):得到 {len(value)} 字符的值,"
+                "不匹配该形态(URL 属凭据,内容不回显)",
             )
         return value
 

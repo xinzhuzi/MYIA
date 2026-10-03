@@ -20,8 +20,9 @@
   端点形态跨版本稳定)。
 
 寻址(design D1/D4):``supports_targeting=True``;``context.target.chat_id``
-优先(``+``E.164 或纯数字 wa_id),退回 legacy ``target`` 引用(缺省
-``env:WHATSAPP_CLOUD_TO``)。直达形态:E.164 电话号码。目录无自动发现
+优先(``+``E.164 或纯数字 wa_id),退回 legacy ``target`` 引用(**须显式
+配置,无运行期 env 缺省回退**;推荐引用名 ``env:WHATSAPP_CLOUD_TO``)。
+直达形态:E.164 电话号码。目录无自动发现
 (蓝本事实:出站无列表路径),别名手工登记。
 
 凭据安全基线同其余通道:token 与 phone_number_id 全为 ``env:``/``keychain:``
@@ -70,7 +71,7 @@ DEFAULT_API_VERSION = "v20.0"
 DEFAULT_TOKEN_ENV_REF = "env:WHATSAPP_CLOUD_TOKEN"
 #: 发送方电话号码 id(Cloud API 注册号码)凭据引用缺省。
 DEFAULT_PHONE_ID_REF = "env:WHATSAPP_CLOUD_PHONE_NUMBER_ID"
-#: 接收方 wa_id 凭据引用缺省。
+#: 接收方 wa_id 的推荐引用名(显式配置 ``target`` 用;运行期不自动回退)。
 DEFAULT_TARGET_ENV_REF = "env:WHATSAPP_CLOUD_TO"
 #: text.body 官方上限 4096(蓝本 whatsapp_common 同值)。
 MESSAGE_LIMIT = 4096
@@ -211,9 +212,11 @@ class WhatsAppCloudChannel(TrendAwareChannel):
                 "本次发送也未携带 context.target",
             )
         if not PHONE_RE.fullmatch(value):
+            # 解析值不回显(死信分类误判暴露面收敛,D1;号码亦属通讯录敏感面)。
             raise PushSendError(
                 "invalid_credential_ref",
-                f"whatsapp_cloud wa_id 形态非法(须为 E.164 电话号码): {value[:40]!r}",
+                f"whatsapp_cloud wa_id 形态非法(须为 E.164 电话号码):"
+                f"得到 {len(value)} 字符的值,不匹配该形态(解析值不回显)",
             )
         return value
 

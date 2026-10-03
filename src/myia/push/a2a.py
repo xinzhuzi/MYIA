@@ -33,7 +33,8 @@
 
 寻址(design D1):``supports_targeting=True``;``context.target.chat_id``
 = 对端基址 URL(``https://agent.example.com``),``context.target.thread_id``
-= A2A contextId(可选);退回 legacy ``target`` 引用(缺省
+= A2A contextId(可选);退回 legacy ``target`` 引用(**须显式配置,无运行期
+env 缺省回退**;推荐引用名
 :data:`DEFAULT_TARGET_ENV_REF`),两路全缺 ``missing_target``;基址形态非法
 → ``invalid_credential_ref``。直达 = ``http(s)://`` 基址 URL;无目录发现
 (:class:`DirectoryDiscoverUnsupported`)——Agent Card 描述对端能力而非
@@ -235,9 +236,11 @@ class A2aChannel(TrendAwareChannel):
                 "本次发送也未携带 context.target",
             )
         if not PEER_URL_RE.fullmatch(value):
+            # 解析值不回显(死信分类误判暴露面收敛,D1;基址 query 可能带凭据)。
             raise PushSendError(
                 "invalid_credential_ref",
-                f"a2a 对端基址不是 http(s) URL: {value[:80]!r}",
+                f"a2a 对端基址不是 http(s) URL:得到 {len(value)} 字符的值,"
+                "不匹配该形态(解析值不回显)",
             )
         return value.rstrip("/"), thread_id or uuid.uuid4().hex
 

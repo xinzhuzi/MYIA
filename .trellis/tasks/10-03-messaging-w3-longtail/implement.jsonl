@@ -10,3 +10,13 @@
 {"file": "tests/test_desktop_sidecar_protocol.py", "reason": "unknown_platform 样例 slack→icq(slack 已注册,改走 discover_not_supported 族)"}
 {"file": "skill/SKILL.md", "reason": "PUSH_CHANNELS 枚举行同步 30 值(test_skill_doc 反漂移)"}
 {"file": "docs/write-a-plugin.md", "reason": "push 节通道词表同步 30 值(test_skill_doc 反漂移)"}
+{"file": "src/myia/push/mattermost.py", "reason": "复核 B1:2xx 非 dict JSON 加 Mapping 守卫(invalid_response,不裸逃 TypeError);D1 回显收敛"}
+{"file": "src/myia/push/qqbot.py", "reason": "复核 B2:_post_token 非 200 报 qqbot_api_error 带 HTTP 状态+原厂片段(msgraph 同款);D1 回显收敛;删死码 _parse_json"}
+{"file": "src/myia/push/{google_chat,teams,dingtalk}.py", "reason": "复核 C1:形态错误去解析 URL 片段(key/token/webhookb2 guid 属凭据),只留长度+形态描述"}
+{"file": "src/myia/push/delivery.py", "reason": "复核 C2+D1:死信键 URL 型 chat_id sha256 摘要化落盘;裸 403 marker 锚定为 http 403;配置类错误码短路不标死信;IRC 403 归位 not_found 家族"}
+{"file": "src/myia/push/matrix.py", "reason": "复核 B3:_put_message 死参数 server 移除;D1 回显收敛"}
+{"file": "src/myia/push/{irc,simplex}.py", "reason": "复核 C3:错误文案/debug 日志去解析值(server host/nick/ws_url/target),只带引用名"}
+{"file": "src/myia/push/{slack,discord,whatsapp_cloud,line,msgraph_webhook,email,sms,homeassistant,a2a}.py", "reason": "复核 B4:「缺省 env 回退」措辞修正为「须显式配置,无运行期回退」(12 docstring + 8 常量注释)"}
+{"file": "src/myia/push/__init__.py", "reason": "复核 R1:壳通道计数 4→6(yuanbao/buzz/photon/raft/signal/bluebubbles),「其余 16 家」算术对齐(程序化实证)"}
+{"file": "tests/test_push_delivery.py", "reason": "复核测试:裸 403/配置类错误码不判死信 + 死信键 URL 摘要化不落凭据"}
+{"file": "tests/test_messaging_{mattermost,qqbot,google_chat,teams,irc}.py", "reason": "复核测试:B1 2xx 非 dict、B2 token 非 200、C1 URL 不回显、IRC 403 家族标签校正"}

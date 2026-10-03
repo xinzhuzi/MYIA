@@ -24,8 +24,10 @@ PING)、``_sa_register``(NICK 碰撞重试)、``_sa_join``(显式拒绝才算失
 
 错误语义:协议级拒绝(数字回执)抛 ``irc_api_error``,文案保留
 ``IRC <numeric> <名称>`` 原厂片段——按 core 分类表
-(:func:`myia.push.delivery.classify_dead_error`)403(频道不存在)含
-「403」→ forbidden 硬死信(与既有 403 → forbidden 规则一致);429/5xx/超时
+(:func:`myia.push.delivery.classify_dead_error`)``IRC 403
+ERR_NOSUCHCHANNEL``(频道不存在)→ chat 级 not_found 硬死信(复核 D1:
+裸 ``403`` marker 收敛为锚定形态后,IRC 403 以原厂片段归位 not_found
+家族——硬死信语义不变,仅家族标签校正);429/5xx/超时
 类无 ASCII marker → 瞬态不标。连接/传输失败抛 ``http_error``(沿用本层
 通用传输错误码;IRC 是 TCP,无 HTTP 语义,仅复用码值)。
 
@@ -290,9 +292,12 @@ class IrcChannel(TrendAwareChannel):
         )
         target = strip_control_chars(chat_id).strip()
         if not target or " " in target:
+            # 解析值不回显(死信分类误判暴露面收敛,D1;自宣基线「错误文案
+            # 只带引用名」)。
             raise PushSendError(
                 "invalid_credential_ref",
-                f"irc target 含非法字符或为空(不允许空格/换行): {chat_id[:64]!r}",
+                f"irc target 含非法字符或为空(不允许空格/换行):得到 "
+                f"{len(chat_id)} 字符的值,不匹配该形态(解析值不回显)",
             )
         text = self._compose(items, context)
         try:
@@ -303,8 +308,11 @@ class IrcChannel(TrendAwareChannel):
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001 - 连接器可能抛 OSError/ssl/注入桩异常
+            # 文案只带 server 引用名(自宣基线):解析后的主机名不进错误文案。
             raise PushSendError(
-                "http_error", f"irc 连接失败({server}:{self._port}): {type(exc).__name__}: {exc}"
+                "http_error",
+                f"irc 连接失败(server 引用 {self._server_ref or DEFAULT_SERVER_ENV_REF!r},"
+                f"port {self._port}): {type(exc).__name__}: {exc}",
             ) from exc
         try:
             nick = await self._register(writer, reader, nick_base)
@@ -324,12 +332,15 @@ class IrcChannel(TrendAwareChannel):
             with contextlib.suppress(Exception):
                 writer.close()
         logger.debug(
-            "irc 发送完成: slot=%s kind=%s count=%d target=%s nick=%s",
+            # 日志同样只带引用名/计数,不带解析后的 target/nick(自宣基线
+            # 「错误文案只带引用名」;C3 收敛——debug 流也不落解析值)。
+            "irc 发送完成: slot=%s kind=%s count=%d target_ref=%s nick_ref=%s nick_len=%d",
             context.slot,
             context.kind,
             len(items),
-            target,
-            nick,
+            self._target,
+            self._nick_ref or DEFAULT_NICK_ENV_REF,
+            len(nick),
         )
 
     # ------------------------------------------------------------- compose

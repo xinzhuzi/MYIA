@@ -18,8 +18,8 @@ Bot <token>`` + ``{"content": …}``)。MYIA 按本档语义重写,不整块复�
   已存在话题)。
 
 寻址(design D1/D4):``supports_targeting=True``;``context.target.chat_id``
-优先,退回 legacy ``target`` 引用(缺省 ``env:DISCORD_CHANNEL_ID``;蓝本
-``DISCORD_BOT_TOKEN`` 同名 env 先例)。直达形态:雪花 id(17-20 位数字,
+优先,退回 legacy ``target`` 引用(**须显式配置,无运行期 env 缺省回退**;
+推荐引用名 ``env:DISCORD_CHANNEL_ID``,蓝本同名 env 先例)。直达形态:雪花 id(17-20 位数字,
 Discord snowflake 官方形态)。目录无自动发现(蓝本事实:出站无列表路径),
 别名手工登记。
 
@@ -66,7 +66,7 @@ logger = logging.getLogger(__name__)
 API_BASE = "https://discord.com/api/v10"
 #: Bot token 凭据引用缺省(蓝本同名 env ``DISCORD_BOT_TOKEN``)。
 DEFAULT_TOKEN_ENV_REF = "env:DISCORD_BOT_TOKEN"
-#: 接收频道 id 凭据引用缺省。
+#: 接收频道 id 的推荐引用名(显式配置 ``target`` 用;运行期不自动回退)。
 DEFAULT_TARGET_ENV_REF = "env:DISCORD_CHANNEL_ID"
 #: content 官方硬上限 2000(蓝本同值);按字符拆,行边界优先。
 MESSAGE_LIMIT = 2000
@@ -181,14 +181,17 @@ class DiscordChannel(TrendAwareChannel):
                 "本次发送也未携带 context.target",
             )
         if not CHANNEL_ID_RE.fullmatch(channel):
+            # 解析值不回显(死信分类误判暴露面收敛,10-03-messaging-w3-longtail D1)。
             raise PushSendError(
                 "invalid_credential_ref",
-                f"discord 频道 id 形态非法(须为 17-20 位数字 snowflake): {channel[:40]!r}",
+                f"discord 频道 id 形态非法(须为 17-20 位数字 snowflake):"
+                f"得到 {len(channel)} 字符的值,不匹配该形态(解析值不回显)",
             )
         if thread_id is not None and not CHANNEL_ID_RE.fullmatch(thread_id):
             raise PushSendError(
                 "invalid_credential_ref",
-                f"discord 话题 id 形态非法(须为 17-20 位数字 snowflake): {thread_id[:40]!r}",
+                f"discord 话题 id 形态非法(须为 17-20 位数字 snowflake):"
+                f"得到 {len(thread_id)} 字符的值,不匹配该形态(解析值不回显)",
             )
         return channel, thread_id
 
