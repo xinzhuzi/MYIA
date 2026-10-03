@@ -1,15 +1,18 @@
 // @vitest-environment jsdom
 /**
- * 采集日志组件测试(D4 结构性重做后)—— mock sidecar(vi.mock "@/lib/api":
- * run.status / logs.tail 返回夹具;onSidecarEvent 捕获处理器以注入
- * log/progress/completed 事件)。
+ * 采集日志组件测试(D4 结构性重做 + G7 三件后)—— mock sidecar(vi.mock
+ * "@/lib/api":run.status / logs.tail / run.start 返回夹具;onSidecarEvent
+ * 捕获处理器以注入 log/progress/completed 事件)。
  * 覆盖:run 瀑布分组 + 统计行(状态/耗时/条数/错误行数)/ 最新 run 自动展开与
- * 惰性 tail / 折叠-缓存-再展开不重拉 / 错误行 dead 高亮与级别着色(INFO 不再
- * 全染警示)/ 事件按 run_id 归组续播(含折叠组缓冲-展开合并)/ completed 刷新
- * 列表 / 结构化错误与空态。
+ * 惰性 tail / 折叠-缓存-再展开不重拉 / 错误行 dead 高亮(bg-dead/10,P2 对比
+ * 实算 4.67:1)与级别着色(INFO 不再全染警示)/ 事件按 run_id 归组续播(含
+ * 折叠组缓冲-展开合并)/ completed 刷新列表 / 结构化错误与空态;
+ * G7:run 行重跑(骑 run.start 回放 yaml/dry/db + 触发反馈 + 列表刷新 + 错误
+ * 反馈)/ 品类·状态过滤(过滤后空态 + 清除)/ 日志搜索(输入即过滤 + 命中
+ * 高亮 + 命中计数 + 无命中文案)。
  */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { SidecarRequestError } from "@/lib/api";
 import type { RunEntry, SidecarEvent } from "@/lib/api";
@@ -27,6 +30,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
       ...actual.api,
       runStatus: vi.fn(),
       logsTail: vi.fn(),
+      runStart: vi.fn(),
     },
     onSidecarEvent: vi.fn((handler: (event: SidecarEvent) => void) => {
       harness.handler = handler;
@@ -38,6 +42,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
 const { api } = await import("@/lib/api");
 const runStatusMock = vi.mocked(api.runStatus);
 const logsTailMock = vi.mocked(api.logsTail);
+const runStartMock = vi.mocked(api.runStart);
 
 import { LogsScreen } from "./logs-screen";
 
@@ -112,6 +117,14 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
+// Radix Select 2.x 在 jsdom 里开下拉需要的指针捕获/滚动桩(品类·状态过滤用例;
+// 同款见 dashboard-screen.test.tsx beforeAll)
+beforeAll(() => {
+  window.HTMLElement.prototype.hasPointerCapture = () => false;
+  window.HTMLElement.prototype.releasePointerCapture = () => {};
+  window.HTMLElement.prototype.scrollIntoView = () => {};
+});
+
 // ---------------------------------------------------------------------------
 // 用例
 // ---------------------------------------------------------------------------
@@ -143,7 +156,9 @@ describe("LogsScreen", () => {
     const errorRow = rows.find((row) => row.textContent?.includes("ERROR"));
     expect(errorRow?.getAttribute("data-error")).toBe("true");
     expect(errorRow?.className).toContain("text-dead"); // D4:错误行 dead 色
-    expect(errorRow?.className).toContain("bg-dead");
+    // P2(G7 附带):对比公式实算 text-dead #e5484d 叠 bg-dead/10 于 bg-sidebar
+    // #080b13 上 ≈ 4.67:1(原 /15 ≈ 4.43:1 不达 WCAG AA 正文 4.5)
+    expect(errorRow?.className).toContain("bg-dead/10");
     const warnRow = rows.find((row) => row.textContent?.includes("源限速"));
     expect(warnRow?.getAttribute("data-warn")).toBe("true");
     expect(warnRow?.getAttribute("data-error")).toBeNull();
@@ -274,5 +289,134 @@ describe("LogsScreen", () => {
     expect(await screen.findByText(/还没有 run 记录/)).toBeTruthy();
     expect(screen.queryByTestId("run-group-header-1")).toBeNull();
     expect(screen.queryByTestId("run-group-header-2")).toBeNull();
+  });
+
+  // -------------------------------------------------------------------------
+  // G7①:run 重跑(骑 G4 手动触发通道 run.start,不新增协议)
+  // -------------------------------------------------------------------------
+
+  it("重跑:行操作按原 run 的 yaml/dry/db 调 run.start,反馈新 run_id 并刷新列表", async () => {
+    runStartMock.mockResolvedValue({
+      run_id: 3,
+      state: "running",
+      yaml: "/plugins/tech.yaml",
+      dry: false,
+      db: "myia.db",
+    });
+    mockSidecar([run2Running, run1Success]);
+    render(<LogsScreen />);
+    await screen.findByTestId("run-group-header-1");
+    const runStatusCalls = runStatusMock.mock.calls.length;
+
+    fireEvent.click(screen.getByTestId("run-rerun-1"));
+    // 回放原 run 三参数(dry/db 原样),不新增协议方法
+    await waitFor(() =>
+      expect(runStartMock).toHaveBeenCalledWith({ yaml: "/plugins/tech.yaml", dry: false, db: "myia.db" }),
+    );
+    // 触发成功反馈:新 run_id 上屏(新 run 的展开跟随由列表刷新的 follow 策略承担)
+    expect(await screen.findByTestId("run-rerun-ok-1").then((el) => el.textContent)).toContain("已触发 #3");
+    // 列表刷新一次(新 run 落瀑布)
+    await waitFor(() => expect(runStatusMock.mock.calls.length).toBe(runStatusCalls + 1));
+  });
+
+  it("重跑失败:sidecar 结构化错误如实上屏(run_busy)", async () => {
+    runStartMock.mockRejectedValue(
+      new SidecarRequestError({ code: "run_busy", path: "$", message: "已有 run 在跑" }),
+    );
+    mockSidecar([run2Running, run1Success]);
+    render(<LogsScreen />);
+    await screen.findByTestId("run-group-header-1");
+
+    fireEvent.click(screen.getByTestId("run-rerun-1"));
+    const feedback = await screen.findByTestId("run-rerun-err-1");
+    expect(feedback.textContent).toContain("run_busy");
+    expect(feedback.textContent).toContain("已有 run 在跑");
+  });
+
+  // -------------------------------------------------------------------------
+  // G7②:品类·状态过滤条(Radix Select:mouse 型 pointerDown 才开下拉)
+  // -------------------------------------------------------------------------
+
+  function openSelect(name: string) {
+    fireEvent.pointerDown(screen.getByRole("combobox", { name }), { button: 0, pointerType: "mouse" });
+  }
+
+  it("品类过滤:选「科技资讯」只剩该品类 run,计数同步,清除后恢复", async () => {
+    mockSidecar([run2Running, run1Success]);
+    render(<LogsScreen />);
+    await screen.findByTestId("run-group-header-2");
+    expect(screen.getByTestId("logs-filter-count").textContent).toBe("2 / 2 run");
+
+    openSelect("品类过滤");
+    fireEvent.click(await screen.findByRole("option", { name: "科技资讯" }));
+
+    await waitFor(() => expect(screen.queryByTestId("run-group-header-2")).toBeNull());
+    expect(screen.getByTestId("run-group-header-1")).toBeTruthy();
+    expect(screen.getByTestId("logs-filter-count").textContent).toBe("1 / 2 run");
+
+    // 清除过滤(过滤激活时过滤条上的 ghost 按钮)→ 双 run 恢复
+    fireEvent.click(screen.getByRole("button", { name: /清除过滤/ }));
+    await waitFor(() => expect(screen.getByTestId("run-group-header-2")).toBeTruthy());
+    expect(screen.getByTestId("logs-filter-count").textContent).toBe("2 / 2 run");
+  });
+
+  it("状态过滤 + 组合无命中:「运行中」只剩 running run;组合无命中给过滤空态", async () => {
+    mockSidecar([run2Running, run1Success]);
+    render(<LogsScreen />);
+    await screen.findByTestId("run-group-header-2");
+
+    openSelect("状态过滤");
+    fireEvent.click(await screen.findByRole("option", { name: "运行中" }));
+
+    await waitFor(() => expect(screen.queryByTestId("run-group-header-1")).toBeNull());
+    expect(screen.getByTestId("run-group-header-2")).toBeTruthy(); // run 2 running
+
+    // 组合:品类=科技资讯(终态成功)+ 状态=运行中 → 无命中,过滤空态
+    openSelect("品类过滤");
+    fireEvent.click(await screen.findByRole("option", { name: "科技资讯" }));
+    expect(await screen.findByText(/没有匹配的 run/)).toBeTruthy();
+    expect(screen.queryByTestId("run-group-header-1")).toBeNull();
+    expect(screen.queryByTestId("run-group-header-2")).toBeNull();
+
+    // 空态里的「清除过滤」一并恢复(过滤条上还有一个同名按钮,取空态内那个)
+    const resetButtons = screen.getAllByRole("button", { name: /清除过滤/ });
+    fireEvent.click(resetButtons[resetButtons.length - 1]);
+    await waitFor(() => {
+      expect(screen.getByTestId("run-group-header-1")).toBeTruthy();
+      expect(screen.getByTestId("run-group-header-2")).toBeTruthy();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // G7③:日志内搜索(输入即过滤 + 命中高亮)
+  // -------------------------------------------------------------------------
+
+  it("搜索:输入即过滤(大小写不敏感)+ 命中片段高亮 + 命中计数;清空恢复", async () => {
+    mockSidecar([run2Running, run1Success]);
+    render(<LogsScreen />);
+    await screen.findAllByTestId("log-row");
+    expect(screen.getAllByTestId("log-row")).toHaveLength(5);
+
+    // 小写 "error" 命中大写 ERROR 行(stdout/WARNING/INFO 行全部滤除)
+    fireEvent.change(screen.getByTestId("log-search-input"), { target: { value: "error" } });
+    const rows = await screen.findAllByTestId("log-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain("ERROR source fetch failed");
+    expect(screen.getByTestId("run-log-hits-2").textContent).toContain("命中 1 / 5 行");
+
+    // 命中片段 mark 高亮(只包住 ERROR 子串)
+    const marks = screen.getAllByTestId("log-search-hit");
+    expect(marks).toHaveLength(1);
+    expect(marks[0].textContent).toBe("ERROR");
+
+    // 无命中:该组给无命中文案,行集为空
+    fireEvent.change(screen.getByTestId("log-search-input"), { target: { value: "zzz-不存在" } });
+    expect(await screen.findByText(/无命中行/)).toBeTruthy();
+    expect(screen.queryAllByTestId("log-row")).toHaveLength(0);
+    expect(screen.getByTestId("run-log-hits-2").textContent).toContain("命中 0 / 5 行");
+
+    // 清空 → 恢复五行
+    fireEvent.change(screen.getByTestId("log-search-input"), { target: { value: "" } });
+    await waitFor(() => expect(screen.getAllByTestId("log-row")).toHaveLength(5));
   });
 });

@@ -15,6 +15,7 @@ import type {
   RunEntry,
   RunExitStatus,
   RunRecord,
+  RunStartResult,
   SidecarEvent,
   UnlistenFn,
 } from "@/lib/api";
@@ -29,6 +30,9 @@ export interface RunRowModel {
   category: string;
   status: RunExitStatus | null;
   state: RunEntry["state"];
+  /** 重跑参数面(G7):run.start 需要的 yaml/dry/db 三件,原样回放该 run */
+  yaml: string;
+  db: string;
   dry: boolean;
   durationText: string;
   /** record.stats.items_retained(pipeline.py `stats_dict`);无记录为 null */
@@ -61,6 +65,8 @@ export function buildRunRows(runs: RunEntry[]): RunRowModel[] {
     category: runCategory(run),
     status: run.status,
     state: run.state,
+    yaml: run.yaml,
+    db: run.db,
     dry: run.dry,
     durationText: formatDuration(run.duration_ms),
     itemCount: itemsRetained(run.record),
@@ -69,6 +75,66 @@ export function buildRunRows(runs: RunEntry[]): RunRowModel[] {
 
 export async function loadRuns(): Promise<RunEntry[]> {
   return (await api.runStatus()).runs;
+}
+
+/**
+ * 重跑(G7):骑 G4 手动触发通道 run.start,不新增协议方法——把该 run 的
+ * yaml/dry/db 原样回放(dry run 重跑仍是 dry);成功返回新 run_id,终态与
+ * 日志经既有 completed 事件 + run.status 列表刷新可见。
+ */
+export function rerunRun(run: Pick<RunRowModel, "yaml" | "dry" | "db">): Promise<RunStartResult> {
+  return api.runStart({ yaml: run.yaml, dry: run.dry, db: run.db });
+}
+
+// ---------------------------------------------------------------------------
+// 过滤与搜索(G7 纯函数,供组件与测试直接消费)
+// ---------------------------------------------------------------------------
+
+/** 状态过滤键:"running" 活跃态 + 五档终态(与 runBadge 同口径) */
+export type RunFilterStatus = "running" | RunExitStatus;
+
+/** run → 状态过滤键:state=running(或 status 未知)归 running,其余按终态 */
+export function runFilterStatus(run: Pick<RunRowModel, "status" | "state">): RunFilterStatus {
+  if (run.state === "running" || run.status === null) return "running";
+  return run.status;
+}
+
+/** 品类/状态双过滤:"all" 为通配(单选项直选,不做多选) */
+export function filterRunRows(
+  rows: RunRowModel[],
+  category: string,
+  status: RunFilterStatus | "all",
+): RunRowModel[] {
+  return rows.filter(
+    (row) =>
+      (category === "all" || row.category === category) &&
+      (status === "all" || runFilterStatus(row) === status),
+  );
+}
+
+/** 搜索命中(大小写不敏感子串);needle 已 trim+lower,空串通配一切行 */
+export function rowMatchesQuery(row: LogRow, needle: string): boolean {
+  return needle === "" || row.text.toLowerCase().includes(needle);
+}
+
+/**
+ * 搜索高亮切分:把 text 按 needle(已 trim+lower)切成片段序列,命中片段
+ * hit=true。手写 indexOf 循环而非 RegExp——免正则元字符转义坑,任意输入安全。
+ */
+export function splitTextOnQuery(text: string, needle: string): Array<{ text: string; hit: boolean }> {
+  if (needle === "") return [{ text, hit: false }];
+  const parts: Array<{ text: string; hit: boolean }> = [];
+  const haystack = text.toLowerCase();
+  let cursor = 0;
+  let index = haystack.indexOf(needle);
+  while (index !== -1) {
+    if (index > cursor) parts.push({ text: text.slice(cursor, index), hit: false });
+    parts.push({ text: text.slice(index, index + needle.length), hit: true });
+    cursor = index + needle.length;
+    index = haystack.indexOf(needle, cursor);
+  }
+  if (cursor < text.length) parts.push({ text: text.slice(cursor), hit: false });
+  return parts;
 }
 
 /** run_id 为 null = 不过滤(全 run 的最近日志) */
