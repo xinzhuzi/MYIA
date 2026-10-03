@@ -440,9 +440,8 @@ export type OcrEngine = "vision" | "rapidocr";
 /** 二级看图通道:local = OpenAI 兼容本地端点(mlx-vlm/LM Studio)/ cloud = 云端视觉 API */
 export type VisionChannel = "local" | "cloud";
 
-
 /** 看图结构配置(vision.yaml;MYIA_HOME 第一个全局配置文件)。
- *  铁律:api_key 只收 keychain:/env: 引用,明文凭据拒载(security-baseline)。 */
+ *  铁律:api_key 只收 keychain: 引用(env: 同拒),明文凭据拒载(security-baseline)。 */
 export interface VisionConfig {
   channel_default: VisionChannel;
   local: {

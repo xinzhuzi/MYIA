@@ -78,6 +78,12 @@ sources:
                                     # *.json and admin paths
     proxy: direct
     retry: 3
+    # 详情页取图(10-03-detail-images):本源列表页只有头像/emoji,条目元数据
+    # 常无图可进 images: 环;开此开关后 fetch 尾部对无图条目追抓其详情页
+    # (帖页服务端渲染,静态可抓),同域 <img> 收进 metadata.images 喂同一
+    # OCR 环。礼貌上限:每 run 至多 detail_max_items(缺省 10)条、串行、
+    # 每请求间隔 ≥1s、单页超时 10s;品类级缺省 false,仅本源示范。
+    images_detail_fetch: true
 
   # linux.do — placeholder for a login-walled Discourse source. stealth_browser
   # (L5) is implemented and sits at the auto chain's tail carrying login state:
