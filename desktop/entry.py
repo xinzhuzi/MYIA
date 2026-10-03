@@ -26,9 +26,6 @@
     {"type": "log",       "run_id": 3, "stream": "stderr", "line": "…", "ts": "…"}
     {"type": "progress",  "run_id": 3, "phase": "source_done", "source": "…", "items": "2", "ts": "…"}
     {"type": "completed", "run_id": 3, "exit_code": 0, "status": "success", …, "ts": "…"}
-    {"type": "image.progress",  "job_id": 1, "stage": "ocr|model", "ts": "…"}
-    {"type": "image.completed", "job_id": 1, "ok": true, "result": {"text": "…", "model": "…",
-     "channel": "local", "elapsed_ms": 1, "ocr_used": true}, "ts": "…"}
 
 == 方法集(覆盖现有 CLI 能力) ==
 
@@ -58,15 +55,6 @@ yaml.template     (协议侧常量)                    最小合法品类模板�
 yaml.save         (校验→查重→.bak→原子写)         mtime 乐观锁;file 不存在 +
                                                  expected_mtime=null = 新建
 yaml.delete       (.bak 留底→删主文件→连带暂存)   自建品类生命周期收尾
-image.import       (看图图片入库)                  sha256 去重落 <home>/images/;
-                                                 10MB 上限;heic 先 sips 转 png
-image.ocr          (双引擎 OCR,vision|rapidocr)   逐行 {text, conf} + engine + ms;
-                                                 非法 engine → image_engine_unknown
-image.analyze      (本地/云端二级看图)             后台线程即返 job_id,结果走
-                                                 image.progress/completed 事件
-image.status       (sidecar 内注册表)              busy/job_id(UI 重连对账);带
-                                                 job_id 查询附 last=最近终态
-                                                 (订阅前被丢的 completed 对账)
 image.config.read  (vision.yaml 直读)              脱敏配置(keychain 引用不回明文)
 image.config.save  (同门校验→原子写)               失败零写入(image_config_invalid)
 channels.list      (消息屏目录四视图)              目录(platforms)+别名(aliases)
@@ -104,22 +92,12 @@ push.write         (push[] 全量替换写回)           围栏→push 块文本
   ``.yaml/.yml`` + resolve 后必须位于 plugins 目录内(``os.path.commonpath``,
   消解符号链接与 ``..`` 穿越)+ 新建 stem 过 :data:`CATEGORY_ID_RE` ——
   sidecar 是 UI 直连读写通道,不设围栏 = 桌面端任意文件读写原语。
-- ``image.*`` 六方法(task 10-03-image-input,契约钉死于任务档 design.md 协议表,
-  TS 侧 ui-src/lib/api/types.ts + screens/image/api.ts 注释互指;能力实现在
-  ``myia.vision`` 包):``image.import {kind: path|base64, value}`` → sha256
-  前 16 位 id 去重落 ``<home>/images/<id>.<ext>``(10MB 上限;heic 先 sips 转
-  png;魔数嗅探定格式,扩展名/mime 不作信任源);``image.ocr {id, engine?}``
-  (engine 缺省取 vision.yaml 的 ocr.engine_default);``image.analyze {id,
-  mode: read|describe|ask, question?, channel?}`` 后台线程即返 job_id,结果走
-  ``image.progress {stage: ocr|model}`` / ``image.completed {ok, result|error}``
-  事件(仿 run.start,壳 120s 硬超时免疫;单飞守卫 ``image_busy`` 照 run_busy);
-  ``image.status`` 对账;``image.config.read/save`` 读写 ``<home>/vision.yaml``
-  (MYIA_HOME 第一个全局配置文件;云端 api_key 只收 ``keychain:`` 引用,
-  同门校验失败零写入)。业务错误码统一 ``image_`` 前缀:``image_not_found`` /
-  ``image_unsupported`` / ``image_too_large`` / ``image_ocr_failed`` /
-  ``image_engine_unknown`` / ``image_unreachable``(附本地服务启动指引)/
-  ``image_no_credentials`` / ``image_provider_error`` / ``image_busy`` /
-  ``image_config_invalid``。本地通道零出网;结果只随事件呈现,不入库不落日志。
+- ``image.config.*`` 两方法(10-03-vision-pipeline 拆四留二:看图交互屏整拆,
+  ``image.import/ocr/analyze/status`` 四方法与 ``image.progress/completed`` 两
+  事件已删;配置入口保留——设置屏 VisionForm 依赖;能力实现在 ``myia.vision``
+  包,与 vision.yaml 机制不动):``image.config.read`` / ``image.config.save``
+  读写 ``<home>/vision.yaml``(MYIA_HOME 第一个全局配置文件;云端 api_key 只收
+  ``keychain:`` 引用,同门校验失败零写入)。业务错误码:``image_config_invalid``。
 
 铁律:凭据只进系统钥匙链(``secret.set`` 薄包装 myia.secrets,值不落日志/协议流);
 桌面零 Docker;任何插件装不上不拦核心(doctor/list 只产 findings)。
@@ -142,11 +120,7 @@ health 应答附 ``first_run`` 供 UI 空态引导。
 from __future__ import annotations
 
 import asyncio
-import base64
-import binascii
 import contextlib
-import hashlib
-import httpx
 import inspect
 import io
 import json
@@ -155,9 +129,7 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import threading
-import time
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -173,7 +145,6 @@ from myia.schema import (
     CATEGORY_ID_RE,
     CHANNEL_PLATFORMS,
     CategoryConfig,
-    CredentialResolveError,
     LoadError,
     # 私有符号受控复用(与 cli.py/manifest.py 复用 _SECRET_REF_RE 同一先例):
     # 重复键检测与凭据引用语法只此一处定义,防两处漂移。
@@ -181,21 +152,14 @@ from myia.schema import (
     _UniqueKeyLoader,
     load_category,
     load_category_file,
-    resolve_credential,
 )
 from myia.secrets import SecretError, list_secrets, set_secret
 from myia.store import SQLiteStore, StoreSchemaError
 from myia.vision import (
-    CHANNELS,
-    OCR_ENGINES,
-    OCRError,
     VISION_FILE_NAME,
-    VisionClient,
     VisionConfig,
     VisionConfigError,
-    VisionResult,
     load_vision_config,
-    run_ocr,
     save_vision_config,
 )
 
@@ -552,7 +516,15 @@ def _m_doctor(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def _item_dict(item: Any) -> dict[str, Any]:
-    """ItemRecord → 协议字典(raw/content_hash 不出协议面,情报流无需)。"""
+    """ItemRecord → 协议字典(raw/content_hash 整包不出协议面)。
+
+    例外是 ``image_ocr`` 标量:vision 环产物挂 ``metadata.image_ocr``
+    (collect.py),pipeline 以 ``raw=item.metadata`` 入库,feed 屏图析行
+    渲染依赖它(feed-screen.tsx)——只投影该标量,raw 其余键仍不出面;
+    无图/非字符串/空白条目置 None,feed 屏零渲染变化。
+    """
+    raw = item.raw if isinstance(item.raw, Mapping) else {}
+    ocr = raw.get("image_ocr")
     return {
         "id": item.id,
         "url": item.url,
@@ -560,6 +532,7 @@ def _item_dict(item: Any) -> dict[str, Any]:
         "title": item.title,
         "source": item.source,
         "content": item.content,
+        "image_ocr": ocr if isinstance(ocr, str) and ocr.strip() else None,
         "tags": item.tags,
         "category": item.category,
         "scores": item.scores,
@@ -790,6 +763,13 @@ def _toggle_chunk_spans(
     恰好逐字节还原原文布局;正文 = 自短横线行起连续的非空行,条目尾部的
     说明注释(如 wool.yaml 的 ``# No pagination…``)直接续在正文后,同属
     条目。条目尾随空行不归属(它要么是下一条目的前导,要么是块尾留白)。
+    末条目的正文另设一道上界:紧贴正文(无空行)的**列 0** 整行注释,对其
+    后的下一内容行做缩进前瞻 —— 仍有条目缩进续行(retry/headers 等)则注释
+    嵌在本条目正文中段,随条目整段搬运(否则条目自身字段被截留在主文件,
+    停用中间态解析时静默并入前一启用源);无续行(下一内容行顶格/空白/到
+    块界)才是给下一顶层节写的分节注释,留在主文件(评审遗留 low:曾随末
+    条目停用整体离开主文件,中间态一节注释不可见)。非末条目到不了这里
+    (上界是后继条目的锚点起点,列 0 注释紧贴其上时本就随其搬运)。
     """
     anchors: list[int] = []
     for dash in dashes:
@@ -801,9 +781,16 @@ def _toggle_chunk_spans(
         anchors.append(j + 1)
     spans: list[tuple[int, int]] = []
     for k, dash in enumerate(dashes):
-        limit = anchors[k + 1] if k + 1 < len(dashes) else block_end
+        last = k + 1 == len(dashes)
+        limit = block_end if last else anchors[k + 1]
         stop = dash
         while stop < limit and not _toggle_is_blank(lines[stop]):
+            if (
+                last
+                and _toggle_is_col0_comment(lines[stop])
+                and not _toggle_col0_comment_has_continuation(lines, stop, limit)
+            ):
+                break  # 分节注释留在主文件,不入搬运块
             stop += 1
         spans.append((anchors[k], stop))
     return spans
@@ -812,6 +799,34 @@ def _toggle_chunk_spans(
 def _toggle_is_blank(line: str) -> bool:
     """空白行(仅空白/仅换行);空行是条目分隔,不随任何条目搬运。"""
     return line.strip("\r\n").strip() == ""
+
+
+def _toggle_is_col0_comment(line: str) -> bool:
+    """列 0 起始的整行注释(先剥 ``\r\n``,CRLF 同判)。
+
+    条目自身的尾说明注释有缩进(如 wool.yaml 的 ``# No pagination…``),
+    不命中本判定。列 0 字形不必然等于分节注释:也可能嵌在条目正文中段
+    (其后仍有本条目的缩进续行),归属由 ``_toggle_col0_comment_has_continuation``
+    的缩进前瞻判定,本函数只认字形。
+    """
+    return line.rstrip("\r\n").startswith("#")
+
+
+def _toggle_col0_comment_has_continuation(
+    lines: list[str], comment_idx: int, limit: int
+) -> bool:
+    """列 0 注释(连同其后连续列 0 注释)之后是否仍有条目缩进续行。
+
+    有 → 注释嵌在条目正文中段(YAML 注释透明,其后缩进字段仍属本条目),
+    整段必须随条目搬运;无(下一内容行顶格 = 下一顶层节、空白分隔、或已到
+    块界/EOF)→ 注释才是写给下一顶层节的分节注释,留在主文件。
+    """
+    j = comment_idx
+    while j < limit and _toggle_is_col0_comment(lines[j]):
+        j += 1
+    if j >= limit or _toggle_is_blank(lines[j]):
+        return False
+    return lines[j][:1] in (" ", "\t")
 
 
 def _toggle_alias_nodes(text: str) -> bool:
@@ -846,9 +861,16 @@ def _toggle_fallback_block(source: dict[str, Any], indent: int) -> str:
     """旧版暂存条目(无 ``raw_block`` 元数据)移入时的兜底:由 dict 重序列化。
 
     数据无损、注释不还原(旧暂存本就没存原文);只服务 sidecar 升级窗口,
-    常规路径一律走 ``raw_block`` 逐字节还原。
+    常规路径一律走 ``raw_block`` 逐字节还原。序列化前剥离 ``_myia_toggle``
+    内部键(raw_block 缺失/非字符串的损坏暂存仍会带它走进这里):内部键
+    写进主 YAML 后,该源再停用会撞保留键拒写(评审遗留 low:启停变砖)。
     """
-    dumped = yaml.safe_dump(source, allow_unicode=True, sort_keys=False, default_flow_style=False)
+    dumped = yaml.safe_dump(
+        {k: v for k, v in source.items() if k != _TOGGLE_META_KEY},
+        allow_unicode=True,
+        sort_keys=False,
+        default_flow_style=False,
+    )
     body = dumped.splitlines()
     if not body:
         raise ProtocolError(
@@ -1758,54 +1780,17 @@ def _m_logs_tail(params: dict[str, Any]) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# 方法:image.import / ocr / analyze / status / config.read / config.save
-# (看图协议,task 10-03-image-input;契约钉死于任务档 design.md §sidecar 协议,
-#  TS 侧 ui-src/lib/api/types.ts + screens/image/api.ts 注释互指;
-#  能力实现在 myia.vision 包:ocr=双引擎 OCR、client=OpenAI 兼容 VL、
-#  settings=vision.yaml 同门校验)
+# 方法:image.config.read / config.save
+# (看图配置协议;10-03-vision-pipeline 拆四留二:image.import/ocr/analyze/
+#  status 四方法、image.progress/completed 两事件与 _image_analyze_worker
+#  已整拆——看图能力并入情报管线;配置读写是设置屏 VisionForm 的依赖故留。
+#  能力实现在 myia.vision 包:settings=vision.yaml 同门校验,引擎层不动)
 # ---------------------------------------------------------------------------
-
-#: 单图入库上限(字节;PRD v1 拍板 10MB,防误投超大图拖垮 OCR/VL)。
-IMAGE_MAX_BYTES = 10 * 1024 * 1024
-#: 图片 id 形状:sha256 前 16 位十六进制(入库生成;id 白名单 = 路径穿越免疫)。
-_IMAGE_ID_RE = re.compile(r"[0-9a-f]{16}\Z")
-#: describe 模式固定结构化中文 prompt(local-ocr 技能 2026-10-01 裁定配方)。
-_IMAGE_PROMPT_DESCRIBE = (
-    "用中文详细解读这张图片,按以下结构输出:1.主体(人/物+姿态神态) "
-    "2.构图(视角/主体位置/前中远景) 3.风格与色彩(流派/色调/光影) "
-    "4.氛围与意境 5.技术判断(是否疑似 AI 生成+依据)"
-)
-#: read 模式校对 prompt(local-ocr 09-30 实证配方:只修正确有出入的字,
-#: 金额/ID 逐位复核提示由 UI 呈现)。
-_IMAGE_PROMPT_PROOFREAD = "对照图片逐行校对此 OCR 初稿,只修正确有出入的字:\n{draft}"
-#: 本地服务未起的启动指引(image_unreachable 附带;local-ocr 三步配方摘录)。
-_IMAGE_LOCAL_HINT = (
-    "本地视觉服务未起?启动:uvx --from mlx-vlm mlx_vlm.server "
-    "--model <MYIA_HOME>/models/qwen3-vl-8b-mlx --host 127.0.0.1 --port 8080"
-    "(LM Studio 备选 http://127.0.0.1:1234/v1);详见看图设置"
-)
-
-_IMAGE_LOCK = threading.Lock()
-_IMAGE_ACTIVE_JOB: int | None = None
-_IMAGE_NEXT_JOB_ID = 0
-#: 最近一次终态事件载荷(image.completed 原文形状;单飞守卫下单槽即够)。
-#: 瞬时失败任务的 completed 可能在 webview 订阅建立前写出而被丢 —— 留存供
-#: ``image.status {job_id}`` 对账拉取(见 :func:`_m_image_status`)。
-_IMAGE_LAST_COMPLETED: dict[str, Any] | None = None
-
-
-class _ProbeAuthError(Exception):
-    """探活命中 401/403:端点拒绝鉴权(key 无效/未生效),区别于不可达。"""
 
 
 def _vision_yaml_path(ctx: ServeContext) -> Path:
     """vision.yaml 路径:home 模式落数据根;dev 回退 cwd 相对(与 db/plugins 同约)。"""
     return ctx.home / VISION_FILE_NAME if ctx.home is not None else Path(VISION_FILE_NAME)
-
-
-def _images_dir(ctx: ServeContext) -> Path:
-    """图片库目录 ``<home>/images``;dev 回退 cwd/images(入库时才创建)。"""
-    return ctx.home / "images" if ctx.home is not None else Path("images")
 
 
 def _load_vision(ctx: ServeContext) -> VisionConfig:
@@ -1816,382 +1801,6 @@ def _load_vision(ctx: ServeContext) -> VisionConfig:
         raise ProtocolError(
             "image_config_invalid", f"vision 配置拒载: {exc}", path="vision.yaml", data=exc.to_dict()
         ) from exc
-
-
-def _sniff_image_ext(data: bytes) -> str | None:
-    """魔数嗅探图片格式(扩展名/mime 不作信任源;heic 由调用方转 png 后收)。"""
-    if data.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "png"
-    if data.startswith(b"\xff\xd8\xff"):
-        return "jpg"
-    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-        return "webp"
-    if (
-        len(data) >= 12
-        and data[4:8] == b"ftyp"
-        and data[8:12] in (b"heic", b"heix", b"heim", b"heis", b"mif1", b"msf1")
-    ):
-        return "heic"
-    return None
-
-
-def _convert_heic_to_png(data: bytes) -> bytes:
-    """heic → png(系统 sips;设计拍板:heic 先转 png 后收,库内格式归一)。"""
-    handle, heic_name = tempfile.mkstemp(suffix=".heic")
-    png_path = Path(heic_name).with_suffix(".png")
-    try:
-        with os.fdopen(handle, "wb") as tmp_file:
-            tmp_file.write(data)
-        proc = subprocess.run(
-            ["sips", "-s", "format", "png", heic_name, "--out", str(png_path)],
-            capture_output=True, text=True, timeout=30,
-        )
-        if proc.returncode != 0:
-            raise ProtocolError(
-                "image_unsupported",
-                f"heic 转 png 失败(sips 退出码 {proc.returncode}): {proc.stderr.strip()[:200]}",
-                path="params.value",
-            )
-        converted = png_path.read_bytes()
-    except OSError as exc:
-        raise ProtocolError("image_unsupported", f"heic 转换失败: {exc}", path="params.value") from exc
-    finally:
-        Path(heic_name).unlink(missing_ok=True)
-        png_path.unlink(missing_ok=True)
-    if _sniff_image_ext(converted) != "png":
-        raise ProtocolError("image_unsupported", "heic 转换产物不是有效 png", path="params.value")
-    return converted
-
-
-def _image_file_by_id(id_raw: Any, ctx: ServeContext) -> Path:
-    """按 id 定位库内图片;id 先过十六进制白名单(杜绝路径穿越),再查文件。"""
-    if not isinstance(id_raw, str) or _IMAGE_ID_RE.fullmatch(id_raw) is None:
-        raise ProtocolError("image_not_found", f"无此图片 id: {id_raw!r}", path="params.id")
-    images = _images_dir(ctx)
-    if images.is_dir():
-        for candidate in sorted(images.glob(f"{id_raw}.*")):
-            if candidate.is_file():
-                return candidate
-    raise ProtocolError(
-        "image_not_found", f"图片库中无 id={id_raw}({images})", path="params.id"
-    )
-
-
-def _m_image_import(params: dict[str, Any]) -> dict[str, Any]:
-    """图片入库:魔数嗅探 → heic 转 png → sha256 前 16 位去重落 images/<id>.<ext>。
-
-    ``kind=path`` 读本地文件(拖拽/选择);``kind=base64`` 收 data URL 或裸
-    base64。同一字节流永远同名(去重幂等);v1 不自动清理(PRD 拍板,清理工具 v2)。
-    """
-    kind = params.get("kind", "path")
-    value = params.get("value")
-    if not isinstance(value, str) or not value:
-        raise ProtocolError("invalid_params", "缺少图片内容 value(路径或 base64)", path="params.value")
-    if kind == "path":
-        source = Path(value).expanduser()
-        try:
-            stat = source.stat()  # 先 stat 预检再读(同 yaml.read):超大文件不整读进内存
-        except FileNotFoundError as exc:
-            raise ProtocolError("image_not_found", f"图片文件不存在: {source}", path="params.value") from exc
-        except OSError as exc:
-            raise ProtocolError("image_not_found", f"图片文件不可读: {source} ({exc})", path="params.value") from exc
-        if stat.st_size > IMAGE_MAX_BYTES:
-            raise ProtocolError(
-                "image_too_large",
-                f"图片超过 10MB 上限: {stat.st_size} 字节(limit={IMAGE_MAX_BYTES})",
-                path="params.value", data={"size": stat.st_size, "limit": IMAGE_MAX_BYTES},
-            )
-        try:
-            data = source.read_bytes()
-        except FileNotFoundError as exc:
-            raise ProtocolError("image_not_found", f"图片文件不存在: {source}", path="params.value") from exc
-        except OSError as exc:
-            raise ProtocolError("image_not_found", f"图片文件不可读: {source} ({exc})", path="params.value") from exc
-    elif kind == "base64":
-        payload = value
-        if payload.startswith("data:") and "," in payload:
-            payload = payload.split(",", 1)[1]
-        payload = "".join(payload.split())
-        if len(payload) > IMAGE_MAX_BYTES * 2:  # base64 膨胀 ~4/3,粗拦在解码前
-            raise ProtocolError(
-                "image_too_large", f"base64 内容超过 10MB 上限(limit={IMAGE_MAX_BYTES})",
-                path="params.value", data={"limit": IMAGE_MAX_BYTES},
-            )
-        try:
-            data = base64.b64decode(payload, validate=True)
-        except (binascii.Error, ValueError) as exc:
-            raise ProtocolError(
-                "image_unsupported", f"base64 内容无法解码为图片: {exc}", path="params.value"
-            ) from exc
-    else:
-        raise ProtocolError("invalid_params", "kind 必须是 path 或 base64", path="params.kind")
-    if len(data) > IMAGE_MAX_BYTES:
-        raise ProtocolError(
-            "image_too_large",
-            f"图片超过 10MB 上限: {len(data)} 字节(limit={IMAGE_MAX_BYTES})",
-            path="params.value", data={"size": len(data), "limit": IMAGE_MAX_BYTES},
-        )
-    ext = _sniff_image_ext(data)
-    if ext is None:
-        raise ProtocolError(
-            "image_unsupported", "不支持的图片格式(支持 png/jpg/webp;heic 自动转 png 后收)",
-            path="params.value",
-        )
-    if ext == "heic":
-        data = _convert_heic_to_png(data)
-        ext = "png"
-        if len(data) > IMAGE_MAX_BYTES:  # 转 png 可能膨胀,落库前再拦一道
-            raise ProtocolError(
-                "image_too_large",
-                f"heic 转 png 后超过 10MB 上限: {len(data)} 字节(limit={IMAGE_MAX_BYTES})",
-                path="params.value", data={"size": len(data), "limit": IMAGE_MAX_BYTES},
-            )
-    image_id = hashlib.sha256(data).hexdigest()[:16]
-    ctx = _serve_context()
-    images = _images_dir(ctx)
-    images.mkdir(parents=True, exist_ok=True)
-    dest = images / f"{image_id}.{ext}"
-    if not dest.exists():  # 去重:同字节流已入库则直接复用
-        tmp = dest.with_name(dest.name + ".tmp")
-        tmp.write_bytes(data)
-        os.replace(tmp, dest)
-    return {"id": image_id, "path": str(dest), "bytes": len(data), "ext": ext}
-
-
-def _m_image_ocr(params: dict[str, Any]) -> dict[str, Any]:
-    """一级 OCR(双引擎):逐行 ``{text, conf}`` + engine + 耗时;缺省引擎取配置。"""
-    id_raw = params.get("id")
-    if not isinstance(id_raw, str) or not id_raw:
-        raise ProtocolError("invalid_params", "缺少图片 id(image.import 返回)", path="params.id")
-    ctx = _serve_context()
-    image_path = _image_file_by_id(id_raw, ctx)
-    config = _load_vision(ctx)
-    engine = params.get("engine") or config.ocr_engine_default
-    if engine not in OCR_ENGINES:
-        raise ProtocolError(
-            "image_engine_unknown",
-            f"未知 OCR 引擎 {engine!r}(可选:{'/'.join(OCR_ENGINES)})",
-            path="params.engine",
-            data={"engine": engine, "allowed": list(OCR_ENGINES)},
-        )
-    started = time.monotonic()
-    try:
-        lines = run_ocr(image_path, engine)
-    except OCRError as exc:
-        if exc.code == "engine_unknown":  # 引擎名源自配置时的兜底翻译
-            raise ProtocolError(
-                "image_engine_unknown", str(exc), path="params.engine", data=exc.to_dict()
-            ) from exc
-        raise ProtocolError("image_ocr_failed", str(exc), path="params", data=exc.to_dict()) from exc
-    ms = int((time.monotonic() - started) * 1000)
-    return {
-        "lines": [{"text": line.text, "conf": round(line.conf, 4)} for line in lines],
-        "engine": engine,
-        "ms": ms,
-    }
-
-
-def _vision_probe(base_url: str, *, api_key: str | None) -> None:
-    """analyze 前轻探活(GET ``{base_url}/models``,3s;design 风险表拍板)。
-
-    失败抛 :class:`OSError`(不可达,worker 译 ``image_unreachable``)或
-    :class:`_ProbeAuthError`(401/403,译 ``image_no_credentials``)。
-    """
-    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
-    url = base_url.rstrip("/") + "/models"
-    try:
-        with httpx.Client(timeout=3.0) as probe:
-            response = probe.get(url, headers=headers)
-    except httpx.HTTPError as exc:
-        raise OSError(f"{type(exc).__name__}: {exc}") from exc
-    if response.status_code in (401, 403):
-        raise _ProbeAuthError(f"HTTP {response.status_code}")
-    if response.status_code >= 400:
-        raise OSError(f"HTTP {response.status_code}")
-
-
-def _image_record_completed(payload: dict[str, Any]) -> None:
-    """终态先入注册表、后写事件流:对账读到的必是已写出(或将立即写出)的同一载荷。"""
-    global _IMAGE_LAST_COMPLETED
-    with _IMAGE_LOCK:
-        _IMAGE_LAST_COMPLETED = payload
-    _write_line(payload)
-
-
-def _image_analyze_worker(
-    job_id: int,
-    *,
-    image_path: Path,
-    mode: str,
-    question: str | None,
-    channel: str,
-    base_url: str,
-    model: str,
-    api_key: str | None,
-    ocr_engine: str,
-) -> None:
-    """后台线程:read 先取 OCR 初稿 → 探活 → VL 调用 → image.completed 事件。
-
-    仿 :func:`_run_worker` 的兜底模型:线程内任何失败都以 ``image.completed
-    {ok: false, error}`` 事件可见,协议流不裸 traceback,应用不崩。
-    """
-    global _IMAGE_ACTIVE_JOB
-
-    def _fail(code: str, message: str, data: Any = None) -> None:
-        error: dict[str, Any] = {"code": code, "message": message}
-        if data is not None:
-            error["data"] = data
-        _image_record_completed({"type": "image.completed", "job_id": job_id, "ok": False,
-                                 "error": error, "ts": _now_iso()})
-
-    started = time.monotonic()
-    try:
-        ocr_used = False
-        if mode == "read":
-            _write_line({"type": "image.progress", "job_id": job_id, "stage": "ocr", "ts": _now_iso()})
-            try:
-                draft_lines = run_ocr(image_path, ocr_engine)
-            except OCRError as exc:
-                code = "image_engine_unknown" if exc.code == "engine_unknown" else "image_ocr_failed"
-                _fail(code, f"read 模式 OCR 初稿失败: {exc}", exc.to_dict())
-                return
-            prompt = _IMAGE_PROMPT_PROOFREAD.format(
-                draft="\n".join(line.text for line in draft_lines)
-            )
-            ocr_used = True
-        elif mode == "describe":
-            prompt = _IMAGE_PROMPT_DESCRIBE
-        else:  # ask:用户问题直传
-            prompt = str(question)
-        try:
-            _vision_probe(base_url, api_key=api_key)
-        except _ProbeAuthError as exc:
-            _fail("image_no_credentials",
-                  f"视觉端点拒绝鉴权({base_url}): {exc};key 无效或未生效", {"base_url": base_url})
-            return
-        except OSError as exc:
-            hint = _IMAGE_LOCAL_HINT if channel == "local" else "云端端点不可达,请检查网络与 base_url"
-            _fail("image_unreachable",
-                  f"视觉端点探活失败({base_url}): {exc};{hint}", {"base_url": base_url, "channel": channel})
-            return
-        _write_line({"type": "image.progress", "job_id": job_id, "stage": "model", "ts": _now_iso()})
-
-        async def _call() -> VisionResult:
-            client = VisionClient(base_url, model, api_key=api_key)
-            try:
-                return await client.analyze(image_path=image_path, prompt=prompt)
-            finally:
-                await client.aclose()
-
-        result = asyncio.run(_call())
-        payload: dict[str, Any] = {
-            "text": result.text,
-            "model": model,
-            "channel": channel,
-            "elapsed_ms": int((time.monotonic() - started) * 1000),
-            "ocr_used": ocr_used,
-        }
-        if ocr_used:
-            payload["ocr_engine"] = ocr_engine
-        _image_record_completed({"type": "image.completed", "job_id": job_id, "ok": True,
-                                 "result": payload, "ts": _now_iso()})
-    except Exception as exc:  # noqa: BLE001 — 工作线程兜底:错误必须以事件形式可见
-        _fail("image_provider_error", f"{type(exc).__name__}: {exc}")
-    finally:
-        with _IMAGE_LOCK:
-            if _IMAGE_ACTIVE_JOB == job_id:
-                _IMAGE_ACTIVE_JOB = None
-
-
-def _m_image_analyze(params: dict[str, Any]) -> dict[str, Any]:
-    """二级看图(read/describe/ask):提交即返 job_id,结果走事件流(壳 120s 免疫)。
-
-    同步预检(结构化错误即时应答):id/图片存在、mode/question 形状、通道配置
-    可用(本地模型路径已填 / 云端 key 引用可解析);探活与 VL 调用留给后台线程。
-    单飞守卫 ``image_busy`` 照抄 ``run_busy``。
-    """
-    global _IMAGE_NEXT_JOB_ID, _IMAGE_ACTIVE_JOB
-    id_raw = params.get("id")
-    if not isinstance(id_raw, str) or not id_raw:
-        raise ProtocolError("invalid_params", "缺少图片 id(image.import 返回)", path="params.id")
-    mode = params.get("mode")
-    if mode not in ("read", "describe", "ask"):
-        raise ProtocolError("invalid_params", "mode 必须是 read|describe|ask", path="params.mode")
-    question = params.get("question")
-    if mode == "ask" and (not isinstance(question, str) or not question.strip()):
-        raise ProtocolError("invalid_params", "ask 模式必须携带非空 question", path="params.question")
-    ctx = _serve_context()
-    image_path = _image_file_by_id(id_raw, ctx)
-    config = _load_vision(ctx)
-    channel = params.get("channel") or config.channel_default
-    if channel not in CHANNELS:
-        raise ProtocolError("invalid_params", f"channel 必须是 {'/'.join(CHANNELS)}", path="params.channel")
-    if channel == "local":
-        if not config.local_model:
-            raise ProtocolError(
-                "image_config_invalid",
-                "本地通道未配置模型路径(看图设置 → 本地模型路径;mlx-vlm 场景即模型目录)",
-                path="local.model",
-            )
-        base_url, model, api_key = config.local_base_url, config.local_model, None
-    else:
-        if not config.cloud_api_key_ref:
-            raise ProtocolError(
-                "image_no_credentials",
-                "云端通道缺 api_key:先在看图设置录入(经 secret.set 入钥匙链 myia/image/api_key)",
-                path="cloud.api_key",
-            )
-        try:
-            api_key = resolve_credential(config.cloud_api_key_ref)
-        except CredentialResolveError as exc:
-            raise ProtocolError(
-                "image_no_credentials",
-                f"云端 api_key 引用无法解析({config.cloud_api_key_ref}): {exc}",
-                path="cloud.api_key",
-            ) from exc
-        base_url, model = config.cloud_base_url, config.cloud_model
-    with _IMAGE_LOCK:
-        if _IMAGE_ACTIVE_JOB is not None:
-            raise ProtocolError(
-                "image_busy",
-                f"已有看图任务在执行 job_id={_IMAGE_ACTIVE_JOB}(桌面单飞;请等待 image.completed 事件)",
-                data={"active_job_id": _IMAGE_ACTIVE_JOB},
-            )
-        _IMAGE_NEXT_JOB_ID += 1
-        job_id = _IMAGE_NEXT_JOB_ID
-        _IMAGE_ACTIVE_JOB = job_id
-    threading.Thread(
-        target=_image_analyze_worker,
-        kwargs=dict(
-            job_id=job_id, image_path=image_path, mode=mode,
-            question=question if isinstance(question, str) else None,
-            channel=channel, base_url=base_url, model=model, api_key=api_key,
-            ocr_engine=config.ocr_engine_default,
-        ),
-        daemon=True,
-    ).start()
-    return {"job_id": job_id, "state": "running", "mode": mode, "channel": channel}
-
-
-def _m_image_status(params: dict[str, Any]) -> dict[str, Any]:
-    """看图任务对账(UI 重连/订阅竞态):busy + 当前 job_id(空闲时省略 job_id)。
-
-    带 ``job_id`` 查询时附 ``last``:最近一次终态的 ``image.completed`` 原文
-    载荷(自带 job_id,调用方自行比对)。瞬时失败任务的 completed 事件可能在
-    webview 订阅建立前写出而被丢弃 —— UI 订阅就绪后按 job_id 拉一次对账即恢复,
-    不卡「进行中」。不带 ``job_id`` 的旧形状(``{busy, job_id?}``)保持不变。
-    """
-    with _IMAGE_LOCK:
-        busy = _IMAGE_ACTIVE_JOB is not None
-        active = _IMAGE_ACTIVE_JOB
-        last = _IMAGE_LAST_COMPLETED
-    result: dict[str, Any] = {"busy": busy}
-    if busy:
-        result["job_id"] = active
-    job_id = params.get("job_id")
-    if isinstance(job_id, int) and last is not None:
-        result["last"] = last
-    return result
 
 
 def _m_image_config_read(params: dict[str, Any]) -> dict[str, Any]:
@@ -2661,10 +2270,6 @@ _HANDLERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "yaml.template": _m_yaml_template,
     "yaml.save": _m_yaml_save,
     "yaml.delete": _m_yaml_delete,
-    "image.import": _m_image_import,
-    "image.ocr": _m_image_ocr,
-    "image.analyze": _m_image_analyze,
-    "image.status": _m_image_status,
     "image.config.read": _m_image_config_read,
     "image.config.save": _m_image_config_save,
     "channels.list": _m_channels_list,

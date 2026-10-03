@@ -6,7 +6,7 @@ Contract (PRD 10-01-v03-engine-scrapling):
   time (never at module import), so the core pipeline stays zero-heavy-
   dependency; when the package is absent the engine raises a structured
   :class:`FetchError` (``error_type=dependency_missing``) whose message carries
-  ``pip install myia[scrapling]`` verbatim (doctor 消费原文); a broken install
+  ``pip install shishi[scrapling]`` verbatim (doctor 消费原文); a broken install
   (non-ImportError at import time) is structured the same way;
 - **适用场景与边界**:基础盾源(TLS/HTTP2 指纹检测、Cloudflare 基础质询)与
   改版频繁源(adaptive 自愈选择器:每次 ``css()`` 带 ``adaptive=True`` +
@@ -80,10 +80,10 @@ logger = logging.getLogger(__name__)
 LAYER = "L4"
 
 #: Install command surfaced verbatim in the dependency-missing error
-#: (验收标准: 未安装依赖时错误信息含 ``pip install myia[scrapling]``).
-INSTALL_COMMAND = "pip install myia[scrapling]"
+#: (验收标准: 未安装依赖时错误信息含 ``pip install shishi[scrapling]``).
+INSTALL_COMMAND = "pip install shishi[scrapling]"
 
-#: ``myia[scrapling]`` 只拉 scrapling 基础包;fetchers 子包还需其自带 extras。
+#: ``shishi[scrapling]`` 只拉 scrapling 基础包;fetchers 子包还需其自带 extras。
 FETCHERS_INSTALL_NOTE = '如导入 scrapling 后仍缺 fetchers,请补装 pip install "scrapling[fetchers]"'
 
 #: 浏览器后端(stealth/dynamic)首次运行需要 scrapling 自装的浏览器内核。

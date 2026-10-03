@@ -6,7 +6,7 @@ Covers:
 - dependency missing: real ImportError path (skipped automatically if the
   owner installs scrapling) and the deterministic None-in-sys.modules path —
   both assert the structured ``dependency_missing`` error carries
-  ``pip install myia[scrapling]`` verbatim; broken install (non-ImportError)
+  ``pip install shishi[scrapling]`` verbatim; broken install (non-ImportError)
   is structured the same way;
 - fetch path against a **fake scrapling.fetchers module injected via
   sys.modules** (zero real network, zero real browser): list/item extract
@@ -197,7 +197,7 @@ def test_load_scrapling_absent_raises_structured_dependency_error(monkeypatch):
     with pytest.raises(FetchError) as excinfo:
         load_scrapling()
     assert excinfo.value.error_type == "dependency_missing"
-    assert "pip install myia[scrapling]" in str(excinfo.value)
+    assert "pip install shishi[scrapling]" in str(excinfo.value)
 
 
 @pytest.mark.skipif(
@@ -215,7 +215,7 @@ def test_fetch_engine_not_installed_real_error(monkeypatch):
     with pytest.raises(FetchError) as excinfo:
         run(engine.fetch())
     assert excinfo.value.error_type == "dependency_missing"
-    assert "pip install myia[scrapling]" in str(excinfo.value)
+    assert "pip install shishi[scrapling]" in str(excinfo.value)
 
 
 def test_broken_install_import_error_is_structured(monkeypatch):
@@ -233,7 +233,7 @@ def test_broken_install_import_error_is_structured(monkeypatch):
     with pytest.raises(FetchError) as excinfo:
         load_scrapling()
     assert excinfo.value.error_type == "dependency_missing"
-    assert "pip install myia[scrapling]" in str(excinfo.value)
+    assert "pip install shishi[scrapling]" in str(excinfo.value)
 
 
 # ---------------------------------------------------------------------------
@@ -771,19 +771,19 @@ def test_auto_chain_dependency_missing_at_scrapling_still_records_failure(monkey
         ("stealth_browser", "mcp_server_missing"),  # L5 假引擎结构化失败
         ("llm_browser", "engine_not_whitelisted"),  # L6 白名单硬护栏:非 auto/显式源拒载
     ]
-    assert "pip install myia[scrapling]" in outcome.failures[0].message
+    assert "pip install shishi[scrapling]" in outcome.failures[0].message
 
 
 # ---------------------------------------------------------------------------
 # 真实盾源 smoke(PRD 验收:nodeseek 一类基础盾源真实跑通,手动验证记录):
-# 可选依赖 + 真实网络 + 真实盾,默认跳过;本地装好 myia[scrapling] 并完成
+# 可选依赖 + 真实网络 + 真实盾,默认跳过;本地装好 shishi[scrapling] 并完成
 # scrapling install 后设 MYIA_SMOKE_REAL=1 执行,CI 不依赖。
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.skipif(
     not os.environ.get("MYIA_SMOKE_REAL"),
-    reason="真实盾源 smoke:仅本地安装 myia[scrapling] 且设 MYIA_SMOKE_REAL=1 时执行,CI 不依赖",
+    reason="真实盾源 smoke:仅本地安装 shishi[scrapling] 且设 MYIA_SMOKE_REAL=1 时执行,CI 不依赖",
 )
 def test_smoke_nodeseek_basic_shield_auto_structures():
     """PRD 验收入口:nodeseek(基础盾)→ 默认 stealth 后端真实抓取非空。

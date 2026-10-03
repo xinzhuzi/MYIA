@@ -173,7 +173,7 @@ def test_auto_l2_failure_falls_to_firecrawl(monkeypatch):
         "dependency_missing",  # crawl4ai 依赖缺失,链继续降级
     ]
     assert site_calls["count"] == 4  # L2 的 500 走满 retry=3 退避;crawl4ai 零站点请求
-    assert any("pip install myia[crawl4ai]" in f.message for f in outcome.failures)
+    assert any("pip install shishi[crawl4ai]" in f.message for f in outcome.failures)
 
 
 def test_hint_tried_first_when_in_chain(engine_store):

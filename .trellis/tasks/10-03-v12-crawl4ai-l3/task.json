@@ -1,0 +1,31 @@
+{
+  "id": "v12-crawl4ai-l3",
+  "name": "v12-crawl4ai-l3",
+  "title": "crawl4ai L3 实装:真引擎进降级链",
+  "description": "v12-backlog 第 2 项:确认 crawl4ai 真引擎在降级链 L3 位的实现完备性——配置化补全(browser_options/run_options 透传)、smoke 门禁对齐 MYIA_SMOKE_REAL、录制回放测试 CI 零外网复核",
+  "status": "review",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-10-03",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "10-03-v12-backlog",
+  "relatedFiles": [
+    "src/myia/engines/crawl4ai.py",
+    "src/myia/engines/registry.py",
+    "tests/test_crawl4ai.py",
+    "tests/test_registry.py"
+  ],
+  "notes": "",
+  "meta": {}
+}

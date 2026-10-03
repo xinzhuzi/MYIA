@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/python/quality.md", "reason": "验收口径:pytest 全绿、CI 零外网、smoke opt-in"}
+{"file": ".trellis/spec/domain/os-etiquette.md", "reason": "静默铁律:验证零前台命令"}

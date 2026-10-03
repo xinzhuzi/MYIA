@@ -65,7 +65,7 @@ channel_default: cloud          # 缺省 local,切到云端
 cloud:
   base_url: https://open.bigmodel.cn/api/paas/v4   # 产品缺省即此
   model: glm-4v-flash           # 0 元视觉模型(确切标识以智谱模型页为准)
-  api_key: keychain:shishi/image/api_key
+  api_key: keychain:myia/image/api_key
 ```
 
 两点注意:
@@ -74,7 +74,7 @@ cloud:
 - `cloud.api_key` 只收 `keychain:` 引用(明文与 `env:` 一律拒载),先录钥匙链:
 
 ```bash
-shishi secret set shishi/image/api_key < key.txt    # 值走 stdin,不落 shell history
+shishi secret set myia/image/api_key < key.txt    # 值走 stdin,不落 shell history
 ```
 
 ### 接入:精评(enrich)

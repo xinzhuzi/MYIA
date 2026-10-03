@@ -6,13 +6,24 @@ Contract (PRD 10-01-v02-engine-crawl4ai):
   at module import), so the core pipeline stays zero-heavy-dependency; when
   the package is absent the engine raises a structured :class:`FetchError`
   (``error_type=dependency_missing``) whose message carries the extras
-  install command (``pip install myia[crawl4ai]``) and the browser-binary
+  install command (``pip install shishi[crawl4ai]``) and the browser-binary
   note (crawl4ai manages its own playwright browsers — first run may need
   ``crawl4ai-setup``), which ``myia doctor`` surfaces verbatim;
 - with ``extract`` (CSS ``list``/``item``) the rendered HTML is parsed by the
   shared ``extract_html`` (same selectors as L2); ``json_path`` is rejected
   here so ``engine: auto`` degrades to the next engine instead of
   misbehaving (same rule as L2);
+- the full crawl4ai config surface is reachable via
+  ``engine_options.crawl4ai.browser_options`` / ``run_options`` (dicts merged
+  into ``BrowserConfig`` / ``CrawlerRunConfig`` — v12 task 10-03-v12-crawl4ai-l3);
+  the engine's *semantic* keys (browser: ``headless``/``proxy``/``headers``;
+  run: ``cache_mode``/``page_timeout``) are single-source and cannot be
+  overridden through the passthrough (double source of truth = 配置冲突,
+  fail-fast 结构化拒绝); a passthrough key/value the crawl4ai config class
+  rejects at construction time (``TypeError`` for unknown keys, ``ValueError``
+  for its ``__init__`` validation) surfaces as a structured
+  ``invalid_browser_options`` / ``invalid_run_options`` instead of an
+  ``unknown``;
 - without ``extract`` the engine falls back to crawl4ai's own
   auto-structuring capability: one ``{url, title, content}`` record per
   target URL built from the rendered markdown (yaml-schema rule 7:
@@ -26,7 +37,8 @@ Contract (PRD 10-01-v02-engine-crawl4ai):
 Raises:
     FetchError: crawl4ai not installed / broken install
         (``dependency_missing``), bad ``engine_options.crawl4ai``
-        (``invalid_timeout``/``invalid_headless``), browser startup or run
+        (``invalid_timeout``/``invalid_headless``/``invalid_browser_options``/
+        ``invalid_run_options``), browser startup or run
         failure (``crawl4ai_error`` — 启动失败含 crawl4ai-setup 提示),
         run budget exhausted (``timeout``).
     ExtractionError: extract configured but the result carries no HTML.
@@ -47,18 +59,28 @@ from myia.engines.fetch_base import (
     extract_html,
     mask_proxy_url,
 )
+from myia.vision.collect import markdown_image_urls
 
 logger = logging.getLogger(__name__)
 
 LAYER = "L3"
 
 #: Install command surfaced verbatim in the dependency-missing error
-#: (验收标准: 未安装依赖时错误信息含 ``pip install myia[crawl4ai]``).
-INSTALL_COMMAND = "pip install myia[crawl4ai]"
+#: (验收标准: 未安装依赖时错误信息含 ``pip install shishi[crawl4ai]``).
+INSTALL_COMMAND = "pip install shishi[crawl4ai]"
 
 #: Per-page run budget (seconds) when ``engine_options.crawl4ai.timeout`` is
 #: absent — JS 渲染页比静态页慢,默认预算宽于管线 HTTP 默认 30s。
 DEFAULT_PAGE_TIMEOUT_SECONDS = 60.0
+
+#: Engine-owned BrowserConfig keys — semantic knobs whose value the engine
+#: derives itself (headless 校验 / proxy 解析+脱敏 / headers 凭据解析+脱敏日志);
+#: passthrough ``browser_options`` may not override them (单一来源,冲突即拒).
+_RESERVED_BROWSER_KEYS = frozenset({"headless", "proxy", "headers"})
+
+#: Engine-owned CrawlerRunConfig keys — cache semantics (BYPASS, 我们自管变更
+#: 指纹) and the page budget (timeout 预算护栏) stay single-source.
+_RESERVED_RUN_KEYS = frozenset({"cache_mode", "page_timeout"})
 
 __all__ = [
     "LAYER",
@@ -130,12 +152,51 @@ class Crawl4AIEngine(BaseEngine):
             )
         return value
 
+    def _passthrough_options(
+        self, key: str, *, reserved: frozenset[str], error_type: str
+    ) -> dict[str, Any]:
+        """Validated ``engine_options.crawl4ai.<key>`` passthrough dict.
+
+        Opens the rest of crawl4ai's config surface (v12-crawl4ai-l3) without
+        giving up the semantic keys the engine derives itself: dict shape is
+        validated here (fail-fast 于配置、先于依赖加载,与 timeout/headless 同序),
+        and a key colliding with ``reserved`` is a structured config error —
+        双来源(引擎推导值 vs 透传值)不是覆盖关系,是配置冲突。
+
+        Raises:
+            FetchError: not a mapping (``error_type``), or any key in
+                ``reserved`` present (same class).
+        """
+        value = self.engine_options().get(key)
+        if value is None:
+            return {}
+        if not isinstance(value, dict):
+            raise FetchError(
+                f"engine_options.crawl4ai.{key} 应为键值映射,当前为 {type(value).__name__}",
+                error_type=error_type,
+            )
+        conflicts = sorted(reserved & set(value))
+        if conflicts:
+            raise FetchError(
+                f"engine_options.crawl4ai.{key} 不可覆盖引擎自管键 {conflicts}"
+                "(语义值由引擎单一来源推导:代理解析/凭据脱敏/缓存旁路/预算护栏;"
+                "请直接配置对应顶层键 engine_options.crawl4ai.*)",
+                error_type=error_type,
+            )
+        return dict(value)
+
     # -------------------------------------------------------------- fetch
 
     async def _fetch_impl(self) -> list[dict]:
         # 配置校验先于依赖加载:engine_options 拼错时先报配置错(fail-fast 于配置)。
         timeout = self._timeout()
         headless = self._headless()
+        browser_extra = self._passthrough_options(
+            "browser_options", reserved=_RESERVED_BROWSER_KEYS, error_type="invalid_browser_options"
+        )
+        run_extra = self._passthrough_options(
+            "run_options", reserved=_RESERVED_RUN_KEYS, error_type="invalid_run_options"
+        )
         crawl4ai = load_crawl4ai()
         # 代理与 headers 必须真的到达浏览器:源配 pool: 代理时基座已在
         # _prepare_proxy_transport 解析出具体 upstream(_active_proxy_url),
@@ -145,18 +206,42 @@ class Crawl4AIEngine(BaseEngine):
             browser_kwargs["proxy"] = self._active_proxy_url
         if self.source.headers:
             browser_kwargs["headers"] = dict(self._headers)  # 含解析后的 Cookie 等凭据
-        browser_config = crawl4ai.BrowserConfig(**browser_kwargs)
+        browser_kwargs.update(browser_extra)
+        # 透传键/值被 crawl4ai 配置类拒绝必须结构化:dataclass 未知参数
+        # TypeError 与构造期值校验 ValueError(真库 __init__ 内多处 raise,
+        # 如 enable_stealth×browser_mode、非正数超时)同拦 —— 否则裸异常逃到
+        # registry 被归为 unknown,排障看不到键名/非法值。
+        try:
+            browser_config = crawl4ai.BrowserConfig(**browser_kwargs)
+        except (TypeError, ValueError) as exc:
+            raise FetchError(
+                f"engine_options.crawl4ai.browser_options 被 crawl4ai.BrowserConfig "
+                f"拒绝(未知键或非法值): {exc}",
+                error_type="invalid_browser_options",
+            ) from exc
         # 我们自己管变更指纹与缓存语义,crawl4ai 自带缓存一律旁路,保证行为确定。
-        run_config = crawl4ai.CrawlerRunConfig(
-            cache_mode=crawl4ai.CacheMode.BYPASS,
-            page_timeout=int(timeout * 1000),
-        )
+        run_kwargs: dict[str, Any] = {
+            "cache_mode": crawl4ai.CacheMode.BYPASS,
+            "page_timeout": int(timeout * 1000),
+            **run_extra,
+        }
+        try:
+            run_config = crawl4ai.CrawlerRunConfig(**run_kwargs)
+        except (TypeError, ValueError) as exc:
+            raise FetchError(
+                f"engine_options.crawl4ai.run_options 被 crawl4ai.CrawlerRunConfig "
+                f"拒绝(未知键或非法值): {exc}",
+                error_type="invalid_run_options",
+            ) from exc
         logger.info(
-            "crawl4ai 后端就绪 headless=%s timeout=%s proxy=%s headers=%s targets=%s",
+            "crawl4ai 后端就绪 headless=%s timeout=%s proxy=%s headers=%s "
+            "browser_options=%s run_options=%s targets=%s",
             headless,
             timeout,
             mask_proxy_url(self._active_proxy_url) if self._active_proxy_url else "direct",
             len(self._headers) if self.source.headers else 0,
+            sorted(browser_extra),
+            sorted(run_extra),
             len(self._template_urls()),
         )
         items: list[dict] = []
@@ -224,13 +309,20 @@ class Crawl4AIEngine(BaseEngine):
                     f"crawl4ai 结果缺少 html,无法执行 extract 选择器 url={target_url}"
                 )
             return extract_html(html, self.source.extract, base_url=target_url)
-        return [
-            {
-                "url": target_url,
-                "title": self._metadata_title(result),
-                "content": self._markdown_text(result),
-            }
-        ]
+        markdown = self._markdown_text(result)
+        record: dict[str, Any] = {
+            "url": target_url,
+            "title": self._metadata_title(result),
+            "content": markdown,
+        }
+        # 图片处理环供给(10-03-vision-pipeline 拍板⑥):无 extract 时图片链接
+        # 本会随 markdown 纯文本化丢光;此处收集**同域**图 URL 进 metadata
+        # (跨域广告/追踪像素不收),品类 images: 节开启时由管线消费——未开启
+        # 则该键静默随 metadata 入库,零行为差异。非空才带键,payload 不膨胀。
+        images = markdown_image_urls(markdown, target_url)
+        if images:
+            record["images"] = images
+        return [record]
 
     @staticmethod
     def _metadata_title(result: Any) -> str:

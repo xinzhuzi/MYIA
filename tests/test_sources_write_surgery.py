@@ -297,6 +297,144 @@ def test_stale_gap_falls_back_to_predecessor_anchor(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# 列 0 分节注释紧贴末条目(评审遗留 low-2):它属节间注释,不随末条目搬运
+# ---------------------------------------------------------------------------
+
+
+#: 列 0 分节注释紧贴末条目(无空行):它是给下面 watchlist 节写的分节注释,
+#: 不归属末条目 —— 曾被并进末条目搬运块,停用即整体离开主文件,中间态一节
+#: 注释不可见(往返虽逐字节一致,注释在停用期间消失)。
+SECTION_COMMENT_TAIL_YAML = (
+    "id: sect-tail\n"
+    "name: 节间注释\n"
+    'schedule: "0 9 * * *"\n'
+    "sources:\n"
+    "  - name: a\n"
+    "    url: https://a/\n"
+    "  - name: b\n"
+    "    url: https://b/\n"
+    "# 分节注释:紧贴末条目,为下面的 watchlist 节所写\n"
+    "watchlist:\n"
+    "  keywords: []\n"
+)
+
+#: 同布局的三源形态:多停多启 + 乱序启用时,分节注释同样原地不动。
+SECTION_COMMENT_THREE_YAML = (
+    "id: sect-three\n"
+    "name: 节间三源\n"
+    'schedule: "0 9 * * *"\n'
+    "sources:\n"
+    "  - name: a\n"
+    "    url: https://a/\n"
+    "  - name: b\n"
+    "    url: https://b/\n"
+    "  - name: c\n"
+    "    url: https://c/\n"
+    "# 分节注释:紧贴末条目 c\n"
+    "watchlist:\n"
+    "  keywords: []\n"
+)
+
+
+@pytest.mark.parametrize(
+    ("text", "file_name"),
+    [
+        (SECTION_COMMENT_TAIL_YAML, "sect_tail.yaml"),
+        (SECTION_COMMENT_TAIL_YAML.replace("\n", "\r\n"), "sect_tail_crlf.yaml"),
+        (
+            SECTION_COMMENT_TAIL_YAML.replace(
+                "# 分节注释:紧贴末条目,为下面的 watchlist 节所写\nwatchlist:\n  keywords: []\n",
+                "# 分节注释:紧贴末条目,直到 EOF\n",
+            ),
+            "sect_tail_eof.yaml",
+        ),
+    ],
+    ids=["plain", "crlf", "eof-tail"],
+)
+def test_col0_section_comment_stays_when_last_entry_disabled(tmp_path, text, file_name):
+    """停用末条目:紧贴其上的列 0 分节注释留在主文件、不入搬运块;启用还原
+    后逐字节一致(CRLF 与直到 EOF 的形态同样成立)。"""
+    path = write_yaml(tmp_path, text, file_name)
+    before = path.read_bytes()
+    toggle(path, disable=["b"])
+
+    mid = path.read_text("utf-8")
+    assert "- name: b" not in mid  # 条目离场
+    assert "# 分节注释" in mid  # 分节注释原地不动
+    stash = json.loads((tmp_path / (file_name + STASH_SUFFIX)).read_text("utf-8"))
+    assert "# 分节注释" not in stash[0]["_myia_toggle"]["raw_block"]  # 不入搬运块
+    assert stash[0]["_myia_toggle"]["pred"] == "a"
+
+    toggle(path, enable=["b"])
+    assert path.read_bytes() == before  # 往返 diff 为空
+
+
+def test_col0_section_comment_survives_multi_move_cycle(tmp_path):
+    """三源 + 紧贴末条目的列 0 分节注释:多停多启、乱序启用全程注释原地;
+    块尾追加也落在注释之前,不把注释推走。往返逐字节一致。"""
+    path = write_yaml(tmp_path, SECTION_COMMENT_THREE_YAML, "sect_three.yaml")
+    before = path.read_bytes()
+    toggle(path, disable=["b", "c"])
+    mid = path.read_text("utf-8")
+    assert "# 分节注释" in mid  # 两条目齐走,注释仍留主文件
+    toggle(path, enable=["c"])  # pred=b 不在文本 → 追加块尾
+    mid = path.read_text("utf-8")
+    assert mid.index("- name: c") < mid.index("# 分节注释")  # 追加在注释之前
+    toggle(path, enable=["b"])  # 乱序启用仍还原原始相对顺序
+    assert path.read_bytes() == before
+
+
+# ---------------------------------------------------------------------------
+# 列 0 注释嵌在末条目正文中段(low-2 修复回归):注释透明,随条目整段搬运
+# ---------------------------------------------------------------------------
+
+
+#: 回归夹具:列 0 注释出现在**末条目 b 的字段中段**(其后仍有 b 自己的缩进
+#: 字段 ``retry: 2``)。YAML 注释透明,该字段仍属 b —— 曾因「列 0 即分节
+#: 注释」的字形判定被拦腰截断:raw_block 只搬走前两行,``retry: 2`` 残留
+#: 主文件,停用中间态解析时静默并入前一启用源 a(retry 语义污染,headers
+#: 同理;往返字节还原掩盖中间态错挂)。
+MID_ENTRY_COL0_COMMENT_YAML = (
+    "id: mid-comment\n"
+    "name: 条目中段注释\n"
+    'schedule: "0 9 * * *"\n'
+    "sources:\n"
+    "  - name: a\n"
+    "    url: https://a/\n"
+    "  - name: b\n"
+    "    url: https://b/\n"
+    "# 备注:嵌在 b 的字段中段,不是分节注释\n"
+    "    retry: 2\n"
+    "watchlist:\n"
+    "  keywords: []\n"
+)
+
+
+def test_mid_entry_col0_comment_travels_with_last_entry(tmp_path):
+    """末条目正文中段的列 0 注释随条目整段搬运:停用中间态干净(b 的字段
+    不残留并入 a,仍取默认 retry),启用逐字节还原;紧贴块界的真分节注释
+    形态(缩进前瞻无续行)由上一组用例守住。"""
+    from myia.schema import load_category_file
+
+    path = write_yaml(tmp_path, MID_ENTRY_COL0_COMMENT_YAML, "mid_comment.yaml")
+    before = path.read_bytes()
+
+    toggle(path, disable=["b"])
+    parsed = load_category_file(path)
+    assert [s.name for s in parsed.sources] == ["a"]
+    assert parsed.sources[0].retry == 3  # 默认值;b 的 retry:2 随 b 离场,不并入 a
+    mid = path.read_text("utf-8")
+    assert "- name: b" not in mid  # 条目离场
+    assert "retry: 2" not in mid and "# 备注" not in mid  # 字段与中段注释整段随行
+    stash = json.loads((tmp_path / ("mid_comment.yaml" + STASH_SUFFIX)).read_text("utf-8"))
+    raw_block = stash[0]["_myia_toggle"]["raw_block"]
+    assert "# 备注" in raw_block and "retry: 2" in raw_block  # 整段入搬运块
+
+    toggle(path, enable=["b"])
+    assert path.read_bytes() == before  # 往返 diff 为空
+
+
+# ---------------------------------------------------------------------------
 # 锚点注释随行 / 引号与顺序风格保真
 # ---------------------------------------------------------------------------
 
@@ -541,6 +679,47 @@ def test_legacy_stash_without_meta_falls_back_to_append(tmp_path):
     # 追加在块尾(parked 占位之前、watchlist 之前)
     text = path.read_text("utf-8")
     assert text.index("- name: legacy") < text.index("# - name: parked")
+
+
+def test_corrupted_stash_meta_stripped_from_fallback_block(tmp_path):
+    """损坏暂存(``raw_block`` 非字符串)走重序列化兜底:``_myia_toggle``
+    内部键先剥离再 dump —— 零痕迹进主 YAML,该源此后停用照常(修前内部键
+    写进主 YAML,再停用撞保留键被拒 = 启停变砖;评审遗留 low-1)。"""
+    # 单元面:兜底序列化对带内部键的条目剥离之,对无内部键的原样
+    block = entry._toggle_fallback_block(
+        {"name": "x", "url": "u", "_myia_toggle": {"pred": None}}, 2
+    )
+    assert "_myia_toggle" not in block
+    assert "- name: x" in block
+
+    path = write_yaml(tmp_path, THREE_SOURCES_YAML)
+    (tmp_path / ("surgery-demo.yaml" + STASH_SUFFIX)).write_text(
+        json.dumps(
+            [
+                {
+                    "name": "legacy",
+                    "url": "https://legacy.example/",
+                    "_myia_toggle": {"raw_block": 123, "pred": "gamma"},
+                }
+            ],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    result = toggle(path, enable=["legacy"])
+    assert result["written"] is True
+    text = path.read_text("utf-8")
+    assert "_myia_toggle" not in text  # 主 YAML 零内部键痕迹
+    assert "- name: legacy" in text
+
+    # 此后停用照常;再入暂存的原文同样不带内部键(下一轮 enable 干净还原)
+    result = toggle(path, disable=["legacy"])
+    assert result["disabled"] == ["legacy"]
+    stash = json.loads(
+        (tmp_path / ("surgery-demo.yaml" + STASH_SUFFIX)).read_text("utf-8")
+    )
+    assert "_myia_toggle" not in stash[0]["_myia_toggle"]["raw_block"]
 
 
 def test_duplicate_residue_heals_from_file_copy(tmp_path):

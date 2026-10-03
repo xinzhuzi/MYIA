@@ -6,13 +6,16 @@ Covers:
 - dependency missing: real ImportError path (skipped automatically if the
   owner installs crawl4ai) and the deterministic None-in-sys.modules path —
   both assert the structured ``dependency_missing`` error carries
-  ``pip install myia[crawl4ai]`` verbatim;
+  ``pip install shishi[crawl4ai]`` verbatim;
 - fetch path against a **fake crawl4ai module injected via sys.modules**
   (zero real network, zero real browser): list extract over rendered HTML,
   no-extract auto-structuring fallback (markdown str 与 MarkdownGenerationResult
   两种形态), options pass-through (headless / page_timeout), robots guard,
   ``success: false`` 与 arun 异常的结构化包装, 外层 wait_for 超时分类,
   ``{page}`` 模板翻页;
+- browser_options / run_options 透传(v12-crawl4ai-l3 配置化补全):透传键到
+  BrowserConfig/CrawlerRunConfig、自管键冲突拒绝、非映射结构化报错、未知键
+  (真库 dataclass TypeError)结构化 invalid_* 且指名键;
 - auto chain order (fake engines injected into ENGINE_REGISTRY): L2 失败 →
   crawl4ai 成功且不再落 firecrawl;crawl4ai 依赖缺失按普通引擎失败继续降级。
 
@@ -109,6 +112,22 @@ class FakeCrawl4AI:
     run_configs: list[dict] = field(default_factory=list)
 
 
+#: 真 crawl4ai 的 BrowserConfig/CrawlerRunConfig:未知参数构造期 TypeError
+#: (dataclass),已知键的非法值构造期 ValueError(``__init__`` 校验,如
+#: enable_stealth×browser_mode='builtin'、非正数 body_visibility_timeout)。
+#: 假类按同语义拒绝,透传用例才能验证 TypeError/ValueError → 结构化映射。
+BROWSER_CONFIG_KEYS = frozenset(
+    {"headless", "proxy", "headers", "browser_type", "user_agent",
+     "viewport_width", "viewport_height", "text_mode", "light_mode",
+     "enable_stealth", "browser_mode"}
+)
+RUN_CONFIG_KEYS = frozenset(
+    {"cache_mode", "page_timeout", "word_count_threshold", "wait_for",
+     "css_selector", "excluded_tags", "js_code", "verbose", "magic",
+     "body_visibility_timeout"}
+)
+
+
 def install_fake_crawl4ai(monkeypatch: pytest.MonkeyPatch, script: list) -> FakeCrawl4AI:
     """Build a fake ``crawl4ai`` package and inject it via sys.modules."""
     module = types.ModuleType("crawl4ai")
@@ -116,10 +135,26 @@ def install_fake_crawl4ai(monkeypatch: pytest.MonkeyPatch, script: list) -> Fake
 
     class BrowserConfig:
         def __init__(self, **kwargs) -> None:
+            unknown = sorted(set(kwargs) - BROWSER_CONFIG_KEYS)
+            if unknown:  # 与真库 dataclass 同语义:未知参数构造期 TypeError
+                raise TypeError(f"unexpected keyword argument {unknown[0]!r}")
+            if kwargs.get("enable_stealth") and kwargs.get("browser_mode") == "builtin":
+                # 与真库 __init__ 值校验同语义:async_configs.py:1046-1052
+                raise ValueError("enable_stealth cannot be used with browser_mode='builtin'.")
             fake.browser_configs.append(kwargs)
 
     class CrawlerRunConfig:
         def __init__(self, **kwargs) -> None:
+            unknown = sorted(set(kwargs) - RUN_CONFIG_KEYS)
+            if unknown:
+                raise TypeError(f"unexpected keyword argument {unknown[0]!r}")
+            if "body_visibility_timeout" in kwargs:
+                # 与真库 __init__ 值校验同语义:async_configs.py:1898(非正数拒)
+                value = kwargs["body_visibility_timeout"]
+                if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+                    raise ValueError(
+                        f"body_visibility_timeout must be a positive integer, got {value}"
+                    )
             fake.run_configs.append(kwargs)
 
     class CacheMode:
@@ -155,7 +190,7 @@ def test_load_crawl4ai_absent_raises_structured_dependency_error(monkeypatch):
     with pytest.raises(FetchError) as excinfo:
         load_crawl4ai()
     assert excinfo.value.error_type == "dependency_missing"
-    assert "pip install myia[crawl4ai]" in str(excinfo.value)
+    assert "pip install shishi[crawl4ai]" in str(excinfo.value)
 
 
 @pytest.mark.skipif(
@@ -172,7 +207,7 @@ def test_fetch_engine_not_installed_real_error(monkeypatch):
     with pytest.raises(FetchError) as excinfo:
         run(engine.fetch())
     assert excinfo.value.error_type == "dependency_missing"
-    assert "pip install myia[crawl4ai]" in str(excinfo.value)
+    assert "pip install shishi[crawl4ai]" in str(excinfo.value)
 
 
 # ---------------------------------------------------------------------------
@@ -323,6 +358,160 @@ def test_invalid_options_are_structured_errors(monkeypatch):
         with pytest.raises(FetchError) as excinfo:
             run(Crawl4AIEngine(source, context).fetch())
         assert excinfo.value.error_type == expected_type  # 配置校验先于依赖加载,无需注入假模块
+
+
+# ---------------------------------------------------------------------------
+# browser_options / run_options 透传(v12-crawl4ai-l3 配置化补全)
+# ---------------------------------------------------------------------------
+
+
+def test_browser_options_and_run_options_passthrough(monkeypatch):
+    """透传 dict 合并进对应配置类,打开 crawl4ai 完整配置面;引擎自管键不受影响。"""
+    fake = install_fake_crawl4ai(monkeypatch, [{"html": RENDERED_HTML}])
+    client = make_client(make_handler(lambda r: httpx.Response(404, text="")))
+    context, _ = make_context(client)
+    source = make_source(
+        engine="crawl4ai",
+        url=SITE_URL,
+        extract=LIST_EXTRACT,
+        engine_options={
+            "crawl4ai": {
+                "browser_options": {
+                    "user_agent": "CustomUA/2.0",
+                    "viewport_width": 1440,
+                    "text_mode": True,
+                },
+                "run_options": {"word_count_threshold": 5, "wait_for": "css:div.item"},
+            }
+        },
+    )
+
+    run(Crawl4AIEngine(source, context).fetch())
+
+    browser = fake.browser_configs[0]
+    assert browser["user_agent"] == "CustomUA/2.0"
+    assert browser["viewport_width"] == 1440
+    assert browser["text_mode"] is True
+    assert browser["headless"] is True  # 引擎自管键不受透传影响
+    run_cfg = fake.run_configs[0]
+    assert run_cfg["word_count_threshold"] == 5
+    assert run_cfg["wait_for"] == "css:div.item"
+    assert run_cfg["cache_mode"] == "bypass"  # 缓存语义仍单一来源
+    assert run_cfg["page_timeout"] == 60000  # 预算护栏仍单一来源
+
+
+def test_passthrough_non_dict_is_structured_config_error():
+    """透传值非映射:结构化 invalid_*,且先于依赖加载(未注入假模块即拒绝)。"""
+    client = make_client(make_handler(lambda r: pytest.fail("配置错误时不应发起任何请求")))
+    cases = (
+        ({"browser_options": ["headless"]}, "invalid_browser_options"),
+        ({"run_options": "css:div"}, "invalid_run_options"),
+    )
+    for options, expected_type in cases:
+        context, _ = make_context(client)
+        source = make_source(
+            engine="crawl4ai", url=SITE_URL, engine_options={"crawl4ai": options}
+        )
+        with pytest.raises(FetchError) as excinfo:
+            run(Crawl4AIEngine(source, context).fetch())
+        assert excinfo.value.error_type == expected_type
+
+
+def test_passthrough_reserved_engine_keys_rejected():
+    """透传覆盖引擎自管键(双来源=配置冲突):结构化拒绝并指名冲突键。"""
+    client = make_client(make_handler(lambda r: pytest.fail("配置错误时不应发起任何请求")))
+    cases = (
+        ({"browser_options": {"headless": False}}, "invalid_browser_options"),
+        ({"browser_options": {"proxy": "http://proxy.example.com:8080"}}, "invalid_browser_options"),
+        ({"browser_options": {"headers": {"Cookie": "env:MYIA_TEST_COOKIE"}}}, "invalid_browser_options"),
+        ({"run_options": {"cache_mode": "enabled"}}, "invalid_run_options"),
+        ({"run_options": {"page_timeout": 1000}}, "invalid_run_options"),
+    )
+    for options, expected_type in cases:
+        context, _ = make_context(client)
+        source = make_source(
+            engine="crawl4ai", url=SITE_URL, extract=LIST_EXTRACT, engine_options={"crawl4ai": options}
+        )
+        with pytest.raises(FetchError) as excinfo:
+            run(Crawl4AIEngine(source, context).fetch())
+        assert excinfo.value.error_type == expected_type
+        assert "自管键" in str(excinfo.value)
+
+
+def test_passthrough_unknown_key_surfaces_structured(monkeypatch):
+    """透传键被配置类拒绝(真库 dataclass TypeError,假类同语义)→ 结构化
+    invalid_* 且指名键——不修则裸 TypeError 逃到 registry 被归 unknown。"""
+    install_fake_crawl4ai(monkeypatch, [{"html": RENDERED_HTML}])
+    client = make_client(make_handler(lambda r: pytest.fail("配置错误时不应发起任何请求")))
+    context, _ = make_context(client)
+    source = make_source(
+        engine="crawl4ai",
+        url=SITE_URL,
+        engine_options={"crawl4ai": {"browser_options": {"headles": True}}},  # 拼错
+    )
+
+    with pytest.raises(FetchError) as excinfo:
+        run(Crawl4AIEngine(source, context).fetch())
+    assert excinfo.value.error_type == "invalid_browser_options"
+    assert "headles" in str(excinfo.value)
+
+
+def test_run_options_unknown_key_surfaces_structured(monkeypatch):
+    """run_options 未知键同理:CrawlerRunConfig TypeError → invalid_run_options。"""
+    install_fake_crawl4ai(monkeypatch, [{"html": RENDERED_HTML}])
+    client = make_client(make_handler(lambda r: pytest.fail("配置错误时不应发起任何请求")))
+    context, _ = make_context(client)
+    source = make_source(
+        engine="crawl4ai",
+        url=SITE_URL,
+        engine_options={"crawl4ai": {"run_options": {"js_cod": "return 1"}}},  # 拼错
+    )
+
+    with pytest.raises(FetchError) as excinfo:
+        run(Crawl4AIEngine(source, context).fetch())
+    assert excinfo.value.error_type == "invalid_run_options"
+    assert "js_cod" in str(excinfo.value)
+
+
+def test_browser_config_valueerror_surfaces_structured(monkeypatch):
+    """真库 BrowserConfig.__init__ 对**已知键的非法值**也 raise ValueError
+    (enable_stealth × browser_mode='builtin')→ 结构化 invalid_browser_options,
+    不裸逃到 registry 被归 unknown(构造期 ValueError 与 TypeError 同拦)。"""
+    install_fake_crawl4ai(monkeypatch, [{"html": RENDERED_HTML}])
+    client = make_client(make_handler(lambda r: pytest.fail("配置错误时不应发起任何请求")))
+    context, _ = make_context(client)
+    source = make_source(
+        engine="crawl4ai",
+        url=SITE_URL,
+        engine_options={
+            "crawl4ai": {
+                "browser_options": {"enable_stealth": True, "browser_mode": "builtin"}
+            }
+        },
+    )
+
+    with pytest.raises(FetchError) as excinfo:
+        run(Crawl4AIEngine(source, context).fetch())
+    assert excinfo.value.error_type == "invalid_browser_options"
+    assert "enable_stealth" in str(excinfo.value)
+
+
+def test_run_options_valueerror_surfaces_structured(monkeypatch):
+    """run_options 已知键非法值同理:body_visibility_timeout<=0(真库
+    CrawlerRunConfig.__init__ ValueError)→ invalid_run_options,不裸逃。"""
+    install_fake_crawl4ai(monkeypatch, [{"html": RENDERED_HTML}])
+    client = make_client(make_handler(lambda r: pytest.fail("配置错误时不应发起任何请求")))
+    context, _ = make_context(client)
+    source = make_source(
+        engine="crawl4ai",
+        url=SITE_URL,
+        engine_options={"crawl4ai": {"run_options": {"body_visibility_timeout": 0}}},
+    )
+
+    with pytest.raises(FetchError) as excinfo:
+        run(Crawl4AIEngine(source, context).fetch())
+    assert excinfo.value.error_type == "invalid_run_options"
+    assert "body_visibility_timeout" in str(excinfo.value)
 
 
 def test_json_path_extract_rejected_for_degrade(monkeypatch):
@@ -481,18 +670,19 @@ def test_auto_chain_dependency_missing_degrades_to_firecrawl(monkeypatch):
         "http_500",
         "dependency_missing",
     ]
-    assert any("pip install myia[crawl4ai]" in failure.message for failure in outcome.failures)
+    assert any("pip install shishi[crawl4ai]" in failure.message for failure in outcome.failures)
 
 
 # ---------------------------------------------------------------------------
 # 真实源 smoke(PRD 验收:JS 渲染源真实跑通 TapNow):可选依赖 + 真实网络,
-# 默认跳过,本地装好 myia[crawl4ai] 后设 MYIA_CRAWL4AI_SMOKE=1 执行。
+# 默认跳过,本地装好 shishi[crawl4ai] 后设 MYIA_SMOKE_REAL=1 执行(仓库统一
+# opt-in 变量,与 test_scrapling.py / test_direct_api.py 同门禁)。
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.skipif(
-    not os.environ.get("MYIA_CRAWL4AI_SMOKE"),
-    reason="真实源 smoke:仅本地安装 myia[crawl4ai] 且设 MYIA_CRAWL4AI_SMOKE=1 时执行,CI 不依赖",
+    not os.environ.get("MYIA_SMOKE_REAL"),
+    reason="真实源 smoke:仅本地安装 shishi[crawl4ai] 且设 MYIA_SMOKE_REAL=1 时执行,CI 不依赖",
 )
 def test_smoke_tapnow_js_render_auto_structures():
     """PRD 验收入口:TapNow(https://app.tapnow.ai/)JS 渲染 → 自动结构化兜底非空。"""
@@ -642,4 +832,4 @@ def test_broken_install_import_error_is_structured(monkeypatch):
     with pytest.raises(FetchError) as excinfo:
         load_crawl4ai()
     assert excinfo.value.error_type == "dependency_missing"
-    assert "pip install myia[crawl4ai]" in str(excinfo.value)
+    assert "pip install shishi[crawl4ai]" in str(excinfo.value)

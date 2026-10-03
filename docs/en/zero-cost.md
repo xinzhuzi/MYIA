@@ -82,7 +82,7 @@ channel_default: cloud          # the default is local; switch to cloud
 cloud:
   base_url: https://open.bigmodel.cn/api/paas/v4   # the product default
   model: glm-4v-flash           # zero-cost vision model (exact identifier per Zhipu's model page)
-  api_key: keychain:shishi/image/api_key
+  api_key: keychain:myia/image/api_key
 ```
 
 Two cautions:
@@ -93,7 +93,7 @@ Two cautions:
   `env:` are both refused at load) — record it in the keychain first:
 
 ```bash
-shishi secret set shishi/image/api_key < key.txt    # value goes over stdin, never into shell history
+shishi secret set myia/image/api_key < key.txt    # value goes over stdin, never into shell history
 ```
 
 ### Wiring up: enrich
