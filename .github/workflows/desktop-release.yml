@@ -109,6 +109,19 @@ jobs:
         # 删掉 —— latest.json 步骤必因缺 .sig 而红(v1.1 评审修复)。
         run: npx tauri build --bundles app,dmg --config src-tauri/tauri.release.conf.json
 
+      # GitHub 会剥掉资产文件名里的非 ASCII 字符(世事.app.tar.gz→app.tar.gz、
+      # 世事_1.1.1_aarch64.dmg→_1.1.1_aarch64.dmg,v1.1.1 实证)——latest.json 若
+      # 指原名即 404。统一先复制成 ASCII 名(shishi.*),签名按字节验证不受改名影响。
+      - name: 产物改 ASCII 名(GitHub 剥非 ASCII 资产名)
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          BUNDLE="desktop/src-tauri/target/release/bundle"
+          cp "$BUNDLE/macos/世事.app.tar.gz"     "$BUNDLE/macos/shishi.app.tar.gz"
+          cp "$BUNDLE/macos/世事.app.tar.gz.sig" "$BUNDLE/macos/shishi.app.tar.gz.sig"
+          cp "$BUNDLE/dmg/"*"_aarch64.dmg"       "$BUNDLE/dmg/shishi_${VERSION}_aarch64.dmg"
+
       - name: 生成 latest.json(updater 索引,darwin-aarch64 条目)
         env:
           TAG: ${{ github.ref_name }}
@@ -116,7 +129,7 @@ jobs:
         run: |
           VERSION="${TAG#v}"
           BUNDLE="desktop/src-tauri/target/release/bundle"
-          SIG="$(cat "$BUNDLE/macos/世事.app.tar.gz.sig")"
+          SIG="$(cat "$BUNDLE/macos/shishi.app.tar.gz.sig")"
           jq -n --arg v "$VERSION" --arg tag "$TAG" --arg repo "$REPO" --arg sig "$SIG" \
             '{version: $v,
               notes: ("世事 " + $v),
@@ -124,7 +137,7 @@ jobs:
               platforms: {
                 "darwin-aarch64": {
                   signature: $sig,
-                  url: ("https://github.com/" + $repo + "/releases/download/" + $tag + "/世事.app.tar.gz")
+                  url: ("https://github.com/" + $repo + "/releases/download/" + $tag + "/shishi.app.tar.gz")
                 }
               }}' > latest.json
           cat latest.json
@@ -135,9 +148,9 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
-            desktop/src-tauri/target/release/bundle/dmg/*.dmg
-            desktop/src-tauri/target/release/bundle/macos/世事.app.tar.gz
-            desktop/src-tauri/target/release/bundle/macos/世事.app.tar.gz.sig
+            desktop/src-tauri/target/release/bundle/dmg/shishi_*_aarch64.dmg
+            desktop/src-tauri/target/release/bundle/macos/shishi.app.tar.gz
+            desktop/src-tauri/target/release/bundle/macos/shishi.app.tar.gz.sig
             latest.json
 
   windows-msi:

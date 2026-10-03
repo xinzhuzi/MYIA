@@ -113,3 +113,17 @@
 - [x] Round 2 四问批复补记(2026-10-03 全按推荐)
 - [x] Round 3 四项决议补记 + 七个执行档齐备(v111-release/test-baseline-import/
       v12-backlog/docs-truth/v112-desktop-batch/ci-gates/archive-review 全挂本档)
+
+## 追批:2026-10-03 12:15 主人「批」
+
+- **世事更名口径 ✅**:仓库已更名 github.com/xinzhuzi/shishi(cb87302),发布随新名——
+  tag `v1.1.1`(版本制,与名无关)、PyPI 包名 shishi/shishi-classifier、README/产物=世事口径。
+- **updater 三密钥 ✅(AI 代执行)**:npx tauri signer generate 产出
+  `~/.tauri/shishi.key`(+.pub),**空密码**(守卫明示密码未配置视为空);私钥 chmod 600
+  存仓外绝不入库;GitHub Secrets 已配 TAURI_UPDATER_PUBKEY + TAURI_SIGNING_PRIVATE_KEY
+  (PASSWORD 空密码故未设)。**⚠️ 私钥备份是主人责任:丢失则永远无法再签更新包**
+  (UPDATER.md 铁律),建议尽快把 ~/.tauri/shishi.key* 抄进密码管理器/离线盘。
+- **tag v1.1.1**:并行会话已打于 d359a3e(含 v1.1.1 全部代码+更名波;仅差其后两个
+  纯文档提交,不影响产物);首次流水线因密钥未配守卫红,配毕 rerun 中。
+- **PyPI**:仍差主人侧 PYPI_API_TOKEN(pypi-publish.yml);test.pypi 演练开关
+  (repository-url)仍待实现(v111-release implement.md 步骤 6 遗留)。
