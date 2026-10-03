@@ -28,7 +28,7 @@
 ## 标题候选(选一)
 
 1. `I built an open-source, self-hosted intelligence hub: one YAML file per thing I want to watch, and my coding agent writes the YAML (MIT)`
-2. `Shishi (世事) — self-hosted "tell it what to watch, AI does the rest": fetch → classify → dedup → push to Telegram/Feishu (MIT, v1.1.1, desktop app)`
+2. `Shishi (世事) — self-hosted "tell it what to watch, AI does the rest": fetch → classify → dedup → push to Telegram/Feishu (MIT, v0.0.1, desktop app)`
 3. `Stop wiring RSS + diff-watchers + webhooks by hand: Shishi is one config-driven pipeline for any watch category (open source, MIT)`
 
 ## 正文
@@ -99,11 +99,11 @@ It runs as a plain CLI loop (`shishi run --loop`) or via the bundled
 [docker compose](https://github.com/xinzhuzi/shishi/blob/main/docker/docker-compose.yml);
 data lands in one SQLite file with retention + VACUUM.
 
-**v1.1.1 shipped this week**, and the desktop app got daily-drivable:
+**v0.0.1 shipped this week**, and the desktop app got daily-drivable:
 
 - macOS (Apple Silicon) installer on
-  [GitHub Releases](https://github.com/xinzhuzi/shishi/releases/tag/v1.1.1) —
-  grab `shishi_1.1.1_aarch64.dmg`. It is **not** Apple-notarized (notarization
+  [GitHub Releases](https://github.com/xinzhuzi/shishi/releases/tag/v0.0.1) —
+  grab `shishi_0.0.1_aarch64.dmg`. It is **not** Apple-notarized (notarization
   needs a paid developer account, which I don't have yet), so first launch
   takes the right-click → Open → Open dance; every installer is built in
   public CI with traceable logs, and the code is fully auditable.
@@ -135,7 +135,7 @@ Honest status:
 Links:
 
 - Repo: https://github.com/xinzhuzi/shishi (MIT)
-- Release v1.1.1: https://github.com/xinzhuzi/shishi/releases/tag/v1.1.1
+- Release v0.0.1: https://github.com/xinzhuzi/shishi/releases/tag/v0.0.1
 - Agent Skill (for your coding agent): https://github.com/xinzhuzi/shishi/blob/main/skill/SKILL.md
 
 Happy to answer questions — especially on the degrade chain and the
@@ -156,13 +156,13 @@ score ≥ 8 立推、≥ 5 进早晚摘要;飞书/Telegram/webhook/stdout 四通
 尊重、要真人验证的源结构化报错不绕过;反馈闭环 CLI 现已可用(桌面卡片内按钮
 下一版)。CLI `shishi run --loop` 或随包 docker compose 跑,数据单 SQLite 文件。
 
-**v1.1.1 本周发布**,桌面端可日常用了:macOS(Apple Silicon)安装包在 GitHub
-Releases(`shishi_1.1.1_aarch64.dmg`;未做 Apple 公证,首开右键→打开,安装包
+**v0.0.1 本周发布**,桌面端可日常用了:macOS(Apple Silicon)安装包在 GitHub
+Releases(`shishi_0.0.1_aarch64.dmg`;未做 Apple 公证,首开右键→打开,安装包
 公开 CI 构建);装机首跑种子官方插件,含零凭据演示件(GitHub 新星榜,一次免
 鉴权 API 调用),第一次点运行就出真数据;设置页走签名更新通道。五屏截图:
 仪表盘/信息流/源管理/日志/设置。
 
 如实说:CLI 目前源码安装(git clone + uv sync,uv workspace),PyPI 待手动发布
-流程;the Windows build did not ship in v1.1.1 (no Windows installer in Releases — macOS only for now);CI 1300+ tests never touch the real network.
+流程;the Windows build did not ship in v0.0.1 (no Windows installer in Releases — macOS only for now);CI 1300+ tests never touch the real network.
 
 仓库 https://github.com/xinzhuzi/shishi ,求建议:你会先拿它盯什么?

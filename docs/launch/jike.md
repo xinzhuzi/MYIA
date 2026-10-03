@@ -1,13 +1,13 @@
 # 即刻首发文案(中文场景,未发出)
 
-> **状态:草稿,已更新到 v1.1.1 发布现实,发布节奏由主人定。** 即刻是短文案 +
+> **状态:草稿,已更新到 v0.0.1 发布现实,发布节奏由主人定。** 即刻是短文案 +
 > 图帖的节奏:正文纯文本(不渲染 Markdown,星号井号会原样显示),配图走本地
 > 文件上传(外链图不渲染),链接放结尾一条 + 评论区置顶。话题标签以站内实际
 > 存在的为准(如 #开源 #独立开发 #AI效率工具,发前搜索确认),勿堆 tag。
 
 ## 文案(正文约 430 字,即刻上限够用;嫌长可拆两条——① 到「CLI」段为止,② 从「最想推的点」起到结尾)
 
-折腾大半年,把自己的情报系统开源了,今天 v1.1.1 正式发版 🎉
+折腾大半年,把自己的情报系统开源了,今天 v0.0.1 首发 🎉
 
 「世事」,一个 AI 原生情报中枢:想盯的每类情报(AI 资讯 / 股票异动 / 羊毛 /
 显卡行情……)就是一个 YAML 文件,抓取 → 分类 → 去重 → 打分 → 推送到
@@ -45,12 +45,12 @@ https://github.com/xinzhuzi/shishi
   `docs/screenshots/dashboard.png`、`feed.png`、`sources.png`、`logs.png`、
   `settings.png` —— 连动图共 6 张,即刻单帖图数上限以 App 实际为准。
 - 评论区置顶(安装入口集中在这里,别塞正文):
-  - Release 页:https://github.com/xinzhuzi/shishi/releases/tag/v1.1.1
-  - dmg 直链:https://github.com/xinzhuzi/shishi/releases/download/v1.1.1/shishi_1.1.1_aarch64.dmg
+  - Release 页:https://github.com/xinzhuzi/shishi/releases/tag/v0.0.1
+  - dmg 直链:https://github.com/xinzhuzi/shishi/releases/download/v0.0.1/shishi_0.0.1_aarch64.dmg
   - CLI 三行:
     `git clone https://github.com/xinzhuzi/shishi && cd shishi`
     `uv sync`
-    `uv run shishi --version   # shishi 1.1.1`
+    `uv run shishi --version   # shishi 0.0.1`
   - 上手走读:https://github.com/xinzhuzi/shishi/blob/main/docs/zh/getting-started.md
 - 备答(全部如实口径,别替产品许愿):
   - 「和 RSSHub / changedetection.io 区别?」→ README「市面空白:为什么是
@@ -58,7 +58,7 @@ https://github.com/xinzhuzi/shishi
   - 「有 Windows 吗?」→ 本版 Release 只有 macOS Apple Silicon 安装包;
     Windows 构建这版没跑通(Release 里没有 Windows 包),不说「支持 Windows」。
   - 「pip install 行吗?」→ PyPI 待上架,现在请走 uv 源码路线。
-  - 「桌面卡片里能标记有用/没用吗?」→ 卡片内按钮排在 v1.1.2 桌面对齐
+  - 「桌面卡片里能标记有用/没用吗?」→ 卡片内按钮排在后续桌面对齐
     批次;反馈闭环现在 CLI 就能用。
   - 「质量怎么保证?」→ 1300+ 测试跑在 CI,无一条碰真实网络。
 

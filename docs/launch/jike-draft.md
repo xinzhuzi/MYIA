@@ -1,18 +1,18 @@
-# 即刻发帖草稿(中文,v1.1.1/1.1.2 开源发布)
+# 即刻发帖草稿(中文,v0.0.1 开源发布)
 
 > **状态:草稿,正文可直接定稿;发布节奏由主人定,发帖前必须过文末「发帖前
 > 硬 gate」。** 即刻是短文案 + 图帖的节奏:正文纯文本(不渲染 Markdown,
 > 星号井号反引号都会原样显示),配图走本地文件上传(外链图不渲染),链接放
 > 结尾一条 + 评论区置顶。话题标签以站内实际存在的为准(本稿末尾带了三个,
 > 发前搜索确认),勿堆 tag。
-> 本稿口径是 **v1.1.2 发布后的现实**(`pip install shishi` 直装、Docker 镜像
-> `ghcr.io/xinzhuzi/shishi`)——截至本稿写就,仓库 README 仍是 1.1.1 + uv-only
-> 口径、PyPI 双包与 v1.1.2 tag 均未上线,故硬 gate 里把这些列为发帖前置条件,
-> 未满足前**不可发**。
+> 本稿口径是 **v0.0.1 发布后的现实**(`pip install shishi` 直装、Docker 镜像
+> `ghcr.io/xinzhuzi/shishi`)——截至本稿写就,仓库 README 仍是旧版 + uv-only
+> 口径、PyPI 双包未上架、v0.0.1 tag 已推送但 Release 页未上线,故硬 gate 里把
+> 这些列为发帖前置条件,未满足前**不可发**。
 
 ## 文案(正文纯文本、无 Markdown;实测字符数见文末「发帖前硬 gate」末项;嫌长可拆两条——① 到「CLI」段为止,② 从「最想推的点」起到结尾)
 
-这两年断断续续折腾,把自己的情报系统开源了:v1.1.1 定名「世事」正式发版,v1.1.2 把安装门槛打平 🎉
+这两年断断续续折腾,把自己的情报系统开源了:v0.0.1 定名「世事」首发,把安装门槛打平 🎉
 
 「世事」,一个 AI 原生情报中枢:想盯的每类情报(AI 资讯 / 股票异动 / 羊毛 /
 显卡行情……)就是一个 YAML 文件,抓取 → 分类 → 去重 → 打分 → 推送到
@@ -23,7 +23,7 @@
 「运行」就出真数据,不用先填任何 key;设置页「检查更新」,验签后自动下载
 安装新版本。丑话说在前面:安装包没做 Apple 公证,首次打开需要右键 → 打开。
 
-爱命令行的走 CLI:v1.1.2 起 pip install shishi 直装,Python 里
+爱命令行的走 CLI:v0.0.1 起 pip install shishi 直装,Python 里
 import shishi 也通了;服务器长跑用 Docker 镜像 ghcr.io/xinzhuzi/shishi。
 
 最想推的点还是:YAML 都不用自己写。如果你在用 Claude Code 或 Cursor(两款
@@ -54,20 +54,19 @@ https://github.com/xinzhuzi/shishi
   `docs/screenshots/dashboard.png`、`feed.png`、`sources.png`、`logs.png`、
   `settings.png` —— 连动图共 6 张,即刻单帖图数上限以 App 实际为准。
 - 评论区置顶(安装入口集中在这里,别塞正文):
-  - Release 页:https://github.com/xinzhuzi/shishi/releases/tag/v1.1.2
-  - dmg 直链:**发帖当日从 Release 页复制资产 URL**(文件名按 v1.1.1 的
-    `shishi_1.1.1_aarch64.dmg` 规律应形如 `shishi_1.1.2_aarch64.dmg`,但
-    禁止手改版本号拼链,以页面为准)
+  - Release 页:https://github.com/xinzhuzi/shishi/releases/tag/v0.0.1
+  - dmg 直链:**发帖当日从 Release 页复制资产 URL**(文件名应形如
+    `shishi_0.0.1_aarch64.dmg`,但禁止手改版本号拼链,以页面为准)
   - CLI 两行:
     `pip install shishi`
-    `shishi --version   # shishi 1.1.2`
+    `shishi --version   # shishi 0.0.1`
   - 上手走读:https://github.com/xinzhuzi/shishi/blob/main/docs/zh/getting-started.md
 - 备答(全部如实口径,别替产品许愿):
   - 「和 RSSHub / changedetection.io 区别?」→ README「市面空白:为什么是
     世事」对比表,直接引。
   - 「有 Windows 吗?」→ 本版 Release 只有 macOS Apple Silicon 安装包,
     没有其他桌面平台的产物,不做任何相关宣称。
-  - 「pip install 行吗?」→ 行,v1.1.2 起双包(`shishi` /
+  - 「pip install 行吗?」→ 行,v0.0.1 起双包(`shishi` /
     `shishi-classifier`)已上 PyPI;重引擎是可选 extras
     (`pip install "shishi[crawl4ai]"`)。
   - 「桌面卡片里能标记有用/没用吗?」→ 卡片内按钮还在后续批次;反馈闭环
@@ -99,20 +98,20 @@ push:
 
 ## 发帖前硬 gate(未全部满足不发;写稿时点实测状态已注)
 
-1. **v1.1.2 Release 已上线**(写稿实测 tag 404):dmg 等资产 URL 当日从
-   Release 页复制粘贴。
+1. **v0.0.1 Release 已上线**(写稿实测 Release 页 404,tag 已推送):dmg 等
+   资产 URL 当日从 Release 页复制粘贴。
 2. **PyPI 双包已上架**(写稿实测 pypi.org/pypi/shishi/json 与
    /shishi-classifier/json 均 404):两个 JSON API 返回 200 再发。
 3. **模块更名落地**:仓库源码已 `myia` → `shishi`,干净环境
    `python -c "import shishi"` 实测通过(写稿时入口仍是 `myia.cli:main`)。
-4. **README 已同步切到 pip + 1.1.2 口径**(快速开始 / 下载安装段 / 版本号 /
-   `shishi-classifier` 目录链接;写稿时 README 仍是 1.1.1 + uv-only)——否则
+4. **README 已同步切到 pip + 0.0.1 口径**(快速开始 / 下载安装段 / 版本号 /
+   `shishi-classifier` 目录链接;写稿时 README 仍是旧版 + uv-only)——否则
    读者点进仓库第一屏就与帖子矛盾。
-5. **CHANGELOG [Unreleased] 已定版为 [1.1.2]**;顺带把 README 与 CHANGELOG
-   关于桌面反馈按钮交付批次的口径对齐(两处现在一个写 v1.1.2 批次、一个写
+5. **CHANGELOG [Unreleased] 已定版为 [0.0.1]**;顺带把 README 与 CHANGELOG
+   关于桌面反馈按钮交付批次的口径对齐(两处现在一个写桌面对齐批次、一个写
    v1.2,读者对照会发现打架)。
-6. **屏数按当版实际 UI 核对**:第六屏「消息」已在开发分支合入,若随 v1.1.2
+6. **屏数按当版实际 UI 核对**:第六屏「消息」已在开发分支合入,若随 v0.0.1
    发布,配图与备答按实际增补。
 7. **即刻正文重新数字数**:本稿写就时实测正文(「这两年断断续续」起至话题
-   标签行止)936 字符(含空白)、去空白 812、其中 CJK+全角 452,即刻动态
+   标签行止)927 字符(含空白)、去空白 804、其中 CJK+全角 450,即刻动态
    上限内;若再增删文案,发前用同口径重数,勿沿用旧数。

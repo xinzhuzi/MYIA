@@ -1,4 +1,4 @@
-# Reddit r/selfhosted 发帖草稿(英文,v1.1.1/1.1.2 开源发布)
+# Reddit r/selfhosted 发帖草稿(英文,v0.0.1 开源发布)
 
 > **状态:草稿,正文可直接定稿;发布节奏由主人定,发帖前必须过「发帖前硬
 > gate」与版规核实。**
@@ -24,18 +24,18 @@
 > 3. 英文正文未绑定任何 flair/时机策略;规则核对结果只影响发帖时的 flair
 >    选择与日期,不影响正文本身。
 >
-> 本稿口径是 **v1.1.2 发布后的现实**(`pip install shishi` on PyPI、Docker
-> 镜像 `ghcr.io/xinzhuzi/shishi`)——截至本稿写就,仓库 README 仍是 1.1.1 +
-> "install from source" 口径、PyPI 双包与 v1.1.2 tag 均未上线(实测均 404),
-> 故硬 gate 里把这些列为发帖前置条件,未满足前**不可发**(正文里的 "on PyPI"
-> 等表述发早一天就是假话)。
+> 本稿口径是 **v0.0.1 发布后的现实**(`pip install shishi` on PyPI、Docker
+> 镜像 `ghcr.io/xinzhuzi/shishi`)——截至本稿写就,仓库 README 仍是旧版 +
+> "install from source" 口径、PyPI 双包未上架(实测 404)、v0.0.1 tag 已推送
+> 但 Release 页未上线,故硬 gate 里把这些列为发帖前置条件,未满足前**不可发**
+> (正文里的 "on PyPI" 等表述发早一天就是假话)。
 >
 > 主文案英文,文末附中文对照草稿(便于主人先过目内容)。
 
 ## 标题候选(选一)
 
 1. `I open-sourced my self-hosted intelligence hub: one YAML per thing to watch, fetch → classify → dedup → push — and my coding agent writes the YAML (MIT, pip-installable)`
-2. `Shishi (世事) — self-hosted "tell it what to watch, AI does the rest": one YAML per category, push to Telegram/Feishu, coding-agent-native (MIT, v1.1.2)`
+2. `Shishi (世事) — self-hosted "tell it what to watch, AI does the rest": one YAML per category, push to Telegram/Feishu, coding-agent-native (MIT, v0.0.1)`
 3. `Stop rewiring scrapers + cron + diff watchers for every new thing to watch — Shishi is one config-driven pipeline for any category (open source, MIT)`
 
 ## 正文
@@ -105,7 +105,7 @@ What's inside:
 
 Three ways to run it:
 
-- **CLI**: `pip install shishi` (v1.1.2, on PyPI; heavy engines are optional
+- **CLI**: `pip install shishi` (v0.0.1, on PyPI; heavy engines are optional
   extras, e.g. `pip install "shishi[crawl4ai]"`), then `shishi run --loop`
   for scheduled operation.
 - **Docker**: a
@@ -114,22 +114,22 @@ Three ways to run it:
   every push to main and every `v*` tag.
 - **Desktop app** — see below.
 
-**On the versions:** v1.1.1 made the desktop app daily-drivable, and v1.1.2
-adds the PyPI packages and a module rename:
+**On the version:** v0.0.1 makes the desktop app daily-drivable, and adds
+the PyPI packages and a module rename:
 
-- v1.1.1 unified the desktop data paths, bundled the official plugins on
+- v0.0.1 unified the desktop data paths, bundled the official plugins on
   first run, and added a **zero-credential demo** — GitHub's new-star board
   via one unauthenticated API call — so the first "run" click shows real data
   instead of a config error. Nothing to fill in.
-- v1.1.1 also added a **signed update channel**: the settings screen checks
+- v0.0.1 also added a **signed update channel**: the settings screen checks
   for updates, downloads and installs them with signature verification, then
   relaunches.
-- v1.1.2 put both packages on PyPI — `pip install shishi` — and renamed the
+- v0.0.1 put both packages on PyPI — `pip install shishi` — and renamed the
   Python module `myia` → `shishi`, so `import shishi` works.
 - The macOS (Apple Silicon) installer is on
-  [GitHub Releases](https://github.com/xinzhuzi/shishi/releases/tag/v1.1.2)
-  (grab the dmg; the filename follows the v1.1.1 pattern
-  `shishi_1.1.1_aarch64.dmg`). It is **not** Apple-notarized (notarization
+  [GitHub Releases](https://github.com/xinzhuzi/shishi/releases/tag/v0.0.1)
+  (grab the dmg; the filename is
+  `shishi_0.0.1_aarch64.dmg`). It is **not** Apple-notarized (notarization
   needs a paid developer account, which I don't have yet), so first launch
   takes the right-click → Open → Open dance; every installer is built in
   public CI with traceable logs, and the code is fully auditable.
@@ -152,7 +152,7 @@ Honest status:
 Links:
 
 - Repo: https://github.com/xinzhuzi/shishi (MIT)
-- Release v1.1.2: https://github.com/xinzhuzi/shishi/releases/tag/v1.1.2
+- Release v0.0.1: https://github.com/xinzhuzi/shishi/releases/tag/v0.0.1
 - Getting started: [docs/en/getting-started.md](https://github.com/xinzhuzi/shishi/blob/main/docs/en/getting-started.md)
   (bilingual; the Chinese (zh) tree ships in-repo and tests keep both in sync)
 - Agent Skill (for your coding agent): https://github.com/xinzhuzi/shishi/blob/main/skill/SKILL.md
@@ -162,21 +162,21 @@ credential handling. What would *you* point it at first?
 
 ## 发帖前硬 gate(未全部满足不发;写稿时点实测状态已注)
 
-1. **v1.1.2 Release 已上线**(写稿实测 tag 404):dmg 等资产 URL 当日从
-   Release 页复制粘贴,禁止手改版本号拼链。
+1. **v0.0.1 Release 已上线**(写稿实测 Release 页 404,tag 已推送):dmg 等
+   资产 URL 当日从 Release 页复制粘贴,禁止手改版本号拼链。
 2. **PyPI 双包已上架**(写稿实测 pypi.org/pypi/shishi/json 与
    /shishi-classifier/json 均 404):两个 JSON API 返回 200 再发——正文
    "on PyPI" 的全部表述以此为前提。
 3. **模块更名落地**:仓库源码已 `myia` → `shishi`,干净环境
    `python -c "import shishi"` 实测通过(写稿时入口仍是 `myia.cli:main`)。
-4. **README 已同步切到 pip + 1.1.2 口径**(快速开始 / 下载安装段 / 版本号 /
+4. **README 已同步切到 pip + 0.0.1 口径**(快速开始 / 下载安装段 / 版本号 /
    `shishi-classifier` 目录链接——写稿时该链接指向的目录还叫
    `myia-classifier/`,是死链)——否则读者点进仓库第一屏就与帖子矛盾。
-5. **CHANGELOG [Unreleased] 已定版为 [1.1.2]**;顺带把 README 与 CHANGELOG
-   关于桌面反馈按钮交付批次的口径对齐(两处现在一个写 v1.1.2 批次、一个写
+5. **CHANGELOG [Unreleased] 已定版为 [0.0.1]**;顺带把 README 与 CHANGELOG
+   关于桌面反馈按钮交付批次的口径对齐(两处现在一个写桌面对齐批次、一个写
    v1.2,读者对照会发现打架)。
 6. **截图清单按当版实际 UI 核对**:第六屏「消息」已在开发分支合入,若随
-   v1.1.2 发布,截图链接清单按实际增补。
+   v0.0.1 发布,截图链接清单按实际增补。
 7. **CI 测试数以当日实数刷新**:写稿时本地 `pytest --collect-only` 实测
    2159 条,正文用 "2000+";CI 实跑数若不同,以 CI 为准。
 8. **版规核对**(见顶部「发前必做」):按当日侧栏规则选 flair 与发帖时机。
@@ -197,14 +197,14 @@ score ≥ 8 立推、≥ 5 进早晚摘要;飞书/Telegram/webhook/stdout 四通
 现已可用(桌面卡片内按钮后续批次)。三种跑法:CLI `shishi run --loop`、
 Docker(镜像 `ghcr.io/xinzhuzi/shishi`)、桌面应用;数据单 SQLite 文件。
 
-**v1.1.1 起桌面端可日常用**:macOS(Apple Silicon)安装包在 GitHub Releases
-(dmg 文件名按 v1.1.1 规律,发帖当日从 Release 页复制;未做 Apple 公证,首开
-右键→打开,安装包公开 CI 构建);装机首跑种子官方插件,含零凭据演示件
-(GitHub 新星榜,一次免鉴权 API 调用),第一次点运行就出真数据;设置页走
-签名更新通道,验签后自动下载安装。桌面截图(均为 demo 插件真实数据):
-仪表盘/信息流/源管理/日志/设置。
+**v0.0.1 起桌面端可日常用**:macOS(Apple Silicon)安装包在 GitHub Releases
+(dmg 文件名 `shishi_0.0.1_aarch64.dmg`,发帖当日从 Release 页复制;未做
+Apple 公证,首开右键→打开,安装包公开 CI 构建);装机首跑种子官方插件,含
+零凭据演示件(GitHub 新星榜,一次免鉴权 API 调用),第一次点运行就出真
+数据;设置页走签名更新通道,验签后自动下载安装。桌面截图(均为 demo 插件
+真实数据):仪表盘/信息流/源管理/日志/设置。
 
-**v1.1.2 起**:PyPI 双包上架,`pip install shishi` 直装;Python 模块名
+**v0.0.1 起**:PyPI 双包上架,`pip install shishi` 直装;Python 模块名
 `myia` → `shishi`,`import shishi` 可用。
 
 如实说:Release 目前只有 macOS 安装包,其他桌面平台没有产物、不做宣称;桌面

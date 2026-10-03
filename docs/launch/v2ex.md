@@ -1,6 +1,6 @@
 # V2EX 首发文案(中文场景,未发出)
 
-> **状态:已更新到 v1.1.1 发布现实,可发。发布节奏由主人定。** V2EX 偏好第一手
+> **状态:已更新到 v0.0.1 发布现实,可发。发布节奏由主人定。** V2EX 偏好第一手
 > 「分享创造」复盘,技术细节 > 营销话术;建议节点:分享创造(/go/create)或
 > Python(/go/python),以站点实际节点为准。回复区保持真诚答疑,勿自顶刷屏。
 >
@@ -11,7 +11,7 @@
 
 ## 标题候选(选一)
 
-1. `开源 世事:一个 YAML 盯一类情报,AI 做抓取分类推送——v1.1.1 已发,带 macOS 桌面版(MIT)`
+1. `开源 世事:一个 YAML 盯一类情报,AI 做抓取分类推送——v0.0.1 已发,带 macOS 桌面版(MIT)`
 2. `世事:把「采集→分类→去重→打分→推送」拧成一条配置驱动的流水线,agent 自己写配置,桌面版已能日常用(MIT)`
 
 ## 正文
@@ -27,7 +27,7 @@ webhook。直到把它拧成了一条流水线,索性开源——
 fetch → classify → dedup → analyze → enrich → push
 ```
 
-刚发布 v1.1.1(2026-10-03):macOS(Apple Silicon)安装包上了 GitHub Releases,
+刚发布 v0.0.1(2026-10-03):macOS(Apple Silicon)安装包上了 GitHub Releases,
 桌面端自这个版本起可日常使用。先讲设计,最后如报告状态。
 
 核心设计:
@@ -71,7 +71,7 @@ push:
    路由:≥8 立即推、≥5 进早晚双摘要(AM/PM 槽位防重发)、其余归档。URL 键
    去重注册表,同一条情报不会推第二遍。反馈闭环:CLI `shishi feedback mark`
    手动标记现已可用(负反馈自动回写调参:降权类目 / mute 词),Telegram/飞书
-   回调接收已就绪,桌面卡片内按钮排 v1.1.2。
+   回调接收已就绪,桌面卡片内按钮排后续批次。
 
 5. **凭据零明文**:YAML 里凭据位只允许 `env:VAR` /
    `keychain:myia/<scope>/<name>` 引用(macOS Keychain / Windows DPAPI;
@@ -89,19 +89,19 @@ demo(GitHub 新星榜),第一次点「运行第一个插件」就出真数据;�
 
 **安装**:
 
-- 桌面(macOS Apple Silicon):Releases 下载 `shishi_1.1.1_aarch64.dmg`
+- 桌面(macOS Apple Silicon):Releases 下载 `shishi_0.0.1_aarch64.dmg`
   (约 117 MB)。安装包没做 Apple 公证(公证要付费开发者账号)——代码全开源、
   每个包由 GitHub Actions 公开构建、日志可溯;首次打开右键 →「打开」放行
   Gatekeeper,之后正常双击。
 - CLI:仓库是 uv workspace,源码安装 `git clone` + `uv sync`
-  (`uv run shishi --version` → `shishi 1.1.1`)。
+  (`uv run shishi --version` → `shishi 0.0.1`)。
 
 **如实交底**(没做的事不吹):
 
 - PyPI 还没发——`shishi` / `shishi-classifier` 都未上架,现在别
   `pip install`,CLI 安装只有源码 `uv sync` 一条路;
 - Windows 构建这版没过(Release 里没有 Windows 包),Windows 朋友暂时当没有;
-- 桌面推送卡片里的反馈按钮还没做,排 v1.1.2 桌面对齐批次(反馈闭环 CLI
+- 桌面推送卡片里的反馈按钮还没做,排后续桌面对齐批次(反馈闭环 CLI
   现已可用);
 - 安装包未公证(上面说了,右键打开)。
 
@@ -111,7 +111,7 @@ CI 全绿;1300+ 测试零真实网络(全部录制回放),当前工作树 collec
 链接:
 
 - 仓库:https://github.com/xinzhuzi/shishi
-- Release v1.1.1(dmg + 签名更新通道):https://github.com/xinzhuzi/shishi/releases/tag/v1.1.1
+- Release v0.0.1(dmg + 签名更新通道):https://github.com/xinzhuzi/shishi/releases/tag/v0.0.1
 - 快速上手:https://github.com/xinzhuzi/shishi/blob/main/docs/zh/getting-started.md
 - 许可:MIT
 

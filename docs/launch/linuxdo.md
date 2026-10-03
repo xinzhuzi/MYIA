@@ -1,6 +1,6 @@
 # LinuxDo 首发文案(中文场景,未发出)
 
-> **状态:草稿,已更新到 v1.1.1 发布现实,发布节奏由主人定。** LinuxDo 偏好
+> **状态:草稿,已更新到 v0.0.1 发布现实,发布节奏由主人定。** LinuxDo 偏好
 > 真诚分享 + 可复现的自部署细节,反感营销腔;注意版规(发帖板块选
 > 「资源荟萃/前沿快讯」类开源分享,以站内实际板块为准)与信任等级要求。
 > 社区对「白嫖/羊毛」接受度高,但请把伦理边界讲在前面。
@@ -10,20 +10,20 @@
 
 ## 标题候选(选一)
 
-1. `[开源] 世事 v1.1.1:一个 YAML 盯一类情报,采集→分类→去重→推送全链,桌面端装包即用(MIT)`
-2. `开源了自己用的情报中枢「世事」:agent 写配置、坏了自修,凭据全进钥匙链;v1.1.1 桌面版已可日常用`
+1. `[开源] 世事 v0.0.1:一个 YAML 盯一类情报,采集→分类→去重→推送全链,桌面端装包即用(MIT)`
+2. `开源了自己用的情报中枢「世事」:agent 写配置、坏了自修,凭据全进钥匙链;v0.0.1 桌面版已可日常用`
 
 ## 正文
 
 先说清楚这是什么:一个开源自托管情报中枢 **世事**(MIT,纯 Python 3.11+,SQLite 单文件,无守护进程)。所有「我想第一时间知道」的事——AI 资讯、股票异动、羊毛线报、显卡行情——都是一份 YAML 配置,流水线自动做采集 → 分类 → 去重 → 打分 → 推送(飞书卡片 / Telegram / webhook / stdout)。
 
-**v1.1.1 已经发了**(GitHub Release,macOS Apple Silicon 安装包 + 签名更新通道),桌面端从这版起可日常使用;CLI 走源码安装。两条路都给,任选。
+**v0.0.1 已经发了**(GitHub Release,macOS Apple Silicon 安装包 + 签名更新通道),桌面端从这版起可日常使用;CLI 走源码安装。两条路都给,任选。
 
 ### 桌面端(不想碰命令行的走这条)
 
-下载:`shishi_1.1.1_aarch64.dmg` →
-https://github.com/xinzhuzi/shishi/releases/download/v1.1.1/shishi_1.1.1_aarch64.dmg
-(Release 页:https://github.com/xinzhuzi/shishi/releases/tag/v1.1.1)
+下载:`shishi_0.0.1_aarch64.dmg` →
+https://github.com/xinzhuzi/shishi/releases/download/v0.0.1/shishi_0.0.1_aarch64.dmg
+(Release 页:https://github.com/xinzhuzi/shishi/releases/tag/v0.0.1)
 
 丑话说在前面:
 
@@ -89,7 +89,7 @@ push:
 可选再叠一层 LLM 精评(价值/相关性/可信度 0–10);阈值分级路由:score≥8
 立即推、≥5 进早晚双摘要(AM/PM 槽位保证同一条不重发)、<5 只归档。
 负反馈现在就能闭环:CLI `shishi feedback mark` 回写调优;桌面卡片内按钮
-排 v1.1.2,还没做,不画饼。
+排后续批次,还没做,不画饼。
 
 **2. 反爬是六级降级梯,不是无脑硬刚**
 L1 API 直连 → L2 静态页 → L3 crawl4ai(JS 渲染,云端备胎 firecrawl)→
@@ -118,17 +118,17 @@ secret set` 管录入,值走 stdin 不进 shell history、不进日志、不进
 ### 状态如实
 
 - CI 1300+ 测试全绿,无一条碰真实网络;
-- macOS 桌面端 v1.1.1 起日常可用;**Windows 本版没有任何产物与验证**——
+- macOS 桌面端 v0.0.1 起日常可用;**Windows 本版没有任何产物与验证**——
   Release 只有 macOS 包,Windows 构建 job 这版就没跑通(实验性、允许失败),
   CLI 在 Windows 上同样没验证过,这里不做任何「Windows 能跑」的宣称;
-- 桌面卡片内反馈按钮排 v1.1.2(反馈闭环 CLI 现已可用);
+- 桌面卡片内反馈按钮排后续批次(反馈闭环 CLI 现已可用);
 - PyPI 双包(`shishi` / `shishi-classifier`)待发,发布前源码安装仅 uv。
 
 链接:
 
 - 仓库:https://github.com/xinzhuzi/shishi
 - 中文快速上手:https://github.com/xinzhuzi/shishi/blob/main/docs/zh/getting-started.md
-- v1.1.1 Release:https://github.com/xinzhuzi/shishi/releases/tag/v1.1.1
+- v0.0.1 Release:https://github.com/xinzhuzi/shishi/releases/tag/v0.0.1
 
 求反馈,尤其想听:你们想先盯什么品类?哪些源该进官方插件清单?桌面端
 macOS 的打开体验有没有被 Gatekeeper 恶心到(除了右键打开还有什么顺手的
