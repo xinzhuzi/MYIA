@@ -146,9 +146,10 @@ export function eventToRow(event: SidecarEvent, seq: number): LogRow {
   if (event.type === "completed") {
     return { key: `event:${seq}`, runId: event.run_id, stream: "system", text: completedText(event), ts: event.ts };
   }
-  // 看图事件(image.progress/image.completed)非 run 域:无 run_id/ts,落一行
-  // 中性 system 摘要(调用方订阅处已按 run 过滤,这里只是穷尽防御,不渲染内容)
-  return { key: `event:${seq}`, runId: null, stream: "system", text: `▸ 看图任务事件(${event.type})`, ts: "" };
+  // 穷尽防御:SidecarEvent 只余 log/progress/completed 三种(10-03-vision-pipeline
+  // 拆屏后 image.progress/image.completed 已删);协议再添类型时此处编译期即报错
+  const unknownEvent: never = event;
+  return { key: `event:${seq}`, runId: null, stream: "system", text: `▸ 未识别事件(${String(unknownEvent)})`, ts: "" };
 }
 
 // ---------------------------------------------------------------------------

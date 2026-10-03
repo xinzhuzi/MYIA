@@ -1,13 +1,13 @@
-import { FileCode2, Image as ImageIcon, Inbox, LayoutDashboard, MessageCircle, Rss, Settings, Terminal } from "lucide-react";
+import { FileCode2, Inbox, LayoutDashboard, MessageCircle, Rss, Settings, Terminal } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { cn } from "@/lib/utils";
 
-/** 主导航项(to 与 App.tsx 路由一一对应;end=true 表示精确匹配) */
+/** 主导航项(to 与 App.tsx 路由一一对应;end=true 表示精确匹配;
+ *  看图项已随看图屏拆除(10-03-vision-pipeline:图片理解并入情报管线)。 */
 const NAV_ITEMS = [
   { to: "/", label: "仪表盘", icon: LayoutDashboard, end: true },
   { to: "/feed", label: "情报流", icon: Inbox, end: false },
-  { to: "/image", label: "看图", icon: ImageIcon, end: false },
   { to: "/sources", label: "源管理", icon: Rss, end: false },
   { to: "/yaml-editor", label: "配置编辑", icon: FileCode2, end: false },
   { to: "/messaging", label: "消息", icon: MessageCircle, end: false },
@@ -15,7 +15,7 @@ const NAV_ITEMS = [
   { to: "/settings", label: "设置", icon: Settings, end: false },
 ] as const;
 
-/** 左侧导航:八屏联动导航(NavLink 激活态由路由驱动;消息=配置编辑之后)。 */
+/** 左侧导航:七屏联动导航(NavLink 激活态由路由驱动;消息=配置编辑之后)。 */
 export function Sidebar() {
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground">

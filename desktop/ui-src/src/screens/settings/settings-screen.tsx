@@ -436,7 +436,8 @@ export function SettingsScreen() {
           </CardContent>
         </Card>
 
-        {/* 看图(10-03-image-input):通道/引擎结构配置 + 云端 key 入钥匙链 */}
+        {/* 看图配置(10-03-vision-pipeline 拆屏后看图在桌面的唯一保留面:
+            通道/引擎结构配置 + 云端 key 入钥匙链;采集图析在 feed 屏呈现) */}
         <VisionForm secretNames={secretNames} />
 
         {/* 钥匙链名清单 */}

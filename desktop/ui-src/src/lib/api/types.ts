@@ -387,6 +387,9 @@ export interface FeedItem {
   source: string | null;
   /** 净化摘要(非全文) */
   content: string | null;
+  /** 图析摘要(metadata.image_ocr 的单行截断源;10-03-vision-pipeline:
+   *  采集图片 OCR 产物。无图条目无此键 = feed 屏零渲染变化。 */
+  image_ocr?: string | null;
   tags: string[];
   category: string | null;
   scores: Record<string, unknown> | null;
@@ -426,8 +429,9 @@ export interface SecretListResult {
 export interface EmptyParams {}
 
 // ---------------------------------------------------------------------------
-// image.*(看图:图片导入 + 双引擎 OCR + 本地/云端视觉解读;10-03-image-input)
-// 契约权威:任务 design.md 协议表 —— 双侧同步(entry.py `_HANDLERS` 同名方法)
+// image.config.*(看图结构配置;10-03-vision-pipeline 拆屏后 image.* 仅余此二方法:
+// image.import/ocr/analyze/status 与 image.progress/completed 事件已随看图屏拆除,
+// 图片理解并入情报管线 —— 契约权威 entry.py `_HANDLERS` 双侧同步)
 // ---------------------------------------------------------------------------
 
 /** OCR 引擎:vision = macOS Vision(ocrmac,默认)/ rapidocr = RapidOCR(onnxruntime) */
@@ -436,72 +440,6 @@ export type OcrEngine = "vision" | "rapidocr";
 /** 二级看图通道:local = OpenAI 兼容本地端点(mlx-vlm/LM Studio)/ cloud = 云端视觉 API */
 export type VisionChannel = "local" | "cloud";
 
-/** 二级看图模式:read = 读字校对 / describe = 图像描述 / ask = 自由提问 */
-export type AnalyzeMode = "read" | "describe" | "ask";
-
-export interface ImageImportParams {
-  /** path = 系统选择器返回的绝对路径;base64 = 拖拽/粘贴(纯 JS 读文件) */
-  kind: "path" | "base64";
-  value: string;
-  /** base64 情形的 MIME(png/jpg/webp;heic 由 sidecar 经 sips 转 png 后收) */
-  mime?: string;
-}
-
-export interface ImageImportResult {
-  /** 落库图片 id(sha256 前 16);后续 ocr/analyze 都引用它 */
-  id: string;
-  /** 落库绝对路径(MYIA_HOME/images/<id>.<ext>) */
-  path: string;
-  bytes: number;
-  ext: string;
-}
-
-export interface ImageOcrParams {
-  id: string;
-  /** 缺省 = 配置 ocr.engine_default;UI 引擎切换时显式传 */
-  engine?: OcrEngine;
-}
-
-/** OCR 逐行输出(两引擎统一形状;置信度刻度不同:Vision 0.30-1.0,RapidOCR 普遍 ≥0.9) */
-export interface OcrLine {
-  text: string;
-  conf: number;
-}
-
-export interface ImageOcrResult {
-  lines: OcrLine[];
-  /** 本次实际使用的引擎(结果标注来源) */
-  engine: OcrEngine;
-  /** 耗时毫秒 */
-  ms: number;
-}
-
-export interface ImageAnalyzeParams {
-  id: string;
-  mode: AnalyzeMode;
-  /** mode=ask 时的用户问题 */
-  question?: string;
-  /** 缺省 = 配置 channel_default;显式切换通道时传 */
-  channel?: VisionChannel;
-}
-
-export interface ImageAnalyzeResult {
-  job_id: number;
-}
-
-/** image.status 参数:job_id 可选 —— 携带时应答附最近终态(订阅竞态对账)。 */
-export interface ImageStatusParams {
-  job_id?: number;
-}
-
-export interface ImageStatusResult {
-  busy: boolean;
-  job_id?: number;
-  /** 查询携带 job_id 时附:最近一次终态的 image.completed 原文载荷(自带
-   *  job_id,调用方比对)。瞬时失败任务的 completed 事件可能在订阅建立前
-   *  写出而被丢 —— 订阅就绪后拉一次即恢复,不卡「进行中」。 */
-  last?: ImageCompletedEvent;
-}
 
 /** 看图结构配置(vision.yaml;MYIA_HOME 第一个全局配置文件)。
  *  铁律:api_key 只收 keychain:/env: 引用,明文凭据拒载(security-baseline)。 */
@@ -558,10 +496,6 @@ export interface SidecarProtocol {
   "store.items": { params: StoreItemsParams; result: StoreItemsResult };
   "secret.set": { params: SecretSetParams; result: SecretSetResult };
   "secret.list": { params: EmptyParams; result: SecretListResult };
-  "image.import": { params: ImageImportParams; result: ImageImportResult };
-  "image.ocr": { params: ImageOcrParams; result: ImageOcrResult };
-  "image.analyze": { params: ImageAnalyzeParams; result: ImageAnalyzeResult };
-  "image.status": { params: ImageStatusParams; result: ImageStatusResult };
   "image.config.read": { params: EmptyParams; result: ImageConfigReadResult };
   "image.config.save": { params: ImageConfigSaveParams; result: ImageConfigSaveResult };
 }
@@ -613,39 +547,7 @@ export interface CompletedEvent {
   ts: string;
 }
 
-export type SidecarEvent = LogEvent | ProgressEvent | CompletedEvent | ImageProgressEvent | ImageCompletedEvent;
+export type SidecarEvent = LogEvent | ProgressEvent | CompletedEvent;
 
-// ---------------------------------------------------------------------------
-// 看图事件流(image.analyze 后台任务;走既有 sidecar://event 泵,规避壳 120s 超时)
-// ---------------------------------------------------------------------------
-
-/** 二级看图进度阶段 */
-export type ImageStage = "ocr" | "model";
-
-export interface ImageProgressEvent {
-  type: "image.progress";
-  job_id: number;
-  stage: ImageStage;
-  /** 0-100;模型阶段长调用可能无 pct */
-  pct?: number;
-}
-
-/** 二级看图结果 */
-export interface ImageAnalyzeOutcome {
-  text: string;
-  model: string;
-  channel: VisionChannel;
-  elapsed_ms: number;
-  /** read 模式是否用了一级 OCR 初稿 */
-  ocr_used: boolean;
-}
-
-export interface ImageCompletedEvent {
-  type: "image.completed";
-  job_id: number;
-  ok: boolean;
-  /** ok=true 时必有 */
-  result?: ImageAnalyzeOutcome;
-  /** ok=false 时的结构化错误(code 见 image_* 错误族) */
-  error?: SidecarErrorShape;
-}
+// 看图事件流(image.progress / image.completed)已随看图屏拆除
+// (10-03-vision-pipeline 拍板①:SidecarEvent 只余 run 域三事件)。

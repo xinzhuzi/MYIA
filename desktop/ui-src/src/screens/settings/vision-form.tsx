@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SidecarRequestError } from "@/lib/api";
 import type { OcrEngine, VisionChannel, VisionConfig } from "@/lib/api";
 
-import { DEFAULT_VISION_CONFIG, readImageConfig, saveImageConfig } from "@/screens/image/api";
+import { DEFAULT_VISION_CONFIG, readImageConfig, saveImageConfig } from "./vision-api";
 
 import { saveSecret } from "./api";
 import { ErrorBox } from "./error-box";
@@ -230,14 +230,14 @@ export function VisionForm({ secretNames }: VisionFormProps) {
               placeholder="输入后才写入;保存即清,永不回显"
               value={apiKey}
               onChange={(event) => setApiKey(event.target.value)}
-              hint={`写入钥匙链 ${SECRET_NAME_IMAGE_API_KEY};vision.yaml 只存 keychain: 引用`}
+              hint={`写入钥匙链 ${SECRET_NAME_IMAGE_API_KEY};未录时云端回落既有 LLM key(myia/llm/api_key)`}
             />
           </div>
           {secretNames !== null ? (
             keyInKeychain ? (
               <Badge variant="ok" className="mb-1.5">key 已在钥匙链</Badge>
             ) : (
-              <Badge variant="outline" className="mb-1.5">key 未录</Badge>
+              <Badge variant="outline" className="mb-1.5">key 未录(云端回落 LLM key)</Badge>
             )
           ) : null}
         </div>

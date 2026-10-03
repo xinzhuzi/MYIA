@@ -39,6 +39,19 @@ const EMPTY_TEXT: Record<FeedFilter, { title: string; description: string }> = {
   all: { title: "情报流还是空的", description: "数据源为 store.items(新→旧);先跑一次采集" },
 };
 
+/** 图析行截断上限(字符;10-03-vision-pipeline:metadata.image_ocr 可达全文,
+ *  feed 屏只出单行摘要,详情展开属 v2)。CSS truncate 再兜底一行。 */
+const IMAGE_OCR_SUMMARY_CHARS = 160;
+
+/** 图析单行摘要:压平空白 + 超限截断加省略号;空串返回 null(不渲染行)。 */
+function imageOcrSummary(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const flat = text.replace(/\s+/g, " ").trim();
+  if (!flat) return null;
+  if (flat.length <= IMAGE_OCR_SUMMARY_CHARS) return flat;
+  return `${flat.slice(0, IMAGE_OCR_SUMMARY_CHARS)}…`;
+}
+
 /** 空流 CTA「运行第一个插件」的状态机(idle → starting → collecting → done/error) */
 type RunCtaState =
   | { phase: "idle" }
@@ -130,6 +143,20 @@ function FeedCard({
 
       {item.content ? (
         <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.content}</p>
+      ) : null}
+
+      {imageOcrSummary(item.image_ocr) ? (
+        <p
+          className="mt-1.5 flex items-center gap-1.5 text-xs leading-relaxed text-muted-foreground"
+          data-testid={`feed-image-ocr-${item.id ?? itemKey(item)}`}
+        >
+          <Badge variant="outline" className="shrink-0" title="图析:配图 OCR 文本摘要">
+            图
+          </Badge>
+          <span className="min-w-0 truncate" title={item.image_ocr ?? undefined}>
+            {imageOcrSummary(item.image_ocr)}
+          </span>
+        </p>
       ) : null}
     </div>
   );

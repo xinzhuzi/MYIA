@@ -146,6 +146,36 @@ describe("FeedScreen", () => {
     expect(screen.getByText(/刚刚/)).toBeTruthy();
   });
 
+  it("图析行:image_ocr 条目出「图」Badge + 单行摘要(空白压平),无图条目零渲染", async () => {
+    const withImage = fixtureItem({ image_ocr: "GPT-5 发布会\n  截图里的 关键数字" });
+    const withoutImage = fixtureItem();
+    storeItemsMock.mockResolvedValue(result([withImage, withoutImage]));
+    renderScreen();
+
+    await screen.findByText("条目 1");
+    // 有图条目:「图」Badge + 压平空白的单行摘要(10-03-vision-pipeline)
+    const ocrRow = screen.getByTestId(`feed-image-ocr-${withImage.id}`);
+    expect(ocrRow.textContent).toContain("图");
+    expect(ocrRow.textContent).toContain("GPT-5 发布会 截图里的 关键数字");
+    // 无图条目:零渲染变化 —— 无图析行、无「图」Badge
+    expect(screen.queryByTestId(`feed-image-ocr-${withoutImage.id}`)).toBeNull();
+    expect(screen.getAllByText("图")).toHaveLength(1);
+  });
+
+  it("图析行截断:超长 image_ocr 只出前 160 字符 + 省略号(title 属性留全文)", async () => {
+    const long = "字".repeat(300);
+    const withImage = fixtureItem({ image_ocr: long });
+    storeItemsMock.mockResolvedValue(result([withImage]));
+    renderScreen();
+
+    await screen.findByText("条目 1");
+    const ocrRow = screen.getByTestId(`feed-image-ocr-${withImage.id}`);
+    expect(ocrRow.textContent).toContain(`${"字".repeat(160)}…`);
+    expect(ocrRow.textContent).not.toContain(`${"字".repeat(161)}`);
+    // title 属性保留原文,悬停可看全量(详情展开属 v2);经 title 精确锚定文本 span
+    expect(screen.getByTitle(long).textContent).toContain(`${"字".repeat(160)}…`);
+  });
+
   it("三态(本地):点标题记已读、星标与稍后读切换,过滤页签生效", async () => {
     const items = [fixtureItem(), fixtureItem(), fixtureItem()];
     storeItemsMock.mockResolvedValue(result(items));
