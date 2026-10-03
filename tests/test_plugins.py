@@ -183,6 +183,27 @@ def test_games_free_item_hits_rules_and_immediate_route():
     assert resolve_route(discount, routes).mode == "digest"
 
 
+def test_games_upcoming_free_hits_tag_rule_and_stays_digest():
+    """10-03-games-v2 决议②:Epic「下周免费」预告走**字段融合**——upcoming_pct
+    并入同一条目,dedup 稳定 {url} 不变(预告日 digest 推过,正式限免日新槽
+    照常 immediate,切换碰撞由槽位语义消解)。预告不是现在能领的,必须留在
+    digest、绝不 immediate。"""
+    config = _load("games")
+    rules = {
+        rule.tag: rule
+        for rule in rules_from_config([rule.model_dump() for rule in config.classify.rules])
+    }
+    upcoming = {
+        "title": "合成预告", "url": "https://store.epicgames.com/zh-CN/p/synthetic",
+        "final_price": 5300, "discount_pct": 0, "upcoming_pct": 100,
+        "upcoming_start": "2026-10-08T15:00:00.000Z",
+    }
+    assert rules["下周免费"].evaluate(upcoming) is True
+    assert rules["限免"].evaluate(upcoming) is False, "预告不是当前限免"
+    (push,) = config.push
+    assert resolve_route(upcoming, routes_from_config(push.route)).mode == "digest"
+
+
 # ---------------------------------------------------------------------------
 # Security / policy red lines
 # ---------------------------------------------------------------------------
@@ -273,6 +294,10 @@ def test_plugin_template_renders_with_representative_items(name):
              "final_price": 0, "original_price": 11600, "discount_pct": 0, "price_text": "0"},
             {"title": "The Outlast Trials", "url": "https://store.steampowered.com/app/1304930",
              "final_price": 1360, "original_price": 13600, "discount_pct": 90},
+            # v2 决议②:「下周免费」预告徽标(ISO 切 [:10] 出生效日)
+            {"title": "TerraScape 预告", "url": "https://store.epicgames.com/zh-CN/p/terrascape-2b12b1",
+             "final_price": 5300, "original_price": 5300, "upcoming_pct": 100,
+             "upcoming_start": "2026-10-08T15:00:00.000Z"},
         ],
         # gpu-prices:vs_msrp/vs_* 在无 msrp/trends 上下文时渲染空串(契约),
         # keyword_trends 缺省空列表——模板必须裸渲染存活
@@ -290,8 +315,9 @@ def test_plugin_template_renders_with_representative_items(name):
         "gpu-prices": "iGame RTX 5080",
     }[name]
     # 值级标记(opt-in):钉住换算/退路的输出值,不只是「渲染不炸」。
-    # games:Steam 条目无 price_text → 退 final_price/100,1360 分应渲染 13.6
-    value_markers: dict[str, list[str]] = {"games": ["13.6"]}
+    # games:Steam 条目无 price_text → 退 final_price/100,1360 分应渲染 13.6;
+    # 预告徽标 📅<日期>起免费(v2 决议②)
+    value_markers: dict[str, list[str]] = {"games": ["13.6", "📅2026-10-08起免费"]}
     for push in config.push:
         if push.template is None:
             continue
@@ -400,7 +426,16 @@ _SNIPPETS = {
                         "fmtPrice": {"originalPrice": "¥53.00", "discountPrice": "¥53.00",
                                      "intermediatePrice": "¥53.00"},
                     }},
-                    "promotions": {"promotionalOffers": [], "upcomingPromotionalOffers": []},
+                    # 实录形状:TerraScape 带 upcoming 0% 促销(10-08 起)——
+                    # 钉「有预告但非 100%」形态(v2 决议② upcoming_pct 提取)
+                    "promotions": {"promotionalOffers": [], "upcomingPromotionalOffers": [
+                        {"promotionalOffers": [{
+                            "startDate": "2026-10-08T15:00:00.000Z",
+                            "endDate": "2026-10-15T15:00:00.000Z",
+                            "discountSetting": {"discountType": "PERCENTAGE",
+                                                "discountPercentage": 0},
+                        }]},
+                    ]},
                 },
             ]}}},
         },
@@ -408,9 +443,13 @@ _SNIPPETS = {
         "expect_title": "深埋之星",
         # 第二形状:hash urlSlug 元素照样渲染出正规 pageSlug 链接;无促销元素
         # 的 discount_pct 逐元素省略(不错位、不补 None)
+        # 第二差异形状(opt-in)补充:TerraScape 带 upcoming 0% 预告(非 100%
+        # 不命中「下周免费」,字段提取本身要钉住)
         "expect_second": {
             "url": "https://store.epicgames.com/zh-CN/p/terrascape-2b12b1",
             "absent": ["discount_pct"],
+            "upcoming_pct": 0,
+            "upcoming_start": "2026-10-08T15:00:00.000Z",
         },
     },
     ("games", "steam-specials"): {
@@ -470,7 +509,7 @@ def test_plugin_extract_matches_recorded_markup(plugin, source_name):
         assert len(items) > 1, f"{plugin}/{source_name}: second shape missing"
         for field in second.get("absent", []):
             assert field not in items[1], f"{plugin}/{source_name}: {field} 应逐元素省略"
-        for key in ("url", "title", "discount_pct", "expire"):
+        for key in ("url", "title", "discount_pct", "expire", "upcoming_pct", "upcoming_start"):
             if key in second:
                 assert items[1].get(key) == second[key], f"{plugin}/{source_name}: 第二形状 {key} 错位"
 

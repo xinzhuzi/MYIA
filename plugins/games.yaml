@@ -45,6 +45,8 @@ sources:
         original_price: "$.data.Catalog.searchStore.elements[*].price.totalPrice.originalPrice"  # 分
         price_text: "$.data.Catalog.searchStore.elements[*].price.totalPrice.fmtPrice.discountPrice"  # "¥60.00" 直出,免换算
         discount_pct: "$.data.Catalog.searchStore.elements[*].promotions.promotionalOffers[0].promotionalOffers[0].discountSetting.discountPercentage"  # 仅当前促销存在;缺=无促销
+        upcoming_pct: "$.data.Catalog.searchStore.elements[*].promotions.upcomingPromotionalOffers[0].promotionalOffers[0].discountSetting.discountPercentage"  # 下周促销 %;=100 即「下周免费」(缺=无预告;10-03-games-v2 决议②字段融合)
+        upcoming_start: "$.data.Catalog.searchStore.elements[*].promotions.upcomingPromotionalOffers[0].promotionalOffers[0].startDate"  # ISO UTC;模板切 [:10] 即生效日(北京时间当晚 23:00,同日)
     # 无 pagination:单请求全量返回(不需要 {page} 翻页)
     rate_limit:                 # 礼貌档(同 stocks)
       qps: 0.5
@@ -93,6 +95,13 @@ classify:                       # 零 token 第一漏斗;游戏标题不落七�
     - name: 限免
       when: "final_price == 0 or discount_pct >= 100"
       tag: 限免
+    # v2 决议②:「下周免费」预告——字段融合进同一条目(upcoming_pct 并列
+    # 提取),dedup 稳定 {url} 不动:预告日 digest、正式限免日新槽 immediate,
+    # 切换碰撞由槽位抑制语义自然消解。预告不是现在能领的,路由不设
+    # immediate(final_price>0 天然落 digest)。
+    - name: 下周免费
+      when: "upcoming_pct >= 100"
+      tag: 下周免费
     - name: 大折扣
       when: "discount_pct >= 50"
       tag: 半价+
@@ -127,7 +136,7 @@ push:
     template: |
       **游戏情报 · {{ date }}**
       {% for item in items %}
-      - [{{ item.title }}]({{ item.url }}) {{ item.price_text | default(item.final_price / 100) }}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %} {{ vs_yesterday(item, 'final_price') }}
+      - [{{ item.title }}]({{ item.url }}) {{ item.price_text | default(item.final_price / 100) }}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}
       {% endfor %}
 
 storage:                        # 基线期自动长于条目期:metric_history 按
