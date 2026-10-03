@@ -6,7 +6,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronsUpDown, Loader2, FlaskConical } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -41,9 +41,13 @@ interface SourcesTableProps {
   disabledKeys: Set<string>;
   /** 写回/复核进行中的源(开关禁点防抖) */
   pendingKeys: Set<string>;
+  /** 试抓进行中的源键(null = 空闲;单飞,job 期间全表试抓禁点) */
+  testingKey: string | null;
   onToggle: (row: SourceRow, next: boolean) => void;
   /** 行「编辑」:当场弹出 YAML 编辑对话框(屏层持有 dialog 状态) */
   onEdit: (row: SourceRow) => void;
+  /** 行「试抓」:发起 sources.test 异步 job(C13;结果经 test.completed 事件回屏) */
+  onTest: (row: SourceRow) => void;
 }
 
 /** 品类插件列的排序/筛选键(名称优先,缺位回退 id/文件) */
@@ -161,17 +165,36 @@ const COLUMNS: ColumnDef<SourceRow>[] = [
     header: "操作",
     enableSorting: false,
     enableGlobalFilter: false,
-    cell: ({ row, table }) => (
-      // 编辑动作:当场弹出编辑对话框(不离开源管理屏;深链 /yaml-editor?file= 仍可用)
-      <Button
-        size="sm"
-        variant="outline"
-        title={`弹出编辑对话框:${row.original.pluginFile}`}
-        onClick={() => (table.options.meta as SourcesTableMeta).onEdit(row.original)}
-      >
-        编辑
-      </Button>
-    ),
+    cell: ({ row, table }) => {
+      const meta = table.options.meta as SourcesTableMeta;
+      const key = sourceKey(row.original.pluginFile, row.original.sourceName);
+      const testing = meta.testingKey === key;
+      return (
+        <div className="flex items-center gap-1">
+          {/* 试抓动作(C13):异步 job(sources.test),结果在表格上方回显;单飞期间全表禁点 */}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={meta.testingKey !== null}
+            aria-label={`试抓 ${row.original.sourceName}`}
+            title={`myia test ${row.original.pluginFile} --source ${row.original.sourceName}`}
+            onClick={() => meta.onTest(row.original)}
+          >
+            {testing ? <Loader2 className="size-3.5 animate-spin" /> : <FlaskConical className="size-3.5" />}
+            试抓
+          </Button>
+          {/* 编辑动作:当场弹出编辑对话框(不离开源管理屏;深链 /yaml-editor?file= 仍可用) */}
+          <Button
+            size="sm"
+            variant="outline"
+            title={`弹出编辑对话框:${row.original.pluginFile}`}
+            onClick={() => meta.onEdit(row.original)}
+          >
+            编辑
+          </Button>
+        </div>
+      );
+    },
   },
 ];
 
@@ -179,15 +202,27 @@ const COLUMNS: ColumnDef<SourceRow>[] = [
 interface SourcesTableMeta {
   disabledKeys: Set<string>;
   pendingKeys: Set<string>;
+  /** 试抓进行中的源键(null = 空闲;单飞,job 期间全表试抓禁点) */
+  testingKey: string | null;
   onToggle: (row: SourceRow, next: boolean) => void;
   onEdit: (row: SourceRow) => void;
+  /** 行「试抓」:发起 sources.test 异步 job(结果经 test.completed 事件回屏) */
+  onTest: (row: SourceRow) => void;
 }
 
 /**
  * 插件/源表格(TanStack Table:排序/筛选/分页;shadcn 暗色样式)。
  * 列头点击循环排序(升→降→取消);全局文本框与健康度 chips 由父组件受控传入。
  */
-export function SourcesTable({ rows, disabledKeys, pendingKeys, onToggle, onEdit }: SourcesTableProps) {
+export function SourcesTable({
+  rows,
+  disabledKeys,
+  pendingKeys,
+  testingKey,
+  onToggle,
+  onEdit,
+  onTest,
+}: SourcesTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [healthFilter, setHealthFilter] = useState<HealthFilter>("all");
@@ -210,7 +245,7 @@ export function SourcesTable({ rows, disabledKeys, pendingKeys, onToggle, onEdit
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
     globalFilterFn: "includesString",
-    meta: { disabledKeys, pendingKeys, onToggle, onEdit } satisfies SourcesTableMeta,
+    meta: { disabledKeys, pendingKeys, testingKey, onToggle, onEdit, onTest } satisfies SourcesTableMeta,
   });
 
   return (

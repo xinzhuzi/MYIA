@@ -103,12 +103,15 @@ function doctorFixture(overrides?: {
 interface SidecarState {
   secrets: Map<string, string>;
   doctor: (params: { config?: string }) => DoctorResult;
+  /** push.test 可编程应答(G5 用例;缺省成功) */
+  pushTest: (params: { channel: string; target?: string }) => unknown;
 }
 
 function installSidecar(doctorImpl?: (params: { config?: string }) => DoctorResult) {
   const state: SidecarState = {
     secrets: new Map(),
     doctor: doctorImpl ?? (() => doctorFixture()),
+    pushTest: (params) => ({ ok: true, channel: params.channel }),
   };
   mocks.invoke.mockImplementation(
     async (_command: string, args: { method: string; params?: unknown }) => {
@@ -120,6 +123,20 @@ function installSidecar(doctorImpl?: (params: { config?: string }) => DoctorResu
         }
         case "secret.list":
           return { names: [...state.secrets.keys()].sort() };
+        case "secret.delete": {
+          const { name } = args.params as { name: string };
+          if (!state.secrets.has(name)) {
+            throw JSON.stringify({
+              code: "secret_not_found",
+              path: "params.name",
+              message: `系统钥匙链中未找到凭据 ${name},无法删除`,
+            });
+          }
+          state.secrets.delete(name);
+          return { name, deleted: true };
+        }
+        case "push.test":
+          return state.pushTest(args.params as { channel: string; target?: string });
         case "doctor":
           return state.doctor((args.params ?? {}) as { config?: string });
         default:
@@ -362,5 +379,98 @@ describe("设置:代理池", () => {
     await screen.findByTestId("save-status");
     expect(callsOf("secret.set")).toContainEqual({ name: "myia/proxy/main", value: "user-ref:pass-ref" });
     expect(state.secrets.get("myia/proxy/main")).toBe("user-ref:pass-ref");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// C5(10-03-v112-desktop-parity):钥匙链凭据删除(secret.delete;inline 二次确认)
+// ---------------------------------------------------------------------------
+
+describe("设置:凭据删除(C5)", () => {
+  it("删除按钮 → 二次确认 → secret.delete → 名单刷新不再列出", async () => {
+    const state = installSidecar();
+    state.secrets.set("myia/llm/api_key", "v");
+    render(<SettingsScreen />);
+
+    await screen.findByText("myia/llm/api_key");
+    // 第一次点击只亮出确认,不直接删
+    fireEvent.click(screen.getByRole("button", { name: "删除凭据 myia/llm/api_key" }));
+    expect(callsOf("secret.delete")).toEqual([]);
+    fireEvent.click(screen.getByTestId("confirm-delete-myia/llm/api_key"));
+
+    await waitFor(() => expect(callsOf("secret.delete")).toContainEqual({ name: "myia/llm/api_key" }));
+    await waitFor(() => expect(screen.queryByText("myia/llm/api_key")).toBeNull());
+    expect(state.secrets.has("myia/llm/api_key")).toBe(false);
+  });
+
+  it("取消确认零删除;删除失败(secret_not_found)结构化上屏", async () => {
+    const state = installSidecar();
+    state.secrets.set("myia/push/token", "v");
+    render(<SettingsScreen />);
+
+    await screen.findByText("myia/push/token");
+    fireEvent.click(screen.getByRole("button", { name: "删除凭据 myia/push/token" }));
+    fireEvent.click(screen.getByRole("button", { name: "取消" }));
+    expect(callsOf("secret.delete")).toEqual([]);
+    expect(screen.getByText("myia/push/token")).toBeTruthy(); // 名单未动
+
+    // 人为制造不一致:名单显示但钥匙链已无此名 → 第二次删除报 secret_not_found
+    state.secrets.delete("myia/push/token");
+    fireEvent.click(screen.getByRole("button", { name: "删除凭据 myia/push/token" }));
+    fireEvent.click(screen.getByTestId("confirm-delete-myia/push/token"));
+    const box = await screen.findByRole("alert");
+    expect(box.textContent).toContain("secret_not_found");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 推送测试按钮(G5 前半,10-03-feed-ux):push.test 真发一条,行内回显
+// ---------------------------------------------------------------------------
+
+describe("设置:推送测试(G5)", () => {
+  it("scope 已填 → target 组 keychain 引用下发;成功回显 ok 徽标", async () => {
+    installSidecar();
+    render(<SettingsScreen />);
+
+    await typeByLabel("品类 scope", "stocks");
+    fireEvent.click(screen.getByRole("button", { name: "发送测试" }));
+
+    await waitFor(() => expect(callsOf("push.test")).toHaveLength(1));
+    // channel 取表单当前选中(feishu_card);target = 表单 scope/凭据名组合
+    expect(callsOf("push.test")).toContainEqual({
+      channel: "feishu_card",
+      target: "keychain:myia/stocks/chat_id",
+    });
+    expect(await screen.findByText("通道连通")).toBeTruthy();
+    expect(screen.getByTestId("push-test-result").textContent).toContain("feishu_card");
+    // 状态行绝不出现凭据值(这里本就没填值;引用名不是秘密)
+    expect(document.body.textContent).not.toContain("keychain:myia/stocks/chat_id");
+  });
+
+  it("scope 空 → 不带 target(走通道默认 env 引用链,如实测)", async () => {
+    installSidecar();
+    render(<SettingsScreen />);
+
+    fireEvent.click(screen.getByRole("button", { name: "发送测试" }));
+    await waitFor(() => expect(callsOf("push.test")).toHaveLength(1));
+    expect(callsOf("push.test")).toContainEqual({ channel: "feishu_card" });
+  });
+
+  it("失败结构化透传:env_var_missing → 通道失败徽标 + code:message 行内回显", async () => {
+    const state = installSidecar();
+    state.pushTest = () => {
+      throw JSON.stringify({
+        code: "env_var_missing",
+        path: "params.channel",
+        message: "环境变量 FEISHU_BOT_TOKEN 未设置",
+      });
+    };
+    render(<SettingsScreen />);
+
+    fireEvent.click(screen.getByRole("button", { name: "发送测试" }));
+    expect(await screen.findByText("通道失败")).toBeTruthy();
+    const note = screen.getByTestId("push-test-result");
+    expect(note.textContent).toContain("env_var_missing");
+    expect(note.textContent).toContain("FEISHU_BOT_TOKEN");
   });
 });

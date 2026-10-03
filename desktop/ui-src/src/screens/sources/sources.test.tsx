@@ -9,8 +9,11 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
-const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
+const mocks = vi.hoisted(() => ({ invoke: vi.fn(), listen: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: mocks.invoke }));
+// C13(10-03-v112-desktop-parity):test.completed 事件经 onSidecarEvent(listen)
+// 回屏 —— 捕获 handler 供用例回放事件载荷
+vi.mock("@tauri-apps/api/event", () => ({ listen: mocks.listen }));
 // 编辑器替身:受控 textarea(弹窗内 CodeMirror 以同款契约替身;真实渲染见
 // yaml-editor/editor-pane.test.tsx)
 vi.mock("@uiw/react-codemirror", () => ({
@@ -183,6 +186,10 @@ function callCount(method: string): number {
 
 beforeEach(() => {
   mocks.invoke.mockReset();
+  mocks.listen.mockReset();
+  // 缺省:订阅即成功、零事件(C13 用例再覆盖捕获 handler);绝不能返回
+  // undefined —— 屏内 onSidecarEvent(...).then 会炸
+  mocks.listen.mockImplementation(async () => () => undefined);
 });
 afterEach(() => {
   cleanup(); // vitest 非 globals 模式下 RTL 不自动清理,防 DOM 跨测试污染
@@ -436,5 +443,215 @@ describe("源管理:空态与错误态", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// C13(10-03-v112-desktop-parity):行「试抓」(sources.test 异步 job → test.completed 回显)
+// ---------------------------------------------------------------------------
+
+describe("源管理:试抓此源(C13)", () => {
+  type EventHanlder = (event: { payload: Record<string, unknown> }) => void;
+
+  function installEvents() {
+    let handler: EventHanlder | null = null;
+    mocks.listen.mockImplementation(async (_name: string, fn: EventHanlder) => {
+      handler = fn;
+      return () => undefined;
+    });
+    return {
+      emit: (payload: Record<string, unknown>) => handler?.({ payload }),
+    };
+  }
+
+  it("行按钮发起 sources.test(job_id 对账)→ 事件回显引擎/条数/指纹摘要", async () => {
+    const events = installEvents();
+    const { map } = okSidecar(["local-api"]);
+    map["sources.test"] = (params: never) => {
+      const { source } = params as { file: string; source: string };
+      return { job_id: 7, state: "running", source };
+    };
+    installSidecar(map);
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("local-api");
+    fireEvent.click(screen.getByRole("button", { name: "试抓 local-api" }));
+    await waitFor(() => expect(lastCall("sources.test")?.params).toEqual({ file: FILE, source: "local-api" }));
+    expect(await screen.findByTestId("test-running")).toBeTruthy();
+
+    events.emit({
+      type: "test.completed",
+      job_id: 7,
+      ok: true,
+      exit_code: 0,
+      result: {
+        command: "test",
+        sources: [
+          {
+            source: "local-api",
+            engine: "direct_api",
+            engine_configured: "auto",
+            ok: true,
+            item_count: 2,
+            failures: [],
+            fingerprint: { verdict: "changed_or_first_fetch", meaning: "内容有变化或首次抓取,线上调度会正常提取" },
+          },
+        ],
+      },
+      ts: "2026-10-03T08:00:00+00:00",
+    });
+
+    const banner = await screen.findByTestId("test-result-ok");
+    expect(banner.textContent).toContain("local-api");
+    expect(banner.textContent).toContain("direct_api");
+    expect(banner.textContent).toContain("2 条");
+    expect(banner.textContent).toContain("内容有变化或首次抓取");
+    expect(screen.queryByTestId("test-running")).toBeNull(); // job 收尾
+  });
+
+  it("失败形:CLI config 错经事件透传(ok=false)→ 红条回显;发起被拒也如实上屏", async () => {
+    const events = installEvents();
+    const { map } = okSidecar(["local-api"]);
+    map["sources.test"] = () => ({ job_id: 9, state: "running", source: "local-api" });
+    installSidecar(map);
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("local-api");
+    fireEvent.click(screen.getByRole("button", { name: "试抓 local-api" }));
+    await screen.findByTestId("test-running");
+    events.emit({
+      type: "test.completed",
+      job_id: 9,
+      ok: false,
+      exit_code: 1,
+      error: "config",
+      data: { error: "config", errors: [{ path: "$.sources", message: "源 'x' 不存在" }] },
+      ts: "2026-10-03T08:00:00+00:00",
+    });
+
+    const banner = await screen.findByTestId("test-result-fail");
+    expect(banner.textContent).toContain("config");
+    expect(banner.textContent).toContain("源 'x' 不存在");
+
+    // 发起失败(test_busy 单飞)→ 同一红条位呈现,不静默
+    map["sources.test"] = () => {
+      throw JSON.stringify({
+        code: "test_busy",
+        path: "$",
+        message: "已有试抓在执行 job_id=9(单飞)",
+        data: { active_job_id: 9 },
+      });
+    };
+    fireEvent.click(screen.getByRole("button", { name: "试抓 local-api" }));
+    const busy = await screen.findByTestId("test-result-fail");
+    expect(busy.textContent).toContain("test_busy");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 排程一览(G4,10-03-feed-ux):schedule.preview 逐品类并发,单品类失败不塌整区
+// ---------------------------------------------------------------------------
+
+describe("源管理:排程一览(G4)", () => {
+  it("逐品类出 schedule/timezone 原文 + 未来时刻行;无排程品类明示「无排程」", async () => {
+    const { map } = okSidecar(["local-api"]);
+    map["schedule.preview"] = (params: never) => {
+      const { file } = params as { file: string };
+      if (file.endsWith("nosched.yaml")) {
+        return { file, schedule: null, timezone: null, runs: [] };
+      }
+      return {
+        file,
+        schedule: "*/15 * * * *",
+        timezone: "Asia/Shanghai",
+        runs: ["2026-10-03T09:00:00+08:00", "2026-10-03T09:15:00+08:00"],
+      };
+    };
+    map.health = () =>
+      healthResult([
+        pluginReport(FILE, "ai-news", [sourceReport("local-api", "ok")]),
+        pluginReport("plugins/nosched.yaml", "nosched", []),
+      ]);
+    installSidecar(map);
+
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
+
+    const overview = await screen.findByTestId("schedule-overview");
+    expect(overview.textContent).toContain("排程一览");
+    // schedule 原文 + 时区 + 本地化时刻
+    const row = screen.getByTestId(`schedule-row-${FILE}`);
+    expect(row.textContent).toContain("*/15 * * * *");
+    expect(row.textContent).toContain("Asia/Shanghai");
+    expect(row.textContent).toContain("09:00");
+    // 无排程品类明示,不是错误
+    const nosched = screen.getByTestId("schedule-row-plugins/nosched.yaml");
+    expect(nosched.textContent).toContain("无排程");
+    // 预览请求逐品类发出,且带 count(缺省 5)
+    const previewParams = mocks.invoke.mock.calls
+      .filter(([, args]) => (args as { method: string }).method === "schedule.preview")
+      .map(([, args]) => (args as { params: unknown }).params);
+    expect(previewParams).toContainEqual({ file: FILE, count: 5 });
+    expect(previewParams).toContainEqual({ file: "plugins/nosched.yaml", count: 5 });
+  });
+
+  it("单品类预览失败只塌该行(预览失败徽标 + code),整区仍出", async () => {
+    const { map } = okSidecar(["local-api"]);
+    map["schedule.preview"] = (params: never) => {
+      const { file } = params as { file: string };
+      if (file.endsWith("bad.yaml")) {
+        throw JSON.stringify({
+          code: "source_file_unreadable",
+          path: "params.file",
+          message: "品类 YAML 装不上: invalid_cron",
+        });
+      }
+      return { file, schedule: "0 9 * * *", timezone: null, runs: ["2026-10-04T09:00:00+08:00"] };
+    };
+    map.health = () =>
+      healthResult([
+        pluginReport(FILE, "ai-news", [sourceReport("local-api", "ok")]),
+        pluginReport("plugins/bad.yaml", "bad", []),
+      ]);
+    installSidecar(map);
+
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
+
+    const badRow = await screen.findByTestId("schedule-row-plugins/bad.yaml");
+    expect(badRow.textContent).toContain("预览失败");
+    expect(badRow.textContent).toContain("source_file_unreadable");
+    // 好品类照常出(allSettled 不塌整区)
+    expect(screen.getByTestId(`schedule-row-${FILE}`).textContent).toContain("0 9 * * *");
+  });
+
+  it("空品类目录:排程一栏给空态引导文案", async () => {
+    const { map } = okSidecar([]);
+    map.health = () => healthResult([]);
+    map["schedule.preview"] = () => ({ file: "", schedule: null, timezone: null, runs: [] });
+    installSidecar(map);
+
+    render(
+      <MemoryRouter>
+        <SourcesScreen />
+      </MemoryRouter>,
+    );
+
+    const overview = await screen.findByTestId("schedule-overview");
+    expect(overview.textContent).toContain("没有品类 YAML");
   });
 });

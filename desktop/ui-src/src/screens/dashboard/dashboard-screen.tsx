@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Activity, CircleDot, HeartPulse, RefreshCw, TrendingUp } from "lucide-react";
+import { Activity, CircleDot, HeartPulse, Loader2, Play, RefreshCw, TrendingUp } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SidecarRequestError } from "@/lib/api";
-import type { RunEntry, RunExitStatus } from "@/lib/api";
+import { api, onSidecarEvent, SidecarRequestError } from "@/lib/api";
+import type { UnlistenFn } from "@/lib/api";
 
 import {
   buildCategoryCards,
@@ -19,7 +19,14 @@ import {
   summarizeRuns,
   summarizeSourceHealth,
 } from "./api";
-import type { CategoryCardModel, CategoryTone, DashboardData, RunSuccessSummary, SourceHealthCounts } from "./api";
+import type {
+  CategoryCardModel,
+  CategoryTone,
+  DashboardData,
+  DashboardRun,
+  RunSuccessSummary,
+  SourceHealthCounts,
+} from "./api";
 
 /** 品类 tone → 徽标(健康度四态语义沿用共享 Badge:ok/warning/destructive) */
 const TONE_BADGE: Record<CategoryTone, { variant: "ok" | "warning" | "destructive"; label: string }> = {
@@ -28,12 +35,12 @@ const TONE_BADGE: Record<CategoryTone, { variant: "ok" | "warning" | "destructiv
   dead: { variant: "destructive", label: "异常" },
 };
 
-/** run 状态 → 徽标(退出码语义 0/1/2/3,见 types.ts RunExitStatus) */
-function runStatusBadge(status: RunExitStatus | null, running: boolean) {
-  if (running || status === null) {
+/** run 状态 → 徽标(runs 表 status 语义;active = 当前会话进行中,C3) */
+function runStatusBadge(run: DashboardRun) {
+  if (run.active) {
     return { variant: "default" as const, label: "运行中" };
   }
-  switch (status) {
+  switch (run.status) {
     case "success":
       return { variant: "ok" as const, label: "成功" };
     case "partial":
@@ -42,11 +49,69 @@ function runStatusBadge(status: RunExitStatus | null, running: boolean) {
       return { variant: "warning" as const, label: "配置" };
     case "failed":
       return { variant: "destructive" as const, label: "失败" };
+    case "cancelled":
+      return { variant: "unknown" as const, label: "已取消" };
+    case "running":
+      // 表内 running 且无内存活跃 = sidecar 中断遗留的僵尸行(如实标注)
+      return { variant: "warning" as const, label: "中断" };
+    default:
+      return { variant: "unknown" as const, label: run.status ?? "未知" };
   }
 }
 
-function CategoryCard({ category }: { category: CategoryCardModel }) {
+/** 「跑一次」状态机(G4,10-03-feed-ux;照抄 feed 空态 CTA 形状) */
+type RunOnceState =
+  | { phase: "idle" }
+  | { phase: "starting" }
+  | { phase: "collecting"; runId: number }
+  | { phase: "done" }
+  | { phase: "error"; message: string };
+
+function CategoryCard({
+  category,
+  onRunFinished,
+}: {
+  category: CategoryCardModel;
+  /** completed 后回调(仪表盘刷新 run 历史与品类状态) */
+  onRunFinished: () => void;
+}) {
   const tone = TONE_BADGE[category.tone];
+  const [runOnce, setRunOnce] = useState<RunOnceState>({ phase: "idle" });
+
+  const startRun = useCallback(async () => {
+    setRunOnce({ phase: "starting" });
+    try {
+      const started = await api.runStart({ yaml: category.file });
+      setRunOnce({ phase: "collecting", runId: started.run_id });
+    } catch (err) {
+      setRunOnce({
+        phase: "error",
+        message: err instanceof SidecarRequestError ? `${err.code}: ${err.message}` : String(err),
+      });
+    }
+  }, [category.file]);
+
+  // completed 事件 → done + 仪表盘刷新;订阅随 collecting 状态起止(同 feed CTA)
+  useEffect(() => {
+    if (runOnce.phase !== "collecting") return;
+    let unlisten: UnlistenFn | null = null;
+    let cancelled = false;
+    void onSidecarEvent((event) => {
+      if (event.type === "completed" && event.run_id === runOnce.runId) {
+        setRunOnce({ phase: "done" });
+        onRunFinished();
+      }
+    }).then((un) => {
+      if (cancelled) un();
+      else unlisten = un;
+    });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [runOnce, onRunFinished]);
+
+  const busy = runOnce.phase === "starting" || runOnce.phase === "collecting";
   return (
     <div
       data-testid={`category-${category.file}`}
@@ -59,32 +124,51 @@ function CategoryCard({ category }: { category: CategoryCardModel }) {
           {category.schedule ? ` · ${category.schedule}` : " · 手动"}
           {category.nextFireAt ? " · 有排程" : ""}
         </p>
+        {runOnce.phase === "error" ? (
+          <p className="text-[11px] text-destructive" data-testid={`run-once-error-${category.file}`}>
+            跑一次失败:{runOnce.message}
+          </p>
+        ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {!category.loaded ? <Badge variant="unknown">未载入</Badge> : null}
         <Badge variant={tone.variant}>{tone.label}</Badge>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6"
+          aria-label={`跑一次:${category.name}`}
+          title="手动触发该品类采集一次(run.start)"
+          disabled={busy}
+          onClick={() => void startRun()}
+        >
+          {runOnce.phase === "collecting" ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Play className="size-3.5" />
+          )}
+        </Button>
       </div>
     </div>
   );
 }
 
-function RecentRunRow({ run }: { run: RunEntry }) {
-  const running = run.state === "running";
-  const badge = runStatusBadge(run.status, running);
+function RecentRunRow({ run }: { run: DashboardRun }) {
+  const badge = runStatusBadge(run);
   const itemCount = runItemCount(run);
   return (
     <div
-      data-testid={`recent-run-${run.run_id}`}
+      data-testid={`recent-run-${run.runId}`}
       className="flex items-center justify-between gap-2 border-b border-border/40 py-1.5 last:border-b-0"
     >
       <div className="flex min-w-0 items-center gap-2">
-        <span className="font-mono text-[11px] text-muted-foreground">#{run.run_id}</span>
-        <span className="truncate text-xs text-foreground">{run.record?.category ?? run.yaml}</span>
+        <span className="font-mono text-[11px] text-muted-foreground">#{run.runId}</span>
+        <span className="truncate text-xs text-foreground">{run.category}</span>
         {run.dry ? <Badge variant="outline">dry</Badge> : null}
       </div>
       <div className="flex shrink-0 items-center gap-2 text-[11px] text-muted-foreground">
         {itemCount !== null ? <span>{itemCount} 条</span> : null}
-        <span className="font-mono">{formatDuration(run.duration_ms)}</span>
+        <span className="font-mono">{formatDuration(run.durationMs)}</span>
         <Badge variant={badge.variant}>{badge.label}</Badge>
       </div>
     </div>
@@ -110,7 +194,8 @@ function HealthRow({
 
 /**
  * 仪表盘:品类状态卡 / 源健康度汇总 / 近期 run 成功率。
- * 数据 = doctor + run.status(见 ./api);加载/错误/空态三态齐备。
+ * 数据 = doctor + runs.list 历史行 + run.status 活跃叠加(见 ./api;C3:
+ * 重启 .app 后历史 run 仍可达)。加载/错误/空态三态齐备。
  */
 export function DashboardScreen() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -190,7 +275,9 @@ export function DashboardScreen() {
                 description="首次启动会自动装载随包官方品类;若仍未出现,重启应用重试初始化,或到「源管理」查看插件目录"
               />
             ) : (
-              categories.map((category) => <CategoryCard key={category.file} category={category} />)
+              categories.map((category) => (
+                <CategoryCard key={category.file} category={category} onRunFinished={() => void refresh()} />
+              ))
             )}
           </CardContent>
         </Card>
@@ -259,7 +346,7 @@ export function DashboardScreen() {
                       还没有 run 记录;跑一次采集后这里会列出最近结果
                     </p>
                   ) : (
-                    runSummary.recent.map((run) => <RecentRunRow key={run.run_id} run={run} />)
+                    runSummary.recent.map((run) => <RecentRunRow key={run.runId} run={run} />)
                   )}
                 </div>
               </>

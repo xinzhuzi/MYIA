@@ -1,9 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bookmark, Inbox, Play, RefreshCw, Star } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import {
+  Bookmark,
+  ChevronDown,
+  ChevronRight,
+  Download,
+  ExternalLink,
+  Inbox,
+  Play,
+  RefreshCw,
+  Search,
+  Star,
+} from "lucide-react";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
+import type { CategoryFilterContext } from "@/components/layout/app-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,13 +26,17 @@ import type { FeedItem, UnlistenFn } from "@/lib/api";
 import {
   applyFeedFilter,
   appendFeedPage,
+  defaultExportName,
+  exportFeedView,
   fetchFeedPage,
   formatRelativeTime,
+  isOpenableUrl,
   itemKey,
   loadFeedStates,
   primaryScore,
   saveFeedStates,
   toggleMarker,
+  type ExportFormat,
 } from "./api";
 import type { FeedFilter, FeedStateMap } from "./api";
 
@@ -39,8 +55,11 @@ const EMPTY_TEXT: Record<FeedFilter, { title: string; description: string }> = {
   all: { title: "情报流还是空的", description: "数据源为 store.items(新→旧);先跑一次采集" },
 };
 
+/** 搜索防抖(G1):输入停顿 300ms 提交;Enter 立即提交 */
+const SEARCH_DEBOUNCE_MS = 300;
+
 /** 图析行截断上限(字符;10-03-vision-pipeline:metadata.image_ocr 可达全文,
- *  feed 屏只出单行摘要,详情展开属 v2)。CSS truncate 再兜底一行。 */
+ *  feed 屏只出单行摘要,CSS truncate 再兜底一行;全文看卡片展开态)。 */
 const IMAGE_OCR_SUMMARY_CHARS = 160;
 
 /** 图析单行摘要:压平空白 + 超限截断加省略号;空串返回 null(不渲染行)。 */
@@ -60,19 +79,41 @@ type RunCtaState =
   | { phase: "done" }
   | { phase: "error"; message: string };
 
+/** 「打开原文」:plugin-shell open(受控 shell:allow-open,scope 仅 https?://)。
+ *  动态 import:浏览器直开(vitest/预览)不加载 Tauri 壳包,点击才触路。 */
+async function openInBrowser(url: string): Promise<void> {
+  const shell = await import("@tauri-apps/plugin-shell");
+  await shell.open(url);
+}
+
+/** 绝对时间(展开态元信息行):YYYY-MM-DD HH:mm */
+function formatAbsoluteTime(iso: string | null): string {
+  if (!iso) return "—";
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return iso;
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${then.getFullYear()}-${pad(then.getMonth() + 1)}-${pad(then.getDate())} ${pad(then.getHours())}:${pad(then.getMinutes())}`;
+}
+
 function FeedCard({
   item,
   state,
   onMarkRead,
   onToggle,
+  onOpenError,
 }: {
   item: FeedItem;
   state: { read?: boolean; starred?: boolean; later?: boolean };
   onMarkRead: (item: FeedItem) => void;
   onToggle: (item: FeedItem, marker: "starred" | "later" | "read") => void;
+  onOpenError: (message: string) => void;
 }) {
+  // 展开态属卡片本地(每次进屏重置;不与已读/星标本地态混存)
+  const [expanded, setExpanded] = useState(false);
   const score = primaryScore(item);
   const time = formatRelativeTime(item.first_seen);
+  const openable = isOpenableUrl(item.url);
+  const expandable = Boolean(item.content) || Boolean(imageOcrSummary(item.image_ocr));
   return (
     <div
       data-testid={`feed-item-${item.id ?? itemKey(item)}`}
@@ -91,6 +132,22 @@ function FeedCard({
           {item.title || item.url}
         </button>
         <div className="flex shrink-0 items-center gap-0.5">
+          {openable ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-6"
+              aria-label="打开原文"
+              title={`在浏览器打开:${item.url}`}
+              onClick={() =>
+                void openInBrowser(item.url).catch((err) =>
+                  onOpenError(err instanceof Error ? err.message : String(err)),
+                )
+              }
+            >
+              <ExternalLink className="size-3.5 text-muted-foreground" />
+            </Button>
+          ) : null}
           <Button
             variant="ghost"
             size="icon"
@@ -125,6 +182,22 @@ function FeedCard({
       </div>
 
       <div className="mt-1 flex flex-wrap items-center gap-1.5">
+        {expandable ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-5"
+            aria-label={expanded ? "收起条目" : "展开条目"}
+            aria-expanded={expanded}
+            onClick={() => setExpanded((current) => !current)}
+          >
+            {expanded ? (
+              <ChevronDown className="size-3.5 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="size-3.5 text-muted-foreground" />
+            )}
+          </Button>
+        ) : null}
         <span className="text-[11px] text-muted-foreground">
           {item.source ?? "未知来源"} · {time}
         </span>
@@ -142,7 +215,21 @@ function FeedCard({
       </div>
 
       {item.content ? (
-        <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.content}</p>
+        expanded ? (
+          // 展开态:全文 + 元信息(G2:C9 消号——正文与原文链接都在卡内)
+          <div className="mt-1.5" data-testid={`feed-expanded-${item.id ?? itemKey(item)}`}>
+            <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90">
+              {item.content}
+            </p>
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              首见 {formatAbsoluteTime(item.first_seen)}
+              {item.pushed_at ? ` · 已推送 ${formatAbsoluteTime(item.pushed_at)}` : ""}
+              {openable ? ` · ${item.url}` : ""}
+            </p>
+          </div>
+        ) : (
+          <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.content}</p>
+        )
       ) : null}
 
       {imageOcrSummary(item.image_ocr) ? (
@@ -164,14 +251,21 @@ function FeedCard({
 
 /**
  * 情报流:条目卡片瀑布 + 未读/星标/稍后读三态(本地态,localStorage 持久)
- * + 游标分页加载(见 ./api 的协议缺口注记)。
+ * + 游标分页加载(见 ./api 的协议缺口注记)+ 服务端搜索(G1,防抖/Enter
+ * 提交,query 随游标透传)+ 顶栏品类服务端过滤(C8,Outlet context)+ 卡片
+ * 展开/打开原文(G2)+ 导出当前视图(G3,dialog.save → feed.export)。
  */
 export function FeedScreen() {
   const navigate = useNavigate();
+  // 顶栏品类(C8):路由 Outlet context 下发;直渲染(无 Outlet 父级)容错 null
+  const outlet = useOutletContext<CategoryFilterContext | null>();
+  const category = outlet?.category ?? null;
   const [items, setItems] = useState<FeedItem[]>([]);
   const [states, setStates] = useState<FeedStateMap>({});
   const [filter, setFilter] = useState<FeedFilter>("unread");
   const [cursor, setCursor] = useState<string | null>(null);
+  /** 复合游标第二键(同刻条目翻页不跳不重;C1) */
+  const [cursorId, setCursorId] = useState<number | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -179,21 +273,38 @@ export function FeedScreen() {
   /** health.first_run:空流时区分「无插件(首跑初始化)」与「有插件未采集」 */
   const [firstRun, setFirstRun] = useState(false);
   const [cta, setCta] = useState<RunCtaState>({ phase: "idle" });
+  /** G1 搜索:输入框即时值 / 已提交值(防抖 300ms 或 Enter) */
+  const [searchInput, setSearchInput] = useState("");
+  const [query, setQuery] = useState("");
+  /** G3 导出:格式选择 + 进行中 + 回显;G2 打开原文失败回显 */
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("jsonl");
+  const [exporting, setExporting] = useState(false);
+  const [exportNote, setExportNote] = useState<string | null>(null);
+  const [openError, setOpenError] = useState<string | null>(null);
 
   useEffect(() => {
     setStates(loadFeedStates());
   }, []);
 
+  // 防抖提交(G1):输入停顿 300ms → query(触发服务端重查);Enter 即时
+  useEffect(() => {
+    const next = searchInput.trim();
+    if (next === query) return;
+    const timer = setTimeout(() => setQuery(next), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchInput, query]);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const page = await fetchFeedPage({ cursor: null });
+      const page = await fetchFeedPage({ cursor: null, cursorId: null, category, query });
       setItems(page.items);
       setCursor(page.nextCursor);
+      setCursorId(page.nextCursorId);
       setHasMore(page.hasMore);
       if (page.items.length === 0) {
-        // 空流才追问 health(一次 RPC):空态文案按有无插件分叉
+        // 空结果才追问 health(一次 RPC):空态文案按有无插件分叉
         try {
           setFirstRun((await api.health()).first_run ?? false);
         } catch {
@@ -209,7 +320,7 @@ export function FeedScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [category, query]);
 
   useEffect(() => {
     void refresh();
@@ -219,11 +330,12 @@ export function FeedScreen() {
     if (loadingMore || cursor === null) return;
     setLoadingMore(true);
     try {
-      const page = await fetchFeedPage({ cursor });
+      const page = await fetchFeedPage({ cursor, cursorId, category, query });
       setCursor(page.nextCursor);
+      setCursorId(page.nextCursorId);
       setItems((current) => {
         const merged = appendFeedPage(current, page);
-        // 追加 0 条 = 游标停滞(同刻批量超过页大小),判停防死循环(见 ./api 注记)
+        // 追加 0 条防御判停(复合游标下不应发生;保留兜底防死循环)
         setHasMore(page.hasMore && merged.added > 0);
         return merged.items;
       });
@@ -236,7 +348,7 @@ export function FeedScreen() {
     } finally {
       setLoadingMore(false);
     }
-  }, [cursor, loadingMore]);
+  }, [cursor, cursorId, loadingMore, category, query]);
 
   const updateStates = useCallback((next: FeedStateMap) => {
     setStates(next);
@@ -260,6 +372,24 @@ export function FeedScreen() {
   );
 
   const visible = useMemo(() => applyFeedFilter(items, states, filter), [items, states, filter]);
+
+  /** G3 导出当前视图:dialog.save → feed.export;回显 path/count(取消 = 静默) */
+  const exportCurrentView = useCallback(async () => {
+    setExporting(true);
+    setExportNote(null);
+    try {
+      const outcome = await exportFeedView({ format: exportFormat, category, query });
+      if (outcome.path !== null) {
+        setExportNote(`已导出 ${outcome.count} 条 → ${outcome.path}(${outcome.bytes} 字节)`);
+      }
+    } catch (err) {
+      setExportNote(
+        `导出失败:${err instanceof SidecarRequestError ? `${err.code}: ${err.message}` : String(err)}`,
+      );
+    } finally {
+      setExporting(false);
+    }
+  }, [exportFormat, category, query]);
 
   /** 空流 CTA:health 取第一个可加载插件 → run.start(yaml 绝对路径,与 sources.write 同口径) */
   const startFirstPlugin = useCallback(async () => {
@@ -304,20 +434,52 @@ export function FeedScreen() {
     };
   }, [cta, refresh]);
 
+  const searchActive = query !== "";
+
   return (
     <div className="flex flex-col gap-4 pb-6">
       <PageHeader
         title="情报流"
         description="卡片瀑布:未读 / 星标 / 稍后读(本地态,随浏览器存储持久)"
         actions={
-          <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}>
-            <RefreshCw className={loading ? "size-3.5 animate-spin" : "size-3.5"} />
-            刷新
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant={exportFormat === "jsonl" ? "secondary" : "ghost"}
+              size="sm"
+              aria-pressed={exportFormat === "jsonl"}
+              title={`JSON Lines 格式(默认文件名 ${defaultExportName("jsonl")})`}
+              onClick={() => setExportFormat("jsonl")}
+            >
+              JSONL
+            </Button>
+            <Button
+              variant={exportFormat === "csv" ? "secondary" : "ghost"}
+              size="sm"
+              aria-pressed={exportFormat === "csv"}
+              title={`CSV 格式(默认文件名 ${defaultExportName("csv")})`}
+              onClick={() => setExportFormat("csv")}
+            >
+              CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void exportCurrentView()}
+              disabled={exporting}
+              title="导出当前过滤视图(品类 × 搜索词)为本地文件"
+            >
+              <Download className={exporting ? "size-3.5 animate-pulse" : "size-3.5"} />
+              {exporting ? "导出中…" : "导出当前视图"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}>
+              <RefreshCw className={loading ? "size-3.5 animate-spin" : "size-3.5"} />
+              刷新
+            </Button>
+          </div>
         }
       />
 
-      <div className="flex items-center gap-1 px-6">
+      <div className="flex flex-wrap items-center gap-1 px-6">
         {FILTERS.map((entry) => (
           <Button
             key={entry.key}
@@ -333,9 +495,40 @@ export function FeedScreen() {
         <span className="ml-2 text-[11px] text-muted-foreground">
           {filter === "all" ? `共 ${items.length} 条` : `${visible.length} / ${items.length} 条`}
         </span>
+        {searchActive ? (
+          <span className="text-[11px] text-muted-foreground" data-testid="feed-search-scope">
+            服务端搜索「{query}」{category ? ` × 品类 ${category}` : ""} × 本地
+            {FILTERS.find((entry) => entry.key === filter)?.label}过滤
+          </span>
+        ) : null}
+        <div className="ml-auto flex items-center gap-1.5">
+          <Search className="size-3.5 text-muted-foreground" aria-hidden />
+          <input
+            type="search"
+            value={searchInput}
+            aria-label="搜索条目"
+            placeholder="搜索标题 / 摘要 / 来源(服务端全库)"
+            className="h-7 w-56 rounded-md border border-border bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            onChange={(event) => setSearchInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") setQuery(searchInput.trim());
+            }}
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-2 px-6">
+        {exportNote ? (
+          <p className="text-xs text-muted-foreground" data-testid="feed-export-result">
+            {exportNote}
+          </p>
+        ) : null}
+        {openError ? (
+          <p className="text-xs text-destructive" data-testid="feed-open-error">
+            打开原文失败:{openError}
+          </p>
+        ) : null}
+
         {error ? (
           <Card data-testid="feed-error">
             <CardContent className="pt-1">
@@ -354,7 +547,16 @@ export function FeedScreen() {
             <Skeleton className="h-24 w-full" />
           </>
         ) : visible.length === 0 ? (
-          items.length === 0 && firstRun ? (
+          items.length === 0 && searchActive ? (
+            <Card data-testid="feed-search-empty">
+              <CardContent className="p-0">
+                <EmptyState
+                  title="没有匹配的条目"
+                  description={`服务端全库搜索「${query}」零命中;换个关键词,或清空搜索看全部条目。`}
+                />
+              </CardContent>
+            </Card>
+          ) : items.length === 0 && firstRun ? (
             <Card data-testid="feed-first-run">
               <CardContent className="p-0">
                 <EmptyState
@@ -418,6 +620,7 @@ export function FeedScreen() {
               state={states[itemKey(item)] ?? {}}
               onMarkRead={markRead}
               onToggle={toggle}
+              onOpenError={setOpenError}
             />
           ))
         )}

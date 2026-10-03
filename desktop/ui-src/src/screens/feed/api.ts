@@ -2,13 +2,14 @@
  * 情报流数据装配(本屏私有 api 模块;共享客户端 @/lib/api 只读不动)。
  *
  * 数据面 = sidecar 协议 store.items(SQLiteStore.list_items 直读,新→旧,
- * 见 entry.py `_m_store_items` / store/sqlite.py `list_items`)。
+ * 见 entry.py `_m_store_items` / store/sqlite.py `list_items`);服务端搜索
+ * query(G1,10-03-feed-ux)随游标全程透传 —— 搜索覆盖已加载页之外的
+ * 全库数据,协议级而非本地过滤。
  *
- * 协议缺口注记:store.items 只有 `since`(first_seen 下界,**含边界**)与
- * `limit`,没有 before/offset —— 深翻页采用「游标 = 上页最旧条目的 first_seen
- * + 客户端按 dedup_key 去重」。边界条目会重复返回由去重消化;若同刻
- * (同 first_seen)条目数超过单页 limit,游标无法推进,追加 0 条即判停。
- * 协议补 before 前,此处如实截断,不伪造加载成功。
+ * 翻页游标(v1.1.2 桌面对齐批 C1,与 feed-ux G1 合流形状):复合游标
+ * `(before, before_id)` = 上页最旧条目的 `(first_seen, id)` —— 同刻条目
+ * 超单页 limit 也能推进直至取尽(旧「since 复用 + 客户端去重 + added==0
+ * 判停」的卡死边界已修)。客户端 dedup 与 added==0 防御判停保留为兜底。
  */
 import { api } from "@/lib/api";
 import type { FeedItem } from "@/lib/api";
@@ -16,35 +17,122 @@ import type { FeedItem } from "@/lib/api";
 /** 单页条数(与卡片瀑布一屏量级匹配) */
 export const FEED_PAGE_SIZE = 50;
 
-/** 翻页请求:cursor = 上一页最旧条目的 first_seen(首页 null) */
+/** 翻页请求:cursor = 上页最旧条目的 (first_seen, id) 对(首页两键皆 null) */
 export interface FeedPageRequest {
   cursor: string | null;
+  /** 复合游标第二键(与 cursor 同源:同刻条目翻页不跳不重) */
+  cursorId: number | null;
   pageSize?: number;
-  category?: string;
+  /** 品类过滤(null = 不传参 = 全部品类;C8 Outlet context 直通) */
+  category?: string | null;
+  /** 服务端搜索词(G1:title/content/source 三列 LIKE NOCASE,随游标透传) */
+  query?: string | null;
 }
 
 export interface FeedPage {
-  /** 服务端原始返回(新→旧;含上页边界条目,由 appendFeedPage 去重) */
+  /** 服务端原始返回(新→旧;边界条目由 appendFeedPage 去重兜底) */
   items: FeedItem[];
-  /** 服务端返回数达到 limit → 可能还有更旧条目 */
+  /** 服务端返回数达到 limit → 可能还有更旧条目(判停 = 返回数 < limit) */
   hasMore: boolean;
-  /** 下页游标 = 本页最旧条目的 first_seen(空页为 null) */
+  /** 下页游标 = 本页最旧条目的 (first_seen, id)(空页为 null) */
   nextCursor: string | null;
+  nextCursorId: number | null;
 }
 
 export async function fetchFeedPage(request: FeedPageRequest): Promise<FeedPage> {
   const pageSize = request.pageSize ?? FEED_PAGE_SIZE;
   const result = await api.storeItems({
     limit: pageSize,
-    ...(request.cursor ? { since: request.cursor } : {}),
+    ...(request.cursor
+      ? { before: request.cursor, ...(request.cursorId !== null ? { before_id: request.cursorId } : {}) }
+      : {}),
     ...(request.category ? { category: request.category } : {}),
+    ...(request.query ? { query: request.query } : {}),
   });
   const items = result.items;
+  const oldest = items.length > 0 ? items[items.length - 1] : null;
   return {
     items,
     hasMore: items.length >= pageSize,
-    nextCursor: items.length > 0 ? (items[items.length - 1].first_seen ?? null) : null,
+    nextCursor: oldest?.first_seen ?? null,
+    nextCursorId: oldest?.id ?? null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// 导出当前视图(G3,10-03-feed-ux):dialog.save 选路径 → sidecar 直写;
+// 打开原文的 URL 门(G2):仅 http(s) 走 plugin-shell open
+// ---------------------------------------------------------------------------
+
+/** 打开原文的 URL 门(G2):仅 http(s) 渲染「打开原文」(capabilities 同门) */
+export function isOpenableUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+/** 导出格式选择(与 feed.export params.format 同词表) */
+export type ExportFormat = "jsonl" | "csv";
+
+/** 默认文件名:myia-feed-YYYYMMDD.<ext>(本地日期,与导出按钮同日可见) */
+export function defaultExportName(format: ExportFormat, now: Date = new Date()): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+  return `myia-feed-${date}.${format}`;
+}
+
+/** 保存对话框形状(= @tauri-apps/plugin-dialog save 的参数;注入以便测试) */
+export interface SaveDialogFn {
+  (opts: {
+    defaultPath: string;
+    filters: { name: string; extensions: string[] }[];
+  }): Promise<string | null>;
+}
+
+export interface ExportOutcome {
+  /** 用户在系统保存对话框取消 = null(不是错误) */
+  path: string | null;
+  count: number;
+  bytes: number;
+}
+
+/**
+ * 导出当前过滤视图:``dialog.save()`` 选路径(默认名带日期,覆盖确认归
+ * 对话框)→ ``feed.export`` sidecar 直写(数据不经 webview)。
+ * 对话框函数注入以便测试;生产缺省 = @tauri-apps/plugin-dialog 的 save。
+ */
+export async function exportFeedView(
+  options: { format: ExportFormat; category?: string | null; query?: string | null },
+  saveDialog: SaveDialogFn = defaultSaveDialog,
+): Promise<ExportOutcome> {
+  const path = await saveDialog({
+    defaultPath: defaultExportName(options.format),
+    filters:
+      options.format === "jsonl"
+        ? [{ name: "JSON Lines", extensions: ["jsonl"] }]
+        : [{ name: "CSV", extensions: ["csv"] }],
+  });
+  if (path === null) return { path: null, count: 0, bytes: 0 };
+  const result = await api.feedExport({
+    format: options.format,
+    path,
+    ...(options.category ? { category: options.category } : {}),
+    ...(options.query ? { query: options.query } : {}),
+  });
+  return { path: result.path, count: result.count, bytes: result.bytes };
+}
+
+/** 生产保存对话框(延迟 import;浏览器直开时 save 不可用属预期错误路径) */
+async function defaultSaveDialog(opts: {
+  defaultPath: string;
+  filters: { name: string; extensions: string[] }[];
+}): Promise<string | null> {
+  const dialog = await import("@tauri-apps/plugin-dialog");
+  return dialog.save(opts);
 }
 
 /** 条目稳定 key:dedup_key 优先,id 兜底(防御 null id → url) */

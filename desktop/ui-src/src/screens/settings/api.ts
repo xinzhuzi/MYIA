@@ -179,6 +179,12 @@ export async function listSecretNames(): Promise<string[]> {
   return (await api.secretList()).names;
 }
 
+/** 删除钥匙链凭据(secret.delete;C5 误存清除口)。凭据只有名字无值,无回显问题;
+ * 删除后引用该凭据的源将采集失败(界面 confirm 文案明示)。 */
+export async function deleteSecretByName(name: string): Promise<void> {
+  await api.secretDelete({ name });
+}
+
 // ---------------------------------------------------------------------------
 // 表单校验(纯函数;与 schema.py 语义同口径,前端先挡一道)
 // ---------------------------------------------------------------------------

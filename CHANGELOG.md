@@ -26,6 +26,113 @@ repeated here.
 - **Sidecar protocol version bumped to 2** (`PROTOCOL_VERSION`, desktop/entry.py):
   the unified bump that was deferred while the `yaml.*`/`image.*` method families
   merged in parallel; v2 covers everything merged since v1 (10 → 27 methods).
+- **v1.1.2 desktop parity batch — protocol methods** (10-03-v112-desktop-parity;
+  absorbed into the v2 ledger above, no further bump per the one-bump merge
+  policy): `run.cancel` (process-group kill — SIGTERM, 5s grace, SIGKILL
+  fallback; signal-terminated runs report a distinguishable `cancelled` status),
+  `runs.list` (runs-table read, newest first — run history survives a sidecar
+  restart), `secret.delete` (mistyped-credential removal; `secret_not_found`
+  on the second delete), and `sources.test` (async trial-fetch job fenced like
+  `yaml.*`; the 120s per-source CLI timeout equals the shell's hard per-request
+  timeout, so a synchronous implementation is forbidden by construction —
+  results arrive via the new `test.completed` event).
+- **v1.1.2 desktop parity batch — `store.items` cursor & search**: composite
+  cursor `before` (strictly-older `first_seen`) + `before_id` (tuple
+  comparison) so same-timestamp item bursts larger than one page can paginate
+  to exhaustion, plus `query` (NOCASE LIKE over title/content/source). The
+  feed screen now paginates with the composite cursor (the old
+  since-reuse + client-dedup + added==0 stop is kept only as a defensive
+  backstop). This lands the merged C1×G1/G3 shape agreed with the feed-ux
+  batch (its Python half is superseded by this change).
+- **Desktop shell respawn** (`desktop/src-tauri/src/main.rs`): the sidecar is
+  automatically restarted after a crash — exponential backoff (1/2/4/8/16s,
+  max 5 attempts, counter resets after 10s of stable life) with the lifecycle
+  published as shell events (`sidecar://state`: respawning/online/dead);
+  a new `sidecar_restart` command (idempotent) backs the top-bar badge's
+  probe→restart→re-probe recovery path, so a killed sidecar no longer bricks
+  the UI with permanent `sidecar_not_running` errors.
+- **feed-ux batch — three sidecar protocol methods** (10-03-feed-ux):
+  `feed.export` (export the current filtered view as JSONL/CSV; the sidecar
+  writes the user-picked `dialog.save()` path directly — data never transits
+  the webview, only that one file is written; `export_path_invalid` /
+  `export_write_failed`), `schedule.preview` (Apify-style next-runs preview
+  per category via `build_cron_trigger`, pure computation, count clamped to
+  [1,20]; a category without a schedule reports `schedule: null`, not an
+  error), and `push.test` (sends one synthetic item through a real channel —
+  credential resolution follows the existing `env:`/`keychain:` reference
+  chain and channel `PushSendError` codes pass through verbatim; the stdout
+  channel's card lands in the response `preview` field so the serve-mode
+  protocol stream stays clean).
+- **Sidecar protocol version bumped to 3** (`PROTOCOL_VERSION`,
+  desktop/entry.py): covers the feed-ux batch's three methods above
+  (27 → 30; the `store.items` cursor/search groundwork landed earlier under
+  the v2 ledger via the C1×G1 merged shape).
+- **feed-ux batch — feed screen UX** (10-03-feed-ux): server-side item search
+  (G1 — debounced 300ms + Enter submit, `query` rides the pagination cursor so
+  it covers the whole store, not just loaded pages; the counter line reports
+  the server-search × local-filter layers honestly), inline card expansion
+  with full content and metadata (G2, closing census C9), 「打开原文」 via
+  `@tauri-apps/plugin-shell` `open()` — a scoped `shell:allow-open`
+  capability allowing only `https?://` URLs (the v1.1 review posture of
+  zero shell-execute grants for the webview is preserved; non-http(s) item
+  URLs render no button), and view export (G3 — JSONL/CSV format toggle,
+  `dialog.save()` with a dated default name, path/count feedback line).
+- **feed-ux batch — dashboard / sources / settings** (10-03-feed-ux): a
+  per-category 「跑一次」 button on the dashboard category cards (G4 —
+  `run.start` + `completed`-event state machine copied from the feed empty
+  CTA; busy disables the button, failures show inline), a 「排程一览」
+  section on the sources screen (G4 — per-category `schedule.preview` fired
+  concurrently via `Promise.allSettled`; a single category's failure collapses
+  only its own row), the top-bar category selector is now wired (C8 — options
+  from `health().plugins` deduped by id, selection lifted to the layout and
+  applied as server-side `store.items` filtering via router outlet context;
+  the dead `defaultValue="all"` skeleton comment is gone), and a 「发送测试」
+  button in the settings push form (G5 first half — `push.test` with the
+  form's current channel; when scope+credential-name are filled the target
+  reference `keychain:myia/<scope>/<name>` is composed, otherwise the
+  channel's default env chain is exercised as-is; ok/fail badge + structured
+  error line).
+
+### Changed
+
+- **Versioning reset to 0.0.1** (owner decision, 2026-10-03): the version
+  sequence restarts from `0.0.1`. The `v1.1.1` git tag and its GitHub Release
+  were removed, and every version source was reset accordingly: root and
+  classifier `pyproject.toml`, `myia.__version__`, `tauri.conf.json`,
+  `Cargo.toml` (+ `Cargo.lock`), plus the `shishi-classifier` dependency
+  window (`>=0.0.1,<0.1`). The `1.x` sections below remain as the historical
+  record of the retired sequence.
+- **Tag-driven releases** (10-03-tag-release): publishing is now triggered
+  exclusively by pushing a `v*` tag. The Docker workflow no longer publishes on
+  every push to main — GHCR receives only `X.Y.Z` + `latest` per release (and
+  pre-release tags do not move `latest`); PyPI publishing rides the same tag
+  with a version-consistency guard (tag must match both `pyproject.toml`
+  versions) and attaches wheels/sdists to the GitHub Release once publish
+  succeeds. **Status as of the v0.0.1 tag (2026-10-03): not yet landed** — the
+  two PyPI runs on the tag both failed at the trusted-publisher gate (runs
+  37115937696 / 37117015481; shishi/shishi-classifier pending publishers not
+  registered yet), so `pip install shishi` is unavailable and the Release
+  carries the four desktop assets only (`shishi_0.0.1_aarch64.dmg`,
+  `shishi.app.tar.gz{,.sig}`, `latest.json`). Wheels/sdists land after the
+  owner registers the pending publishers and re-runs the failed jobs.
+  TestPyPI rehearsal remains available via manual dispatch.
+
+## [0.0.1] — 2026-10-03
+
+- **First release of the reset version sequence** (owner decision, 2026-10-03 —
+  see the versioning-reset entry under Unreleased; the retired `1.x` sections
+  below are the historical record). Released under the renamed distribution
+  identity `shishi` / `shishi-classifier` via the tag-driven channels, with
+  every version source at `0.0.1`:
+  - **GitHub Release `v0.0.1`** (tag → commit `96751a5`): four desktop assets —
+    `shishi_0.0.1_aarch64.dmg`, `shishi.app.tar.gz` + `.sig` (updater-signed),
+    and `latest.json` (`version: 0.0.1`) for the signed update channel.
+  - **GHCR**: `0.0.1` + `latest` image tags per release (no more per-push
+    `sha-*` accumulation).
+  - **PyPI: not landed yet** — both PyPI runs on the tag failed at the
+    trusted-publisher gate (runs 37115937696 / 37117015481); `shishi` /
+    `shishi-classifier` wheels/sdists are neither on PyPI nor attached to the
+    Release until the owner registers the pending publishers and re-runs.
 
 ## [1.1.1] — 2026-10-03
 - **定名「世事」,发行身份全面更名**:产品名 MYIA→世事(桌面端已于本版本完成);PyPI 发行名 `myia`→`shishi`、`myia-classifier`→`shishi-classifier`(均系首次发布,零迁移);CLI 命令 `myia`→`shishi`;GitHub 仓库更名 `MYIA`→`shishi`(旧链接自动重定向);Docker 镜像 ghcr 同步更名。Python 模块名 `myia`/`myia_classifier` 本版本过渡保留,下版本一并更名。
@@ -106,6 +213,10 @@ repeated here.
   secrets, an agent-facing skill sheet, and bilingual (zh/en) docs kept
   consistent with the code by tests.
 
-[1.1.1]: https://github.com/xinzhuzi/shishi/releases/tag/v1.1.1
-[1.1.0]: https://github.com/xinzhuzi/shishi/releases/tag/v1.1.0
-[1.0.0]: https://github.com/xinzhuzi/shishi/releases/tag/v1.0.0
+[0.0.1]: https://github.com/xinzhuzi/shishi/releases/tag/v0.0.1
+
+<!-- 1.x sequence retired 2026-10-03 (versioning reset to 0.0.1): the
+     v1.0.0/v1.1.0/v1.1.1 tags and their GitHub Releases were deleted, so the
+     [1.1.1]/[1.1.0]/[1.0.0] headings above are kept as the historical record
+     with no link targets (verified: `git tag` lists only v0.0.1 and
+     releases/tags/v1.1.1 returns 404). -->

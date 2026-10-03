@@ -1,9 +1,10 @@
 /**
  * 仪表盘数据装配(本屏私有 api 模块;共享客户端 @/lib/api 只读不动)。
  *
- * 数据面 = sidecar 协议两方法(entry.py `_HANDLERS`):
+ * 数据面 = sidecar 协议三方法(entry.py `_HANDLERS`):
  *   doctor     → myia doctor --json 等价(品类/源健康度/findings);
- *   run.status → run 注册表(新→旧,state/exit_code/status/duration_ms)。
+ *   runs.list  → runs 表直读(新→旧;重启 .app 后历史仍可达,C3);
+ *   run.status → 内存注册表(活跃 run 叠加;进行中 run 的实时态)。
  * 纯函数聚合出三块视图模型:品类状态卡 / 源健康度汇总 / 近期 run 成功率。
  * 结构化错误不在此吞:SidecarRequestError 原样上抛,由组件渲染 code/message。
  */
@@ -13,20 +14,97 @@ import type {
   DoctorResult,
   Finding,
   RunEntry,
+  RunRecord,
   SourceHealthState,
 } from "@/lib/api";
+
+/**
+ * 仪表盘 run 行视图模型:历史行(runs.list)+ 活跃叠加(run.status 内存态)。
+ * active = 当前会话内进行中(run.status state=running);history 行里
+ * status="running" 但非 active = sidecar 中断遗留的僵尸行(如实标「中断」)。
+ */
+export interface DashboardRun {
+  runId: number;
+  /** 品类 id;活跃 dry run 无表行,取 yaml 文件名 */
+  category: string;
+  /** runs 表 status(success/partial/failed/config_error/running/…;活跃且无表行 = null) */
+  status: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  stats: Record<string, unknown> | null;
+  active: boolean;
+  dry: boolean;
+  /** 毫秒;历史行由 finishedAt-startedAt 推导,活跃行取注册表实时值 */
+  durationMs: number | null;
+}
 
 /** 一次仪表盘刷新的原始快照 */
 export interface DashboardData {
   doctor: DoctorResult;
-  /** run 注册表(新→旧,见 entry.py `_m_run_status`) */
-  runs: RunEntry[];
+  /** 合并后的 run 行(新→旧) */
+  runs: DashboardRun[];
 }
 
-/** 并发拉 doctor + runs;任一失败即整体拒绝(结构化错误上抛)。 */
+/** 历史 20 条 + 内存活跃叠加;并发拉三方法,任一失败即整体拒绝(错误上抛)。 */
 export async function loadDashboardData(): Promise<DashboardData> {
-  const [doctor, runStatus] = await Promise.all([api.doctor(), api.runStatus()]);
-  return { doctor, runs: runStatus.runs };
+  const [doctor, history, registry] = await Promise.all([
+    api.doctor(),
+    api.runsList({ limit: 20 }),
+    api.runStatus(),
+  ]);
+  return { doctor, runs: mergeDashboardRuns(history.runs, registry.runs) };
+}
+
+/**
+ * 合并 runs.list 历史行与 run.status 内存活跃条目:
+ * ① 活跃 run 若已写表(pipeline start_run 即写,status="running"),给最新
+ *   running 行打 active 并带上注册表实时 duration;
+ * ② 活跃 run 无表行(dry run 不落库/表行写入滞后)→ 前插合成行;
+ * ③ 其余 history 行原样;表内 status="running" 且无内存活跃 = 中断遗留。
+ */
+export function mergeDashboardRuns(history: RunRecord[], registry: RunEntry[]): DashboardRun[] {
+  const actives = registry.filter((entry) => entry.state === "running");
+  const rows: DashboardRun[] = history.map((record) => ({
+    runId: record.run_id,
+    category: record.category,
+    status: record.status,
+    startedAt: record.started_at,
+    finishedAt: record.finished_at,
+    stats: record.stats,
+    active: false,
+    dry: false,
+    durationMs: elapsedMs(record.started_at, record.finished_at),
+  }));
+  for (const active of actives) {
+    const tableRow = rows.find((row) => !row.active && row.status === "running");
+    if (tableRow) {
+      tableRow.active = true;
+      tableRow.dry = active.dry;
+      tableRow.durationMs = active.duration_ms ?? tableRow.durationMs;
+    } else {
+      rows.unshift({
+        runId: active.run_id,
+        category: active.yaml.split("/").pop() ?? active.yaml,
+        status: null,
+        startedAt: active.started_at,
+        finishedAt: null,
+        stats: null,
+        active: true,
+        dry: active.dry,
+        durationMs: active.duration_ms,
+      });
+    }
+  }
+  return rows;
+}
+
+/** ISO 对差值(毫秒);任一缺失/不可解析 = null(不虚构时长)。 */
+export function elapsedMs(startedAt: string | null, finishedAt: string | null): number | null {
+  if (!startedAt || !finishedAt) return null;
+  const start = Date.parse(startedAt);
+  const end = Date.parse(finishedAt);
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return null;
+  return end - start;
 }
 
 // ---------------------------------------------------------------------------
@@ -58,23 +136,28 @@ export interface RunSuccessSummary {
   total: number;
   running: number;
   finished: number;
-  /** status==="success" 的完成 run 数(exit_code 0 语义,见 types.ts RunExitStatus) */
+  /** status==="success" 的完成 run 数(exit_code 0 语义,见 types.ts RunRecord.status) */
   success: number;
   /** success / finished;无完成 run 时 null(不虚构成 0%) */
   successRate: number | null;
   /** 最近 N 个 run(保持新→旧原序) */
-  recent: RunEntry[];
+  recent: DashboardRun[];
 }
 
 /** 近期列表长度(仪表盘只展示最近 10 条) */
 export const RECENT_RUNS_COUNT = 10;
 
-export function summarizeRuns(runs: RunEntry[], recentCount = RECENT_RUNS_COUNT): RunSuccessSummary {
-  const finishedRuns = runs.filter((run) => run.state === "done");
+/**
+ * 成功率聚合(吃 runs.list 合并行):active = 运行中不计入;其余全算已完结
+ * (含中断遗留的 status="running" 僵尸行 —— 拖低成功率是如实的)。
+ */
+export function summarizeRuns(runs: DashboardRun[], recentCount = RECENT_RUNS_COUNT): RunSuccessSummary {
+  const activeRuns = runs.filter((run) => run.active);
+  const finishedRuns = runs.filter((run) => !run.active);
   const success = finishedRuns.filter((run) => run.status === "success").length;
   return {
     total: runs.length,
-    running: runs.length - finishedRuns.length,
+    running: activeRuns.length,
     finished: finishedRuns.length,
     success,
     successRate: finishedRuns.length > 0 ? success / finishedRuns.length : null,
@@ -154,7 +237,7 @@ export function formatDuration(ms: number | null): string {
 }
 
 /** run 记录 stats 的条目数(pipeline.py `stats_dict` 的 items_retained) */
-export function runItemCount(run: RunEntry): number | null {
-  const raw = run.record?.stats?.["items_retained"];
+export function runItemCount(run: DashboardRun): number | null {
+  const raw = run.stats?.["items_retained"];
   return typeof raw === "number" ? raw : null;
 }

@@ -4,7 +4,7 @@
  * 线协议 = 行分隔 JSON-RPC 子集:
  *   请求  {"id", "method", "params"} → 应答 {"id", "result"} | {"id", "error"}
  *   错误  {"code", "path", "message", "data?"}(code/path/message 必有)
- *   事件  无 id、以 "type" 字段区分:log / progress / completed,
+ *   事件  无 id、以 "type" 字段区分:log / progress / completed / test.completed,
  *         由 Tauri 壳原样转发为事件 `sidecar://event`。
  *
  * 前端唯一入口:壳命令 invoke("sidecar_request", { method, params });
@@ -47,7 +47,7 @@ export interface VersionResult {
   name: string;
   /** myia.__version__ */
   version: string;
-  /** 协议版本(PROTOCOL_VERSION,当前 1) */
+  /** 协议版本(PROTOCOL_VERSION,当前 3) */
   protocol: number;
 }
 
@@ -305,8 +305,9 @@ export interface RunStartResult {
 
 export type RunState = "running" | "done";
 
-/** 子进程退出码语义(CLI 契约):0 success / 1 config_error / 2 failed / 3 partial */
-export type RunExitStatus = "success" | "config_error" | "failed" | "partial";
+/** 子进程退出码语义(CLI 契约):0 success / 1 config_error / 2 failed / 3 partial;
+ * cancelled = run.cancel 信号终局(C2,只经取消路径出现)。 */
+export type RunExitStatus = "success" | "config_error" | "failed" | "partial" | "cancelled";
 
 export interface RunRecord {
   run_id: number;
@@ -344,6 +345,34 @@ export interface RunStatusResult {
   runs: RunEntry[];
 }
 
+// run.cancel(C2:进行中 run 的取消通道;进程组杀,SIGTERM→5s→SIGKILL)
+export interface RunCancelParams {
+  /** 缺省 = 当前活跃 run;未知 id / 无活跃 run = run_not_found */
+  run_id?: number;
+}
+
+export interface RunCancelResult {
+  run_id: number;
+  cancelled: true;
+  /** 取消请求受理时的注册表态;终态经 completed 事件 / run.status 可见 */
+  state: "running";
+}
+
+// runs.list(C3:runs 表直读,新→旧;sidecar 重启后历史仍可达)
+export interface RunsListParams {
+  db?: string;
+  /** 按品类过滤 */
+  category?: string;
+  /** 缺省 50,服务端钳制 [1,200] */
+  limit?: number;
+}
+
+export interface RunsListResult {
+  db: string;
+  count: number;
+  runs: RunRecord[];
+}
+
 export interface LogLine {
   seq: number;
   ts: string;
@@ -373,8 +402,15 @@ export interface StoreItemsParams {
   db?: string;
   /** 按品类过滤 */
   category?: string;
-  /** ISO 时间下界 */
+  /** ISO 时间下界(first_seen ≥,含边界) */
   since?: string;
+  /** 翻页游标(first_seen 严格小于;与 before_id 组成复合游标) */
+  before?: string;
+  /** 复合游标第二键:同刻(相同 first_seen)条目超单页 limit 也能推进取尽;
+   *  需与 before 同传 */
+  before_id?: number;
+  /** title/content/source 三列 LIKE(大小写不敏感;%/_ 按字面) */
+  query?: string;
   /** 条数上限(正整数) */
   limit?: number;
 }
@@ -404,6 +440,66 @@ export interface StoreItemsResult {
   items: FeedItem[];
 }
 
+// feed.export(G3,10-03-feed-ux:当前过滤视图导出 JSONL/CSV,sidecar 直写;
+// 契约钉死于任务档 design.md §1,与 entry.py `_m_feed_export` 互指)
+export interface FeedExportParams {
+  /** 导出格式 */
+  format: "jsonl" | "csv";
+  /** 绝对路径(前端 dialog.save() 用户选定;覆盖确认归对话框) */
+  path: string;
+  /** 当前过滤视图的品类(与 store.items 同一查询面) */
+  category?: string;
+  /** 当前过滤视图的搜索词(title/content/source 三列 LIKE NOCASE) */
+  query?: string;
+  db?: string;
+}
+
+export interface FeedExportResult {
+  /** 实际写入的路径(resolve 后) */
+  path: string;
+  /** 导出条目数(CSV 表头不计) */
+  count: number;
+  /** 文件字节数 */
+  bytes: number;
+}
+
+// schedule.preview(G4,10-03-feed-ux:品类排程 Next runs 预览,纯计算零副作用;
+// 与 entry.py `_m_schedule_preview` 互指)
+export interface SchedulePreviewParams {
+  /** 品类 YAML 路径(围栏:必须位于 plugins 目录内) */
+  file: string;
+  /** 预览次数(缺省 5,服务端钳制 [1,20]) */
+  count?: number;
+}
+
+export interface SchedulePreviewResult {
+  file: string;
+  /** 5 段 cron 原文;无排程品类明示 null(不是错误) */
+  schedule: string | null;
+  /** IANA 时区名;null = 系统时区 */
+  timezone: string | null;
+  /** 未来运行时刻(ISO-8601,新→远) */
+  runs: string[];
+}
+
+// push.test(G5 前半,10-03-feed-ux:合成单条测试条目真发指定通道;
+// 与 entry.py `_m_push_test` 互指)
+export interface PushTestParams {
+  /** 通道名(= 品类 YAML push[].channel 同一注册表) */
+  channel: string;
+  /** 凭据引用(env:/keychain:);缺省走通道默认 env 引用链 */
+  target?: string;
+  /** 用户模板(Jinja2;一般测试不带) */
+  template?: string;
+}
+
+export interface PushTestResult {
+  ok: true;
+  channel: string;
+  /** 仅 stdout 通道:卡片行文本(serve 模式协议流零污染) */
+  preview?: string;
+}
+
 // ---------------------------------------------------------------------------
 // secret.set / secret.list(凭据只进系统钥匙链;值零回显零落日志)
 // ---------------------------------------------------------------------------
@@ -423,6 +519,48 @@ export interface SecretSetResult {
 export interface SecretListResult {
   /** 只有名字,值永不可读 */
   names: string[];
+}
+
+// secret.delete(C5:误存凭据的 UI 清除口;二次删除 = secret_not_found)
+export interface SecretDeleteParams {
+  name: string;
+}
+
+export interface SecretDeleteResult {
+  name: string;
+  deleted: true;
+}
+
+// sources.test(C13:试抓此源,异步 job;结果走 test.completed 事件)
+export interface SourcesTestParams {
+  /** 品类 YAML 路径(围栏:必须位于 plugins 目录内) */
+  file: string;
+  /** 缺省 = 全部源;UI 只用单源形态 */
+  source?: string;
+  /** 每源超时秒数(≤120,同壳层单请求硬超时) */
+  timeout?: number;
+  /** 全局 pools YAML(--config) */
+  config?: string;
+}
+
+export interface SourcesTestResult {
+  job_id: number;
+  state: "running";
+  source?: string;
+}
+
+/** test.completed 事件载荷(C13;ok=false 时 error/data 携 CLI 结构化错) */
+export interface TestCompletedEvent {
+  type: "test.completed";
+  job_id: number;
+  ok: boolean;
+  exit_code: number | null;
+  /** CLI `myia test --json` 报文(command/yaml/sources[]/status) */
+  result?: Record<string, unknown>;
+  /** 失败族:error = CLI 报文的 error 字段(config 等) */
+  error?: string;
+  data?: Record<string, unknown>;
+  ts: string;
 }
 
 /** 无参方法(secret.list)的空参数 */
@@ -491,10 +629,17 @@ export interface SidecarProtocol {
   doctor: { params: DoctorParams; result: DoctorResult };
   "run.start": { params: RunStartParams; result: RunStartResult };
   "run.status": { params: RunStatusParams; result: RunStatusResult };
+  "run.cancel": { params: RunCancelParams; result: RunCancelResult };
+  "runs.list": { params: RunsListParams; result: RunsListResult };
   "logs.tail": { params: LogsTailParams; result: LogsTailResult };
   "store.items": { params: StoreItemsParams; result: StoreItemsResult };
+  "feed.export": { params: FeedExportParams; result: FeedExportResult };
+  "schedule.preview": { params: SchedulePreviewParams; result: SchedulePreviewResult };
   "secret.set": { params: SecretSetParams; result: SecretSetResult };
   "secret.list": { params: EmptyParams; result: SecretListResult };
+  "secret.delete": { params: SecretDeleteParams; result: SecretDeleteResult };
+  "sources.test": { params: SourcesTestParams; result: SourcesTestResult };
+  "push.test": { params: PushTestParams; result: PushTestResult };
   "image.config.read": { params: EmptyParams; result: ImageConfigReadResult };
   "image.config.save": { params: ImageConfigSaveParams; result: ImageConfigSaveResult };
 }
@@ -546,7 +691,7 @@ export interface CompletedEvent {
   ts: string;
 }
 
-export type SidecarEvent = LogEvent | ProgressEvent | CompletedEvent;
+export type SidecarEvent = LogEvent | ProgressEvent | CompletedEvent | TestCompletedEvent;
 
 // 看图事件流(image.progress / image.completed)已随看图屏拆除
 // (10-03-vision-pipeline 拍板①:SidecarEvent 只余 run 域三事件)。

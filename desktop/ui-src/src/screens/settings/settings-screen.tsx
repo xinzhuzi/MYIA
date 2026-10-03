@@ -1,4 +1,4 @@
-import { Globe, KeyRound, RefreshCw, Save, Send } from "lucide-react";
+import { Globe, KeyRound, RefreshCw, Save, Send, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { PageHeader } from "@/components/layout/page-header";
@@ -13,9 +13,11 @@ import {
 } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { DoctorParams, SidecarRequestError } from "@/lib/api";
+import { api } from "@/lib/api";
 
 import {
   asSidecarError,
+  deleteSecretByName,
   isSecretRef,
   listSecretNames,
   proxySecretName,
@@ -88,6 +90,9 @@ export function SettingsScreen() {
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<SidecarRequestError | null>(null);
   const [secretNames, setSecretNames] = useState<string[] | null>(null);
+  /** C5:已点击删除、待二次确认的凭据名(inline confirm,不弹系统对话框) */
+  const [deletingSecret, setDeletingSecret] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<SidecarRequestError | null>(null);
 
   const refreshSecretNames = useCallback(async () => {
     try {
@@ -108,6 +113,22 @@ export function SettingsScreen() {
       setVerifying(false);
     }
   }, []);
+
+  /** C5:删除凭据 → 刷新名清单 + doctor 复核(secret_not_found 等结构化上屏)。 */
+  const handleDeleteSecret = useCallback(
+    async (name: string) => {
+      setDeleteError(null);
+      try {
+        await deleteSecretByName(name);
+        setDeletingSecret(null);
+        await refreshSecretNames();
+        await runDoctor();
+      } catch (error) {
+        setDeleteError(asSidecarError(error));
+      }
+    },
+    [refreshSecretNames, runDoctor],
+  );
 
   useEffect(() => {
     void runDoctor();
@@ -217,6 +238,38 @@ export function SettingsScreen() {
       setSavingCard(null);
     }
   }, [push, refreshSecretNames, runDoctor]);
+
+  /** G5 前半(10-03-feed-ux):push.test 真发一条测试消息(channel 取表单当前
+   *  选中;scope 已填则 target 引用 keychain:myia/<scope>/<secretName>,缺省
+   *  走通道默认 env 引用链)。结果行内回显:成功 ok 徽标 / 结构化错误。 */
+  const [pushTesting, setPushTesting] = useState(false);
+  const [pushTestNote, setPushTestNote] = useState<string | null>(null);
+  const [pushTestOk, setPushTestOk] = useState<boolean | null>(null);
+
+  const handlePushTest = useCallback(async () => {
+    setPushTesting(true);
+    setPushTestNote(null);
+    setPushTestOk(null);
+    // target 引用:表单 scope/凭据名齐全才组;否则让通道走默认 env 链(如实测)
+    const scope = push.scope.trim();
+    const name = push.secretName.trim() || PUSH_SECRET_NAME_BY_CHANNEL[push.channel] || "";
+    const target = scope && name ? `keychain:myia/${scope}/${name}` : undefined;
+    try {
+      const result = await api.pushTest({ channel: push.channel, ...(target ? { target } : {}) });
+      setPushTestOk(true);
+      setPushTestNote(
+        result.preview
+          ? `测试消息已发(stdout 通道预览):${result.preview.slice(0, 200)}`
+          : `测试消息已发(${result.channel})——请到对应客户端查收。`,
+      );
+    } catch (error) {
+      const failure = asSidecarError(error);
+      setPushTestOk(false);
+      setPushTestNote(`发送失败(${failure.code}):${failure.message}`);
+    } finally {
+      setPushTesting(false);
+    }
+  }, [push.channel, push.scope, push.secretName]);
 
   return (
     <div className="flex flex-col gap-4 pb-6">
@@ -369,7 +422,8 @@ export function SettingsScreen() {
               推送通道
             </CardTitle>
             <CardDescription>
-              通道凭据(chat_id / bot token / webhook)入钥匙链;通道启停与阈值路由在品类 YAML push: 节
+              通道凭据(chat_id / bot token / webhook)入钥匙链;「发送测试」真发一条验证通道连通(push.test);
+              通道启停与阈值路由在品类 YAML push: 节
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
@@ -427,12 +481,33 @@ export function SettingsScreen() {
                 error={pushErrors.value}
               />
             </div>
-            <div>
+            <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" onClick={() => void handlePushSave()} disabled={savingCard === "push"}>
                 <Save className="size-3.5" />
                 保存推送凭据
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void handlePushTest()}
+                disabled={pushTesting}
+                title="真发一条测试消息(push.test):验证所选通道连通性"
+              >
+                <Send className={pushTesting ? "size-3.5 animate-pulse" : "size-3.5"} />
+                {pushTesting ? "发送中…" : "发送测试"}
+              </Button>
+              {pushTestOk === true ? <Badge variant="ok">通道连通</Badge> : null}
+              {pushTestOk === false ? <Badge variant="destructive">通道失败</Badge> : null}
             </div>
+            {pushTestNote ? (
+              <p
+                role={pushTestOk === false ? "alert" : "status"}
+                data-testid="push-test-result"
+                className={pushTestOk === false ? "text-xs text-destructive" : "text-xs text-muted-foreground"}
+              >
+                {pushTestNote}
+              </p>
+            ) : null}
           </CardContent>
         </Card>
 
@@ -440,23 +515,57 @@ export function SettingsScreen() {
             通道/引擎结构配置 + 云端 key 入钥匙链;采集图析在 feed 屏呈现) */}
         <VisionForm secretNames={secretNames} />
 
-        {/* 钥匙链名清单 */}
+        {/* 钥匙链名清单(+ 删除入口,C5) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">钥匙链凭据名(secret.list)</CardTitle>
-            <CardDescription>只有名字,值永不可读(secrets.py 契约)</CardDescription>
+            <CardDescription>只有名字,值永不可读(secrets.py 契约);删除需二次确认</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap items-center gap-1.5">
+          <CardContent className="flex flex-col gap-2">
+            {deleteError ? <ErrorBox error={deleteError} /> : null}
             {secretNames === null ? (
               <span className="text-xs text-muted-foreground">无法获取(secret.list 失败或环境不可用)</span>
             ) : secretNames.length === 0 ? (
               <span className="text-xs text-muted-foreground">暂无凭据</span>
             ) : (
-              secretNames.map((name) => (
-                <Badge key={name} variant="outline" className="font-mono">
-                  {name}
-                </Badge>
-              ))
+              <div className="flex flex-wrap items-center gap-1.5">
+                {secretNames.map((name) => (
+                  <span key={name} className="flex items-center gap-0.5">
+                    <Badge variant="outline" className="font-mono">
+                      {name}
+                    </Badge>
+                    {deletingSecret === name ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          data-testid={`confirm-delete-${name}`}
+                          onClick={() => void handleDeleteSecret(name)}
+                        >
+                          确认删除
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setDeletingSecret(null)}>
+                          取消
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-6"
+                        aria-label={`删除凭据 ${name}`}
+                        title={`删除 ${name}:删除后引用该凭据的源将采集失败`}
+                        onClick={() => {
+                          setDeleteError(null);
+                          setDeletingSecret(name);
+                        }}
+                      >
+                        <Trash2 className="size-3" />
+                      </Button>
+                    )}
+                  </span>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
