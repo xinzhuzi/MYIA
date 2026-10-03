@@ -105,3 +105,27 @@
   全线更名(CLI 输出已 `shishi 1.1.1`)。本档的 tag 名 `v1.1.1`、PyPI 双包
   `myia/myia-classifier`、README 徽章与安装节是否随更名改口,**待主人重批**——
   与 R2-3(先 test.pypi 演练)合并裁决即可。
+
+## 验收记录(2026-10-03,受主人委托代验)
+
+**verdict:conditional**——仓库内可做的部分逐项核验全过;剩余为「需主人手动/门禁」项(列出)加 2 处已记录 README 旧口径遗留(非阻断,见尾)。
+
+已核验(仓库内证据,代验实测 2026-10-03):
+
+- **版本对齐**:pyproject.toml:7、myia-classifier/pyproject.toml:7、desktop/src-tauri/Cargo.toml:3、tauri.conf.json:5 均 `1.1.1`;Cargo.lock `myia-desktop` 1979-1980 随之 1.1.1。CLI/.app 版本一致性以四处文件+lock 为准(装机 1.1.1 已由冒烟记录)。
+- **demo 插件随包**:plugins/myia-demo.yaml 在位——GitHub Search API 免凭据源(direct_api,2026-10-03 实测 200)、`push: channel: stdout` 零 target、零 env/钥匙串引用、`classify.builtin: false`;tauri.conf.json:32-39 resources 含 myia-demo.yaml。装机首跑 30 条真数据零 config_error 见本档冒烟记录。
+- **CHANGELOG.md**:keep-a-changelog 风格,覆盖 1.0.0→1.1.0→1.1.1(+Unreleased);1.1.1 条目含桌面数据通路修复(MYIA_HOME 统一/随包插件/首跑种子,commit 45639c3)及更名条目。
+- **README 升格**:徽章 `status-1.1 stable`(:16);Gatekeeper 右键打开指引中英双语(:189-190 / :487-493);五屏截图入 docs/screenshots/(dashboard/feed/sources/logs/settings 五张)且 README 中英两处引用(:198-204 / :503-507);B2/B3/B4 主交付表中英均如实口径(:277「排 v1.1.2 桌面对齐批次」/ :586 同英文;另 :268、:412 已改 v1.1.2 口径)。
+- **updater UI 接线**:desktop/ui-src/src/screens/settings/updater-card.tsx(@tauri-apps/plugin-updater `check` + `downloadAndInstall` + `relaunch`,package.json:23 依赖在位),settings-screen.tsx:464 实挂;配套 updater-card.test.tsx。
+
+剩余(需主人手动/门禁,非 AI 可代):
+
+1. R2-1 三密钥生成+Secrets 配置 → updater 签名校验闭环(tag 硬前置);
+2. `v1.1.1` tag 推送 → desktop-release.yml 绿 → GitHub Release 带 dmg+latest.json;
+3. PyPI 双包先 test.pypi 演练再正式(主人凭据;且更名后发行名 shishi/shishi-classifier 与 tag 名**待主人重批**,与 R2-3 合并裁决);
+4. 密钥扫描零命中(留待终检员执行 gitleaks 或等价,命令+报告入日志——tag 前置);
+5. 四帖素材主人定稿(docs/launch/ 四帖+截图已备)→ 发帖后链接回填 10-01-v10-release。
+
+非阻断遗留(已记录债务,树静后顺手改):README 仍有 2 处「v1.2」旧口径——:118(中文「桌面卡片内按钮随 v1.2 交付」)与 :575(英文 "scheduled for v1.2");其余四处已改 v1.1.2 口径,最终口径随主人更名重批统一核改。另 B5:本地领先 origin/main 4 个提交待批后即推。
+
+处置:conditional,已执行 `python3 .trellis/scripts/task.py archive 10-03-v111-release`;上述剩余项与遗留随发布门禁(密钥/tag/PyPI)在 v1.1.1 发布完成时由主人或终检员闭环。
