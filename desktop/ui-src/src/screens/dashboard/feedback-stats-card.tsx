@@ -78,14 +78,14 @@ export function FeedbackStatsCard() {
                 </span>
                 坏
               </span>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-2xs text-muted-foreground">
                 共 {stats.stats.total} 条 · 差评率 {(stats.stats.bad_ratio * 100).toFixed(0)}%
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-1">
-              <span className="text-[11px] text-muted-foreground">负反馈 Top 类目:</span>
+              <span className="text-2xs text-muted-foreground">负反馈 Top 类目:</span>
               {stats.stats.top_bad_categories.length === 0 ? (
-                <span className="text-[11px] text-muted-foreground">无</span>
+                <span className="text-2xs text-muted-foreground">无</span>
               ) : (
                 stats.stats.top_bad_categories.map((entry) => (
                   <Badge key={entry.key} variant="warning">
@@ -94,7 +94,7 @@ export function FeedbackStatsCard() {
                 ))
               )}
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               负反馈将在下轮维护阶段参与调参(Top 类目/词降权);enrich 关闭时仅入库不生效。
             </p>
           </>

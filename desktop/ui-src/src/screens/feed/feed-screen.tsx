@@ -964,7 +964,7 @@ export function FeedScreen() {
             {entry.label}
           </Button>
         ))}
-        <span className="ml-2 text-[11px] text-muted-foreground">
+        <span className="ml-2 text-2xs text-muted-foreground">
           {filter === "all" ? `共 ${items.length} 条` : `${visible.length} / ${items.length} 条`}
         </span>
         {/* G9 批量操作(入口在过滤区):作用域 = 已加载条目,计数行随本地态自动同步 */}
@@ -991,7 +991,7 @@ export function FeedScreen() {
           全部标未读
         </Button>
         {searchActive ? (
-          <span className="text-[11px] text-muted-foreground" data-testid="feed-search-scope">
+          <span className="text-2xs text-muted-foreground" data-testid="feed-search-scope">
             服务端搜索「{query}」{category ? ` × 品类 ${category}` : ""} × 本地
             {FILTERS.find((entry) => entry.key === filter)?.label}过滤
           </span>

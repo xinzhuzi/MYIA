@@ -77,7 +77,7 @@ export function TrendCard() {
               key={option}
               variant={windowDays === option ? "secondary" : "ghost"}
               size="sm"
-              className="h-6 px-2 text-[11px]"
+              className="h-6 px-2 text-2xs"
               aria-pressed={windowDays === option}
               aria-label={`趋势窗口 ${option} 天`}
               onClick={() => setWindowDays(option)}
@@ -113,7 +113,7 @@ export function TrendCard() {
                 vectorEffect="non-scaling-stroke"
               />
             </svg>
-            <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+            <p className="flex flex-wrap items-center gap-1.5 text-2xs text-muted-foreground">
               <span data-testid="trend-total">
                 近 {windowDays} 天共 {total} 条 · 峰值 {peak} 条/日
               </span>

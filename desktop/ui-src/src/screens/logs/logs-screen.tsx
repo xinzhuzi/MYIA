@@ -80,7 +80,7 @@ function HighlightedText({ text, needle }: { text: string; needle: string }) {
           <mark
             key={index}
             data-testid="log-search-hit"
-            className="rounded-[2px] bg-warning/30 text-inherit underline decoration-warning/60 decoration-1 underline-offset-2"
+            className="rounded-[2px] bg-warning/30 text-foreground underline decoration-warning/60 decoration-1 underline-offset-2"
           >
             {part.text}
           </mark>
@@ -172,7 +172,8 @@ function RunGroupHeader({
         {run.dry ? <Badge variant="outline">dry</Badge> : null}
         <span className="ml-auto flex shrink-0 items-center gap-2 text-2xs text-muted-foreground">
           {errorCount > 0 ? (
-            <span data-testid={`run-error-count-${run.runId}`} className="font-medium text-dead">
+            <span data-testid={`run-error-count-${run.runId}`} className="font-medium text-[#ff6b70]">
+              {/* #ff6b70 而非 text-dead:组头 hover 底 accent/60 上 4.35<4.5,#ff6b70 实算 5.5+(WCAG) */}
               {errorCount} 错误行
             </span>
           ) : null}

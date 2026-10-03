@@ -131,7 +131,7 @@ export function GlobalRun({ category }: { category: string | null }) {
       </Button>
       {state.phase === "error" ? (
         <span
-          className="max-w-48 truncate text-[11px] text-destructive"
+          className="max-w-48 truncate text-2xs text-destructive"
           data-testid="global-run-error"
           title={state.message}
         >

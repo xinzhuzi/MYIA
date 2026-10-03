@@ -71,13 +71,14 @@ export function FeedCardFeedback({ item }: { item: FeedItem }) {
         <ThumbsDown
           className={
             marked === "bad"
-              ? "size-3.5 fill-destructive text-destructive"
+              ? /* #ff6b70 而非 destructive:popover/95 底上 4.44<4.5,#ff6b70 实算 5.4+(WCAG),同 badge.tsx 先例 */
+                "size-3.5 fill-[#ff6b70] text-[#ff6b70]"
               : "size-3.5 text-muted-foreground"
           }
         />
       </Button>
       {error ? (
-        <span className="max-w-40 truncate text-[11px] text-destructive" title={error}>
+        <span className="max-w-40 truncate text-2xs text-[#ff6b70]" title={error}>
           反馈失败
         </span>
       ) : null}
