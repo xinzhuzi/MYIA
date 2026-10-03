@@ -1,19 +1,30 @@
 # 技术设计:v1.1.2 桌面对齐批次(B2–B4 + C 组协议/UX 缺口)
 
-> 事实底座(2026-10-03 本会话实查,HEAD=`dee8e24`,工作区含 push/messaging 线未提交改动):
-> - `desktop/entry.py`(1934 行):`PROTOCOL_VERSION = 1`(entry.py:181);`_HANDLERS` 现有
->   23 方法(entry.py:1839-1863)——**yaml-editor 的 yaml.* 六方法与 image-input 的
->   image.* 六方法已在 `fbba437` 合入 main**,但协议版本仍未 bump(「合流时统一 +1」
+> 事实底座(2026-10-03 本会话实查;首稿 HEAD=`dee8e24`,评审修订时实况 HEAD=`b4e2787`
+> ——**多会话并行,行号以 grep 判活为准,下引行号为首稿实读值、漂移不纠值只纠事实**):
+> - `desktop/entry.py`(首稿 1934 行,现势 PROTOCOL_VERSION :183 = 1、_HANDLERS
+>   :1875-1899):`PROTOCOL_VERSION = 1`;`_HANDLERS` 现有
+>   23 方法——**yaml-editor 的 yaml.* 六方法与 image-input 的 image.* 六方法已在
+>   `fbba437` 合入 main**(git log -S 实证),但协议版本仍未 bump(「合流时统一 +1」
 >   的欠账,本批收口,见 §1.2)。无 runs.list / run.cancel / secret.delete /
->   feedback.* / sources.test / store.trend。
+>   feedback.* / sources.test / store.trend。首稿后 `2b54865`/`b4e2787` 又改过
+>   entry.py(image.status 增 last 对账、image.import stat 预检)——与本批方法面
+>   零重叠,行号整体后移。
 > - `desktop/src-tauri/src/main.rs`(174 行):`CommandEvent::Terminated` 只置
 >   `child=None` 并向 pending 回 `sidecar_terminated`(main.rs:109-118),**零 respawn**;
 >   请求超时 120s(main.rs:22);spawn 逻辑内联在 setup(main.rs:158-162);
 >   `MYIA_HOME` 注入已有,`MYIA_APP_VERSION` 无。tauri.conf.json `version: "1.1.1"`。
-> - 工作区未提交改动实况:`src/myia/push/directory.py` + `tests/test_messaging_pipeline.py`
->   (messaging 线,diff 实读)——**PRD「yaml-editor 会话未提交改动(dashboard 文案 +
->   协议测试增补)」的描述已过期**:那部分已随 `fbba437` 落盘,现存的是另一条在途线。
->   开工前核对清单见 §11.3。
+> - **协议文档已立档(评审修订时实况)**:并行会话落了未提交的
+>   `.trellis/spec/desktop/sidecar-protocol.md`——23 方法注册表(单一事实源 =
+>   `_HANDLERS`,method_not_found 的 `data.allowed` 机器对账)+ 错误码表 +
+>   变更纪律三条:①新增方法注册表随同更新;②对账手法;③**封装面 ≠ 协议面:
+>   client.ts api 门面只盖核心 10 方法,sources.write/yaml.*/image.* 屏私有封装**。
+>   本批的 C7/D10 口径与 spec 注册表更新义务据此重定(§10、§11.1)。
+> - 工作区在途改动**以开工时 `git status` 实况为准,不点名具体线**(首稿时是
+>   push/messaging 线且已于 `2b54865` 提交;评审修订时是 image 屏测试 + client.ts
+>   头注改写 + 新 spec 目录 + feishu 线——多会话滚动,点名必过期)。原 PRD
+>   「yaml-editor 会话未提交改动(dashboard 文案 + 协议测试增补)」描述亦已过期
+>   (该部分随 `fbba437` 落盘)。开工前核对清单见 §11.3。
 > - store:`list_items(category/since/limit)`(sqlite.py:661,无 before/query);
 >   `list_feedback(verdict/channel/since/limit)`(sqlite.py:991)已存在;
 >   runs 节有 `start_run/finish_run/get_run/previous_run/latest_run`(sqlite.py:1207-1334),
@@ -27,8 +38,11 @@
 > - 试抓:CLI `myia test <yaml> --source <name> --json` 已有(cli.py:1232 `_cmd_test`),
 >   **每源超时缺省 120s**(cli.py:179 `DEFAULT_TEST_TIMEOUT_SECONDS = 120.0`)——恰等于
 >   壳层单请求 120s 硬超时,同步实现必撞墙,C13 只能做异步 job(§8)。
-> - UI:client.ts 11 方法(vs _HANDLERS 23,头注自称「一一对应」失实,client.ts:108);
->   sources/api.ts 头注仍写「将得 method_not_found」(sources/api.ts:8-13);
+> - UI:client.ts `api` 门面 **10 方法**(实数,client.ts:113-134 键列),头注已被
+>   并行 spec 线改写为「只封装核心 10 方法,非协议全量」并与 spec 注册表互指
+>   (git diff 实读);types.ts `SidecarProtocol` 类型映射盖 16(核心 + image.*,
+>   spec 变更纪律第 2 条注记)。**仍失实的是 sources/api.ts 头注**:「将得
+>   method_not_found」(sources/api.ts:8-13,方法早已收编)——C7 剩余半边即此(§10);
 >   feed/api.ts 游标 = since 复用 + 客户端去重 + added==0 判停(feed/api.ts:7-11 自注);
 >   dashboard 近期 run 卡只吃 `run.status` 内存注册表(dashboard/api.ts:31-33);
 >   settings 三表单 + doctor 回显,enrich.model 明注「不伪造保存成功」
@@ -58,6 +72,10 @@
 | `store.items`(扩展,本批半边=见 §3 分工) | 增 `before_id?: int`(与 `before` 组成复合游标) | 不变 | `invalid_params` | C1 |
 
 事件面新增:`test.completed`(C13)与壳层 `sidecar://state`(C2,壳 emit 非 sidecar 协议,见 §2)。
+
+**注册表同步义务(spec 变更纪律第 1 条)**:上表每行落地的方法,同 commit 更新
+`.trellis/spec/desktop/sidecar-protocol.md` 注册表(23→31)+ store.items/version
+行注记 + 错误码表新 code;D12 以未知方法名的 `data.allowed` 对账(纪律第 2 条)。
 
 ### 1.2 合流参考行(非本批实现,同表对齐防止三线漂移)
 
@@ -100,20 +118,40 @@
   `sidecar://state`(listen 经 core:default,无新权限)把 `respawning/dead` 如实入
   状态机——dead 态顶栏按钮文案改「拉起 sidecar」。`connecting/online/offline` 语义
   不变,新增 `respawning`/`dead` 两态(hook 的 SidecarStatus 联合类型扩两值)。
-- 已知边界(如实注记,不扩范围):sidecar 被 SIGKILL 时其 run 子进程成孤儿继续写库
+- 已知边界(如实注记,不扩范围):①sidecar 被 SIGKILL 时其 run 子进程成孤儿继续写库
   (SQLite 并发安全,不损数据);respawn 后 `_RUNS` 内存注册表为空,UI 依赖
   runs.list(C3)补历史,进行中 run 的 completed 事件不再到来(UI 状态机自有超时兜底)。
+  ②**sidecar 自身也是 onefile 双进程**(Tauri CommandChild = bootloader,另有同名
+  python 子进程,§2.2 同证):杀 python 子进程 → bootloader 随之退出 → Terminated →
+  respawn,干净;杀 bootloader → python 子孤儿,靠 stdin EOF 自清(serve 循环
+  EOF = 退出 0,entry.py:1958;前提 = 壳在 Terminated 置 `child=None` 时丢弃
+  CommandChild 关闭管道——现行 main.rs 的 `*guard = None` 即触发 drop)。若孤儿
+  滞留属 respawn 机制缺陷,D12 冒烟如实记录入任务日志,不带病验收。
 
-### 2.2 run.cancel(entry.py)
+### 2.2 run.cancel(entry.py;进程组杀——onefile 双进程实证)
 
+- **为什么必须进程组杀**:myia.spec 为 onefile(`a.binaries` + `runtime_tmpdir=None`
+  + 无 COLLECT,desktop/myia.spec:26,35 实读)——冻结模式 `_self_command` 返回
+  `[sys.executable, ...]`(entry.py:1246),run「子进程」实为 **bootloader + 真实
+  python 采集孙进程两个进程**。`proc.terminate()`/`proc.kill()` 只能命中 bootloader:
+  SIGTERM 会被 bootloader 转发孙进程(可靠),但 SIGKILL 兜底只杀 bootloader,
+  孙进程成孤儿继续采集——验收「run 子进程不残留」(prd.md:59)在兜底路径必翻车。
 - 新增 `_RUN_PROCS: dict[int, subprocess.Popen]`(`_RUNS` 条目不存 proc,防
-  run.status 把 Popen 对象带进应答);`_run_worker` 起 Popen 后登记、`finally` 摘除。
+  run.status 把 Popen 对象带进应答);`_run_worker` 的 `Popen` 加
+  **`start_new_session=True`**(run 自成进程组;dev 单进程形态行为不变)，
+  起后登记、`finally` 摘除。
 - `_m_run_cancel`:锁内定位活跃 run(state!="running" → `run_not_active`,带 state);
-  `proc.terminate()`(SIGTERM)→ 条目标 `cancel_requested=True` →
-  `threading.Timer(5, proc.kill)` 兜底(进程不残留)→ 立即返回,不阻塞 serve 循环。
+  **`os.killpg(os.getpgid(proc.pid), SIGTERM)`**(组内 bootloader+孙进程一锅端,
+  bootloader 转发路径不受影响)→ 条目标 `cancel_requested=True` →
+  `threading.Timer(5, os.killpg(pgid, SIGKILL))` 兜底(进程不存在时
+  `ProcessLookupError` 吞掉)→ 立即返回,不阻塞 serve 循环。
 - `_run_worker` 收尾:`exit_code = proc.wait()` 后若 `cancel_requested and exit_code
   is not None and exit_code < 0`(信号终局)→ `status = "cancelled"`(可辨认终态,
   STATUS_BY_EXIT 不动);completed 事件照常带 `status:"cancelled"`。
+- **测试边界如实注记**:D1 协议测试在 dev 模式跑(`python -m myia.cli`,无
+  bootloader,单进程),`proc.poll() is not None` 断言只见单进程——**孙进程不残留
+  的最终证据在 D12 冒烟**(活动监视器核 bootloader 与 python 两个 myia 进程均无
+  残留),dev 测试绿不等于该验收过。
 - C12 联动:全局「跑一次」放**顶栏**(不放仪表盘——feed-ux G4 已认领 dashboard
   CategoryCard 的逐品类「跑一次」,两批避撞,见 §11.2):顶栏右侧
   `[▶ 跑一次(品类)] [● 采集中 ✕]` 组件;品类来源 = feed-ux C8 提升的顶栏品类选择态
@@ -234,20 +272,32 @@
   `app_version`(env 缺省 null);top-bar 在线态 tooltip 追加
   `· app v{app_version}`(排障三件套:sidecar 版/协议版/app 版)。
 
-## 10. C7 client 一一对应收口
+## 10. C7 收口(口径修订:与 spec 注册表对账,替代「client 全量一一对应」)
 
-- types.ts + client.ts **补齐到与本批结束时的 _HANDLERS 逐一对应**:`sourcesWrite`
-  + yaml 六 + image 六(补类型化封装;yaml-editor/image 屏私有 api.ts **不迁移**,
-  避撞在途线,重复封装短期接受、注记为后续收敛)+ 本批新方法封装(runsList/
-  runCancel/secretDelete/feedbackMark/feedbackList/feedbackStats/sourcesTest/
-  storeTrend;storeItems 增可选参)。各步骤随用随加,D10 做最终 sweep 核对。
-- 两处头注释如实化:client.ts:108「一一对应」改为真(sourceWrite 等补齐后成立,
-  注释附「契约与 entry.py `_HANDLERS` 互指」);sources/api.ts:8-13 删「将得
-  method_not_found」段,改述为「sources.write 已收编,本模块经共享 client 调用」,
-  并把其私有 sources.write invoke 路径迁移到 `api.sourcesWrite`(错误归一化随之
-  删重复代码)。
-- 核对命令(验收门):`python - <<'PY'` 对照 client.ts 方法键与 entry.py `_HANDLERS`
-  键集(或等价 grep 人工核对,审查门记录)。
+> 修订缘由:本设计首稿落盘 4 分钟后,并行会话落了
+> `.trellis/spec/desktop/sidecar-protocol.md`,其变更纪律第 3 条钉死相反政策
+> (「封装面 ≠ 协议面:client.ts api 门面只盖核心 10 方法;sources.write/yaml.*/
+> image.* 屏私有封装」),并已改写 client.ts 头注为「只封装核心 10 方法,非协议
+> 全量」(git diff 实读)。PRD C7 验收原措辞「client.ts 方法集与 _HANDLERS 一一
+> 对应(含 sources.write)」(prd.md:65)与该 spec 互斥。拍板取**方案①(推荐,
+> 改动小、不撞在途线)**:共享门面 = 核心 10 + 本批新方法,屏私有封装保留,验收
+> 措辞在 D10 审查门记录变更为「头注如实 + 注册表对账」。若主人拍板②(坚持全量
+> 一一对应),须先推翻 spec 第 3 条并回改三个屏私有 api.ts(撞在途 yaml-editor/
+> image 线)——不推荐;②入选时本节回设计重开。
+
+- **封装落点**:本批新增 8 方法封装一律入共享 client.ts(`runCancel/runsList/
+  secretDelete/feedbackMark/feedbackList/feedbackStats/sourcesTest/storeTrend`),
+  `storeItems` 可选参与 `version.app_version` 类型扩展进 types.ts `SidecarProtocol`;
+  spec 第 3 条的屏私名单(sources.write/yaml.*/image.*)**不扩、不迁移**——新方法
+  全入共享门面,使「spec 注册表新增行 ↔ 门面新增行」同源对账,封装政策不长出
+  第二套例外。
+- **头注如实化(只剩一处)**:sources/api.ts:8-13 删「将得 method_not_found」段,
+  改述为「sources.write 已收编,本模块屏私有封装(spec 变更纪律第 3 条),契约见
+  spec 注册表」;其私有 invoke 通道**保留不迁移**。client.ts 头注已被 spec 线改真,
+  本批只随新方法自然扩门面,不覆盖其措辞(避免与并行线行级撞车)。
+- **核对命令(验收门,D10 执行)**:发未知方法名拿 `data.allowed`(spec 变更纪律
+  第 2 条对账手法)与 spec 注册表行集比对(23+8=31);`grep` client.ts api 键数
+  = 10+8;结果记任务日志。
 
 ## 11. 文件级改动地图 / 避撞顺序 / 开工前核对 / 回滚点
 
@@ -256,10 +306,10 @@
 | 文件 | 改动 |
 |---|---|
 | desktop/src-tauri/src/main.rs | 抽 `spawn_sidecar`;`Sidecar` 增 respawn 字段;`Terminated` 分支改造(退避+状态事件);新命令 `sidecar_restart`;setup 注入 `MYIA_APP_VERSION`;`#[cfg(test)]` 退避纯函数测试 |
-| desktop/entry.py | 模块头方法表/参数段更新;`_m_version` 增 app_version;`_RUN_PROCS` + `_run_worker` 登记/摘除/cancelled 终态;`_m_run_cancel`;`_m_runs_list` + `_run_record_dict`;`_m_secret_delete`;`_m_feedback_mark/list/stats`(+ import myia.feedback、FEEDBACK_CHANNEL_DESKTOP);`_m_sources_test` + `_TEST_*` 单飞/worker;`_m_store_trend`;store.items `before_id` 透传(§3 分支);`_HANDLERS` 注册;D12 bump `PROTOCOL_VERSION` |
+| desktop/entry.py | 模块头方法表/参数段更新;`_m_version` 增 app_version;`_RUN_PROCS` + `_run_worker`(Popen `start_new_session=True`)登记/摘除/cancelled 终态;`_m_run_cancel`(killpg SIGTERM→Timer(5) killpg SIGKILL,§2.2);`_m_runs_list` + `_run_record_dict`;`_m_secret_delete`;`_m_feedback_mark/list/stats`(+ import myia.feedback、FEEDBACK_CHANNEL_DESKTOP);`_m_sources_test` + `_TEST_*` 单飞/worker;`_m_store_trend`;store.items `before_id` 透传(§3 分支);`_HANDLERS` 注册;D12 bump `PROTOCOL_VERSION` |
 | src/myia/store/sqlite.py | `list_runs`(runs 节);`daily_item_counts`(items 节);(条件)list_items `query/before/before_id` |
 | src/myia/store/models.py | `FEEDBACK_CHANNEL_DESKTOP = "desktop"` |
-| desktop/ui-src/src/lib/api/types.ts + client.ts | §10 全部新契约类型与封装;VersionResult 增 app_version |
+| desktop/ui-src/src/lib/api/types.ts + client.ts | §10 修订口径:本批 8 新方法封装入共享门面 + storeItems 可选参/VersionResult.app_version 类型扩展;spec 屏私名单(sources.write/yaml.*/image.*)不动 |
 | desktop/ui-src/src/hooks/use-sidecar-status.ts | 订阅 `sidecar://state`;状态机增 respawning/dead;reprobe → 探测+拉起 |
 | desktop/ui-src/src/components/layout/top-bar.tsx | 状态徽标新态/「拉起」按钮/tooltip 增 app 版本;挂 GlobalRun(一次 commit 收口本批全部 top-bar 改动) |
 | desktop/ui-src/src/components/layout/global-run.tsx(新) | C12 跑一次 + 取消 |
@@ -267,7 +317,8 @@
 | desktop/ui-src/src/screens/feed/feed-card-feedback.tsx(新)+ feed-screen.tsx | B2 卡片 👍/👎(feed-screen 仅挂载点) |
 | desktop/ui-src/src/screens/dashboard/api.ts + dashboard-screen.tsx | C3 runs.list 重构线;B4 `fillDailyCounts/toSparklinePoints`;两新卡组件文件(trend-card / feedback-stats-card) |
 | desktop/ui-src/src/screens/settings/settings-screen.tsx + settings/api.ts | B3「评分与反馈」分区;C11 model/enabled 写回助手 `saveCategoryNode`;C5 凭据行删除;push 声明指引链接 |
-| desktop/ui-src/src/screens/sources/sources-screen.tsx + sources/api.ts | C13 行内试抓;C7 迁移共享 client + 头注如实化 |
+| desktop/ui-src/src/screens/sources/sources-screen.tsx + sources/api.ts | C13 行内试抓(sourcesTest 走共享门面);sources/api.ts 头注如实化(私有通道保留不迁移,§10) |
+| .trellis/spec/desktop/sidecar-protocol.md | **协议注册表随同更新(spec 变更纪律第 1 条)**:23→31(新增 8 行,分组注 v1.1.2 桌面对齐)+ store.items/version 行参数注记 + 错误码表补 `run_not_active`/`test_busy`/`item_not_found` 等;每个新增方法的 D 步同 commit 更新,D12 用 `data.allowed` 对账(纪律第 2 条)——首稿漏此落点,评审补 |
 | tests/test_desktop_sidecar_protocol.py | C1 同刻取尽夹具;run.cancel 全往返;runs.list;secret.delete;feedback 三方法;sources.test(mock 子进程或 127.0.0.1 本地服务夹具);store.trend;version.app_version |
 | CHANGELOG.md | D12 协议 v2 合流总账 |
 | (顺风车)desktop/ui-src/src/routes/*.tsx + App.tsx;src/myia/engines/fetch_base.py:768 | E4 骨架死代码清理;E5 过期注释 |
@@ -285,8 +336,10 @@
    分区)。姿态:本批 C12 全局跑一次**放顶栏不放仪表盘**、B2 统计**放仪表盘不放
    feed 屏**,把同文件交叠压到行级;先合者为准、后合者 rebase;两批协议形状以本
    设计 §1/§3 合流表为准(feed-ux 无需改其设计)。
-4. **工作区在途(push/messaging 线)**:与本批零文件交叠(directory.py/
-   test_messaging_pipeline.py);开工前 `git status` 应干净或先落定(§11.3 第 3 条)。
+4. **工作区在途线(不点名,以开工时实况为准)**:首稿时的 push/messaging 线已提交
+   (`2b54865`);评审时的 image 屏测试/client.ts 头注/spec 目录等属 spec 立档线
+   ——后者与本批强相关(spec 注册表 = 本批协议文档,§10/§11.1 新增更新义务),
+   开工前须其合入且政策定稿(§11.3 第 6 条);其余线以 `git status` 干净为准。
 5. **v111-release**:若 README 改口/版本对齐仍有尾巴,本批不动 README(明确不做)。
 
 ### 11.3 开工前核对清单(start 前逐条打勾,任一不过即顺延并升级)
@@ -294,12 +347,17 @@
 1. `git tag --list 'v1.1.1*'` 非空(排程门);tauri.conf.json version ≥ 1.1.1。
 2. yaml-editor:`grep -c '"yaml.save"' desktop/entry.py` ≥1(现 HEAD 已满足)+
    其 task.json 已 completed/或 notes 载明协议面冻结。
-3. `git status` 干净;若 push/messaging 线改动仍在,先请其落定或 rebase。
+3. `git status` 干净;在途改动(无论哪条线)先请其落定或 rebase——不点名具体线,
+   以 `git status` 实况为准(§0:多会话滚动,点名必过期)。
 4. feed-ux 合流分支判定:`grep -n "before" src/myia/store/sqlite.py | head` ——
    已有 → 本批 C1 走「增量加 before_id + UI + 测试」;没有 → 本批按 §3 合流形状
    一次性补齐并回标 feed-ux(其 implement 步骤 1 作废半边)。
 5. `grep -n "^PROTOCOL_VERSION" desktop/entry.py` 记现值 → 定 D12 bump 所有权(§1.3)。
-6. 基线实测并记录:`uv run --no-sync python -m pytest -q` 与
+6. **spec 封装政策现值核对**:读 `.trellis/spec/desktop/sidecar-protocol.md` 变更纪律
+   现文 + `git log --oneline -- .trellis/spec/desktop/sidecar-protocol.md`——确认
+   其已按评审拍板合入(方案①:注册表对账口径);若政策仍是未定稿/又变,§10 与
+   D10 回设计重开,不得按过期口径开工。
+7. 基线实测并记录:`uv run --no-sync python -m pytest -q` 与
    `npm --prefix desktop/ui-src run test`、`run build` 的通过数(PRD:以开工时基线
    为准,勿死守 1397/40)。
 
