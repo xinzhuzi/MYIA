@@ -1,4 +1,4 @@
-# Builds and publishes the MYIA server image to GHCR (ghcr.io/xinzhuzi/myia).
+# Builds and publishes the 世事 server image to GHCR (ghcr.io/xinzhuzi/shishi).
 # Separate from ci.yml on purpose: CI gates tests on every push/PR; this
 # workflow only ships images.
 

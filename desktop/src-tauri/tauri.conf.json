@@ -43,7 +43,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/xinzhuzi/MYIA/releases/latest/download/latest.json"
+        "https://github.com/xinzhuzi/shishi/releases/latest/download/latest.json"
       ],
       "pubkey": "__MYIA_UPDATER_PUBKEY_PLACEHOLDER__",
       "windows": {

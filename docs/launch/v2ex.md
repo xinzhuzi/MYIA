@@ -6,8 +6,8 @@
 
 ## 标题候选(选一)
 
-1. `开源了一个 AI 原生情报中枢 MYIA:一个 YAML 盯一类情报,说需求,AI 做其余(MIT)`
-2. `MYIA:把「爬虫 + 分类 + 去重 + 推送」拧成一条流水线,品类即配置,agent 写配置(MIT 开源)`
+1. `开源了一个 AI 原生情报中枢 世事:一个 YAML 盯一类情报,说需求,AI 做其余(MIT)`
+2. `世事:把「爬虫 + 分类 + 去重 + 推送」拧成一条流水线,品类即配置,agent 写配置(MIT 开源)`
 
 ## 正文
 
@@ -15,7 +15,7 @@
 同一套东西重新拼一遍:采集脚本、cron、diff 监控、去重、往聊天工具里推
 webhook。直到把它拧成了一条流水线,索性开源——
 
-**MYIA**,AI 原生情报中枢,MIT,纯 Python(3.11+)+ SQLite 单文件,
+**世事**,AI 原生情报中枢,MIT,纯 Python(3.11+)+ SQLite 单文件,
 核心 `pip install` 级轻依赖:
 
 ```
@@ -49,7 +49,7 @@ push:
 
 2. **AI 写 YAML**:内置 Agent Skill(skill/SKILL.md,自包含速查),Claude
    Code / Cursor 里说「帮我盯着 XX」,agent 读 schema 现场生成配置,用
-   `myia test` 试抓验证、`myia run --dry-run` 演练;源坏了 `myia doctor
+   `shishi test` 试抓验证、`shishi run --dry-run` 演练;源坏了 `shishi doctor
    --json` 的结构化诊断就是给 agent 自修看的。所有命令都有 `--json`,
    退出码契约 0/1/2/3,agent 友好是第一设计原则。
 
@@ -59,28 +59,28 @@ push:
    没装也不炸,结构化报 `dependency_missing` 沿链继续。
 
 4. **情报语义**:七大类关键词粗筛(零 token,已拆成独立包
-   myia-classifier)+ 可选 LLM 精评(价值/相关性/可信度 0–10);阈值分级
+   shishi-classifier)+ 可选 LLM 精评(价值/相关性/可信度 0–10);阈值分级
    路由:≥8 立即推、≥5 进早晚双摘要(AM/PM 槽位防重发)、<5 只归档。
-   负反馈回写持续调优:CLI `myia feedback mark` 手动标记,
+   负反馈回写持续调优:CLI `shishi feedback mark` 手动标记,
    Telegram/飞书回调接收已就绪(卡片内按钮随桌面版交付)。
 
 5. **凭据零明文**:YAML 里凭据位只允许 `env:VAR` /
-   `keychain:myia/<scope>/<name>` 引用(macOS Keychain / Windows DPAPI),
+   `keychain:shishi/<scope>/<name>` 引用(macOS Keychain / Windows DPAPI),
    出现明文 Cookie/Token 启动即拒载;日志与 JSON 输出只出现凭据名,
    永不出现值。
 
 6. **采集伦理**:默认尊重 robots.txt(qps/jitter/backoff 是默认行为);
    「真人验证+手机号」类源直接结构化报错,不做绕过。
 
-运行形态:CLI 常驻(`myia run --loop`,APScheduler 进程内调度)或自带
+运行形态:CLI 常驻(`shishi run --loop`,APScheduler 进程内调度)或自带
 docker compose;推送通道:飞书卡片 / Telegram / webhook / stdout。数据
 单文件 SQLite,按保留期自动清理 + VACUUM。
 
 如实汇报状态:alpha。核心流水线已实现,CI 测试全绿(测试零真实网络,
 录制回放),桌面端只有 spike,坑肯定还有。文档双语在仓库里:
 
-- 仓库:https://github.com/xinzhuzi/MYIA
-- 快速上手:https://github.com/xinzhuzi/MYIA/blob/main/docs/zh/getting-started.md
+- 仓库:https://github.com/xinzhuzi/shishi
+- 快速上手:https://github.com/xinzhuzi/shishi/blob/main/docs/zh/getting-started.md
 - 许可:MIT
 
 求拍砖,尤其是 schema 设计与降级链这两块。你会先拿它盯什么?

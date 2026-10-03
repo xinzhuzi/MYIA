@@ -1,11 +1,11 @@
-# MYIA PyPI 发布 Runbook(主人专用)
+# 世事 PyPI 发布 Runbook(主人专用)
 
 > **红线声明**:实发布需要**主人的凭据**(PyPI 账号授权 + GitHub 仓库管理员权限)。
 > 本 runbook 把一切准备到「主人一键可发」;准备阶段(AI 任务 10-01)未触发任何
 > 发布动作——没有 dispatch 工作流,没有上传,没有在 PyPI 注册任何东西。
 > 发布节奏由主人定,以下每一步都由主人亲手执行或在主人授权后执行。
 
-发什么:`myia` 与 `myia-classifier` 两个包(前者依赖后者),由
+发什么:`shishi` 与 `shishi-classifier` 两个包(前者依赖后者),由
 [`.github/workflows/pypi-publish.yml`](../../.github/workflows/pypi-publish.yml)
 一键构建 + 校验 + 上传。工作流**只有 `workflow_dispatch` 手动触发**,推送/tag
 永远不会误发 PyPI;构建产物在发布前有数据文件硬校验(`keywords.json` /
@@ -22,7 +22,7 @@ workflow_dispatch 的 **Run workflow 按钮只对默认分支(main)上存在的 
 git push origin main        # 或经 PR 合入
 # 确认远端文件已到位:
 git ls-remote origin main   # 拿到最新 commit 后,在 GitHub 网页核对
-# https://github.com/xinzhuzi/MYIA/blob/main/.github/workflows/pypi-publish.yml
+# https://github.com/xinzhuzi/shishi/blob/main/.github/workflows/pypi-publish.yml
 ```
 
 ## 第二步:GitHub 仓库设置(一次性)
@@ -39,13 +39,13 @@ git ls-remote origin main   # 拿到最新 commit 后,在 GitHub 网页核对
 
 ### 路径 A:Trusted Publishing(OIDC,推荐:零长期凭据、无 token 可泄漏)
 
-对 `myia` 和 `myia-classifier` **各注册一次**,四元组完全相同(同一工作流发
+对 `shishi` 和 `shishi-classifier` **各注册一次**,四元组完全相同(同一工作流发
 多包是 PyPI 官方支持的用法):
 
 | 表单字段 | 填写值 |
 |---|---|
 | Owner | `xinzhuzi` |
-| Repository | `MYIA` |
+| Repository | `世事` |
 | Workflow filename | `pypi-publish.yml` |
 | Environment | `pypi` |
 | Destination(版本/tag 限制) | 留空即可 |
@@ -54,8 +54,8 @@ git ls-remote origin main   # 拿到最新 commit 后,在 GitHub 网页核对
 
 - **项目还不在 PyPI 上(首发场景)**:登录 <https://pypi.org> → 右上角头像 →
   **Account settings → Publishing**(直达 <https://pypi.org/manage/publishing/>)→
-  **Add a new pending publisher**,填上面四元组 + PyPI project name(`myia` 一次,
-  `myia-classifier` 一次)。pending publisher 在工作流首次成功上传时自动转正并
+  **Add a new pending publisher**,填上面四元组 + PyPI project name(`shishi` 一次,
+  `shishi-classifier` 一次)。pending publisher 在工作流首次成功上传时自动转正并
   创建项目。
 - **项目已存在**:打开项目页 → **Manage(设置)→ Publishing → Add a new
   trusted publisher**,填同样四元组。
@@ -65,7 +65,7 @@ git ls-remote origin main   # 拿到最新 commit 后,在 GitHub 网页核对
 1. <https://pypi.org/manage/account/token/> → **Add API token**:
    - **新项目首发的鸡生蛋问题**:token scope 下拉里只列已存在的项目,所以首发
      时只能选 **scope: account(所有项目)**;两个包都发上去之后,建议删掉
-     account 级 token,换 project-scoped token(`scope: myia` 各建一把)并更新
+     account 级 token,换 project-scoped token(`scope: shishi` 各建一把)并更新
      GitHub secret——最小权限。
 2. 把 `pypi-` 开头的 token 完整粘贴到第二步的 GitHub secret `PYPI_API_TOKEN`。
 3. 第六步 dispatch 时勾选 **use-api-token = true**。
@@ -82,7 +82,7 @@ git ls-remote origin main   # 拿到最新 commit 后,在 GitHub 网页核对
 2. 选项:
    - **package**:
      - 首发或双包同版本发布 → 选 `both`(两包一起,共 4 个产物:wheel+sdist × 2);
-     - 只更分类器 → `myia-classifier`;只更主包 → `myia`。
+     - 只更分类器 → `shishi-classifier`;只更主包 → `shishi`。
    - **use-api-token**:走路径 A 留 `false`;走路径 B 勾 `true`。
 3. 点 **Run workflow**,等 build → publish 两个 job 全绿(首发约 2~3 分钟)。
    build job 的 *Verify distributions contain packaged data files* 步骤会打印
@@ -93,27 +93,27 @@ git ls-remote origin main   # 拿到最新 commit 后,在 GitHub 网页核对
 1. **workflow 日志**:publish job 无红色报错;Upload 行列出 4 个(或选单包时
    2 个)产物 URL。
 2. **PyPI 页面**:
-   - <https://pypi.org/project/myia/> 与 <https://pypi.org/project/myia-classifier/>
+   - <https://pypi.org/project/shishi/> 与 <https://pypi.org/project/shishi-classifier/>
      可访问,版本号正确,README 正常渲染(中文简介 + MIT license)。
 3. **干净环境安装验证**(模拟真实用户,注意 pip 装的是 PyPI 包,不再走 workspace):
 
 ```bash
-uv venv /tmp/verify-myia && source /tmp/verify-myia/bin/activate
+uv venv /tmp/verify-shishi && source /tmp/verify-shishi/bin/activate
 # 先验独立分类器(零依赖,应秒装):
-pip install myia-classifier
+pip install shishi-classifier
 python -c "from myia_classifier import classify_title, ALL_CATEGORIES; \
            print(classify_title('OpenAI 发布新模型').category, ALL_CATEGORIES)"
 # 预期输出:ai-news(加 7 个类目列表)
 
-# 再验主包(会自动拉 myia-classifier 依赖):
-pip install myia
-myia --version          # 预期输出:myia <刚发布的版本号>(与上一步 PyPI 页面所示一致)
+# 再验主包(会自动拉 shishi-classifier 依赖):
+pip install shishi
+shishi --version          # 预期输出:shishi <刚发布的版本号>(与上一步 PyPI 页面所示一致)
 deactivate
 ```
 
 4. 有问题回滚:PyPI 不允许覆盖已上传版本,修复后 **bump 版本号再发**
    (两个包的 `pyproject.toml` 中 `version` + 主包依赖里的
-   `myia-classifier>=x,<y` 区间)。
+   `shishi-classifier>=x,<y` 区间)。
 
 ## 第六步:社区发帖(发布确认后)
 
@@ -127,7 +127,7 @@ deactivate
 | 即刻 | [jike.md](jike.md) | zh |
 | LinuxDo | [linuxdo.md](linuxdo.md) | zh |
 
-PyPI 已发布后,各文案里的安装命令从「源码安装」切换为 `pip install myia`
+PyPI 已发布后,各文案里的安装命令从「源码安装」切换为 `pip install shishi`
 (发帖前 `docs/launch/README.md` 检查表有对应项)。发出后按 README 的
 「首周反馈汇总」表记录链接与反馈。
 
@@ -135,7 +135,7 @@ PyPI 已发布后,各文案里的安装命令从「源码安装」切换为 `pip
 
 首次正式发布前,可在 <https://test.pypi.org> 全流程演练一遍:publisher 四元组
 配在 test.pypi.org 侧、token 用 TestPyPI 的,dispatch 跑完用
-`pip install --index-url https://test.pypi.org/simple/ myia-classifier` 验证。
+`pip install --index-url https://test.pypi.org/simple/ shishi-classifier` 验证。
 演练产物与正式 PyPI 完全隔离。
 
 ## 故障排查
@@ -143,7 +143,7 @@ PyPI 已发布后,各文案里的安装命令从「源码安装」切换为 `pip
 | 症状 | 原因与处置 |
 |---|---|
 | Actions 列表看不到 PyPI Publish | workflow 文件不在 main(回第一步) |
-| publish 报 `environment pypi not found` 或 claim 不匹配 | 第二步环境名与第三步四元组不一致,逐字核对(`xinzhuzi` / `MYIA` / `pypi-publish.yml` / `pypi`) |
+| publish 报 `environment pypi not found` 或 claim 不匹配 | 第二步环境名与第三步四元组不一致,逐字核对(`xinzhuzi` / `世事` / `pypi-publish.yml` / `pypi`) |
 | 报 `Invalid or non-existent authentication information`(OIDC 模式) | PyPI 侧 pending publisher 未注册或四元组填错 |
 | token 模式报 403 | token 过期/权限不足/未更新到 GitHub secret;或首发用了 project-scoped token 但项目还不存在(见第三步 B 的鸡生蛋问题) |
 | build job Verify 步骤失败 | 产物缺数据文件(词表/prompt 回归被拦截)——修 pyproject 的 artifacts 配置,不要跳过校验 |

@@ -1,13 +1,35 @@
 # Changelog
 
-All notable changes to MYIA are documented in this file.
+All notable changes to 世事 are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Earlier v0.x milestones are summarized in the README roadmap table and are not
 repeated here.
 
+## [Unreleased]
+
+### Added
+
+- **Messaging screen** (commit `4be1325`): a sixth desktop screen (「消息」) for the
+  messaging platform — platform-grouped channel directory (name / type / last-seen /
+  dead-letter badge), inline alias editing, per-platform directory refresh, and a
+  push-rule panel that picks concrete targets (`platform:name` specs) from the
+  directory. Empty and disconnected states follow the existing screen patterns.
+- **Four sidecar protocol methods**: `channels.list` (directory + aliases + dead +
+  rules merged view), `channels.refresh` (per-platform `discover_directory` with
+  bucket replace; old bucket untouched on failure), `channels.alias` (set/delete),
+  and `push.write` (full push-array replacement per file, following the
+  `sources.write` pattern: path fencing → comment-preserving text surgery →
+  re-parse deep-equality gate → `load_category` gate → `.bak` → atomic write;
+  validation failures leave the file untouched).
+- **Sidecar protocol version bumped to 2** (`PROTOCOL_VERSION`, desktop/entry.py):
+  the unified bump that was deferred while the `yaml.*`/`image.*` method families
+  merged in parallel; v2 covers everything merged since v1 (10 → 27 methods).
+
 ## [1.1.1] — 2026-10-03
+- **定名「世事」,发行身份全面更名**:产品名 MYIA→世事(桌面端已于本版本完成);PyPI 发行名 `myia`→`shishi`、`myia-classifier`→`shishi-classifier`(均系首次发布,零迁移);CLI 命令 `myia`→`shishi`;GitHub 仓库更名 `MYIA`→`shishi`(旧链接自动重定向);Docker 镜像 ghcr 同步更名。Python 模块名 `myia`/`myia_classifier` 本版本过渡保留,下版本一并更名。
+
 
 ### Fixed
 
@@ -25,7 +47,7 @@ repeated here.
 
 ### Added
 
-- **Out-of-the-box demo plugin** (`plugins/myia-demo.yaml`, bundled): a
+- **Out-of-the-box demo plugin** (`plugins/shishi-demo.yaml`, bundled): a
   zero-credential GitHub new-stars watcher over the GitHub Search API
   (single unauthenticated JSON request). A fresh install shows real data on
   the very first plugin run — no `config_error`, no secrets to fill in.
@@ -34,9 +56,9 @@ repeated here.
   card in the desktop settings screen — check for updates, review the notes,
   download & install (passive), then relaunch. Failures surface as structured
   errors.
-- **Version alignment**: `myia`, `myia-classifier` and the desktop app all
-  report `1.1.1` (`myia --version` matches the .app bundle version).
-- **PyPI dual packages**: `myia` and `myia-classifier` publish via a manual
+- **Version alignment**: `shishi`, `shishi-classifier` and the desktop app all
+  report `1.1.1` (`shishi --version` matches the .app bundle version).
+- **PyPI dual packages**: `shishi` and `shishi-classifier` publish via a manual
   release workflow (TestPyPI rehearsal first, then PyPI).
 - **README**: download & install section pointing at GitHub Releases with the
   macOS right-click-to-open Gatekeeper guidance (the installer is not
@@ -61,7 +83,7 @@ repeated here.
   a lightweight proxy-pool fetcher, monitor/credentials as remote plugins,
   douyin/maxun documented as server-only; plugin compose files moved out of
   `plugins/` into `docker/plugins/`.
-- `myia skill install` / `skill path` commands (four agent targets,
+- `shishi skill install` / `skill path` commands (four agent targets,
   `--link` / `--force`).
 
 ### Notes
@@ -84,6 +106,6 @@ repeated here.
   secrets, an agent-facing skill sheet, and bilingual (zh/en) docs kept
   consistent with the code by tests.
 
-[1.1.1]: https://github.com/xinzhuzi/MYIA/releases/tag/v1.1.1
-[1.1.0]: https://github.com/xinzhuzi/MYIA/releases/tag/v1.1.0
-[1.0.0]: https://github.com/xinzhuzi/MYIA/releases/tag/v1.0.0
+[1.1.1]: https://github.com/xinzhuzi/shishi/releases/tag/v1.1.1
+[1.1.0]: https://github.com/xinzhuzi/shishi/releases/tag/v1.1.0
+[1.0.0]: https://github.com/xinzhuzi/shishi/releases/tag/v1.0.0

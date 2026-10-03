@@ -46,7 +46,7 @@ Observability: every run emits stage-level structured logs (duration, item
 counts, skip reasons -- fingerprint skip and dedup skip are normal paths and
 stay visible), writes a ``runs`` row (status + stats + failure digest) and
 returns a :class:`RunResult` serializable via :meth:`RunResult.to_dict` for
-``myia run --json``.
+``shishi run --json``.
 
 Dry-run (``run(dry_run=True)``): the full chain executes against an in-memory
 store (no dedup/baseline/engine-hint side effects), routing decisions are
@@ -547,7 +547,7 @@ class RunResult:
         }
 
     def to_dict(self) -> dict[str, Any]:
-        """Full machine-readable form for ``myia run --json`` (AI/CI 消费路径)."""
+        """Full machine-readable form for ``shishi run --json`` (AI/CI 消费路径)."""
         duration = self.duration_seconds
         return {
             "category": self.category,
@@ -733,7 +733,7 @@ class Pipeline:
                 when a ``telegram`` push channel is configured.
             stdout_stream: stream the ``stdout`` push channel writes to;
                 default ``None`` keeps the channel default (``sys.stdout``).
-                ``myia run --json`` 注入 ``sys.stderr``:stdout 通道的卡片行
+                ``shishi run --json`` 注入 ``sys.stderr``:stdout 通道的卡片行
                 与 run 报告 JSON 不能同流,否则「--json 输出恰好一份 JSON
                 文档(stdout)」的 CLI 契约被打破(AI 消费面 json.load 必失败)。
 
@@ -828,7 +828,7 @@ class Pipeline:
     def _enrich_settings_from_config(self) -> EnrichSettings:
         """Schema 承载的端点引用 → :class:`EnrichSettings`(PRD: enrich 节承载 base_url)。
 
-        ``myia run`` 的唯一用户入口:schema 的 ``enrich.base_url`` /
+        ``shishi run`` 的唯一用户入口:schema 的 ``enrich.base_url`` /
         ``enrich.api_key``(env:/keychain: 引用)在此装配,引用语法/明文由
         EnrichSettings 结构化拒绝。两字段都缺省时返回空 ``EnrichSettings()``
         ——其 __post_init__ 抛 missing_base_url / missing_api_key,与构造注入
@@ -2117,7 +2117,7 @@ class Pipeline:
         bot token 都解析自 ``env:TELEGRAM_BOT_TOKEN``,因此每个配置了 telegram
         通道的常驻进程都会轮询同一条 getUpdates 流——Telegram 对并发轮询方
         回 **409 Conflict** 互踢。同一 token 下至多一个品类以 ``--loop`` 常驻
-        (其余品类换推送渠道,或不常驻);``myia doctor`` 以
+        (其余品类换推送渠道,或不常驻);``shishi doctor`` 以
         ``telegram_token_poll_conflict`` finding 提示多品类共配的情形。
 
         Args:

@@ -1,4 +1,4 @@
-MYIA run:demo-news(演示情报) run_id=2
+世事 run:demo-news(演示情报) run_id=2
   - fetch:ok | 1→0 条
   - classify:ok
   - dedup:ok

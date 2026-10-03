@@ -1,7 +1,7 @@
 # Schema 参考
 
 > 一个情报品类 = 一份 YAML。本文逐节给出字段、取值与缺省值,与
-> `src/myia/schema.py` 逐字段一致(由 `tests/test_docs.py` /
+> `src/shishi/schema.py` 逐字段一致(由 `tests/test_docs.py` /
 > `tests/test_skill_doc.py` 锁定);文中全部 `yaml` 代码块都是完整可载的品类
 > 配置,复制即用。教程向的写法指南见[插件开发指南](write-a-plugin.md)。
 
@@ -45,13 +45,13 @@
 ## 凭据引用语法
 
 - 只允许两种写法:`env:VAR_NAME`(运行时读环境变量)或
-  `keychain:myia/<scope>/<name>`(系统钥匙链:macOS Keychain / Windows
+  `keychain:shishi/<scope>/<name>`(系统钥匙链:macOS Keychain / Windows
   DPAPI;名空间必须规范,扁平旧名解析期被拒)。
 - 可带认证 scheme 前缀:`Authorization: "Bearer env:AIPOCKET_TOKEN"`。
 - 凭据类键(键名含词表 `CREDENTIAL_KEY_SUFFIXES` 子串,大小写/连字符不敏感)
   的值出现明文 → 加载期拒载(错误码 `credential_plaintext`)。该规则覆盖
   `sources[].headers`、`post_body`、源级扩展参数——整份 YAML 文档,不止头部。
-- 凭据值永不回显、永不落日志;`myia secret set myia/<scope>/<name>` 写入,
+- 凭据值永不回显、永不落日志;`shishi secret set shishi/<scope>/<name>` 写入,
   值走 stdin 管道或安全输入。
 - `enrich.base_url` / `enrich.api_key` / `push[].target` 必须是**纯**引用
   (不允许 scheme 前缀)。
@@ -86,7 +86,7 @@
 | `url` | `必填` | http(s) 地址;支持 `{placeholder}` 模板(翻页 `{page}`、扇出 `{symbol}`) |
 | `method` | `GET` | `GET` / `POST`;POST 必配 `post_body`,GET 禁止 |
 | `post_body` | `null` | POST 表单/JSON 体(映射);凭据键同 headers 禁明文 |
-| `headers` | `{}` | 请求头;凭据键的值必须是引用;不要伪装浏览器 UA(默认 UA 是诚实的 `MYIA/0.1 (...)`) |
+| `headers` | `{}` | 请求头;凭据键的值必须是引用;不要伪装浏览器 UA(默认 UA 是诚实的 `世事/0.1 (...)`) |
 | `pagination` | `null` | 翻页配置,见下表 |
 | `extract` | `null` | 字段提取,见下表;留空时 L3+ 引擎自动结构化兜底 |
 | `rate_limit` | `见 rate_limit 表` | 礼貌限速(限速在引擎层统一执行) |
@@ -165,8 +165,8 @@ rate_limit:
 | `batch` | `20` | 批量评分条数(1-1000) |
 | `cache` | `true` | 按 URL 缓存评分,同一 URL 永不打两次分 |
 | `budget_per_run` | `50000` | 单次 run 的 token 预算护栏;耗尽自动降级纯关键词粗筛并有 WARNING |
-| `base_url` | `null` | OpenAI 兼容端点,**只能是纯 `env:`/`keychain:` 引用**(MYIA 无内置端点),如 `env:MYIA_LLM_BASE_URL` |
-| `api_key` | `null` | API key,同上,如 `env:MYIA_LLM_KEY`(MYIA 无默认 key) |
+| `base_url` | `null` | OpenAI 兼容端点,**只能是纯 `env:`/`keychain:` 引用**(世事 无内置端点),如 `env:MYIA_LLM_BASE_URL` |
+| `api_key` | `null` | API key,同上,如 `env:MYIA_LLM_KEY`(世事 无默认 key) |
 
 真实调用还需可选依赖:`uv sync --extra llm`(未装时结构化报错
 `dependency_missing` 并降级关键词粗筛)。
@@ -212,15 +212,15 @@ YAML 拒载(退出码 1)。
 
 ### plugin:场景插件双模式(v0.3)
 
-品类依赖某个市场插件(`myia plugin install` 安装)提供的服务时声明。
+品类依赖某个市场插件(`shishi plugin install` 安装)提供的服务时声明。
 **任何插件装不上/配置坏/remote 不可达都不拦核心流水线**——降级为结构化
 finding,品类照常跑(安全基线铁律)。
 
 | 字段 | 缺省 | 语义 |
 |---|---|---|
-| `id` | `必填` | 插件 id(小写字母/数字/连字符/下划线,字母数字开头,惯例 `myia-<名称>`) |
+| `id` | `必填` | 插件 id(小写字母/数字/连字符/下划线,字母数字开头,惯例 `shishi-<名称>`) |
 | `requires` | `[]` | 宿主能力词表(当前仅 `docker`);字符串或列表皆可 |
-| `modes` | `必填` | 双模式至少声明一个:`local`(compose 文件路径 / install 命令至少其一)或 `remote`(endpoint 必填;token **必须** `keychain:myia/<scope>/<name>` 引用,`env:` 也不行) |
+| `modes` | `必填` | 双模式至少声明一个:`local`(compose 文件路径 / install 命令至少其一)或 `remote`(endpoint 必填;token **必须** `keychain:shishi/<scope>/<name>` 引用,`env:` 也不行) |
 
 ```yaml
 id: site-watch
@@ -228,18 +228,18 @@ name: 页面变更监控
 schedule: "*/15 * * * *"
 timezone: Asia/Shanghai
 plugin:                           # 场景插件声明(v1.1 起官方包为 remote 可选接入)
-  id: myia-monitor
+  id: shishi-monitor
   requires: []
   modes:
     remote:                       # 指向已部署实例(桌面零 Docker);local compose 仍是合法 schema,官方部署文件在 docker/plugins/
       endpoint: https://my-monitor.example.com
-      token: keychain:myia/monitor/token    # myia secret set myia/monitor/token
+      token: keychain:shishi/monitor/token    # shishi secret set shishi/monitor/token
 sources:
   - name: watch-api
     engine: direct_api
     url: "https://my-monitor.example.com/api/v1/watch"
     headers:
-      X-Api-Key: "keychain:myia/monitor/token"
+      X-Api-Key: "keychain:shishi/monitor/token"
     extract:
       type: json_path
       fields:
@@ -322,7 +322,7 @@ push:
 两级判重:本地零 token 粗筛圈候选 → LLM 确认(并入 enrich 的批量/缓存/预算
 护栏)。**端点配置复用 `enrich:` 节**——`aggregate.enabled: true` 要求
 enrich 的 `base_url`/`api_key` 有效(同样需要 `--extra llm`);预算与 enrich
-合计消费,谁先到顶谁降级。开启后 `myia run --json` 的 `stages[]` 会多出
+合计消费,谁先到顶谁降级。开启后 `shishi run --json` 的 `stages[]` 会多出
 `aggregate` 阶段。
 
 ```yaml
@@ -359,7 +359,7 @@ push:
 ## 加载期错误(结构化)
 
 装载失败抛 `LoadError`:一次报告**全部**错误,每条含字段路径(JSONPath 风格
-如 `$.sources[0].rate_limit.qps`)+ 机器错误类 + 中文原因;`myia doctor
+如 `$.sources[0].rate_limit.qps`)+ 机器错误类 + 中文原因;`shishi doctor
 --json` 输出同一结构。退出码 1。常见错误类:
 
 | error_type | 含义 |

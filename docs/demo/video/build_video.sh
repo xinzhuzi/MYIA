@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# 装配《MYIA 演示成片》:myia-demo.mp4(72.0s / 1920x1080 / H.264 + 静音 AAC)
+# 装配《世事 演示成片》:shishi-demo.mp4(72.0s / 1920x1080 / H.264 + 静音 AAC)
 #
 # 装配版 = 现有素材合成,无真人录屏:
-#   片头卡 5.0s → myia-demo.gif 放大 42.5s(烧录中文字幕)→ 能力点文字卡 18.0s → 片尾卡 6.5s
+#   片头卡 5.0s → shishi-demo.gif 放大 42.5s(烧录中文字幕)→ 能力点文字卡 18.0s → 片尾卡 6.5s
 #
 # 素材(均为仓库既有产物,未引入新依赖):
-#   - ../assets/myia-demo.gif   1100x640@12fps、42.5s(内容事实见 ../gif/storyboard.md)
-#   - myia-demo.srt             双语字幕;此处取其中文行 #6/#9/#10/#11/#12/#13/#15/#17,
+#   - ../assets/shishi-demo.gif   1100x640@12fps、42.5s(内容事实见 ../gif/storyboard.md)
+#   - shishi-demo.srt             双语字幕;此处取其中文行 #6/#9/#10/#11/#12/#13/#15/#17,
 #                               按动图内部分镜时码重排;另加 1 条过场行(事实源:storyboard S3)
-#   - GitHub 地址               https://github.com/xinzhuzi/MYIA(根 README)
+#   - GitHub 地址               https://github.com/xinzhuzi/shishi(根 README)
 #
 # 依赖:仅 ffmpeg;中间文件全部写入 /tmp,仓库内只落成片一个文件。
 # 实现注意(实测踩坑):
@@ -18,9 +18,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-GIF="$ROOT/docs/demo/assets/myia-demo.gif"
-OUT="$ROOT/docs/demo/video/myia-demo.mp4"
-WORK="$(mktemp -d /tmp/myia-video-build.XXXXXX)"
+GIF="$ROOT/docs/demo/assets/shishi-demo.gif"
+OUT="$ROOT/docs/demo/video/shishi-demo.mp4"
+WORK="$(mktemp -d /tmp/shishi-video-build.XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
 
 F_CJK='/System/Library/Fonts/Hiragino Sans GB.ttc'   # 中文正文/字幕/◎ 字形
@@ -34,24 +34,24 @@ t() { printf '%s' "$2" > "$WORK/$1.txt"; }
 
 # ---- 片头卡 -----------------------------------------------------------------
 t motif   '(( ◎ ))'                                  # 眼睛雷达意象(◎ 经实测 Hiragino 可渲染)
-t title   'MYIA'
+t title   '世事'
 t tagline '眼睛雷达 · 把信息源交给 AI'
 t small   'AI-NATIVE 信息情报管线 · 本演示零凭据零外网'
 
 # ---- 能力点文字卡(采集/分类/去重/推送/反馈) --------------------------------
-t cap_h 'MYIA 五步能力'
+t cap_h '世事 五步能力'
 t cap_1 '01 采集 —— 礼貌抓取,engine 可自动降级'
 t cap_2 '02 分类 —— 内置规则先行,跳过原因可见'
 t cap_3 '03 去重 —— 指纹跳过,不打扰'
 t cap_4 '04 推送 —— 模板不变,换 feishu_card 即发飞书'
-t cap_5 '05 反馈 —— myia list 健康度,myia doctor 诊断'
+t cap_5 '05 反馈 —— shishi list 健康度,shishi doctor 诊断'
 
 # ---- 片尾卡 -----------------------------------------------------------------
-t end_main 'MYIA · 把信息源交给 AI'
-t end_repo 'github.com/xinzhuzi/MYIA'
+t end_main '世事 · 把信息源交给 AI'
+t end_repo 'github.com/xinzhuzi/shishi'
 t end_docs '完整上手:docs/demo/README.md'
 
-# ---- GIF 段中文字幕(时码相对 GIF 段起点;行文取自 myia-demo.srt 中文行) ------
+# ---- GIF 段中文字幕(时码相对 GIF 段起点;行文取自 shishi-demo.srt 中文行) ------
 t sub1 'agent 据此生成 12 节 YAML:从哪抓、怎么礼貌地抓、怎么分类去重、推到哪里。'  # srt #6
 t sub2 '起一个本机演示源:仓库自带虚构数据,仅监听 127.0.0.1。'                      # 过场(storyboard S3)
 t sub3 '然后整链跑一遍:抓到 7 条,推送一张卡。'                                     # srt #10
@@ -60,7 +60,7 @@ t sub5 '这就是推出去的卡片:标题、链接,整整齐齐。'            
 t sub6 '想发进飞书或 Telegram:模板不动,通道换一行配置。'                            # srt #13
 t sub7 '再跑一次:内容没变,指纹直接跳过,不发打扰消息。'                              # srt #15
 t sub8 '先单源试抓:提取字段、去重键,不推送、不入库。'                               # srt #9
-t sub9 'MYIA:把信息源交给 AI。一个 YAML,一条管线,推送随取。'                        # srt #17
+t sub9 '世事:把信息源交给 AI。一个 YAML,一条管线,推送随取。'                        # srt #17
 
 # ---- 滤镜图 -----------------------------------------------------------------
 # GIF 段字幕窗口(相对 GIF 起点,依据 ../gif/storyboard.md 逐帧分镜):

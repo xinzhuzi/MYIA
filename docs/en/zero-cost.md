@@ -6,7 +6,7 @@
 > 2026-10-03 — the vendors' official sites prevail**; marketing quotas that
 > run out or expire are all explicitly labeled as such.
 
-MYIA ships with no built-in LLM endpoint and no default key
+世事 ships with no built-in LLM endpoint and no default key
 ([Getting Started](getting-started.md), section 2). Both vision (image
 reading) and enrich (precision scoring) accept **OpenAI-compatible
 endpoints only** — swap the `base_url` and any provider below plugs in.
@@ -39,7 +39,7 @@ uvx --from mlx-vlm mlx_vlm.server --model <model dir> --host 127.0.0.1 --port 80
   with Ollama, to `http://127.0.0.1:11434/v1` (Ollama's official
   OpenAI-compatible endpoint).
 
-**Enrich**: just point the endpoint at a local service. Note that MYIA
+**Enrich**: just point the endpoint at a local service. Note that 世事
 has no default key, so even a local no-auth endpoint needs a non-empty
 placeholder value:
 
@@ -82,7 +82,7 @@ channel_default: cloud          # the default is local; switch to cloud
 cloud:
   base_url: https://open.bigmodel.cn/api/paas/v4   # the product default
   model: glm-4v-flash           # zero-cost vision model (exact identifier per Zhipu's model page)
-  api_key: keychain:myia/image/api_key
+  api_key: keychain:shishi/image/api_key
 ```
 
 Two cautions:
@@ -93,7 +93,7 @@ Two cautions:
   `env:` are both refused at load) — record it in the keychain first:
 
 ```bash
-myia secret set myia/image/api_key < key.txt    # value goes over stdin, never into shell history
+shishi secret set shishi/image/api_key < key.txt    # value goes over stdin, never into shell history
 ```
 
 ### Wiring up: enrich
@@ -165,7 +165,7 @@ not been verified, so this doc makes no promise about it.
   new paywalls, tighter rate limits, or outright shutdowns can happen;
   scan the vendor's pricing page before wiring one in.
 - **No plaintext credentials**: YAML carries only `env:` / `keychain:`
-  references, and values go through `myia secret set`'s stdin pipe; the
+  references, and values go through `shishi secret set`'s stdin pipe; the
   vision cloud key accepts `keychain:` only.
 - **Don't bet on marketing quotas**: anything labeled "credits /
   one-off quota" can go to zero. For critical categories, never make a

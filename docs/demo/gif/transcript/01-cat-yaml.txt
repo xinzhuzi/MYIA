@@ -7,7 +7,7 @@
 #
 # 复现(docs/demo/README.md 有逐帧分镜):
 #   python3 -m http.server 8765 --bind 127.0.0.1 --directory desktop/fixture
-#   uv run --no-sync myia run docs/demo/demo-news.yaml --db /tmp/myia-demo/demo.db
+#   uv run --no-sync shishi run docs/demo/demo-news.yaml --db /tmp/shishi-demo/demo.db
 #
 # 换成飞书收卡:把 push[] 换成文件尾部的 feishu_card 注释块即可 —— 卡片
 # 模板不变,只换通道。
@@ -15,7 +15,7 @@
 id: demo-news
 name: 演示情报
 
-# 真实使用按此节奏调度;单次演示直接 `myia run` 不受 schedule 影响。
+# 真实使用按此节奏调度;单次演示直接 `shishi run` 不受 schedule 影响。
 schedule: "0 9,21 * * *"
 timezone: Asia/Shanghai
 
@@ -73,7 +73,7 @@ push:
       - [{{ item.title }}]({{ item.url }})
       {% endfor %}
   # 飞书收卡(真实使用取消注释并配置两个 env: 引用;值进钥匙链
-  # `myia secret set`,YAML 出现明文凭据会启动即拒):
+  # `shishi secret set`,YAML 出现明文凭据会启动即拒):
   # - channel: feishu_card
   #   target: env:FEISHU_CHAT_ID          # bot token 读 env:FEISHU_BOT_TOKEN
   #   route:

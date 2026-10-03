@@ -1,4 +1,4 @@
-MYIA test:docs/demo/demo-news.yaml(试抓不入库不推送)
+世事 test:docs/demo/demo-news.yaml(试抓不入库不推送)
   源 demo-hub(成功,engine=static_html,条目 7)
     指纹:内容有变化或首次抓取,线上调度会正常提取
     条目 dedup_key=http://127.0.0.1:8765/articles/2026/huguang-70b.html fields={"title": "「萤火」开源大模型正式发布:70B 参数,中文评测登顶", "url": "http://127.0.0.1:8765/articles/2026/huguang-70b.html"}

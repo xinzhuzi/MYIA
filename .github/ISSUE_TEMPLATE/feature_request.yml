@@ -1,5 +1,5 @@
 name: Feature request / 功能建议
-description: Suggest an idea for MYIA. / 给 MYIA 提个想法。
+description: Suggest an idea for 世事. / 给 世事 提个想法。
 labels: ["enhancement"]
 body:
   - type: textarea
@@ -22,13 +22,13 @@ body:
     id: alternatives
     attributes:
       label: Alternatives & prior art / 备选与先例
-      description: Existing tools that solve this, and why it still fits MYIA. / 现有工具怎么解决的,为什么仍值得进 MYIA。
+      description: Existing tools that solve this, and why it still fits 世事. / 现有工具怎么解决的,为什么仍值得进 世事。
 
   - type: checkboxes
     id: principles
     attributes:
       label: Design principles / 设计原则自检
-      description: MYIA is AI-native and dependency-light; proposals are weighed against this. / MYIA 是 AI-NATIVE 且核心零重依赖的项目,建议将对照以下原则权衡。
+      description: 世事 is AI-native and dependency-light; proposals are weighed against this. / 世事 是 AI-NATIVE 且核心零重依赖的项目,建议将对照以下原则权衡。
       options:
         - label: An agent could operate the proposed surface from `--json` output alone. / 该功能对 agent 可用(仅凭 --json 输出即可操作)。
         - label: It fits as config (YAML), an optional extra, or a plugin — not a new core dependency. / 以配置/可选依赖/插件承载,不新增核心重依赖。

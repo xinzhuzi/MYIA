@@ -8,13 +8,13 @@
 
 折腾了大半年,把自己的情报系统开源了 🎉
 
-**MYIA**,一个 AI 原生情报中枢:想盯的每类情报(AI 资讯 / 股票异动 /
+**世事**,一个 AI 原生情报中枢:想盯的每类情报(AI 资讯 / 股票异动 /
 羊毛 / 显卡行情……)就是一个 YAML 文件,抓取 → 分类 → 去重 → 打分 →
 推送到飞书 / Telegram,全自动。
 
 最想推的点:**YAML 都不用自己写**。把内置的 Agent Skill 装进 Claude Code
 或 Cursor,说一句「帮我盯着 XX」,agent 照 12 节规范现场生成配置、试抓
-验证、跑起来;源坏了,`myia doctor` 的结构化诊断就是给 agent 自修看的。
+验证、跑起来;源坏了,`shishi doctor` 的结构化诊断就是给 agent 自修看的。
 说需求,AI 做其余。
 
 几个认真做的地方:
@@ -27,14 +27,14 @@
 
 MIT,纯 Python + SQLite 单文件,docker compose 也能跑。状态如实:
 alpha,文档双语在仓库里。求 Star、求拍砖 👇
-https://github.com/xinzhuzi/MYIA
+https://github.com/xinzhuzi/shishi
 
 ## 发布要点
 
 - 配图:demo 动图(docs/demo/,脱敏版),封面即「一个 YAML → 收到推送卡片」
 - 评论区置顶补充:安装三行命令 + 快速上手链接
-  (https://github.com/xinzhuzi/MYIA/blob/main/docs/zh/getting-started.md)
-- 有人问「和 RSSHub/changedetection 区别」→ 市面空白对比表在 README「Why MYIA」节,直接引
+  (https://github.com/xinzhuzi/shishi/blob/main/docs/zh/getting-started.md)
+- 有人问「和 RSSHub/changedetection 区别」→ 市面空白对比表在 README「Why 世事」节,直接引
 
 ## 附:评论区可贴的最小品类(「配置就这么大」的实证)
 

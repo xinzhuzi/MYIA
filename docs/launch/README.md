@@ -19,7 +19,7 @@
 - [ ] 仓库链接、docs 链接、LICENSE(MIT)标注齐全;状态如实标注 alpha,不夸大成熟度
 - [ ] 采集伦理说清楚:默认尊重 robots.txt、限速礼貌,「真人验证+手机号」类源不碰(FAQ 有专节)
 - [ ] demo 动图已就位(`docs/demo/`,任务 10-01-v10-demo),且画面已脱敏
-- [ ] PyPI 包若尚未发布,安装命令统一用源码安装(git clone + uv sync),不写不可用的 `pip install myia`
+- [ ] PyPI 包若尚未发布,安装命令统一用源码安装(git clone + uv sync),不写不可用的 `pip install shishi`
 
 ## 发出后:首周反馈汇总(验收项)
 
@@ -57,5 +57,5 @@ push:
   - channel: stdout              # zero-credential local verification
 ```
 
-三个命令走完「验证 → 演练 → 正式」:`myia test` / `myia run --dry-run` /
-`myia run`(详见双语 Quickstart)。
+三个命令走完「验证 → 演练 → 正式」:`shishi test` / `shishi run --dry-run` /
+`shishi run`(详见双语 Quickstart)。

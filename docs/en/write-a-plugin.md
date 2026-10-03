@@ -1,10 +1,10 @@
 # Write a Plugin
 
-> One MYIA plugin = one YAML file = one intelligence category, twelve schema
+> One 世事 plugin = one YAML file = one intelligence category, twelve schema
 > sections. This is the full reference for humans and AI alike: every section
 > has clear semantics and a default. The condensed version is the Agent Skill
 > [skill/SKILL.md](../../skill/SKILL.md); the two documents cross-reference
-> each other and are locked field-for-field to `src/myia/schema.py` by
+> each other and are locked field-for-field to `src/shishi/schema.py` by
 > `tests/test_skill_doc.py` and `tests/test_docs.py`, so they cannot drift.
 > This page teaches the *how*; field-by-field detail lives in the
 > [schema reference](schema.md).
@@ -13,19 +13,19 @@
 
 ```
 user request
-  → myia init --json           # fetch the structured input checklist (what to collect, what defaults)
+  → shishi init --json           # fetch the structured input checklist (what to collect, what defaults)
   → write plugins/<id>.yaml    # section by section, against the schema reference (docs/en/schema.md)
-  → myia test plugins/<id>.yaml --json    # trial-fetch each source; check fields and dedup keys (no push/storage)
-  → myia run plugins/<id>.yaml --dry-run --json   # full rehearsal (no push)
-  → myia run plugins/<id>.yaml            # the first real run; add --loop for resident scheduling
-  → myia doctor --json         # done when findings is empty
+  → shishi test plugins/<id>.yaml --json    # trial-fetch each source; check fields and dedup keys (no push/storage)
+  → shishi run plugins/<id>.yaml --dry-run --json   # full rehearsal (no push)
+  → shishi run plugins/<id>.yaml            # the first real run; add --loop for resident scheduling
+  → shishi doctor --json         # done when findings is empty
 ```
 
 Every command's `--json` output is **exactly one JSON document** (stdout);
 logs go to stderr — and with `--json`, the `stdout` push channel's card lines
 are rerouted to stderr too, so the whole stdout always `json.load`s. Exit codes: `0` success / `1` config or usage error /
 `2` all sources failed / `3` partial failure. A source that breaks later
-follows the same loop: `myia doctor --json` reports the structured problem →
+follows the same loop: `shishi doctor --json` reports the structured problem →
 the agent fixes the YAML (or the environment) → re-verify — the user only
 decides.
 
@@ -37,7 +37,7 @@ error carries the field path):
 1. **No plaintext credentials**: values of credential-like keys (key name
    containing `cookie` / `authorization` / `token` / `secret` / `password` /
    `apikey` / `session`, case- and hyphen-insensitive) may only be
-   `env:VAR` or `keychain:myia/<scope>/<name>` references.
+   `env:VAR` or `keychain:shishi/<scope>/<name>` references.
 2. **Never fingerprint titles**: `dedup.key` must not use `{title}` — URL or
    composite keys only.
 3. **Unknown fields fail fast**: outside the open `sources[]` extension
@@ -61,15 +61,15 @@ error carries the field path):
 |---|---|---|---|
 | L1 | `direct_api` | the data has a public JSON/REST API (quotes, releases, community REST) | fastest and cheapest; `extract.type: json_path`; curl the endpoint to confirm the shape before writing fields; when the payload carries no page URL, render item links with `extract.url_template` from `{field}` placeholders (see plugins/games.yaml) |
 | L2 | `static_html` | server-rendered HTML (forum lists, news pages) | zero deps; `extract.type: list` + CSS selectors |
-| L3 | `crawl4ai` | JS-rendered pages — the data is not in the page source | optional dep `myia[crawl4ai]`; when missing, `dependency_missing` and the chain continues; without `extract` it auto-structures |
+| L3 | `crawl4ai` | JS-rendered pages — the data is not in the page source | optional dep `shishi[crawl4ai]`; when missing, `dependency_missing` and the chain continues; without `extract` it auto-structures |
 | L3' | `firecrawl` | cloud alternative to crawl4ai | needs endpoint+key (`MYIA_FIRECRAWL_URL` / `MYIA_FIRECRAWL_API_KEY`, or `engine_options.firecrawl.endpoint/api_key` references); unconfigured → this rung fails and the chain continues |
-| L4 | `scrapling` | basic anti-bot shields (TLS/HTTP2 fingerprints, basic CF challenges), frequently-redesigned pages (self-healing selectors), infinite-scroll lists | optional dep `myia[scrapling]`; backend via `engine_options.scrapling.backend` (`stealth`/`dynamic`/`static`); `pagination.mode: scroll` is supported here only |
+| L4 | `scrapling` | basic anti-bot shields (TLS/HTTP2 fingerprints, basic CF challenges), frequently-redesigned pages (self-healing selectors), infinite-scroll lists | optional dep `shishi[scrapling]`; backend via `engine_options.scrapling.backend` (`stealth`/`dynamic`/`static`); `pagination.mode: scroll` is supported here only |
 | L5 | `stealth_browser` | hard-anti-bot pages (anti-detect browser driven over MCP) | needs a Playwright-MCP server; per-run page budget `engine_options.stealth_browser.max_pages` (default 10); `headers.Cookie` on the source is injected past login walls |
 | L6 | `llm_browser` | last resort when everything above failed (LLM-driven browser, skyvern) | burns tokens — fallback only; `MYIA_SKYVERN_URL` / `MYIA_SKYVERN_API_KEY` or `engine_options.llm_browser.endpoint/api_key` references |
 
 Rule of thumb: view the page source first — data visible → L2, data via an
 API → L1, JS-only → L3; when unsure pick `engine: auto` and read the chosen
-engine from `myia test --json` (the `engine` field). Never write CSS
+engine from `shishi test --json` (the `engine` field). Never write CSS
 selectors for an API source, never write json_path for an SSR page. Every
 engine respects robots.txt and rate-limits (qps 0.5) by default; sources
 behind human verification + phone numbers are never bypassed — L5
@@ -179,16 +179,16 @@ push:
 ## Credential rules
 
 - Credentials are **never written in plaintext** in a plugin YAML — only
-  `env:VAR_NAME` or `keychain:myia/<scope>/<name>` references.
-- Store a keychain value with `myia secret set myia/<scope>/<name>`; the
+  `env:VAR_NAME` or `keychain:shishi/<scope>/<name>` references.
+- Store a keychain value with `shishi secret set shishi/<scope>/<name>`; the
   value goes through a stdin pipe or a hidden prompt (**never** `--value` —
-  it would land in shell history and process lists); `myia secret list`
-  lists names only; `myia secret delete <name>` removes one.
+  it would land in shell history and process lists); `shishi secret list`
+  lists names only; `shishi secret delete <name>` removes one.
 - An auth-scheme prefix round-trips: `Authorization: "Bearer env:AIPOCKET_TOKEN"`.
 - A plaintext credential **refuses to start** (exit code 1, the error carries
   the field path); credential values are never echoed and never logged
   (reference names may appear, resolved values must not).
-- `myia doctor --json` probes every reference for existence
+- `shishi doctor --json` probes every reference for existence
   (`env_ref_missing` / `keychain_ref_missing`) so an agent can repair the
   environment by itself.
 
@@ -205,17 +205,17 @@ token; details in [skill/SKILL.md](../../skill/SKILL.md) §2.13):
 ## Verify and run
 
 ```bash
-myia test plugins/<id>.yaml --json          # trial-fetch (no push/storage; 120s per-source timeout; --source picks one)
-myia run plugins/<id>.yaml --dry-run --json # full rehearsal, no push, no side effects
-myia run plugins/<id>.yaml                  # the first real run
-myia run plugins/<id>.yaml --loop           # resident: fires on schedule+timezone
+shishi test plugins/<id>.yaml --json          # trial-fetch (no push/storage; 120s per-source timeout; --source picks one)
+shishi run plugins/<id>.yaml --dry-run --json # full rehearsal, no push, no side effects
+shishi run plugins/<id>.yaml                  # the first real run
+shishi run plugins/<id>.yaml --loop           # resident: fires on schedule+timezone
 ```
 
-- `myia test --json` reports per source: `ok`, `engine`, `items[].fields`,
+- `shishi test --json` reports per source: `ok`, `engine`, `items[].fields`,
   `items[].dedup_key` (a `dedup_key_error` means the key template does not
   render), `fingerprint.verdict`, and `failures[]` (engine / error_type /
   message).
-- `myia run --json` reports `stages[]` (items_in→items_out and skip reasons
+- `shishi run --json` reports `stages[]` (items_in→items_out and skip reasons
   per stage), `sources[]`, `push[]` (per-channel buckets, routing decisions,
   send reports); `status` is `success`/`partial`/
   `failed`, mapping to exit codes 0/3/2.
@@ -225,7 +225,7 @@ myia run plugins/<id>.yaml --loop           # resident: fires on schedule+timezo
 ## Self-diagnosis (doctor findings → repair actions)
 
 ```bash
-myia doctor --json                    # by default checks every plugin in plugins/; or myia doctor <yaml> --json
+shishi doctor --json                    # by default checks every plugin in plugins/; or shishi doctor <yaml> --json
 ```
 
 Source health state machine: `ok` / `degraded` (not fingerprint-skipped yet
@@ -239,20 +239,20 @@ Common findings and repairs:
 | `credential_plaintext` | replace the plaintext with an `env:`/`keychain:` reference |
 | `unknown_field` | fix the field name against the [schema reference](schema.md) |
 | `missing_field` / `invalid_value` | locate by the `path` field, add the required key or fix the value |
-| `source_dead` (3 failed rounds) | read `failures[]` from `myia test --json`: new URL / adjust extract / step up an engine or proxy; comment the source out if it is hopeless |
-| `source_degraded` (0 items / halved) | the page structure likely changed: rerun `myia test --json`, fix the extract selectors |
+| `source_dead` (3 failed rounds) | read `failures[]` from `shishi test --json`: new URL / adjust extract / step up an engine or proxy; comment the source out if it is hopeless |
+| `source_degraded` (0 items / halved) | the page structure likely changed: rerun `shishi test --json`, fix the extract selectors |
 | `env_ref_missing` | set the environment variable (e.g. `export FEISHU_CHAT_ID=...`) |
-| `keychain_ref_missing` | store it with `myia secret set <name>` |
-| `keychain_name_noncanonical` | rename the reference to `myia/<scope>/<name>` and update the YAML |
+| `keychain_ref_missing` | store it with `shishi secret set <name>` |
+| `keychain_name_noncanonical` | rename the reference to `shishi/<scope>/<name>` and update the YAML |
 | `store_error` | corrupt SQLite or a too-new schema version: switch `--db` or rebuild (history is lost) |
 | plugin finding (v0.3) | a market plugin that cannot install or is unreachable degrades to a finding and **never blocks the core pipeline**; fix the `plugin:` section or reinstall per the message |
 | `telegram_token_poll_conflict` | two or more categories share one bot token (`env:TELEGRAM_BOT_TOKEN`) and each `--loop` process polls `getUpdates` → Telegram answers 409 Conflict; keep the `telegram` channel on at most one resident category and move the others to other push channels (single runs never poll, so they are unaffected) |
 
 ## Pre-flight checklist
 
-1. `myia test` passes (exit code 0 or 3, sources `ok: true`, field previews
+1. `shishi test` passes (exit code 0 or 3, sources `ok: true`, field previews
    non-empty, no `dedup_key_error`).
-2. `myia doctor` reports an empty `findings`.
+2. `shishi doctor` reports an empty `findings`.
 3. Every credential slot is a reference — no plaintext; `engine` values are
    legal; `dedup.key` does not contain `{title}`.
 4. Categories outside the seven built-ins set `classify.builtin: false`
@@ -263,7 +263,7 @@ Common findings and repairs:
 
 ## Going further: plugin market and feedback loop
 
-- **Scenario plugins** (v0.3, slimmed in v1.1): `myia plugin list / install /
+- **Scenario plugins** (v0.3, slimmed in v1.1): `shishi plugin list / install /
   remove`; a category YAML declares its dependency in the top-level `plugin:`
   section (`remote` endpoint + keychain token; the `local` docker compose mode
   remains valid schema but official plugins no longer ship local compose files —
@@ -272,18 +272,18 @@ Common findings and repairs:
   directory lives in `plugins/community/README.md`.
 - **Source-type / in-process plugins** (v1.1, desktop-first): official
   packages declare a `tier` (`desktop` default set / `remote` opt-in /
-  `server-only`), shown by `myia plugin list`. The `myia-osint` sample pins
+  `server-only`), shown by `shishi plugin list`. The `shishi-osint` sample pins
   upstream source as a git submodule under the plugin's `vendor/` directory
   (manifest gains optional `vendor:` / `adapter:` sections; unknown fields
   still fail fast), and an adapter shells out to the upstream CLI inside an
   isolated uv environment (deps fetched on demand, never into the root
-  project) — `myia osint https://example.com --json` runs one structured
-  recon with zero Docker. `myia-proxy` is the in-process counterpart: `myia
+  project) — `shishi osint https://example.com --json` runs one structured
+  recon with zero Docker. `shishi-proxy` is the in-process counterpart: `shishi
   proxy --json` fetches public free proxies and liveness-checks them in
   process (zero Redis, zero Docker). A missing upstream only degrades with
   structured errors and never blocks the core pipeline.
 - **Feedback loop** (v0.3): negative feedback is stored —
-  `myia feedback list / stats / mark` — and maintenance retunes watchlist
+  `shishi feedback list / stats / mark` — and maintenance retunes watchlist
   weights and thresholds automatically (prompt notes are recorded in the
   tuning history and surfaced in stats; Telegram/Feishu callback receivers
   ship now — in-card buttons land with the desktop UI).

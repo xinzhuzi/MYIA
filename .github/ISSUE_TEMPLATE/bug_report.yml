@@ -1,12 +1,12 @@
 name: Bug report / 缺陷报告
-description: Something in MYIA is broken. / MYIA 哪里坏了。
+description: Something in 世事 is broken. / 世事 哪里坏了。
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
         **红线 / Red line:** never paste credentials, cookies, tokens, internal
-        hostnames or private data into this issue. `myia` errors reference
+        hostnames or private data into this issue. `shishi` errors reference
         credential *names* only — keep it that way when you quote output.
         **零容忍:**本 issue 里禁止出现任何凭据值、Cookie、token、内网地址或私人数据;
         引用命令输出时确认凭据位只剩 `env:` / `keychain:` 引用名。
@@ -28,7 +28,7 @@ body:
         only) and the exact command. / 品类 YAML(凭据位只能是 env: 或
         keychain: 引用)与完整命令。
       placeholder: |
-        1. `myia run plugins/xxx.yaml --json`
+        1. `shishi run plugins/xxx.yaml --json`
         2. …
     validations:
       required: true
@@ -37,7 +37,7 @@ body:
     id: exit-code
     attributes:
       label: CLI exit code / 退出码
-      description: "MYIA contract: 0 success · 1 config error · 2 all sources failed · 3 partial failure. / 0 成功 · 1 配置错误 · 2 采集全部失败 · 3 部分失败"
+      description: "世事 contract: 0 success · 1 config error · 2 all sources failed · 3 partial failure. / 0 成功 · 1 配置错误 · 2 采集全部失败 · 3 部分失败"
       options:
         - "0"
         - "1"
@@ -51,14 +51,14 @@ body:
     id: diagnostics
     attributes:
       label: Structured output / 结构化输出
-      description: "`myia doctor --json` and/or `myia run --json` output (redact credential values). / `myia doctor --json` 或 `myia run --json` 输出(脱敏后粘贴)。"
+      description: "`shishi doctor --json` and/or `shishi run --json` output (redact credential values). / `shishi doctor --json` 或 `shishi run --json` 输出(脱敏后粘贴)。"
       render: json
 
   - type: input
     id: version
     attributes:
-      label: MYIA version / 版本
-      placeholder: "myia 0.1.0 (`uv run myia --version`)"
+      label: 世事 version / 版本
+      placeholder: "shishi 0.1.0 (`uv run shishi --version`)"
     validations:
       required: true
 

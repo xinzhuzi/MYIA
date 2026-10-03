@@ -4,7 +4,7 @@
 > **所有免费额度均为快照 2026-10-03 的时点信息,以各官网为准**;会耗尽/会到期的
 > 营销型额度均已显式标注性质。
 
-MYIA 不内置任何 LLM 端点、没有默认 key([快速上手](getting-started.md)第 2 节)。
+世事 不内置任何 LLM 端点、没有默认 key([快速上手](getting-started.md)第 2 节)。
 看图(vision)与精评(enrich)都只认 **OpenAI 兼容端点**——换 `base_url` 即可接入
 下述任何一家。两条路径的配置面不同,接入步骤分开给:
 
@@ -29,7 +29,7 @@ uvx --from mlx-vlm mlx_vlm.server --model <模型目录> --host 127.0.0.1 --port
 - 用 LM Studio 就把 `local.base_url` 改成 `http://127.0.0.1:1234/v1`;
   用 Ollama 改成 `http://127.0.0.1:11434/v1`(Ollama 官方 OpenAI 兼容端点)。
 
-**精评**(enrich):端点指向本地即可。注意 MYIA 无默认 key,本地免鉴权端点
+**精评**(enrich):端点指向本地即可。注意 世事 无默认 key,本地免鉴权端点
 也要给一个非空占位值:
 
 ```bash
@@ -65,7 +65,7 @@ channel_default: cloud          # 缺省 local,切到云端
 cloud:
   base_url: https://open.bigmodel.cn/api/paas/v4   # 产品缺省即此
   model: glm-4v-flash           # 0 元视觉模型(确切标识以智谱模型页为准)
-  api_key: keychain:myia/image/api_key
+  api_key: keychain:shishi/image/api_key
 ```
 
 两点注意:
@@ -74,7 +74,7 @@ cloud:
 - `cloud.api_key` 只收 `keychain:` 引用(明文与 `env:` 一律拒载),先录钥匙链:
 
 ```bash
-myia secret set myia/image/api_key < key.txt    # 值走 stdin,不落 shell history
+shishi secret set shishi/image/api_key < key.txt    # 值走 stdin,不落 shell history
 ```
 
 ### 接入:精评(enrich)
@@ -134,7 +134,7 @@ export MYIA_LLM_KEY=<你的 AI Studio API key>
 
 - **额度会变**:上表所有数字为快照 2026-10-03,以各官网为准。免费层是营销手段,
   可能新增收费墙、收紧限速或下线;接入前扫一眼官网定价页。
-- **凭据不落明文**:YAML 只写 `env:` / `keychain:` 引用,值走 `myia secret set`
+- **凭据不落明文**:YAML 只写 `env:` / `keychain:` 引用,值走 `shishi secret set`
   的 stdin 管道;看图云端 key 只收 `keychain:`。
 - **营销型额度不押注**:凡「赠金 / credits / 一次性额度」都可能归零,关键品类
   不要把免费档当唯一依赖,本地端点做兜底。

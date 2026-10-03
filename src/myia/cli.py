@@ -241,15 +241,15 @@ class _Parser(argparse.ArgumentParser):
 def build_parser() -> argparse.ArgumentParser:
     """Build the ``myia`` argument parser (help 文本也是 AI 的输入)."""
     parser = _Parser(
-        prog="myia",
-        description="MYIA — AI-native intelligence hub. 一个品类一份 YAML,fetch→classify→dedup→analyze→push。",
+        prog="shishi",
+        description="世事 — AI-native intelligence hub. 一个品类一份 YAML,fetch→classify→dedup→analyze→push。",
         epilog=(
             "退出码:0 成功 / 1 配置或用法错误 / 2 采集全部失败 / 3 部分失败。\n"
             "示例:myia run plugins/stocks.yaml --dry-run --json | jq .status\n"
             "      myia doctor --json | jq '.findings'"
         ),
     )
-    parser.add_argument("--version", action="version", version=f"myia {myia.__version__}")
+    parser.add_argument("--version", action="version", version=f"shishi {myia.__version__}")
     sub = parser.add_subparsers(dest="command", title="子命令")
     _add_run_parser(sub)
     _add_init_parser(sub)
@@ -269,7 +269,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _add_run_parser(sub: argparse._SubParsersAction) -> None:
-    """``myia run``:品类流水线单次/常驻(v0.1 契约)。"""
+    """``shishi run``:品类流水线单次/常驻(v0.1 契约)。"""
     run = sub.add_parser(
         "run",
         help="跑一次品类流水线(--once 默认)或常驻调度(--loop)",
@@ -294,7 +294,7 @@ def _add_run_parser(sub: argparse._SubParsersAction) -> None:
 
 
 def _add_init_parser(sub: argparse._SubParsersAction) -> None:
-    """``myia init``:生成品类 YAML 的结构化信息清单。"""
+    """``shishi init``:生成品类 YAML 的结构化信息清单。"""
     init = sub.add_parser(
         "init",
         help="输出生成品类 YAML 所需的结构化信息清单(JSON,供 agent 消费)",
@@ -307,7 +307,7 @@ def _add_init_parser(sub: argparse._SubParsersAction) -> None:
 
 
 def _add_test_parser(sub: argparse._SubParsersAction) -> None:
-    """``myia test``:单源试抓(不推送不入库)。"""
+    """``shishi test``:单源试抓(不推送不入库)。"""
     test = sub.add_parser(
         "test",
         help="单源试抓:打印提取字段与指纹结果,不推送不入库",
@@ -326,7 +326,7 @@ def _add_test_parser(sub: argparse._SubParsersAction) -> None:
 
 
 def _add_list_parser(sub: argparse._SubParsersAction) -> None:
-    """``myia list``:插件清单 + 源健康度。"""
+    """``shishi list``:插件清单 + 源健康度。"""
     listing = sub.add_parser(
         "list",
         help="插件清单 + 各源健康度(ok/degraded/dead/unknown)",
@@ -338,7 +338,7 @@ def _add_list_parser(sub: argparse._SubParsersAction) -> None:
 
 
 def _add_doctor_parser(sub: argparse._SubParsersAction) -> None:
-    """``myia doctor``:结构化诊断。"""
+    """``shishi doctor``:结构化诊断。"""
     doctor = sub.add_parser(
         "doctor",
         help="结构化诊断:源状态机/凭据/代理/调度,--json 供 agent 自修",
@@ -357,7 +357,7 @@ def _add_doctor_parser(sub: argparse._SubParsersAction) -> None:
 
 
 def _add_secret_parser(sub: argparse._SubParsersAction) -> None:
-    """``myia secret``:钥匙链凭据 set/list/delete。"""
+    """``shishi secret``:钥匙链凭据 set/list/delete。"""
     secret = sub.add_parser(
         "secret",
         help="钥匙链凭据管理:set / list / delete(值永不回显)",
@@ -384,7 +384,7 @@ def _add_secret_parser(sub: argparse._SubParsersAction) -> None:
 
 
 def _add_plugin_parser(sub: argparse._SubParsersAction) -> None:
-    """``myia plugin``:市场插件装卸 list / install / remove(v0.3)。"""
+    """``shishi plugin``:市场插件装卸 list / install / remove(v0.3)。"""
     plugin = sub.add_parser(
         "plugin",
         help="市场插件装卸:list / install / remove(装卸失败绝不影响核心流水线)",
@@ -427,7 +427,7 @@ def _add_plugin_parser(sub: argparse._SubParsersAction) -> None:
 
 
 def _add_channels_parser(sub: argparse._SubParsersAction) -> None:
-    """``myia channels``:通道目录 refresh / list(10-03-messaging-feishu D5)。"""
+    """``shishi channels``:通道目录 refresh / list(10-03-messaging-feishu D5)。"""
     channels = sub.add_parser(
         "channels",
         help="通道目录:refresh 刷新平台可达对象 / list 查看(定向推送的寻址地图)",
@@ -463,7 +463,7 @@ def _add_channels_parser(sub: argparse._SubParsersAction) -> None:
 
 
 def _add_feedback_parser(sub: argparse._SubParsersAction) -> None:
-    """``myia feedback``:反馈闭环 list / stats / mark(v0.3,grill Q7)。"""
+    """``shishi feedback``:反馈闭环 list / stats / mark(v0.3,grill Q7)。"""
     feedback = sub.add_parser(
         "feedback",
         help="反馈闭环:list / stats / mark(推送卡片的有价值/没价值回写)",
@@ -501,7 +501,7 @@ def _add_feedback_parser(sub: argparse._SubParsersAction) -> None:
 
 
 def _add_skill_parser(sub: argparse._SubParsersAction) -> None:
-    """``myia skill``:Agent Skill 安装通路 install / path(PRD 10-02-v11)。"""
+    """``shishi skill``:Agent Skill 安装通路 install / path(PRD 10-02-v11)。"""
     skill = sub.add_parser(
         "skill",
         help="Agent Skill 安装通路:install / path(把 skill/SKILL.md 装进 agent 的技能目录)",
@@ -553,7 +553,7 @@ def _add_skill_parser(sub: argparse._SubParsersAction) -> None:
 
 
 def _add_osint_parser(sub: argparse._SubParsersAction) -> None:
-    """``myia osint``:一次性 OSINT 侦察(v1.1 源码型插件样板 myia-osint)."""
+    """``shishi osint``:一次性 OSINT 侦察(v1.1 源码型插件样板 myia-osint)."""
     osint = sub.add_parser(
         "osint",
         help="一次性 OSINT 侦察(myia-osint 插件,子进程调用上游 Photon;失败绝不拦核心)",
@@ -638,7 +638,7 @@ def _print_json(payload: dict[str, Any]) -> None:
 
 def _print_human(result: Any) -> None:
     """人类可读摘要(与 --json 同一信息,另一种皮)。"""
-    print(f"MYIA run:{result.category}({result.category_name}) run_id={result.run_id}" + (" [dry-run]" if result.dry_run else ""))
+    print(f"世事 run:{result.category}({result.category_name}) run_id={result.run_id}" + (" [dry-run]" if result.dry_run else ""))
     for stage in result.stages:
         parts = [f"{stage.name}:{stage.status}"]
         if stage.items_in or stage.items_out:
@@ -672,7 +672,7 @@ def _selfcheck_category_plugin(config: CategoryConfig) -> None:
     铁律(security-baseline):任何 plugin 装不上/配置坏/remote 不可达,核心
     流水线照常跑通 —— 本函数吞掉一切异常,findings 一律 warning 级落日志
     (--json 模式 stderr 可见,stdout 的单份 JSON 不受影响,退出码不变)。
-    自检默认零网络(端点探测是 ``myia plugin list --probe`` 的显式 opt-in)。
+    自检默认零网络(端点探测是 ``shishi plugin list --probe`` 的显式 opt-in)。
     """
     section = config.plugin
     if section is None:
@@ -705,7 +705,7 @@ def _log_plugin_finding(finding: PluginFinding, *, prefix: str) -> None:
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
-    """``myia run <yaml>``:加载 → 跑一次或常驻;退出码 0/1/2/3。"""
+    """``shishi run <yaml>``:加载 → 跑一次或常驻;退出码 0/1/2/3。"""
     _configure_logging(as_json=args.as_json)
     try:
         config = load_category_file(args.yaml)
@@ -758,7 +758,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
-# myia init:生成品类 YAML 的结构化信息清单(AI 消费,非人机问答)
+# shishi init:生成品类 YAML 的结构化信息清单(AI 消费,非人机问答)
 # ---------------------------------------------------------------------------
 
 _INIT_REQUIRED_INPUTS: list[dict[str, Any]] = [
@@ -869,12 +869,12 @@ def _init_payload() -> dict[str, Any]:
 
 
 def _cmd_init(args: argparse.Namespace) -> int:
-    """``myia init``:stdout 恒为单份 JSON(两种模式同一产物,人读加皮走 stderr)。"""
+    """``shishi init``:stdout 恒为单份 JSON(两种模式同一产物,人读加皮走 stderr)。"""
     payload = _init_payload()
     _print_json(payload)
     if not args.as_json:
         print(
-            "myia init:以上 JSON 是生成品类 YAML 的信息清单(供 agent 消费);"
+            "世事 init:以上 JSON 是生成品类 YAML 的信息清单(供 agent 消费);"
             "生成后用 myia test 验证。",
             file=sys.stderr,
         )
@@ -1241,7 +1241,7 @@ def _fingerprint_view(outcome: Any) -> dict[str, Any]:
 
 def _print_human_test(payload: dict[str, Any]) -> None:
     """人类可读的试抓摘要(与 --json 同一信息)。"""
-    print(f"MYIA test:{payload['yaml']}(试抓不入库不推送)")
+    print(f"世事 test:{payload['yaml']}(试抓不入库不推送)")
     for source in payload["sources"]:
         state = "成功" if source["ok"] else "失败"
         print(f"  源 {source['source']}({state},engine={source.get('engine')},条目 {source['item_count']})")
@@ -1271,7 +1271,7 @@ def _resolve_pools(config_path: str | None, as_json: bool) -> tuple[Any | None, 
 
 
 def _cmd_test(args: argparse.Namespace) -> int:
-    """``myia test <yaml> [--source name]``:试抓 → 字段与指纹;0/1/2/3。"""
+    """``shishi test <yaml> [--source name]``:试抓 → 字段与指纹;0/1/2/3。"""
     _configure_logging(as_json=args.as_json)
     try:
         config = load_category_file(args.yaml)
@@ -1461,7 +1461,7 @@ def _plugin_report(
 
 def _print_human_list(payload: dict[str, Any]) -> None:
     """人类可读的插件清单(与 --json 同一信息)。"""
-    print(f"MYIA list:目录 {payload['plugins_dir']}(db={payload['db']})共 {len(payload['plugins'])} 个插件")
+    print(f"世事 list:目录 {payload['plugins_dir']}(db={payload['db']})共 {len(payload['plugins'])} 个插件")
     for plugin in payload["plugins"]:
         if not plugin["loaded"]:
             print(f"  {plugin['file']} — 加载失败")
@@ -1480,7 +1480,7 @@ def _print_human_list(payload: dict[str, Any]) -> None:
 
 
 def _cmd_list(args: argparse.Namespace) -> int:
-    """``myia list``:插件清单 + 源健康度;信息性命令,完成即 0(目录错=1)。"""
+    """``shishi list``:插件清单 + 源健康度;信息性命令,完成即 0(目录错=1)。"""
     as_json = args.as_json
     _configure_logging(as_json=as_json)
     try:
@@ -1653,7 +1653,7 @@ def _telegram_poll_conflict_findings(
 
 def _print_human_doctor(payload: dict[str, Any]) -> None:
     """人类可读的诊断报告(与 --json 同一信息)。"""
-    print(f"MYIA doctor(db={payload['db']})healthy={'是' if payload['healthy'] else '否'}")
+    print(f"世事 doctor(db={payload['db']})healthy={'是' if payload['healthy'] else '否'}")
     for plugin in payload["plugins"]:
         if not plugin["loaded"]:
             print(f"  插件 {plugin['file']} — 加载失败")
@@ -1683,7 +1683,7 @@ def _print_human_doctor(payload: dict[str, Any]) -> None:
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
-    """``myia doctor``:结构化诊断;诊断完成即 0,问题全在 findings。"""
+    """``shishi doctor``:结构化诊断;诊断完成即 0,问题全在 findings。"""
     as_json = args.as_json
     _configure_logging(as_json=as_json)
     try:
@@ -1853,7 +1853,7 @@ def _emit_secret_error(exc: SecretError, *, as_json: bool) -> None:
 
 
 def _cmd_secret(args: argparse.Namespace) -> int:
-    """``myia secret set|list|delete``:0 成功 / 1 结构化失败。"""
+    """``shishi secret set|list|delete``:0 成功 / 1 结构化失败。"""
     as_json = getattr(args, "as_json", False)
     try:
         if args.secret_command == "set":
@@ -1929,7 +1929,7 @@ def _print_channels_table(directory: ChannelDirectory) -> None:
 
 
 def _channels_refresh(args: argparse.Namespace) -> int:
-    """``myia channels refresh [platforms...]``:发现 → 合并 → 打印目录。
+    """``shishi channels refresh [platforms...]``:发现 → 合并 → 打印目录。
 
     退出码:全部成功 0;未知平台/凭据缺失等任一结构化失败 1(fail-fast
     家族语义;失败平台保留旧目录桶,已成功平台照常合并)。
@@ -2013,7 +2013,7 @@ def _channels_refresh(args: argparse.Namespace) -> int:
 
 
 def _channels_list(args: argparse.Namespace) -> int:
-    """``myia channels list``:纯读目录(空目录是合法态,提示先 refresh)。"""
+    """``shishi channels list``:纯读目录(空目录是合法态,提示先 refresh)。"""
     as_json = args.as_json
     data_root = _channels_data_root(args)
     directory = ChannelDirectory(data_root)
@@ -2035,7 +2035,7 @@ def _channels_list(args: argparse.Namespace) -> int:
 
 
 def _cmd_channels(args: argparse.Namespace) -> int:
-    """``myia channels refresh|list`` 的分发入口(退出码 0/1)。"""
+    """``shishi channels refresh|list`` 的分发入口(退出码 0/1)。"""
     _configure_logging(as_json=args.as_json)
     if args.channels_command == "refresh":
         return _channels_refresh(args)
@@ -2049,7 +2049,7 @@ def _cmd_channels(args: argparse.Namespace) -> int:
 
 
 def _plugin_list(args: argparse.Namespace, store: InstalledPluginStore, *, as_json: bool) -> int:
-    """``myia plugin list``:已装清单 + findings;信息性命令,完成即 0。
+    """``shishi plugin list``:已装清单 + findings;信息性命令,完成即 0。
 
     缺失安装根 = 空清单(未装插件是正常态,不是错误);--probe 显式 opt-in
     remote 端点探测(网络 I/O),探测失败只产 findings,不改退出码。
@@ -2108,7 +2108,7 @@ def _print_human_plugin_list(payload: dict[str, Any]) -> None:
     """人类可读的已装插件清单(与 --json 同一信息)。"""
     summary = payload["summary"]
     print(
-        f"MYIA plugin list:{payload['dir']}(myia {payload['myia_version']})"
+        f"世事 plugin list:{payload['dir']}(shishi {payload['myia_version']})"
         f"共 {len(payload['plugins'])} 个,可用 {summary['usable']} 个"
     )
     tiers = summary.get("tiers") or {}
@@ -2130,7 +2130,7 @@ def _print_human_plugin_list(payload: dict[str, Any]) -> None:
 
 
 def _plugin_install(args: argparse.Namespace, store: InstalledPluginStore, *, as_json: bool) -> int:
-    """``myia plugin install <source>``:fail-fast 校验后整目录拷贝;0/1。"""
+    """``shishi plugin install <source>``:fail-fast 校验后整目录拷贝;0/1。"""
     try:
         result = store.install(Path(args.source), force=args.force)
     except PluginStoreError as exc:
@@ -2153,7 +2153,7 @@ def _plugin_install(args: argparse.Namespace, store: InstalledPluginStore, *, as
 
 
 def _plugin_remove(args: argparse.Namespace, store: InstalledPluginStore, *, as_json: bool) -> int:
-    """``myia plugin remove <id>``:按 id 移除;0 / 1(未装/id 非法)。"""
+    """``shishi plugin remove <id>``:按 id 移除;0 / 1(未装/id 非法)。"""
     try:
         result = store.remove(args.id)
     except PluginStoreError as exc:
@@ -2167,7 +2167,7 @@ def _plugin_remove(args: argparse.Namespace, store: InstalledPluginStore, *, as_
 
 
 def _cmd_plugin(args: argparse.Namespace) -> int:
-    """``myia plugin list|install|remove`` 的分发入口(退出码 0/1)。"""
+    """``shishi plugin list|install|remove`` 的分发入口(退出码 0/1)。"""
     as_json = args.as_json
     _configure_logging(as_json=as_json)
     store = InstalledPluginStore(args.dir)
@@ -2198,7 +2198,7 @@ def _feedback_row_dict(record: FeedbackRecord) -> dict[str, Any]:
 
 
 def _feedback_mark(args: argparse.Namespace, *, as_json: bool) -> int:
-    """``myia feedback mark <条目> <good|bad>``:入库并回执;0/1。"""
+    """``shishi feedback mark <条目> <good|bad>``:入库并回执;0/1。"""
     try:
         store = SQLiteStore(args.db)
     except StoreSchemaError as exc:
@@ -2242,7 +2242,7 @@ def _feedback_mark(args: argparse.Namespace, *, as_json: bool) -> int:
 
 
 def _feedback_list(args: argparse.Namespace, *, as_json: bool) -> int:
-    """``myia feedback list``:反馈记录(新→旧);0/1。"""
+    """``shishi feedback list``:反馈记录(新→旧);0/1。"""
     try:
         store = SQLiteStore(args.db)
     except StoreSchemaError as exc:
@@ -2266,7 +2266,7 @@ def _feedback_list(args: argparse.Namespace, *, as_json: bool) -> int:
     if as_json:
         _print_json(payload)
         return EXIT_OK
-    print(f"MYIA feedback list:共 {len(rows)} 条(新→旧)")
+    print(f"世事 feedback list:共 {len(rows)} 条(新→旧)")
     for row in rows:
         title = f" {row.title}" if row.title else ""
         print(
@@ -2277,7 +2277,7 @@ def _feedback_list(args: argparse.Namespace, *, as_json: bool) -> int:
 
 
 def _feedback_stats(args: argparse.Namespace, *, as_json: bool) -> int:
-    """``myia feedback stats``:窗口统计 + 生效调参 + 可追溯历史;0/1。"""
+    """``shishi feedback stats``:窗口统计 + 生效调参 + 可追溯历史;0/1。"""
     try:
         policy = TuningPolicy(window_days=args.window_days, top_n=args.top)
     except ValueError as exc:
@@ -2318,7 +2318,7 @@ def _feedback_stats(args: argparse.Namespace, *, as_json: bool) -> int:
         _print_json(payload)
         return EXIT_OK
     print(
-        f"MYIA feedback stats(窗口 {policy.window_days} 天):"
+        f"世事 feedback stats(窗口 {policy.window_days} 天):"
         f"总 {stats.total} / 好 {stats.good} / 坏 {stats.bad}"
     )
     print(
@@ -2347,7 +2347,7 @@ def _feedback_stats(args: argparse.Namespace, *, as_json: bool) -> int:
 
 
 def _cmd_feedback(args: argparse.Namespace) -> int:
-    """``myia feedback list|stats|mark`` 的分发入口(退出码 0/1)。"""
+    """``shishi feedback list|stats|mark`` 的分发入口(退出码 0/1)。"""
     as_json = args.as_json
     _configure_logging(as_json=as_json)
     if args.feedback_command == "mark":
@@ -2436,7 +2436,7 @@ def _skill_agent_entries() -> list[dict[str, Any]]:
 
 
 def _skill_path_payload() -> dict[str, Any]:
-    """``myia skill path`` report(信息性:完成即 0,源缺失如实 found=false)."""
+    """``shishi skill path`` report(信息性:完成即 0,源缺失如实 found=false)."""
     source = skill_source()
     return {
         "command": "skill",
@@ -2444,7 +2444,7 @@ def _skill_path_payload() -> dict[str, Any]:
         "source": {"path": str(source) if source else None, "found": source is not None},
         "agents": _skill_agent_entries(),
         "hint": (
-            "myia skill install [--agent claude|cursor|zcode|agents] [--path DIR] [--link] [--force]"
+            "shishi skill install [--agent claude|cursor|zcode|agents] [--path DIR] [--link] [--force]"
         ),
     }
 
@@ -2539,7 +2539,7 @@ def _print_human_skill_path(payload: dict[str, Any]) -> None:
     """人类可读的 path 报告(与 --json 同一信息)."""
     source = payload["source"]
     state = str(source["path"]) if source["found"] else "未找到(源码仓库内运行或设 MYIA_SKILL_SOURCE)"
-    print(f"MYIA skill path:源 {state}")
+    print(f"世事 skill path:源 {state}")
     for agent in payload["agents"]:
         mark = "已装" if agent["installed"] else "未装"
         if agent["installed"]:
@@ -2548,7 +2548,7 @@ def _print_human_skill_path(payload: dict[str, Any]) -> None:
 
 
 def _cmd_skill(args: argparse.Namespace) -> int:
-    """``myia skill install|path``:纯文件操作,退出码只有 0/1。"""
+    """``shishi skill install|path``:纯文件操作,退出码只有 0/1。"""
     as_json = args.as_json
     _configure_logging(as_json=as_json)
     if args.skill_command == "path":
@@ -2617,14 +2617,14 @@ def _import_plugin_adapter(plugins_dir: str | Path, plugin_id: str) -> Any:
 
 
 def _import_osint_adapter(plugins_dir: str | Path) -> Any:
-    """``myia osint`` 的适配器加载(:func:`_import_plugin_adapter` 的样板别名)."""
+    """``shishi osint`` 的适配器加载(:func:`_import_plugin_adapter` 的样板别名)."""
     return _import_plugin_adapter(plugins_dir, OSINT_PLUGIN_ID)
 
 
 def _print_osint_human(payload: dict[str, Any]) -> None:
     """人类可读摘要(与 --json 同一信息,另一种皮)."""
     vendor = payload.get("vendor") or {}
-    print(f"MYIA osint:{payload.get('target')}({payload.get('plugin')}) 状态:{payload.get('status')}")
+    print(f"世事 osint:{payload.get('target')}({payload.get('plugin')}) 状态:{payload.get('status')}")
     if vendor.get("commit"):
         print(f"  vendor pin:{vendor['commit']}")
     results = payload.get("results") or {}
@@ -2638,7 +2638,7 @@ def _print_osint_human(payload: dict[str, Any]) -> None:
 
 
 def _cmd_osint(args: argparse.Namespace) -> int:
-    """``myia osint``:跑一次上游 Photon 侦察,结构化输出.
+    """``shishi osint``:跑一次上游 Photon 侦察,结构化输出.
 
     退出码:0 成功;1 适配器缺失/vendor 未初始化/目标非法(配置或环境错误);
     2 采集失败(Photon 非零退出/超时/导出缺失或损坏)。失败码到退出码的
@@ -2686,7 +2686,7 @@ def _print_proxy_human(payload: dict[str, Any]) -> None:
 
 
 def _cmd_proxy(args: argparse.Namespace) -> int:
-    """``myia proxy``:进程内轻量代理抓取+测活(myia-proxy 插件,零 Redis 零 docker).
+    """``shishi proxy``:进程内轻量代理抓取+测活(myia-proxy 插件,零 Redis 零 docker).
 
     退出码:0 成功(拿到 ≥1 个可用代理);1 适配器缺失/用法错误(count/timeout
     非法);2 采集失败(全部源抓取失败 ``fetch_failed`` / 测活零可用
@@ -2721,7 +2721,7 @@ def _cmd_proxy(args: argparse.Namespace) -> int:
 
 
 def _add_proxy_parser(sub: argparse._SubParsersAction) -> None:
-    """``myia proxy``:进程内轻量代理抓取+测活(v1.1 desktop 分级 myia-proxy)."""
+    """``shishi proxy``:进程内轻量代理抓取+测活(v1.1 desktop 分级 myia-proxy)."""
     proxy = sub.add_parser(
         "proxy",
         help="轻量代理抓取+测活(myia-proxy 插件,进程内、零 Redis 零 docker;失败绝不拦核心)",
@@ -2755,7 +2755,7 @@ def _add_proxy_parser(sub: argparse._SubParsersAction) -> None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """CLI 入口(pyproject console_scripts:``myia = "myia.cli:main"``)。
+    """CLI 入口(pyproject console_scripts:``shishi = "myia.cli:main"``)。
 
     Args:
         argv: 参数列表;None 表示 ``sys.argv[1:]``。

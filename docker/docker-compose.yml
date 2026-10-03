@@ -1,4 +1,4 @@
-# MYIA's primary form is the desktop app; this compose file is the server
+# 世事's primary form is the desktop app; this compose file is the server
 # form for 24/7 self-hosting. Same core, same plugin YAMLs — the host
 # `plugins/` directory is bind-mounted read-only, never copied or rewritten.
 #
@@ -13,21 +13,21 @@
 # run time; a missing variable fails fast with a structured env_var_missing
 # error and exit code 1).
 
-name: myia
+name: shishi
 
 services:
-  myia:
+  shishi:
     build:
       context: ..
       dockerfile: Dockerfile
     # Pull the prebuilt CI image instead of building locally by removing the
     # `build:` block above and running `docker compose pull` first.
-    image: ghcr.io/xinzhuzi/myia:latest
+    image: ghcr.io/xinzhuzi/shishi:latest
     # Resident mode: APScheduler fires the category cron (schedule+timezone
     # sections of the YAML) inside the container — no external orchestrator
     # (plan decision: no n8n/Kestra). Which plugin to run is chosen via
     # MYIA_PLUGIN; the SQLite DB lives in the persisted /data volume.
-    command: run /config/plugins/${MYIA_PLUGIN:-stocks.yaml} --loop --db /data/myia.db
+    command: run /config/plugins/${MYIA_PLUGIN:-stocks.yaml} --loop --db /data/shishi.db
     # Image default is uid 1000 (non-root); override to match the host owner
     # of the data/ bind mount (docker/README.md「目录与卷」).
     user: "${MYIA_UID:-1000}:${MYIA_GID:-1000}"
@@ -64,7 +64,7 @@ services:
   # later: a small static/server service reading the same /data volume.
   # ------------------------------------------------------------------
   # web:
-  #   image: ghcr.io/xinzhuzi/myia-web:latest
+  #   image: ghcr.io/xinzhuzi/shishi-web:latest
   #   profiles: ["web"]
   #   ports:
   #     - "127.0.0.1:8080:8080"   # localhost only until token auth lands

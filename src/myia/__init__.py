@@ -1,4 +1,4 @@
-"""MYIA — AI-native intelligence hub.
+"""世事 — AI-native intelligence hub.
 
 Config-driven pipeline: fetch -> classify -> dedup -> analyze -> enrich -> push.
 One YAML file per intelligence category.

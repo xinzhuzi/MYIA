@@ -7,8 +7,8 @@
 ## 标题候选(选一)
 
 1. `I built an open-source, self-hosted intelligence hub: one YAML file per thing I want to watch, and my coding agent writes the YAML (MIT)`
-2. `MYIA — self-hosted "tell it what to watch, AI does the rest" pipeline: fetch → classify → dedup → push to Telegram/Feishu (MIT, alpha)`
-3. `Stop wiring RSS + diff-watchers + webhooks by hand: MYIA is one config-driven pipeline for any intelligence category (open source, MIT)`
+2. `世事 — self-hosted "tell it what to watch, AI does the rest" pipeline: fetch → classify → dedup → push to Telegram/Feishu (MIT, alpha)`
+3. `Stop wiring RSS + diff-watchers + webhooks by hand: 世事 is one config-driven pipeline for any intelligence category (open source, MIT)`
 
 ## 正文
 
@@ -19,7 +19,7 @@ problem: a scraper, a cron job, a diff watcher, a dedup hack, a webhook into
 my messenger. Each new target (AI news, stock moves, freebies, GPU prices)
 meant re-wiring all of it.
 
-So I built **MYIA** — an AI-native intelligence hub, MIT-licensed, pure
+So I built **世事** — an AI-native intelligence hub, MIT-licensed, pure
 Python + SQLite single file. **One YAML file = one intelligence category**:
 
 ```yaml
@@ -43,11 +43,11 @@ push:
 ```
 
 The YAML is the whole deployment: schedule (cron + timezone), any number of
-sources, dedup keys, scoring thresholds, push channels. And because MYIA is
+sources, dedup keys, scoring thresholds, push channels. And because 世事 is
 AI-native, you don't even write it — the included Agent Skill teaches your
 coding agent (Claude Code, Cursor, …) the 12-section schema, then it
-generates the file, trial-fetches with `myia test`, rehearses with
-`--dry-run`, and self-repairs broken sources from `myia doctor --json`.
+generates the file, trial-fetches with `shishi test`, rehearses with
+`--dry-run`, and self-repairs broken sources from `shishi doctor --json`.
 You say what you want; AI does the rest.
 
 What's inside:
@@ -67,15 +67,15 @@ What's inside:
 - **Ethics defaults**: robots.txt respected, polite rate limiting on by
   default; sources gated behind human verification are refused, not bypassed.
 
-It runs as a plain CLI loop (`myia run --loop`) or via the included
+It runs as a plain CLI loop (`shishi run --loop`) or via the included
 docker compose; data lands in one SQLite file with retention + VACUUM.
 
 Honest status: **alpha**. The core pipeline is implemented and covered by the
 CI test suite (no test touches the real network), the desktop app is a spike,
 and rough edges remain. Docs are bilingual (EN/中文) in-repo.
 
-- Repo: https://github.com/xinzhuzi/MYIA
-- Quickstart: https://github.com/xinzhuzi/MYIA/blob/main/docs/en/getting-started.md
+- Repo: https://github.com/xinzhuzi/shishi
+- Quickstart: https://github.com/xinzhuzi/shishi/blob/main/docs/en/getting-started.md
 - License: MIT
 
 Happy to answer questions — especially on the degrade chain and the
@@ -83,7 +83,7 @@ credential handling. What would *you* point it at first?
 
 ## 中文对照草稿(发布前主人过目用,不直接发出)
 
-各位好,我给自己造了个开源自托管情报中枢 **MYIA**(MIT,纯 Python + SQLite
+各位好,我给自己造了个开源自托管情报中枢 **世事**(MIT,纯 Python + SQLite
 单文件):想盯的每类情报(AI 资讯/股票异动/羊毛/显卡行情)就是一个 YAML 文件,
 抓取→分类→去重→打分→推送到 Telegram/飞书全自动。YAML 都不用自己写:内置
 Agent Skill 让编码 agent 照 12 节规范现场生成、试抓验证、坏了自修——说需求,

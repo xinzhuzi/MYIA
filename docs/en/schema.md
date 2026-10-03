@@ -2,7 +2,7 @@
 
 > One intelligence category = one YAML file. This page lists every section's
 > fields, values and defaults, field-for-field identical to
-> `src/myia/schema.py` (locked by `tests/test_docs.py` /
+> `src/shishi/schema.py` (locked by `tests/test_docs.py` /
 > `tests/test_skill_doc.py`); every `yaml` code block here is a complete,
 > loadable category config — copy and run. For the tutorial-style guide see
 > the [plugin guide](write-a-plugin.md).
@@ -49,7 +49,7 @@ entry point): `plugin:` (scenario plugin dual mode, v0.3), `baseline:`
 ## Credential reference syntax
 
 - Only two forms: `env:VAR_NAME` (read from the environment at run time) or
-  `keychain:myia/<scope>/<name>` (OS keychain: macOS Keychain / Windows
+  `keychain:shishi/<scope>/<name>` (OS keychain: macOS Keychain / Windows
   DPAPI; the namespace is canonical, flat legacy names are refused at
   resolve time).
 - An auth-scheme prefix round-trips: `Authorization: "Bearer env:AIPOCKET_TOKEN"`.
@@ -59,7 +59,7 @@ entry point): `plugin:` (scenario plugin dual mode, v0.3), `baseline:`
   `sources[].headers`, `post_body` and source-level extension parameters —
   the whole YAML document, not just headers.
 - Credential values are never echoed and never logged;
-  `myia secret set myia/<scope>/<name>` stores one (value via a stdin pipe
+  `shishi secret set shishi/<scope>/<name>` stores one (value via a stdin pipe
   or a hidden prompt).
 - `enrich.base_url` / `enrich.api_key` / `push[].target` must be **pure**
   references (no auth-scheme prefix).
@@ -98,7 +98,7 @@ entry point): `plugin:` (scenario plugin dual mode, v0.3), `baseline:`
 | `url` | required | http(s) address; supports `{placeholder}` templates (`{page}` paging, `{symbol}` fan-out) |
 | `method` | `GET` | `GET` / `POST`; POST requires `post_body`, GET forbids it |
 | `post_body` | `null` | POST form/JSON body (mapping); credential keys are plaintext-refused like headers |
-| `headers` | `{}` | Request headers; credential-key values must be references; do not fake a browser UA (the default UA is the honest `MYIA/0.1 (...)`) |
+| `headers` | `{}` | Request headers; credential-key values must be references; do not fake a browser UA (the default UA is the honest `世事/0.1 (...)`) |
 | `pagination` | `null` | Paging config, see table below |
 | `extract` | `null` | Field extraction, see table below; empty → L3+ engines auto-structure |
 | `rate_limit` | `see rate_limit table` | Politeness limits (throttling is enforced once, in the engine layer) |
@@ -182,8 +182,8 @@ round the category stays permanently silent.
 | `batch` | `20` | Items scored per batch (1-1000) |
 | `cache` | `true` | Per-URL score cache — a URL is never scored twice |
 | `budget_per_run` | `50000` | Per-run token budget guardrail; exhausted → keyword-only for the rest of the run, with a WARNING |
-| `base_url` | `null` | OpenAI-compatible endpoint, **a pure `env:`/`keychain:` reference only** (MYIA has no built-in endpoint), e.g. `env:MYIA_LLM_BASE_URL` |
-| `api_key` | `null` | API key, same, e.g. `env:MYIA_LLM_KEY` (MYIA has no default key) |
+| `base_url` | `null` | OpenAI-compatible endpoint, **a pure `env:`/`keychain:` reference only** (世事 has no built-in endpoint), e.g. `env:MYIA_LLM_BASE_URL` |
+| `api_key` | `null` | API key, same, e.g. `env:MYIA_LLM_KEY` (世事 has no default key) |
 
 Real calls also need the optional extra: `uv sync --extra llm` (missing →
 structured `dependency_missing` and fallback to keyword-only scoring).
@@ -231,16 +231,16 @@ validation failure refuses the whole YAML (exit code 1).
 ### plugin: scenario plugin dual mode (v0.3)
 
 Declares that this category depends on a market plugin (installed via
-`myia plugin install`) for its service. **A plugin that cannot install, is
+`shishi plugin install`) for its service. **A plugin that cannot install, is
 misconfigured, or whose remote is unreachable never blocks the core
 pipeline** — it degrades to a structured finding and the category keeps
 running (security-baseline rule).
 
 | Field | Default | Semantics |
 |---|---|---|
-| `id` | required | Plugin id (lowercase letters/digits/hyphens/underscores, alphanumeric first; convention `myia-<name>`) |
+| `id` | required | Plugin id (lowercase letters/digits/hyphens/underscores, alphanumeric first; convention `shishi-<name>`) |
 | `requires` | `[]` | Host-capability vocabulary (currently `docker` only); string or list both accepted |
-| `modes` | required | At least one mode: `local` (a compose file path and/or an install command) or `remote` (endpoint required; token **must** be a `keychain:myia/<scope>/<name>` reference — even `env:` is refused) |
+| `modes` | required | At least one mode: `local` (a compose file path and/or an install command) or `remote` (endpoint required; token **must** be a `keychain:shishi/<scope>/<name>` reference — even `env:` is refused) |
 
 ```yaml
 id: site-watch
@@ -248,18 +248,18 @@ name: Page change watch
 schedule: "*/15 * * * *"
 timezone: Asia/Shanghai
 plugin:                           # scenario plugin declaration (official packages: remote opt-in since v1.1)
-  id: myia-monitor
+  id: shishi-monitor
   requires: []
   modes:
     remote:                       # point at an already-deployed instance (desktop: zero Docker); local compose is still valid schema — official deployment files live under docker/plugins/
       endpoint: https://my-monitor.example.com
-      token: keychain:myia/monitor/token    # myia secret set myia/monitor/token
+      token: keychain:shishi/monitor/token    # shishi secret set shishi/monitor/token
 sources:
   - name: watch-api
     engine: direct_api
     url: "https://my-monitor.example.com/api/v1/watch"
     headers:
-      X-Api-Key: "keychain:myia/monitor/token"
+      X-Api-Key: "keychain:shishi/monitor/token"
     extract:
       type: json_path
       fields:
@@ -349,7 +349,7 @@ the LLM confirms (inside enrich's batch/cache/budget rails). **Endpoint
 settings are shared with the `enrich:` section** — `aggregate.enabled: true`
 requires enrich's `base_url`/`api_key` to be valid (and `--extra llm`
 likewise); budget is consumed jointly with enrich — whichever hits the cap
-first degrades. When enabled, `myia run --json`'s `stages[]` gains an
+first degrades. When enabled, `shishi run --json`'s `stages[]` gains an
 `aggregate` stage.
 
 ```yaml
@@ -388,7 +388,7 @@ push:
 A failed load raises `LoadError`: **all** errors are reported in one pass,
 each carrying a field path (JSONPath style, e.g.
 `$.sources[0].rate_limit.qps`) + a machine error type + a human message in
-Chinese; `myia doctor --json` emits the same shape. Exit code 1. Common
+Chinese; `shishi doctor --json` emits the same shape. Exit code 1. Common
 error types:
 
 | error_type | meaning |

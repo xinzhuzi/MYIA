@@ -1,4 +1,4 @@
-# PyPI Publish — myia-classifier / myia 双包发布(PRD 10-01-v10-classifier-pypi)。
+# PyPI Publish — shishi-classifier / shishi 双包发行(1.1.1 起发行名随世事更名;模块名 myia/myia_classifier 过渡保留,模块改名后同步此处校验)(PRD 10-01-v10-classifier-pypi)。
 # 仅手动触发(workflow_dispatch),与 CI/Docker 发布刻意分离:CI 管测试,Docker 管镜像,本文件管 PyPI。
 #
 # ── 触发方式 ─────────────────────────────────────────────────────────────────
@@ -7,7 +7,7 @@
 #
 # ── Trusted Publishing 四元组(owner 发布前在 PyPI 侧按此核对)──────────────────
 #   owner             = xinzhuzi
-#   repository        = MYIA
+#   repository        = shishi
 #   workflow_filename = pypi-publish.yml
 #   environment       = pypi
 #   两个项目(myia 与 myia-classifier)各自注册一次,四元组完全相同——同一工作流

@@ -10,18 +10,18 @@ You can't watch them all, and scraper scripts are painful to maintain.
 
 3
 00:00:12,000 --> 00:00:19,000
-在 MYIA,你不用写爬虫,对 AI 说一句需求。
-With MYIA you don't write scrapers — tell your AI what you want.
+在 世事,你不用写爬虫,对 AI 说一句需求。
+With 世事 you don't write scrapers — tell your AI what you want.
 
 4
 00:00:19,000 --> 00:00:28,000
-agent 跑 myia init,拿到机器可读的信息清单:要收集什么、哪些有缺省、哪些是硬规则。
-The agent runs myia init and gets a machine-readable checklist: required inputs, defaults, hard rules.
+agent 跑 shishi init,拿到机器可读的信息清单:要收集什么、哪些有缺省、哪些是硬规则。
+The agent runs shishi init and gets a machine-readable checklist: required inputs, defaults, hard rules.
 
 5
 00:00:28,000 --> 00:00:35,000
-MYIA 是 AI-native 的:每条命令的 JSON 输出,就是 agent 的行动依据。
-MYIA is AI-native: every command's JSON output is the agent's action basis.
+世事 是 AI-native 的:每条命令的 JSON 输出,就是 agent 的行动依据。
+世事 is AI-native: every command's JSON output is the agent's action basis.
 
 6
 00:00:35,000 --> 00:00:44,000
@@ -65,8 +65,8 @@ To send the same content to Feishu or Telegram, keep the template and switch the
 
 14
 00:01:47,000 --> 00:01:55,000
-凭据用 myia secret set 放进系统钥匙链,配置文件里永远只有引用。
-Store credentials with myia secret set — config files only ever hold references.
+凭据用 shishi secret set 放进系统钥匙链,配置文件里永远只有引用。
+Store credentials with shishi secret set — config files only ever hold references.
 
 15
 00:01:55,000 --> 00:02:03,000
@@ -75,13 +75,13 @@ Run it again: nothing changed, the fingerprint skips it — no spam.
 
 16
 00:02:03,000 --> 00:02:15,000
-每个源的健康度 myia list 一屏看完;出问题,myia doctor 给 agent 开结构化诊断。
-Per-source health is one myia list away; myia doctor gives your agent structured diagnostics.
+每个源的健康度 shishi list 一屏看完;出问题,shishi doctor 给 agent 开结构化诊断。
+Per-source health is one shishi list away; shishi doctor gives your agent structured diagnostics.
 
 17
 00:02:15,000 --> 00:02:23,000
-MYIA:把信息源交给 AI。一个 YAML,一条管线,推送随取。
-MYIA — hand your sources to the AI. One YAML, one pipeline, pushes on demand.
+世事:把信息源交给 AI。一个 YAML,一条管线,推送随取。
+世事 — hand your sources to the AI. One YAML, one pipeline, pushes on demand.
 
 18
 00:02:23,000 --> 00:02:30,000
