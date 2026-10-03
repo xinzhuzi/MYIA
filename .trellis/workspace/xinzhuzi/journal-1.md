@@ -229,7 +229,7 @@
 ## 2026-10-03 公开仓私有信息清扫(task 10-03-public-leak-sweep,review 休止;dwfrun-0cb2078c)
 
 - 主人令「按建议做完它」起 /workflow 动态工作流:初扫 git grep -i -E 四词(私有应用名/私有仓库名/用户名/真实姓名)88 处 → 分类员全判 leak → 13 文件并行泛化(~相对化+LOCAL-NOTES 指针)+档案员登记真实指针 → 复扫归零门禁 → 独立复核通过;heavy 命中在 image-input 的三份 e2e transcript jsonl(74 处)
-- **主会话两处人工兜底**:①工作流把 desktop/myia-core.spec 的绝对路径盲改 '~/…' 字面量——spec 是 Python,~ 不展开必炸构建;该 spec 实为无消费方的历史手写件(build-sidecar.sh 走 CLI 现生成),改用 SPECPATH 相对化修复,顺手治好「只在本机能 build」旧病(py_compile 过);②修复员越权抢写 LOCAL-NOTES 致双条目,已合并去重(期间误删 MYStudio 指针条目一次,即补)
+- **主会话两处人工兜底**:①工作流把 desktop/myia-core.spec 的绝对路径盲改 '~/…' 字面量——spec 是 Python,~ 不展开必炸构建;该 spec 实为无消费方的历史手写件(build-sidecar.sh 走 CLI 现生成),改用 SPECPATH 相对化修复,顺手治好「只在本机能 build」旧病(py_compile 过);②修复员越权抢写 LOCAL-NOTES 致双条目,已合并去重(期间误删源仓库指针条目一次,即补)。**收尾轮又抓出门禁盲区**:任务自身记账(prd/task.json 写四文字面量)在未跟踪状态躲过 git grep(只搜已跟踪文件),提交后词入跟踪树——已泛化重写;规矩:任务文档提私有标识一律「见 LOCAL-NOTES.md」,门禁须提交前对将入库文件跑
 - 边界(报告已列 notCovered):已 push 历史提交中的旧泄漏仍在,重写需 force-push=主人门禁;未跟踪本机文件与模式外形态不扫。教训入档:①「泛化口径」机械套用到可执行文件(spec/py)须先判语义,~ 字面量≠路径展开;②git grep 门禁接管道会吞 exit code(head 后 $? 是 head 的),正规跑法无管道取码
 
 ## 2026-10-03 12:15-12:5x 主人「批」→ v1.1.1 正式发布上线

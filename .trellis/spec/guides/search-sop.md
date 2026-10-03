@@ -56,7 +56,7 @@
 | Python 核心包 | `src/myia` | 域子目录 `classify/` `push/` `vision/` `store/` `enrich/` `feedback/` `engines/` `plugins/` `dedup.py`;入口 `cli.py`、总管线 `pipeline.py`、schema 事实源 `schema.py` |
 | 测试 | `tests` | 录制回放夹具在 `tests/`(脱敏入盘) |
 | 桌面 sidecar | `desktop/entry.py` | sidecar 协议方法注册表事实源 = `entry.py` `_HANDLERS`(见 spec `desktop/sidecar-protocol.md`) |
-| 桌面构建 | `desktop/build-sidecar.sh`、`desktop/myia-core.spec` | PyInstaller 链路 |
+| 桌面构建 | `desktop/build-sidecar.sh` | PyInstaller 链路走 CLI 参数现场生成 spec;`desktop/myia-core.spec` 是历史手写件(已 SPECPATH 相对化,当前无消费方) |
 | Tauri 壳 | `desktop/src-tauri/src`、`desktop/src-tauri/tauri.conf.json` | Rust 主进程;identifier `com.myia.app` |
 | 前端源码 | `desktop/ui-src/src` | `screens/` `components/`;`desktop/ui/` 是构建产物勿搜 |
 | 分类器 | `myia-classifier` | 随包数据在 `myia_classifier/data/` |
