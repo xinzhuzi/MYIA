@@ -14,7 +14,7 @@
 ### F1 定时任务底座(照抄 Hermes cron/ 架构与语义)
 
 - **F1.1 job 生命周期 API**:`create_job / get_job / list_jobs / update_job / pause_job / resume_job / trigger_job / rearm_oneshot / remove_job`,语义照抄 Hermes(含 repeat 次数与终态退役、paused 可带 reason、trigger 下次 tick 立即跑)。
-- **F1.2 schedule 模型**:`"30m"` / `"every 2h"`(interval)、`"every monday 9am"` / `"weekdays at 9am"` / `"0 9 * * *"`(cron)、`"in 30m"` / ISO 时间戳(once);自然语言→cron 的转换、时长解析(`30m/2h/1d`、`noon/midnight`、12/24 时制)、错误信息形态照抄 `parse_schedule`。`compute_next_run` 锚定 last_run_at(重启不重锚)、interval 跨时区加 UTC、cron 按配置时区墙钟匹配、DST 回拨小时严格递增防循环。
+- **F1.2 schedule 模型**:`"30m"` / `"every 2h"`(interval)、`"every monday 9am"` / `"weekdays at 9am"` / `"0 9 * * *"`(cron)、`"in 30m"` / ISO 时间戳(once);自然语言→cron 的转换、时长解析(`30m/2h/1d`、`noon/midnight`、12/24 时制)、错误信息形态照抄 `parse_schedule`。cron 表达式**限恰好 5 段、dow 按 POSIX 语义(0/7=周日)**,经归一化层(展开为周名)进 APScheduler `CronTrigger`——探针实证 APScheduler 数字周几为周一系,不归一化会错位一天(证据 research/myia-ground-truth.md C17-C18,实证器随档)。`compute_next_run` 锚定 last_run_at(重启不重锚)、interval 跨时区加 UTC、cron 按配置时区墙钟匹配、DST 回拨小时严格递增防循环(探针实证 C20-C21)。
 - **F1.3 job 存储**:数据根 `<home>/cron/jobs.json`(tmp+rename 原子写、跨进程建议锁、磁盘意外多出的 job 记录合并不覆盖、读取前记录规整修复);执行输出落 `<home>/cron/output/<job_id>/`。**不进 myia.db、不动 SQLiteStore SCHEMA_VERSION**(Hermes 原味形态:jobs.json + cron 专属 executions.db)。
 - **F1.4 tick 调度器**:tick 文件锁全进程单飞;到期扫描(超过一个周期的积压**坍缩只补一发**);**先推进 next_run_at 再派发**(at-most-once);并行池派发(max_workers 可配);单 job 失败不拖垮 tick;`mark_job_run` 完成时 re-arm + repeat 计数 + 到限退役;pending_slot(推进→认领窗口的崩溃凭证,属主死则恢复一次)。
 - **F1.5 执行账本**:`<home>/cron/executions.db`(cron 专属 SQLite):execution 状态机(claimed→running→completed/failed/unknown)、属主存活判定(pid+进程起始时间指纹)、中断恢复(重启后 interrupted 标记)、终态不可变、终态行数裁剪。
@@ -29,8 +29,8 @@
 
 ### F3 情报流 job(上层业务)
 
-- **F3.1 job 载荷**:job 字段 `category`(品类 YAML 路径)+ 可选 `dry_run`;执行体 = 构造 `Pipeline` → `run()`。管线内建 push 阶段照常发生(情报本体推送);`--db`/代理池沿用 CLI run 的解析规则(`--config` pools)。
-- **F3.2 运行结果摘要投递**:job 的 `deliver` = `"local"`(写 cron output 目录,默认)/ 平台 spec(`"feishu:群名"`、`"telegram:12345"`,经 `push/directory`+`push/targets` 解析、`push/delivery` 派发,复用死信语义);摘要内容 = 运行状态 + 各阶段统计(RunResult 形状)+ 保留条目数 + 推送结果;`failure_deliver` 同 spec 语法,运行失败时投递失败摘要。
+- **F3.1 job 载荷与执行体**:job 字段 `category`(品类 YAML 路径)+ 可选 `dry_run/db_path/config_path/run_timeout`;执行体 = spawn `shishi run <yaml> --json` 子进程(对齐桌面 run.start 现范式:sidecar 从不进程内构造 Pipeline),墙钟超时 killpg;管线内建 push 阶段照常发生(情报本体推送);runs 表/维护语义天然获得。digest 留池是 Pipeline 实例内存态且 run 内即时 flush,单发 cron 形态下跨 fire 不攒——行为注记入文档(ground-truth A4)。
+- **F3.2 运行结果摘要投递**:job 的 `deliver` = `"local"`(写 cron output 目录,默认)/ 平台 spec(`"feishu:群名"`、`"telegram:12345"`,经 `push/directory`+`push/targets` 解析、`push/delivery` 派发,复用死信语义);摘要内容 = 运行状态 + 各阶段统计(RunResult.to_dict 同源,零新统计)+ 保留条目数 + 推送桶计数 + 失败摘要行;`failure_deliver` 同 spec 语法,运行失败时投递失败摘要。摘要卡 SendContext.kind 处置(grill Q3:受控扩值 vs 借用)。
 - **F3.3 示范真跑**:用官方品类 YAML(如 plugins/news.yaml)建一个定时 job 真跑 ≥2 个 tick 周期,验证跑一遍+摘要消息端到端到达(真发冒烟沿用 W1 先例:定向卡入群)。
 
 ### F4 CLI 面(照抄 Hermes `hermes cron` 子命令族)
@@ -56,13 +56,18 @@
 ## Acceptance Criteria
 
 - [ ] AC1 底座 API:`create/get/list/update/pause/resume/trigger/rearm_oneshot/remove` 全量单测覆盖,含 repeat 退役、paused reason、schedule 变更重算 next_run_at、无效 schedule 报错文案。
-- [ ] AC2 schedule 解析:五种形态(interval/自然语言周几/cron/一次性 in-NaN/ISO)解析与 compute_next_run 全测,DST 回拨小时不产生过去时刻、interval 加 UTC、重启不重锚。
+- [ ] AC2 schedule 解析:五种形态(interval/自然语言周几/cron/一次性 in-NaN/ISO)解析与 compute_next_run 全测,DST 回拨小时不产生过去时刻、interval 加 UTC、重启不重锚;**dow 归一化覆盖 POSIX 全形态(0/7=周日、列表/区间/步进/环绕区间 5-1/名字)且端到端射日正确**(实证器用例并入测试)。
+- [ ] AC2b 子进程执行体:`shishi run --json` spawn/RunResult JSON 解析/退出码映射(0=ok,2=failed,3=partial 附注)/墙钟超时 killpg(SIGTERM→宽限→SIGKILL)/日志落 output 目录,全测。
 - [ ] AC3 at-most-once:tick 先推进后派发;模拟「推进后进程崩溃」→ pending_slot 恢复恰一次;两个并发 tick(双线程抢文件锁)只派发一份。
 - [ ] AC4 执行账本:claimed→running→completed/failed 状态机;杀死执行进程后重启恢复为 interrupted,不重发已终态 execution;终态行数裁剪生效。
-- [ ] AC5 多宿主互斥:`cron serve` 与桌面 sidecar ticker 同时开,同一 job 同一时刻只跑一份(tick 锁 + fire claim 双保险),人工 `cron tick` 抢不到锁时安静返回 0。
+- [ ] AC5 多宿主互斥:`cron serve` 与桌面 sidecar ticker 同时开,同一 job 同一时刻只跑一份(tick 锁 + fire claim 双保险),人工 `cron tick` 抢不到锁时安静返回 0;**cron fire 撞桌面 run_busy 单飞锁=跳过本 fire+`skipped_busy`+`cron.skipped` 事件**(grill Q2 批复后按决议核);**同 db 多 job 派发串行、不同 db 并行**。
 - [ ] AC6 情报流 job 端到端:`shishi cron create "every 5m" --category plugins/news.yaml --deliver <stdout/测试通道>` 真跑:管线执行、RunResult 摘要生成、deliver 定向到达;运行失败路径 failure_deliver 收到失败摘要;`last_status="delivery_failed"` 语义(成功+投递失败)有测。
 - [ ] AC7 CLI 全子命令 + sidecar cron.* 方法行为一致(同一 API 层),桌面 `_HANDLERS` 注册表与协议测试同步。
 - [ ] AC8 心跳/状态:`cron status` 报告 ticker 活性(心跳龄)、下次到期时刻;心跳标记文件在 tick 成功/失败时更新。
 - [ ] AC9 蓝本对照:每个移植模块 docstring 标注上游文件;design.md 对照表完整;偏离表逐条有理由。
 - [ ] AC10 回归:全量 pytest 零新红;`run --loop` 原行为不动;不新增核心依赖(pyproject dependencies 不变)。
 - [ ] AC11 文档:docs/zh+en 新增定时任务文档(建 job/自然语言 schedule 语法/deliver spec/serve 形态),双语同步。
+
+## Grill 待决问题(五问全带推荐,批复后回写本档)
+
+见 design.md §8:Q1 执行体=子进程(推荐)/ Q2 run_busy 冲突=跳过本 fire+事件(推荐)/ Q3 摘要卡 kind=受控扩 cron_summary(推荐)/ Q4 全局急停 pause --all 保留(推荐)/ Q5 repeat×长任务=完成后重锚 last_run_at(推荐)。

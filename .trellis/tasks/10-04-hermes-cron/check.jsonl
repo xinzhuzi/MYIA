@@ -1,4 +1,5 @@
-{"file": ".trellis/tasks/10-04-hermes-cron/prd.md", "reason": "验收标准 AC1-AC11 逐条核对;非目标清单防越界(agent job/detached worker/UI 屏均不做)"}
-{"file": ".trellis/tasks/10-04-hermes-cron/design.md", "reason": "偏离表 D1-D10 逐条核验偏离未扩散;对照表完整性;风险点三项(DST 语义/线程循环/deliver 三态)重点复核"}
+{"file": ".trellis/tasks/10-04-hermes-cron/prd.md", "reason": "验收标准 AC1-AC11(含 AC2b 子进程执行体)逐条核对;非目标清单防越界(agent job/detached worker/UI 屏均不做);grill 五问批复后核对决议回写"}
+{"file": ".trellis/tasks/10-04-hermes-cron/design.md", "reason": "偏离表 D1-D13 逐条核验偏离未扩散;§8 grill 五问决议落地核对;风险五项(normalize_dow 边角/stdout 混行/事件线程安全/目录 last-writer-wins/摘要重复面)重点复核"}
+{"file": ".trellis/tasks/10-04-hermes-cron/research/myia-ground-truth.md", "reason": "⚠️ 汇总 W1-W8 是检查基准(dow 归一化/子进程范式/run_busy 冲突/kind 两值/digest 不攒/目录无锁/同 db 串行/maintenance 搭车);探针可复跑复核"}
 {"file": ".trellis/tasks/10-04-hermes-cron/research/hermes-cron-map.md", "reason": "八条照抄判据(at-most-once/积压坍缩/repeat 退役/三态 status/fire claim/once 时区/jobs.json 锁/tick 静默)是检查基准;模块 docstring 上游标注核对"}
 {"file": ".trellis/spec/python/index.md", "reason": "核心依赖零新增、类型注解全覆盖、pyproject 唯一配置源红线核对"}

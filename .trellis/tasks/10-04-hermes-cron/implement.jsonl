@@ -1,4 +1,5 @@
-{"file": ".trellis/spec/python/index.md", "reason": "Python 工程约定:核心 6 依赖红线(croniter 禁入,CronTrigger 适配的依据)、目录结构、消息平台层 W1 移植纪律(蓝本移植不 vendor 原文)"}
-{"file": ".trellis/spec/desktop/sidecar-protocol.md", "reason": "sidecar _HANDLERS 注册表与协议测试约定;B3 加 cron.* 方法族须同步此 spec"}
+{"file": ".trellis/spec/python/index.md", "reason": "Python 工程约定:核心 6 依赖红线(croniter 禁入,CronTrigger+normalize_dow 适配的依据)、目录结构、消息平台层 W1 移植纪律(蓝本移植不 vendor 原文)"}
+{"file": ".trellis/spec/desktop/sidecar-protocol.md", "reason": "sidecar _HANDLERS 注册表、协议版本一任务批一 bump、四件套同步纪律与队头阻塞铁律;B3 加 cron.* 方法族须同步此 spec"}
 {"file": ".trellis/tasks/10-04-hermes-cron/research/hermes-cron-map.md", "reason": "Hermes cron 蓝本对照表:模块映射+关键行号+八条照抄判据+不搬清单;实现每模块前先读对应上游段"}
+{"file": ".trellis/tasks/10-04-hermes-cron/research/myia-ground-truth.md", "reason": "MYIA 地面真值实核(A/B 编号)+ APScheduler 探针实证(C17 dow 错位决定性发现,归一化器实证器随档)+ ⚠️ 汇总 W1-W8;design/implement 全文按此编号引用"}
 {"file": ".trellis/spec/guides/engineering-discipline.md", "reason": "长任务监控(后台任务+exit 文件禁 sleep 轮询)、先报量再动手、高星参考纪律"}
