@@ -228,7 +228,7 @@
     {
      "name": "限免",
      "tag": "限免",
-     "when": "final_price == 0 or discount_pct >= 100"
+     "when": "final_price == 0 or (discount_pct or 0) >= 100 or (float(sale_price or \"-1\") == 0 and float(normal_price or \"-1\") > 0)"
     },
     {
      "name": "下周免费",
@@ -274,7 +274,7 @@
     "route": [
      {
       "mode": "immediate",
-      "when": "final_price == 0 or discount_pct >= 100"
+      "when": "final_price == 0 or (discount_pct or 0) >= 100 or (float(sale_price or \"-1\") == 0 and float(normal_price or \"-1\") > 0)"
      },
      {
       "mode": "digest",
@@ -283,6 +283,24 @@
     ],
     "target": "env:FEISHU_CHAT_ID",
     "template": "**游戏情报 · {{ date }}**\n{% for item in items %}\n- [{{ item.title }}]({{ item.url }}) {% if item.price_text is defined %}{{ item.price_text }}{% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}\n{% endfor %}\n",
+    "timeout": 10.0
+   },
+   {
+    "channel": "telegram",
+    "retries": 2,
+    "retry_backoff_seconds": 1.0,
+    "route": [
+     {
+      "mode": "immediate",
+      "when": "final_price == 0 or (discount_pct or 0) >= 100 or (float(sale_price or \"-1\") == 0 and float(normal_price or \"-1\") > 0)"
+     },
+     {
+      "mode": "digest",
+      "when": "final_price > 0"
+     }
+    ],
+    "target": "env:TELEGRAM_CHAT_ID",
+    "template": "游戏情报 · {{ date }}\n{% for item in items %}\n- {{ item.title }} {{ item.url }} {% if item.price_text is defined %}{{ item.price_text }}{% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}\n{% endfor %}\n",
     "timeout": 10.0
    }
   ],
@@ -385,6 +403,38 @@
     },
     "retry": 3,
     "url": "https://www.cheapshark.com/api/1.0/deals?storeID=7,11,15&sortBy=Savings&pageSize=20"
+   },
+   {
+    "engine": "direct_api",
+    "extract": {
+     "fields": {
+      "gog_id": "$.products[*].id",
+      "image": "$.products[*].coverVertical",
+      "normal_price": "$.products[*].price.baseMoney.amount",
+      "sale_price": "$.products[*].price.finalMoney.amount",
+      "title": "$.products[*].title",
+      "url": "$.products[*].storeLink"
+     },
+     "item": null,
+     "type": "json_path",
+     "url_template": null
+    },
+    "headers": {
+     "Accept": "application/json"
+    },
+    "method": "GET",
+    "name": "gog-free",
+    "pagination": null,
+    "post_body": null,
+    "proxy": "direct",
+    "rate_limit": {
+     "backoff": "exponential",
+     "jitter": 2.0,
+     "qps": 0.5,
+     "respect_robots": true
+    },
+    "retry": 3,
+    "url": "https://catalog.gog.com/v1/catalog?countryCode=US&locale=en-US&currency=USD&limit=48&page=1&productType=in:game,pack&price=between:0,0&discounted=eq:true"
    }
   ],
   "storage": {

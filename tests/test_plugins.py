@@ -16,6 +16,11 @@ v3 (task 10-03-games-v3) added the CheapShark multi-store source: its
 response is a **top-level array** (``$[*]`` field prefixes), dealID arrives
 pre-URL-encoded, and its dollar fields (sale_price/savings_pct) stay
 un-normalized — no final_price, no baseline, digest-only routing.
+wrap (task 10-03-games-wrap) added the GOG catalog free-source (fourth:
+``$.products[*]`` prefix, storeLink is an absolute URL so the url field
+wins over any template) and mounted the telegram push entry (v1 决议⑤:
+same two-tier route, plain-text template variant — telegram sends user
+templates without parse_mode).
 """
 
 import asyncio
@@ -158,21 +163,106 @@ def test_wool_declares_seven_source_slots():
 
 
 def test_games_uses_direct_api_json_path_with_url_template():
-    """10-03-games D1/D6 + v3:三源 direct_api + json_path,响应无页面 URL
-    (Epic 只有 urlSlug、Steam 只有数字 id、CS 只有已编码 dealID),条目 URL
-    全靠 url_template 渲染;dedup 稳定键 {url}(baseline 价格历史按 dedup_key
-    存,不能带日期)。"""
+    """10-03-games D1/D6 + v3 + wrap:四源 direct_api + json_path。Epic/Steam/
+    CS 三源响应无页面 URL(只有 urlSlug / 数字 id / 已编码 dealID),条目 URL
+    全靠 url_template 渲染;GOG(wrap 第四源)是反向形态——storeLink 即绝对
+    URL,url 字段直出免模板(schema 二选一的另一边)。dedup 稳定键 {url}
+    (baseline 价格历史按 dedup_key 存,不能带日期)。"""
     config = _load("games")
-    assert {source.name for source in config.sources} == {"epic-free", "steam-specials", "cheapshark"}
+    assert {source.name for source in config.sources} == {
+        "epic-free", "steam-specials", "cheapshark", "gog-free",
+    }
+    templated = {"epic-free", "steam-specials", "cheapshark"}
     for source in config.sources:
         assert source.engine == "direct_api"
         assert source.extract is not None and source.extract.type == "json_path"
-        assert source.extract.url_template, "三源响应无页面 URL,url 必须来自模板渲染"
-        assert "url" not in source.extract.fields
+        if source.name in templated:
+            assert source.extract.url_template, "三源响应无页面 URL,url 必须来自模板渲染"
+            assert "url" not in source.extract.fields
+        else:  # gog-free:storeLink 绝对链接,url 字段胜出、无模板
+            assert source.extract.url_template is None
+            assert "url" in source.extract.fields
     assert config.dedup.key == "{url}"
     assert config.classify.builtin is False, "游戏标题不落七大类,内置扫描只会误杀"
     assert config.baseline is not None and config.baseline.enabled
-    assert config.baseline.fields == ["final_price"], "人民币分单位可直接比;CS 美元元不归一(v3 决议④)"
+    assert config.baseline.fields == ["final_price"], "人民币分单位可直接比;CS/GOG 美元元不归一(v3 决议④)"
+
+
+def test_games_gog_source_declares_catalog_query_and_double_insurance():
+    """10-03-games-wrap 第四源:catalog.gog.com/v1/catalog 是 gog.com 官网 SSR
+    自用的公开 JSON 通道(探查证据 .trellis/tasks/10-03-games-wrap/evidence/
+    gog-probe-*,summary 在 gog-probe-summary.json)。参数形态是实测坑:
+    between:0,0 与 in:game,pack(横线/冒号形实测 404/静默清零)。条目级
+    限免双保险=现价 0.00 且原价>0:原价同为 0.00 的永久免费游戏(实测 419
+    条全如此)不命中、不刷 immediate;该端点无促销截止字段,判定只能靠
+    价格形态。美元字符串循 CS 先例独立命名(sale_price/normal_price 同名
+    同形态),不进 final_price 人民币分基线(v3 决议④口径)。"""
+    config = _load("games")
+    gog = next(s for s in config.sources if s.name == "gog-free")
+    assert "catalog.gog.com/v1/catalog" in gog.url
+    assert "price=between:0,0" in gog.url, "0 元锁定参数(横线形 between-0-0 实测 404)"
+    assert "productType=in:game,pack" in gog.url, "集合参数正确形(冒号形 in:game:pack 静默清零)"
+    assert "discounted=eq:true" in gog.url
+    assert gog.extract is not None
+    assert gog.extract.url_template is None, "storeLink 绝对 URL,url 字段直出"
+    assert set(gog.extract.fields) == {
+        "title", "url", "gog_id", "image", "sale_price", "normal_price",
+    }
+    for name, path in gog.extract.fields.items():
+        assert path.startswith("$.products[*]."), f"GOG 字段 {name} 应为 $.products[*] 前缀,当前 {path!r}"
+    assert "final_price" not in gog.extract.fields and "discount_pct" not in gog.extract.fields
+    assert gog.rate_limit is not None
+    assert gog.rate_limit.respect_robots is True, "catalog.gog.com robots.txt 404(2026-10-03 实测),缺省即允许"
+
+    rules = {
+        rule.tag: rule
+        for rule in rules_from_config([rule.model_dump() for rule in config.classify.rules])
+    }
+    giveaway = {
+        "title": "BROK The InvestiGator - prologue",
+        "url": "https://www.gog.com/en/game/brok_the_investigator_prologue",
+        "sale_price": "0.00", "normal_price": "19.99",
+    }
+    permfree = {
+        "title": "Whateverland: Prologue",
+        "url": "https://www.gog.com/en/game/whateverland_prologue",
+        "sale_price": "0.00", "normal_price": "0.00",
+    }
+    assert rules["限免"].evaluate(giveaway) is True, "现价 0 且原价>0 = 限免双保险命中"
+    assert rules["限免"].evaluate(permfree) is False, "永久免费(原价 0)不是限免,不刷 immediate"
+    # 路由两态:giveaway → immediate(两通道同款);permfree → 保守 digest
+    for push in config.push:
+        routes = routes_from_config(push.route)
+        assert resolve_route(giveaway, routes).mode == "immediate"
+        assert resolve_route(permfree, routes).mode == "digest"
+    # None 守卫结构必需:GOG 条目无 final_price/discount_pct,裸 `>=` 比较会在
+    # 轮到 GOG 析取前炸掉整条 BoolOp(or 的假值分支继续求值)——这里钉住
+    # 守卫形不得回退成裸比较(回退则 giveaway 静默落 digest)。
+    for push in config.push:
+        immediate = next(r for r in push.route if r.mode == "immediate")
+        assert "(discount_pct or 0)" in immediate.when
+        assert '(sale_price or "-1")' in immediate.when
+
+
+def test_games_telegram_push_entry_mounted_per_v1_decision5():
+    """v1 决议⑤(wrap 落地):telegram 加挂 = 第二个 push 条目,同款两级路由
+    (when 逐字与 feishu 条目一致,含 GOG 限免双保险析取),模板走精简纯文本
+    变体——telegram 用户模板契约是渲染文本不带 parse_mode 直发
+    (src/myia/push/telegram.py _compose),markdown 链接语法会原样露出。
+    chat id 走 env:TELEGRAM_CHAT_ID;bot token 走渠道缺省
+    env:TELEGRAM_BOT_TOKEN(DEFAULT_TOKEN_ENV_REF,无需声明)。"""
+    config = _load("games")
+    by_channel = {}
+    for push in config.push:
+        by_channel.setdefault(push.channel, []).append(push)
+    assert set(by_channel) == {"feishu_card", "telegram"}, "双通道:feishu 起步 + telegram 加挂"
+    (telegram,) = by_channel["telegram"]
+    (feishu,) = by_channel["feishu_card"]
+    assert telegram.target == "env:TELEGRAM_CHAT_ID"
+    assert [r.when for r in telegram.route] == [r.when for r in feishu.route], "路由 when 与 feishu 条目同款"
+    assert [r.mode for r in telegram.route] == ["immediate", "digest"]
+    assert telegram.template is not None
+    assert "](" not in telegram.template, "纯文本通道:markdown 链接语法会原样露出,必须精简变体"
 
 
 def test_games_cheapshark_source_declares_three_stores_top_array_prefix():
@@ -219,10 +309,11 @@ def test_games_free_item_hits_rules_and_immediate_route():
     assert rules["限免"].evaluate(discount) is False
     assert rules["半价+"].evaluate(discount) is True
 
-    (push,) = config.push
-    routes = routes_from_config(push.route)
-    assert resolve_route(free, routes).mode == "immediate"
-    assert resolve_route(discount, routes).mode == "digest"
+    # wrap 后双通道(feishu_card + telegram):路由两态对每个条目都成立
+    for push in config.push:
+        routes = routes_from_config(push.route)
+        assert resolve_route(free, routes).mode == "immediate"
+        assert resolve_route(discount, routes).mode == "digest"
 
 
 def test_games_upcoming_free_hits_tag_rule_and_stays_digest():
@@ -242,8 +333,8 @@ def test_games_upcoming_free_hits_tag_rule_and_stays_digest():
     }
     assert rules["下周免费"].evaluate(upcoming) is True
     assert rules["限免"].evaluate(upcoming) is False, "预告不是当前限免"
-    (push,) = config.push
-    assert resolve_route(upcoming, routes_from_config(push.route)).mode == "digest"
+    for push in config.push:
+        assert resolve_route(upcoming, routes_from_config(push.route)).mode == "digest"
 
 
 def test_games_cheapshark_deal_hits_rule_and_stays_digest():
@@ -252,7 +343,7 @@ def test_games_cheapshark_deal_hits_rule_and_stays_digest():
     命中「多店半价+」;Epic/Steam 条目无 savings_pct,float(None) 求值失败
     按不命中(缺字段让路,天然无感);路由零改动:CS 条目无 final_price/
     discount_pct,两级 when 均不命中走保守缺省 digest——immediate 仍只属限免
-    (跳楼价在 digest 里按 savings 排序自然置顶)。"""
+    (digest 无 items 排序,顺序=源到达序,CS 条目落日报尾部)。"""
     config = _load("games")
     rules = {
         rule.tag: rule
@@ -277,10 +368,10 @@ def test_games_cheapshark_deal_hits_rule_and_stays_digest():
     assert rules["限免"].evaluate(cs_hit) is False
     assert rules["半价+"].evaluate(cs_hit) is False
 
-    (push,) = config.push
-    assert resolve_route(cs_hit, routes_from_config(push.route)).mode == "digest", (
-        "CS 条目必须落 digest(immediate 只属限免,v3 决议④路由零改动)"
-    )
+    for push in config.push:
+        assert resolve_route(cs_hit, routes_from_config(push.route)).mode == "digest", (
+            "CS 条目必须落 digest(immediate 只属限免,v3 决议④路由零改动)"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -366,9 +457,10 @@ def test_plugin_template_renders_with_representative_items(name):
         ],
         "ai-news": [{"title": "公开演示标题", "url": "https://example.com/t/1"}],
         "wool": [{"title": "公开演示标题", "url": "https://example.com/t/2"}],
-        # games 条目覆盖三种字段形态:Epic 限免(price_text 直出)、Steam
+        # games 条目覆盖四种字段形态:Epic 限免(price_text 直出)、Steam
         # 特惠(无 price_text,模板退 final_price/100)、CS 多店折扣(美元
-        # 字符串段 $sale_price(原价 normal_price)+ savings |float|round|int)
+        # 字符串段 $sale_price(原价 normal_price)+ savings |float|round|int)、
+        # GOG 限免(wrap:美元字段与 CS 同名同形态,同一段美元段自动复用)
         "games": [
             {"title": "深埋之星", "url": "https://store.epicgames.com/zh-CN/p/buried-stars",
              "final_price": 0, "original_price": 11600, "discount_pct": 0, "price_text": "0"},
@@ -383,6 +475,12 @@ def test_plugin_template_renders_with_representative_items(name):
             {"title": "Unclaimed World",
              "url": "https://www.cheapshark.com/redirect?dealID=hV1uGbDuy%2FdMUfxYZb%2BPCBj345sgqPwRWHlLgtuAxAk%3D",
              "sale_price": "0.50", "normal_price": "16.99", "savings_pct": "97.057092"},
+            # wrap 第四源 GOG 限免双保险形状(裁自 evidence/
+            # gog-probe-catalog-freegames-p1.json [1],价格调整为 giveaway 形态
+            # ——2026-10-03 无在途限免可实录,同 CS savings 合成先例)
+            {"title": "BROK The InvestiGator - prologue",
+             "url": "https://www.gog.com/en/game/brok_the_investigator_prologue",
+             "sale_price": "0.00", "normal_price": "19.99"},
         ],
         # gpu-prices:vs_msrp/vs_* 在无 msrp/trends 上下文时渲染空串(契约),
         # keyword_trends 缺省空列表——模板必须裸渲染存活
@@ -402,9 +500,10 @@ def test_plugin_template_renders_with_representative_items(name):
     # 值级标记(opt-in):钉住换算/退路的输出值,不只是「渲染不炸」。
     # games:Steam 条目无 price_text → 退 final_price/100,1360 分应渲染 13.6;
     # 预告徽标 📅<日期>起免费(v2 决议②);CS 美元段 + 字符串 savings 取整
-    # 徽标 $0.50(原价 16.99) -97%(v3 决议④)
+    # 徽标 $0.50(原价 16.99) -97%(v3 决议④);GOG 限免复用同款美元段
+    # $0.00(原价 19.99)(wrap;feishu/telegram 两模板同钓)
     value_markers: dict[str, list[str]] = {
-        "games": ["13.6", "📅2026-10-08起免费", "$0.50(原价 16.99)", "-97%"],
+        "games": ["13.6", "📅2026-10-08起免费", "$0.50(原价 16.99)", "-97%", "$0.00(原价 19.99)"],
     }
     for push in config.push:
         if push.template is None:
@@ -612,6 +711,53 @@ _SNIPPETS = {
             "savings_pct": "45.0",
         },
     },
+    # games wrap (10-03-games-wrap): GOG catalog 响应是嵌套 $.products[*](区别
+    # 于 CS 顶层数组);storeLink 即绝对 URL,url 字段直出(url_template 为
+    # None 的反向形态)。两个元素裁自 evidence/gog-probe-catalog-freegames-p1.json
+    # (2026-10-03 实录):[0] Whateverland: Prologue 永久免费形状(final=base=
+    # "0.00"、discount null)逐字实录;[1] BROK prologue 唯一人为调整是价格改
+    # giveaway 双保险形(sale "0.00"/base "19.99")——当日无在途限免可实录
+    # (price=between:0,0 全量 419 条皆 base=0,四路交叉验证见
+    # gog-probe-summary.json),同 CS savings "45.0" 合成先例;其余字段
+    # (id/slug/storeLink/封面)逐字实录。
+    ("games", "gog-free"): {
+        "json": {"productCount": 2, "pages": 1, "products": [
+            {
+                "id": "1096877296", "slug": "whateverland_prologue",
+                "productType": "game", "title": "Whateverland: Prologue",
+                "coverVertical": "https://images.gog-statics.com/fc8da75e14fecef86f1e045e8def81652824570c8d8e25434d7a0e01496f0321.jpg",
+                "price": {
+                    "final": "$0.00", "base": "$0.00", "discount": None,
+                    "finalMoney": {"amount": "0.00", "currency": "USD", "discount": "0.00"},
+                    "baseMoney": {"amount": "0.00", "currency": "USD"},
+                },
+                "storeLink": "https://www.gog.com/en/game/whateverland_prologue",
+            },
+            {
+                "id": "1129298921", "slug": "brok_the_investigator_prologue",
+                "productType": "game", "title": "BROK The InvestiGator - prologue",
+                "coverVertical": "https://images.gog-statics.com/9c14ad41ca4ae00e80badd6326324603ec495a91d5554688bb872f315b0d9bd6.jpg",
+                "price": {
+                    "final": "$0.00", "base": "$19.99", "discount": "$19.99",
+                    "finalMoney": {"amount": "0.00", "currency": "USD", "discount": "19.99"},
+                    "baseMoney": {"amount": "19.99", "currency": "USD"},
+                },
+                "storeLink": "https://www.gog.com/en/game/brok_the_investigator_prologue",
+            },
+        ]},
+        "expect_url": "https://www.gog.com/en/game/whateverland_prologue",
+        "expect_title": "Whateverland: Prologue",
+        # 第二形状(限免命中形):storeLink 直出免拼接、美元字符串逐元素不错位
+        # (giveaway:sale "0.00"/base "19.99" → 限免双保险;首条 base "0.00"
+        # 永久免费形由 expect_second 之外的双保险测试钉住)
+        "expect_second": {
+            "url": "https://www.gog.com/en/game/brok_the_investigator_prologue",
+            "gog_id": "1129298921",
+            "image": "https://images.gog-statics.com/9c14ad41ca4ae00e80badd6326324603ec495a91d5554688bb872f315b0d9bd6.jpg",
+            "sale_price": "0.00",
+            "normal_price": "19.99",
+        },
+    },
     # v2ex is parked (commented out in wool.yaml, challenge-gated until a
     # firecrawl backend exists) — its extract was never live-verified, so it
     # has no snippet here; re-add one when the source ships.
@@ -646,9 +792,10 @@ def test_plugin_extract_matches_recorded_markup(plugin, source_name):
         assert len(items) > 1, f"{plugin}/{source_name}: second shape missing"
         for field in second.get("absent", []):
             assert field not in items[1], f"{plugin}/{source_name}: {field} 应逐元素省略"
-        # 断言键集随源字段形态扩(v3:CS 美元字符串字段 sale_price/savings_pct)
+        # 断言键集随源字段形态扩(v3:CS 美元字符串字段;wrap:GOG 同款美元
+        # 字段 + id/image 直出)
         for key in ("url", "title", "discount_pct", "expire", "upcoming_pct", "upcoming_start",
-                    "sale_price", "savings_pct"):
+                    "sale_price", "savings_pct", "normal_price", "gog_id", "image"):
             if key in second:
                 assert items[1].get(key) == second[key], f"{plugin}/{source_name}: 第二形状 {key} 错位"
 
