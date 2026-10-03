@@ -58,7 +58,11 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 # 样本(同 v2ex parked 先例),两跑计划用合成 zol 形状 markup。
 # news 补入(10-03-news-rss):游戏资讯 RSS 品类(gcores 单源);snippet 用
 # 实录裁剪 fixture tests/fixtures/news-gcores-rss.xml。
-OFFICIAL_PLUGINS = ("stocks", "ai-news", "wool", "games", "gpu-prices", "news")
+# exposure 补入(10-03-aipocket-fusion,Q12 决议进官方件电池):链外源引擎
+# credhunter 品类(FOFA/Shodan 曝面 + 本地分诊双源);两跑计划走 scan lane
+# (manual-triage 源,零网络零凭据——出网 lane 无 key 显式空态,不适合
+# dedup 拦截用例的「有产出」前提)。
+OFFICIAL_PLUGINS = ("stocks", "ai-news", "wool", "games", "gpu-prices", "news", "exposure")
 
 
 # ---------------------------------------------------------------------------
@@ -444,9 +448,15 @@ def test_news_uses_static_html_rss_with_whitelisted_entry_fields():
 
 @pytest.mark.parametrize("name", OFFICIAL_PLUGINS)
 def test_plugin_push_targets_are_credential_references(name):
-    """No plaintext targets: every push target is an env:/keychain: reference."""
+    """No plaintext targets: every push target is an env:/keychain: reference.
+
+    stdout 通道例外(10-03-aipocket-fusion 起 exposure 品类走 stdout——
+    Q9 私有情报不出本机):schema 强制其 target 为 None,不携带寻址。"""
     config = _load(name)
     for push in config.push:
+        if push.channel == "stdout":
+            assert push.target is None, "stdout 通道不带 target(schema 强制)"
+            continue
         assert push.target is not None
         assert push.target.startswith(("env:", "keychain:")), push.target
 
@@ -597,6 +607,18 @@ def test_plugin_template_renders_with_representative_items(name):
              "published": "Fri, 02 Oct 2026 20:01:17 +0800"},
             {"title": "无日期条目形状", "url": "https://www.gcores.com/articles/220478"},
         ],
+        # exposure(10-03-aipocket-fusion):掩码-only 命中物形状(title 即
+        # 含前 8 后 4 掩码,与 manual-triage 源的合成示例键同源;第二条是
+        # 曝面 finding 形状,缺省字段裸渲染存活)
+        "exposure": [
+            {"title": "openai 疑似泄露凭证 sk-4f1c9…MASKED…abcd(manual)",
+             "url": "https://example.com/triage/config.env",
+             "provider": "openai", "apikey_masked": "sk-4f1c9…MASKED…abcd",
+             "source_type": "manual"},
+            {"title": "litellm 未授权读暴露(203.0.113.7)",
+             "url": "https://203.0.113.7/v1/models", "host": "203.0.113.7",
+             "product": "litellm", "vuln_class": "unauth_read", "risk": 0},
+        ],
     }[name]
     renderer = TemplateRenderer()
     expected_marker = {
@@ -606,6 +628,7 @@ def test_plugin_template_renders_with_representative_items(name):
         "games": "深埋之星",
         "gpu-prices": "iGame RTX 5080",
         "news": "《恶魔城：贝尔蒙特的诅咒》试玩版今日上线",
+        "exposure": "sk-4f1c9…MASKED…abcd",
     }[name]
     # 值级标记(opt-in):钉住换算/退路的输出值,不只是「渲染不炸」。
     # games:Steam 条目无 price_text → 退 final_price/100,1360 分应渲染 13.6;
@@ -1061,6 +1084,14 @@ _TWO_RUN_PLANS: dict[str, dict[str, Any]] = {
             "<pubDate>Thu, 01 Oct 2026 09:55:00 +0800</pubDate></item>"
             "</channel></rss>",
         ],
+    },
+    # exposure(10-03-aipocket-fusion):scan lane 的 manual-triage 源零网络
+    # 零凭据(items 由 engine_options.documents 本地装配,payloads 不被
+    # 消费——handler 形状保持一致仅为基建复用);两跑同文档 → dedup {url}
+    # seen 拦截,钉链外源引擎进 dedup 全链的接线语义。
+    "exposure": {
+        "source": "manual-triage",
+        "payloads": [],
     },
 }
 

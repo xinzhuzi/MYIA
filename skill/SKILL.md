@@ -54,11 +54,11 @@ stderr(整份 stdout 恒可 `json.load`)。退出码:`0` 成功 / `1` 配置或�
 
 | schema 常量 | 取值 |
 |---|---|
-| `ENGINES` | `auto` `direct_api` `static_html` `crawl4ai` `firecrawl` `scrapling` `stealth_browser` `llm_browser` |
+| `ENGINES` | `auto` `direct_api` `static_html` `crawl4ai` `firecrawl` `scrapling` `stealth_browser` `llm_browser` `credhunter` |
 | `PAGINATION_MODES` | `template` `selector` `scroll` |
 | `EXTRACT_TYPES` | `list` `item` `json_path` `rss` |
 | `BACKOFF_POLICIES` | `exponential` `linear` `none` |
-| `PUSH_CHANNELS` | `feishu_card` `telegram` `ntfy` `dingtalk` `wecom` `webhook` `stdout` |
+| `PUSH_CHANNELS` | `feishu_card` `telegram` `ntfy` `dingtalk` `wecom` `weixin` `webhook` `stdout` |
 | `ROUTE_MODES` | `immediate` `digest` `archive` |
 | `ENRICH_SCORES` | `value` `relevance` `credibility` |
 | `VACUUM_CADENCES` | `daily` `weekly` `monthly` `never` |
@@ -85,7 +85,7 @@ stderr(整份 stdout 恒可 `json.load`)。退出码:`0` 成功 / `1` 配置或�
 | 字段 | 缺省 | 语义 |
 |---|---|---|
 | `name` | `必填` | 源名(1-64 字符,插件内唯一,doctor/test 按它定位) |
-| `engine` | `auto` | 引擎或 `auto`(取值见枚举表;全部引擎已实装,L4-L6 的依赖/前提见 §4.1) |
+| `engine` | `auto` | 引擎或 `auto`(取值见枚举表;全部引擎已实装,L4-L6 的依赖/前提见 §4.1;`credhunter` 为链外源引擎,不进 auto 降级链) |
 | `url` | `必填` | http(s) 地址;支持 `{placeholder}` 模板(翻页 `{page}`、扇出 `{symbol}`) |
 | `method` | `GET` | `GET` 或 `POST`;POST 必须配 `post_body`,GET 禁止 `post_body` |
 | `post_body` | `null` | POST 表单/JSON 体(映射);其中凭据类键同样禁明文 |
@@ -191,9 +191,9 @@ stderr(整份 stdout 恒可 `json.load`)。退出码:`0` 成功 / `1` 配置或�
 
 | 字段 | 缺省 | 语义 |
 |---|---|---|
-| `channel` | `必填` | `feishu_card` / `telegram` / `ntfy` / `dingtalk` / `wecom` / `webhook` / `stdout` |
+| `channel` | `必填` | `feishu_card` / `telegram` / `ntfy` / `dingtalk` / `wecom` / `weixin` / `webhook` / `stdout` |
 | `target` | `null` | 推送目标,只能是 `env:`/`keychain:` 引用;`stdout` 禁止配置;其余通道必填(配 `targets` 的通道可省) |
-| `targets` | `[]` | 定向推送对象列表,元素 `platform:名称或id`(如 `feishu:AI中转站合伙人群`,自动去重保序);仅寻址通道 `feishu_card`/`telegram`/`ntfy`/`dingtalk`/`wecom` 支持(webhook/stdout 配即拒),同平台约束:平台前缀须与本条目通道一致,跨平台写多条 push;在场时 `target` 可省;优先级:规则级 `targets` > 通道级 `targets` > legacy `target` |
+| `targets` | `[]` | 定向推送对象列表,元素 `platform:名称或id`(如 `feishu:AI中转站合伙人群`,自动去重保序);仅寻址通道 `feishu_card`/`telegram`/`ntfy`/`dingtalk`/`wecom`/`weixin` 支持(webhook/stdout 配即拒),同平台约束:平台前缀须与本条目通道一致,跨平台写多条 push;在场时 `target` 可省;优先级:规则级 `targets` > 通道级 `targets` > legacy `target` |
 | `route` | `[]` | 阈值路由(见 route 节);留空 = 七大类缺省映射(羊毛/节点/代买 → immediate,其余 → digest) |
 | `template` | `null` | Jinja2 卡片模板(沙箱渲染,未知变量报错);省略用通道内置版式 |
 | `timeout` | `10.0` | 发送超时秒数(**仅 `webhook` 生效**,其他通道配置即拒) |
@@ -204,6 +204,7 @@ stderr(整份 stdout 恒可 `json.load`)。退出码:`0` 成功 / `1` 配置或�
 | `wecom_corpid` | `null` | 企微自建应用 corpid 引用;省略走 `env:WECOM_CORPID`(仅 `wecom` 可配) |
 | `wecom_corpsecret` | `null` | 企微自建应用 secret 引用;省略走 `env:WECOM_CORPSECRET`(仅 `wecom` 可配) |
 | `wecom_agentid` | `null` | 企微自建应用 AgentId 引用(数值串);省略走 `env:WECOM_AGENTID`(仅 `wecom` 可配) |
+| `weixin_hermes_bin` | `null` | 本机 Hermes CLI 路径覆写(缺省 `~/.hermes/hermes-agent/.hermes/bin/hermes`);本地路径**非凭据**,不走 env:/keychain: 引用,MYIA 对微信零凭据(仅 `weixin` 可配) |
 
 各通道凭据约定:`feishu_card` 的 target = 收件/群 ID(如 `env:FEISHU_CHAT_ID`),
 机器人 token 从 `env:FEISHU_BOT_TOKEN` 读;`telegram` 的 target = chat id
@@ -215,6 +216,10 @@ target = `{server}/{topic}` 整串引用(如 `env:NTFY_TARGET`,定向写
 可选加签密钥配 `dingtalk_secret`;`wecom` 的 target = touser userid
 (`env:WECOM_TUSER`,定向写 `wecom:<userid>`),corpid/corpsecret/agentid
 从 `env:WECOM_CORPID` / `env:WECOM_CORPSECRET` / `env:WECOM_AGENTID` 读;
+`weixin` 为可选桥接通道(出站经本机 Hermes-Agent CLI,登录态只存 Hermes 侧),
+target = 会话 peer id(`env:WEIXIN_PEER_ID`,定向写 `weixin:<peer id>`,
+`xxx@im.wechat` DM / `xxx@chatroom` 群),无 Hermes 环境发送返回
+`bridge_unavailable` 结构化错误(配置照常加载,如实灰态);
 `webhook` 的 target = 端点 URL 引用(如 `env:MYIA_WEBHOOK_URL`);`stdout`
 零凭据,本地验证首选。ntfy/钉钉/企微三平台无目录自动发现(蓝本事实),
 `targets` 走直达 id 或别名手工登记(channel_aliases.json)。
@@ -276,6 +281,15 @@ target = `{server}/{topic}` 整串引用(如 `env:NTFY_TARGET`,定向写
 | L4 | `scrapling` | 基础盾/改版频繁源:自适应选择器自愈 + 隐身指纹 + `pagination.mode: scroll` 无限滚动 | 可选依赖 `shishi[scrapling]`,未装时报 `dependency_missing` 并继续降级;企业级风控(手机验证码/真人审核)零尝试并结构化报错,明确不支持 |
 | L5 | `stealth_browser` | 反检测真浏览器:登录墙(cookie 注入,凭据走 `keychain:`)/ 基础验证码 | 需 invisible_playwright_mcp 服务(`engine_options.stealth_browser`,未启动报 `mcp_server_missing`);手机验证码/真人审核零尝试,报 `captcha_*` 结构化错误,不绕过 |
 | L6 | `llm_browser` | LLM 驱动浏览器(skyvern 自然语言指挥),多步交互/复杂表单死源的最后手段 | 需 skyvern endpoint+key(`engine_options.llm_browser.endpoint/api_key`,值必须是 `env:`/`keychain:` 引用);硬护栏:单源白名单(仅 `engine: llm_browser` 显式指定或 `auto` 链尾触达)+ 每 run 次数/预算熔断 |
+
+**链外源引擎 `credhunter`**(不在上表层级里):进程内场景件引擎——items 由
+`plugins/myia-credhunter/` 适配器就地装配(GitHub 工件猎取 / FOFA-Shodan 曝面
++ L0 被动探测 / 本地文本分诊),不抓取 source.url。**不参与 auto 降级链**
+(显式 `engine: credhunter` 才生效,失败=源级结构化失败);凭据走
+`engine_options.credhunter.{github_tokens,fofa_apikey,shodan_apikey}` 引用;
+无 key 的 lane 一律显式空态(`credential_missing` skip,含无 token 的 GitHub
+lane:该源本轮不启用,写好引用即恢复)。授权边界:仅用于已授权安全研究与自有/
+已授权资产排查;命中物一律前 8 后 4 掩码。
 
 经验法则:先看页面源码——搜得到数据写 L2,搜不到找 API 走 L1,都 JS 化才 L3;
 拿不准就 `engine: auto`,用 `myia test --json` 看实际选中引擎(`engine` 字段)。

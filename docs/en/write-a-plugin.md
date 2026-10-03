@@ -67,6 +67,20 @@ error carries the field path):
 | L5 | `stealth_browser` | hard-anti-bot pages (anti-detect browser driven over MCP) | needs a Playwright-MCP server; per-run page budget `engine_options.stealth_browser.max_pages` (default 10); `headers.Cookie` on the source is injected past login walls |
 | L6 | `llm_browser` | last resort when everything above failed (LLM-driven browser, skyvern) | burns tokens — fallback only; `MYIA_SKYVERN_URL` / `MYIA_SKYVERN_API_KEY` or `engine_options.llm_browser.endpoint/api_key` references |
 
+**Off-chain source engine `credhunter`** (not one of the L1-L6 layers): the
+in-process scenario plugin `myia-credhunter` (see `plugins/myia-credhunter/`) —
+items are assembled by the adapter itself, the `url` is never fetched. Three
+lanes selected via `engine_options.credhunter.lane`: `credhunt` (GitHub
+artifact hunting, token-pool references, no token → explicit empty state,
+the lane stays disabled until a secret is written), `exposure` (FOFA/Shodan
+exposure + L0 passive probing, keyless lanes degrade to an explicit empty
+state), and `scan` (local
+text triage, zero network). It **never joins the auto degrade chain** — it
+only takes effect when selected explicitly, and a failure is a structured
+per-source failure that never blocks the category. Authorized use only:
+credential-leak research on your own or explicitly authorized assets; every
+finding is masked head-8/tail-4.
+
 Rule of thumb: view the page source first — data visible → L2, data via an
 API → L1, JS-only → L3; when unsure pick `engine: auto` and read the chosen
 engine from `shishi test --json` (the `engine` field). Never write CSS
@@ -202,6 +216,11 @@ token; details in [skill/SKILL.md](../../skill/SKILL.md) §2.13):
 - `ntfy`: `target` = `{server}/{topic}` string reference (e.g. `env:NTFY_TARGET`); optional auth token is read from `env:NTFY_TOKEN` (unset = anonymous public topic).
 - `dingtalk`: `target` = custom-robot webhook URL (`env:DINGTALK_WEBHOOK_URL`); optional HMAC signing secret via the `dingtalk_secret` field (unset = bare webhook).
 - `wecom`: `target` = touser userid (`env:WECOM_TUSER`); the self-built-app credentials are read from `env:WECOM_CORPID` / `env:WECOM_CORPSECRET` / `env:WECOM_AGENTID`.
+- `weixin`: optional bridge channel — outbound goes through the local Hermes-Agent CLI
+  (path overridable via `weixin_hermes_bin`); the login state lives only on the Hermes side,
+  MYIA itself holds zero credentials. `target` = conversation peer id (`env:WEIXIN_PEER_ID`,
+  direct push `weixin:<peer id>`); without a Hermes install, sends return a structured
+  `bridge_unavailable` error (the config still loads).
 - `webhook`: `target` = endpoint URL reference (e.g. `env:MYIA_WEBHOOK_URL`).
 - `stdout`: zero credentials, first choice for local verification.
 

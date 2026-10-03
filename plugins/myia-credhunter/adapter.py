@@ -5,26 +5,34 @@
 behavior-specs/*.md``),零上游代码/标识符/文案复制。
 
 挂载方式(myia-integration-facts.md §1/§2):宿主(CLI 的
-``_import_plugin_adapter`` / 未来 ``engine: credhunter`` 引擎)对本文件
+``_import_plugin_adapter`` 与 ``engine: credhunter`` 引擎)对本文件
 做 compile+exec 动态加载 —— 核心仓库与插件零静态耦合。插件目录**不是**
 Python 包:同目录 ``credhunter/*.py`` 子模块由本文件用同一 compile+exec
 手法自举加载(``__file__`` 先行注入,数据文件靠它定位;刻意不走
 importlib,防插件目录产生 ``__pycache__`` 垃圾)。
 
-对外两副入口(v0.1 骨架 = R3 指纹库 + 本地文本扫描;R1 GitHub 猎取、
-R2 验证/余额、R4 曝面发现按任务排期落地,本骨架先把 lane 状态面立起来):
+对外入口(三 lane 各有引擎面/CLI 面,再加本地扫描面):
 
-- **引擎面(异步)**::func:`fetch` —— 消费 documents(命中位置文本),
-  产出管线 items 列表(经 ``engine: credhunter`` 进 fetch→classify→dedup
-  →store→push 全链,下游零改动);
-- **CLI 面(同步)**::func:`run` —— 装配结构化 JSON payload(掩码-only,
-  供 ``myia credhunter --json`` 类子命令与 AI 消费)。
+- **本地扫描(R3 指纹库)**::func:`fetch`(引擎面,异步)/ :func:`run`
+  (CLI 面,同步)—— 消费 documents(命中位置文本),产出掩码-only items;
+- **credhunt(R1 GitHub 工件猎取)**::func:`fetch_hunt`(引擎面,异步)/
+  :func:`run_credhunt`(CLI 面,同步)—— 两泳道 + 工件二次加工,产出
+  items + 跨 run checkpoint;
+- **exposure(R4 FOFA/Shodan 曝面)**::func:`fetch_exposure`(引擎面,
+  to_thread 包同步实现)/ :func:`run_exposure`(CLI 面,同步)—— 搜页 +
+  L0 被动探测;
+- **credcheck(R2 验证/余额)**::func:`run_credcheck`(CLI 面;验证是
+  「读库→探测→回填」后处理而非 fetch,不走引擎,见 integration-facts
+  §2)。
 
 纪律红线:
-- **密钥经参数注入**(github_token/fofa_key/shodan_key 形参),绝不硬编码、
-  不读环境变量;``keychain:`` 引用由宿主解析后传值(见插件 README);
+- **密钥经参数注入**(github_tokens/fofa_key/shodan_key/records 形参),
+  绝不硬编码、不读环境变量;``keychain:`` 引用由宿主解析后传值(见插件
+  README);
 - **无 key = 显式空态**(lane 状态 ``credential_missing``,status=empty,
-  不报错不静默 —— AC6/R4 空态合规);
+  不报错不静默 —— AC6/R4 空态合规;credhunt 例外:GitHub 无 token 该源
+  不启用 —— 本适配器(CLI 直跑面)抛 ``tokens_missing`` 结构化错误,规格
+  §2 同款;品类源走引擎面时由宿主引擎落 ``credential_missing`` 空态);
 - **掩码-only 输出**(Q9):payload/items 里密钥只有前 8 后 4 掩码形态,
   全文永不进 stdout;
 - 任何失败抛 :class:`CredhunterError`(code + message + details,``to_dict()``
@@ -44,12 +52,22 @@ from typing import Any
 __all__ = [
     "PROVIDES",
     "CredhunterError",
+    "credcheck",
+    "exposure",
     "fetch",
+    "fetch_exposure",
+    "fetch_hunt",
     "findings",
     "fingerprints",
+    "fofa_query_pool",
+    "ghhunt",
     "packs",
     "run",
+    "run_credcheck",
+    "run_credhunt",
+    "run_exposure",
     "scan_documents",
+    "shodan_query_pool",
     "specs",
 ]
 
@@ -93,6 +111,9 @@ packs = _load_module("packs")
 specs = _load_module("specs")
 fingerprints = _load_module("fingerprints")
 findings = _load_module("findings")
+ghhunt = _load_module("ghhunt")
+credcheck = _load_module("credcheck")
+exposure = _load_module("exposure")
 
 
 class CredhunterError(Exception):
@@ -115,19 +136,43 @@ class CredhunterError(Exception):
 
 
 def _lane_states(*, github_token: str | None, fofa_key: str | None, shodan_key: str | None) -> dict[str, str]:
-    """三条出网 lane 的状态面:有 key=ready(排期落地),无 key=显式空态。
+    """三条出网 lane 的状态面:有 key=ready,无 key=显式空态。
 
-    v0.1 骨架:出网 lane 尚未实现(排期件),统一报 ``scheduled``;凭据
-    缺失时先报 ``credential_missing``(AC6 语义:显式、不报错、不静默)。
+    credcheck 不看 lane 凭据(要验的密钥来自 records 参数/猎取产物),
+    状态恒 ``ready``。
     """
     states: dict[str, str] = {}
     for lane, key in (("credhunt", github_token), ("exposure_fofa", fofa_key), ("exposure_shodan", shodan_key)):
-        if not key:
-            states[lane] = "credential_missing"
-        else:
-            states[lane] = "scheduled"
-    states["credcheck"] = "scheduled"  # 读库后处理,凭据来自猎取产物而非参数
+        states[lane] = "ready" if key else "credential_missing"
+    states["credcheck"] = "ready"
     return states
+
+
+# ---------------------------------------------------------------------------
+# 查询池(发现层数据文件 → 三 lane 缺省查询)
+# ---------------------------------------------------------------------------
+
+
+def _query_pool(field: str, loaded_packs: Sequence[Any]) -> list[str]:
+    """按声明顺序拼接去重各包的某类查询(fofa/shodan 同 github 口径)。"""
+    pool: list[str] = []
+    seen: set[str] = set()
+    for pack in loaded_packs:
+        for query in getattr(pack, field, ()):
+            if query not in seen:
+                seen.add(query)
+                pool.append(query)
+    return pool
+
+
+def fofa_query_pool(loaded_packs: Sequence[Any]) -> list[str]:
+    """发现层全部包的 FOFA 查询池(拼接去重,保声明序)。"""
+    return _query_pool("fofa_queries", loaded_packs)
+
+
+def shodan_query_pool(loaded_packs: Sequence[Any]) -> list[str]:
+    """发现层全部包的 Shodan 查询池(拼接去重,保声明序)。"""
+    return _query_pool("shodan_queries", loaded_packs)
 
 
 def scan_documents(documents: Sequence[Mapping[str, Any]] | None) -> tuple[list[dict[str, Any]], dict[str, int]]:
@@ -206,14 +251,87 @@ def scan_documents(documents: Sequence[Mapping[str, Any]] | None) -> tuple[list[
 
 
 async def fetch(*, documents: Sequence[Mapping[str, Any]] | None = None) -> list[dict[str, Any]]:
-    """引擎面入口:消费 documents,返回管线 items(下游 classify/dedup/store/push)。
+    """引擎面入口(本地扫描 lane):消费 documents,返回管线 items。
 
-    v0.1 为纯 CPU 本地扫描(指纹库);GitHub/FOFA/Shodan 出网 lane 按排期
-    落地后扩展参数(github_token 等,密钥由引擎宿主解析 keychain: 后注入)。
+    下游 classify/dedup/store/push 全链复用;出网 lane 走 :func:`fetch_hunt`
+    / :func:`fetch_exposure`。
     """
     await asyncio.sleep(0)  # 引擎上下文让出事件循环(与 async 契约对齐)
     items, _counts = scan_documents(documents)
     return items
+
+
+# ---------------------------------------------------------------------------
+# 引擎面(异步):credhunt / exposure 出网 lane
+# ---------------------------------------------------------------------------
+
+
+async def fetch_hunt(
+    *,
+    github_tokens: Sequence[str] | None = None,
+    queries: Sequence[str] | None = None,
+    checkpoint: Mapping[str, Any] | None = None,
+    client: Any = None,
+) -> dict[str, Any]:
+    """引擎面入口(credhunt lane):跑一轮 GitHub 工件猎取。
+
+    Args:
+        github_tokens: GitHub token 池(密钥由引擎宿主解析 ``keychain:``/
+            ``env:`` 引用后注入;空池抛 ``tokens_missing``,该源不启用)。
+        queries: 查询池;缺省 = 发现层数据文件全部包 github_terms 去重。
+        checkpoint: 跨 run 状态(引擎宿主持久化后下轮传入即接续)。
+        client: 注入的 ``httpx.AsyncClient``(引擎传共享 context client,
+        让代理 transport/测试 MockTransport 对本 lane 生效)。
+
+    Returns:
+        ``ghhunt.hunt`` 原样产物:``{"items", "errors", "checkpoint",
+        "counts"}``(items 掩码-only 管线形状)。
+    """
+    kwargs: dict[str, Any] = {"tokens": list(github_tokens or [])}
+    if queries is not None:
+        kwargs["queries"] = list(queries)
+    if checkpoint is not None:
+        kwargs["checkpoint"] = dict(checkpoint)
+    if client is not None:
+        kwargs["client"] = client
+    try:
+        return await ghhunt.hunt(**kwargs)
+    except ghhunt.GithubHuntError as exc:
+        raise CredhunterError(str(getattr(exc, "code", "credhunt_failed")), str(exc)) from exc
+
+
+async def fetch_exposure(
+    *,
+    fofa_key: str | None = None,
+    fofa_base: str | None = None,
+    shodan_key: str | None = None,
+    queries: Mapping[str, Sequence[str]] | None = None,
+    probe: bool = True,
+) -> dict[str, Any]:
+    """引擎面入口(exposure lane):FOFA/Shodan 搜页 + L0 被动探测。
+
+    exposure 实现是同步的(自身带页间 sleep 节奏),引擎面经
+    ``asyncio.to_thread`` 包进 async 上下文,不让页间等待阻塞事件循环。
+    查询缺省 = 发现层数据文件的 fofa/shodan 查询池;``queries`` 形如
+    ``{"fofa": [...], "shodan": [...]}`` 可覆写。
+
+    Returns:
+        ``exposure.run_exposure`` 原样产物:``{"status", "lanes", "counts",
+        "findings", "duration_seconds"}``;无 key 的 lane 报
+        ``credential_missing`` 显式空态(不抛错)。
+    """
+    loaded_packs = packs.load_packs()
+    fofa_queries = (queries or {}).get("fofa")
+    shodan_queries = (queries or {}).get("shodan")
+    return await asyncio.to_thread(
+        exposure.run_exposure,
+        fofa_key=fofa_key,
+        fofa_base=fofa_base,
+        shodan_key=shodan_key,
+        fofa_queries=fofa_query_pool(loaded_packs) if fofa_queries is None else list(fofa_queries),
+        shodan_queries=shodan_query_pool(loaded_packs) if shodan_queries is None else list(shodan_queries),
+        probe=probe,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -234,8 +352,10 @@ def run(
     Args:
         documents: 命中位置文本批(text/url/source_type/file_path)。
         github_token: GitHub 泳道凭据(**参数注入**,宿主解析 keychain: 引用;
-            本骨架不消费,只进 lane 状态面)。
-        fofa_key / shodan_key: 曝面 lane 凭据(同上)。
+            本地扫描面不消费,只进 lane 状态面;真出网走
+            :func:`run_credhunt`)。
+        fofa_key / shodan_key: 曝面 lane 凭据(同上;真出网走
+            :func:`run_exposure`)。
         clock: 单调时钟注入口(测试 mock 用)。
 
     Returns:
@@ -270,3 +390,133 @@ def run(
         "counts": counts,
         "duration_seconds": round(clock() - started, 3),
     }
+
+
+# ---------------------------------------------------------------------------
+# CLI 面(同步):三 lane 子命令 payload(shishi credhunt/credcheck/exposure)
+# ---------------------------------------------------------------------------
+
+
+def run_credhunt(
+    *,
+    github_tokens: Sequence[str] | None = None,
+    queries: Sequence[str] | None = None,
+    checkpoint: Mapping[str, Any] | None = None,
+    clock: Any = time.monotonic,
+) -> dict[str, Any]:
+    """CLI 面入口(``shishi credhunt``):单轮 GitHub 猎取 stdout payload。
+
+    正式产出走引擎进管线;本面是调试/冒烟口。tokens 为空抛
+    ``tokens_missing``(GitHub 无 token 该源不启用,规格 §2);查询页失败
+    只进 errors 不打断整轮(规格 §7)。``status``:success(≥1 item)/
+    empty(0 item 0 error)/ degraded(0 item 有 error)/ partial(有 item
+    有 error)——退出码映射归 CLI。
+
+    Returns:
+        结构化 payload:plugin/status/library/findings(掩码-only)/errors/
+        counts/checkpoint(调用方可持久化后下轮传入)/duration_seconds。
+    """
+    started = clock()
+    loaded_packs = packs.load_packs()
+    outcome = asyncio.run(
+        fetch_hunt(
+            github_tokens=github_tokens,
+            queries=queries if queries is not None else packs.github_query_pool(loaded_packs),
+            checkpoint=checkpoint,
+        )
+    )
+    items, errors = outcome["items"], outcome["errors"]
+    status = "success" if items and not errors else ("partial" if items else ("degraded" if errors else "empty"))
+    return {
+        "plugin": PLUGIN_ID,
+        "capability": "credhunt",
+        "status": status,
+        "library": {
+            "packs": len(loaded_packs),
+            "specs": len(specs.load_specs()),
+            "github_query_pool": len(packs.github_query_pool(loaded_packs)),
+        },
+        "findings": items,
+        "errors": errors,
+        "counts": outcome["counts"],
+        "checkpoint": outcome["checkpoint"],
+        "duration_seconds": round(clock() - started, 3),
+    }
+
+
+def run_credcheck(
+    *,
+    records: Sequence[Mapping[str, Any]],
+    probe_balance: bool = False,
+    clock: Any = time.monotonic,
+) -> dict[str, Any]:
+    """CLI 面入口(``shishi credcheck``):凭证验证(+可选余额)payload。
+
+    Args:
+        records: 待验凭证批,每项 ``{"apikey": str, "apiurl": str(可省)}``
+            (全文密钥只在 credcheck 模块作用域内用作探测头,永不落 payload;
+            掩码-only 输出,Q9)。
+        probe_balance: Q7 余额/身份探测开关(默认**关**,显式开)。
+
+    Returns:
+        结构化 payload:plugin/capability/status/results(result_to_dict 列
+        表)/counts(按 validation_state 计数)/duration_seconds。探测结论
+        (rejected/final_verified)是**数据**不是错误:status 恒 success,
+        transient 占比只进 counts(退出码映射归 CLI)。
+
+    Raises:
+        CredhunterError: records 形状坏(``invalid_record``,结构化降级)。
+    """
+    started = clock()
+    registry = specs.ProviderRegistry(specs.load_specs())
+    try:
+        results = credcheck.check_credentials(list(records), registry=registry, probe_balance=probe_balance)
+    except ValueError as exc:
+        raise CredhunterError("invalid_record", str(exc)) from exc
+    state_counts: dict[str, int] = {}
+    for result in results:
+        state_counts[result.validation_state] = state_counts.get(result.validation_state, 0) + 1
+    return {
+        "plugin": PLUGIN_ID,
+        "capability": "credcheck",
+        "status": "success",
+        "probe_balance": probe_balance,
+        "results": [credcheck.result_to_dict(result) for result in results],
+        "counts": {
+            "records": len(results),
+            **state_counts,
+        },
+        "duration_seconds": round(clock() - started, 3),
+    }
+
+
+def run_exposure(
+    *,
+    fofa_key: str | None = None,
+    fofa_base: str | None = None,
+    shodan_key: str | None = None,
+    probe: bool = True,
+    clock: Any = time.monotonic,
+) -> dict[str, Any]:
+    """CLI 面入口(``shishi exposure``):FOFA/Shodan 曝面 + L0 探测 payload。
+
+    无 key 的 lane 报 ``credential_missing`` 显式空态(AC6,不抛错);查询
+    缺省 = 发现层数据文件查询池。``status`` 沿 exposure 模块口径
+    (success/empty),退出码映射(含 degraded 判定)归 CLI。
+
+    Returns:
+        结构化 payload:plugin/capability + ``exposure.run_exposure`` 产物
+        (status/lanes/counts/findings/duration_seconds)。
+    """
+    started = clock()
+    payload = asyncio.run(
+        fetch_exposure(fofa_key=fofa_key, fofa_base=fofa_base, shodan_key=shodan_key, probe=probe)
+    )
+    payload.update(
+        {
+            "plugin": PLUGIN_ID,
+            "capability": "exposure",
+            "duration_seconds": round(clock() - started, 3),
+        }
+    )
+    return payload

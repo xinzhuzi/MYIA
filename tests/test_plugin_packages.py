@@ -1,11 +1,12 @@
-"""官方六件场景件(plugin packages)的封装契约测试(PRD 10-01-v03-plugin-market
-及其 v1.1 架构转向,PRD 10-02-v11-plugins-source-arch).
+"""官方七件场景件(plugin packages)的封装契约测试(PRD 10-01-v03-plugin-market
+及其 v1.1 架构转向,PRD 10-02-v11-plugins-source-arch;10-03-aipocket-fusion
+接入线增 myia-credhunter).
 
-六个 ``plugins/<id>/`` 目录是市场插件包:每包含 ``plugin.yaml``(manifest,
+七个 ``plugins/<id>/`` 目录是市场插件包:每包含 ``plugin.yaml``(manifest,
 规范见 :mod:`myia.plugins.manifest`)+ README + 桌面路径声明。三条被钉住的
 契约:
 
-1. 六件 manifest 全部过真实校验入口 :func:`load_manifest_file`:id==目录名、
+1. 各件 manifest 全部过真实校验入口 :func:`load_manifest_file`:id==目录名、
    版本矩阵兼容当前 myia、**tier 分级**(desktop/remote/server-only)与
    定级一致、remote 端点只用 example.com 占位域(公开仓库红线);
 2. **remote 模式 mock 往返**:MockTransport 拦截端点探测,零真实网络;
@@ -47,7 +48,8 @@ PLUGINS_DIR = REPO_ROOT / "plugins"
 #: 场景件的服务端可选部署(v1.1 起迁出插件目录):docker/plugins/<id>/compose.yml。
 DOCKER_PLUGINS_DIR = REPO_ROOT / "docker" / "plugins"
 
-#: 六件官方场景件(目录名 == manifest id)。
+#: 七件官方场景件(目录名 == manifest id)。myia-credhunter 于
+#: 10-03-aipocket-fusion 接线段加入:进程内三 lane 凭证猎手(desktop)。
 OFFICIAL_PACKAGES = (
     "myia-proxy",
     "myia-osint",
@@ -55,6 +57,7 @@ OFFICIAL_PACKAGES = (
     "myia-monitor",
     "myia-maxun",
     "myia-credentials",
+    "myia-credhunter",
 )
 
 #: v1.1 定级建议(PRD 10-02-v11-plugins-source-arch 复核表)钉死的期望分级。
@@ -65,6 +68,7 @@ EXPECTED_TIERS = {
     "myia-credentials": "remote",
     "myia-douyin": "server-only",
     "myia-maxun": "server-only",
+    "myia-credhunter": "desktop",
 }
 
 
@@ -78,7 +82,7 @@ def load_package(package: str):
 
 
 # ---------------------------------------------------------------------------
-# 契约一:六件 manifest 过真实校验 + 包结构完整
+# 契约一:全部官方件 manifest 过真实校验 + 包结构完整
 # ---------------------------------------------------------------------------
 
 
@@ -124,11 +128,19 @@ class TestPackageManifests:
 
     @pytest.mark.parametrize("package", OFFICIAL_PACKAGES)
     def test_no_manifest_declares_local_compose_anymore(self, package: str):
-        """桌面优先(v1.1):manifest 不再声明 local compose 模式。"""
+        """桌面优先(v1.1):manifest 不再声明 local compose 模式。
+
+        10-03-aipocket-fusion 起 myia-credhunter 是例外形状:纯进程内源码件
+        声明 ``modes.local.install``(市场安装命令,**无 compose**)——禁的是
+        插件目录携带本地部署 compose,不是禁 local 安装形态本身。
+        """
         manifest = load_package(package)
-        assert manifest.modes.local is None, (
-            f"{package}: v1.1 起插件目录不携带本地部署 compose,manifest 不得声明 modes.local"
-        )
+        if manifest.modes.local is not None:
+            assert manifest.modes.local.compose is None, (
+                f"{package}: v1.1 起插件目录不携带本地部署 compose,manifest 不得声明 modes.local.compose"
+            )
+        else:
+            return
 
     def test_plugins_dir_holds_no_compose_files(self):
         """铁验收:plugins/ 目录 grep 不到 docker-compose,也没有任何 compose 文件."""
@@ -244,6 +256,23 @@ class TestCategoryWiring:
         assert config.plugin.modes.remote.endpoint == manifest.modes.remote.endpoint
         assert config.plugin.modes.remote.token == manifest.modes.remote.token
 
+    def test_exposure_plugin_section_matches_credhunter_manifest(self):
+        """exposure 品类 ↔ myia-credhunter 包(进程内 local 形态)同源咬合。
+
+        10-03-aipocket-fusion:exposure.yaml 的 plugin 节走 local.install
+        (纯源码进程内件,无 remote 端点)——id/requires/install 命令与
+        manifest 一字不差。
+        """
+        config = load_category_file(PLUGINS_DIR / "exposure.yaml")
+        manifest = load_package("myia-credhunter")
+        assert config.plugin is not None
+        assert config.plugin.id == manifest.id
+        assert config.plugin.requires == manifest.requires
+        assert config.plugin.modes.local is not None and manifest.modes.local is not None
+        assert config.plugin.modes.local.install == manifest.modes.local.install
+        # 进程内件的三能力名:品类源按 engine_options.credhunter.lane 引用。
+        assert manifest.provides == ["credhunt", "credcheck", "exposure"]
+
     def test_credentials_source_header_reuses_package_token_ref(self):
         config = load_category_file(PLUGINS_DIR / "credentials.yaml")
         manifest = load_package("myia-credentials")
@@ -331,7 +360,7 @@ def keychain_backend():
 
 
 class TestIronLawOnRealPackages:
-    def test_all_six_packages_install_clean_into_store(self, tmp_path: Path):
+    def test_all_official_packages_install_clean_into_store(self, tmp_path: Path):
         store = InstalledPluginStore(tmp_path / "plugins")
         for package in OFFICIAL_PACKAGES:
             store.install(package_dir(package))
@@ -401,7 +430,7 @@ class TestIronLawOnRealPackages:
 
 
 # ---------------------------------------------------------------------------
-# 公开仓库红线:六件包 + community 目录零内网地址/私有系统痕迹
+# 公开仓库红线:官方件包 + community 目录零内网地址/私有系统痕迹
 # ---------------------------------------------------------------------------
 
 
@@ -433,13 +462,19 @@ def test_package_files_hold_no_private_addresses_or_traces(package: str):
         assert not _PRIVATE_HOST_RE.search(text), f"{path}: 出现内网地址(公开仓库红线)"
         for trace in _FORBIDDEN_TRACES:
             assert trace not in text, f"{path}: 出现私有系统痕迹 {trace!r}"
-        # Bearer 后面只许 keychain 引用或「token」这类说明词,不许裸凭据字面量。
+        # Bearer 后面只许 keychain 引用、格式占位符或「token」这类说明词,
+        # 不许裸凭据字面量(进程内源码件的 f-string {token}/{self.apikey}
+        # 占位不是凭据字面量,尾引号随 \S+ 捕获一并剥除)。
         for match in re.finditer(r"Bearer\s+(\S+)", text):
-            word = match.group(1)
+            word = match.group(1).rstrip("\"',)")  # 剥 f-string 尾引号/分隔标点
             assert word.startswith("keychain:") or word in (
                 "token",
                 "token)",
                 "<token>",
+                "{token}",
+                "{apikey}",
+                "{self.apikey}",
+                "+",  # 文档串「Bearer + API 版本 + Accept」的连接词(ghhunt 文档串)
             ), f"{path}: Bearer 后疑似裸凭据字面量 {word!r}"
 
 
@@ -447,14 +482,18 @@ def test_package_files_hold_no_private_addresses_or_traces(package: str):
 #: manifest/文档外,还允许 MYIA 侧适配器 adapter.py;myia-osint 另有上游
 #: submodule 指针目录 vendor/(gitlink,上游代码零入库、零复制);
 #: myia-proxy 的适配器是自实现精简版(参照 proxy_pool 思路),零 vendored。
+#: myia-credhunter(10-03-aipocket-fusion)是进程内多模块件:adapter.py +
+#: credhunter/ 子模块目录(含 data/ 指纹库数据文件),全部 MYIA 侧从零
+#: 创作的功能重实现,零 vendored(AGPL 上游零入库)。
 SOURCE_TYPE_PACKAGES = {
     "myia-osint": {"adapter.py", "vendor"},
     "myia-proxy": {"adapter.py"},
+    "myia-credhunter": {"adapter.py", "credhunter"},
 }
 
 
 def test_official_packages_never_reference_their_upstream_by_copying_files():
-    """GPL/AGPL 红线的包形状证据:六件包里没有任何上游源码文件被复制入库.
+    """GPL/AGPL 红线的包形状证据:官方件包里没有任何上游源码文件被复制入库.
 
     v1.1 起源码型插件(myia-osint)以 gitlink(submodule)指向上游 ——
     vendor/ 是 submodule 指针而非上游文件;适配器 adapter.py 是 MYIA 侧

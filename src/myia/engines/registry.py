@@ -30,6 +30,13 @@ canonical order. Every failed attempt is recorded as a structured
 :class:`EngineFailure` (source / engine / error class) for logs and doctor.
 
 All engine imports stay lazy so optional dependencies remain optional.
+
+Beside the chain sit **source engines** (``credhunter``, 10-03-aipocket-fusion):
+registered in :data:`ENGINE_REGISTRY` but deliberately absent from
+:data:`AUTO_CHAIN` — they assemble items in-process from a scenario plugin
+(GitHub 工件猎取 / FOFA-Shodan 曝面 / 本地文本扫描) instead of fetching a
+URL, so browser-style degradation does not apply; explicit selection yields a
+single-rung chain and a failure is a structured per-source failure.
 """
 
 from __future__ import annotations
@@ -81,6 +88,8 @@ ENGINE_SCHEDULED_VERSIONS: dict[str, str] = {}
 
 # name -> zero-arg factory returning the engine class (lazy import keeps the
 # optional-dependency engines importable without their packages).
+# ``credhunter``(10-03-aipocket-fusion)是**链外源引擎**:注册表中在、
+# AUTO_CHAIN 中不在 —— 显式 ``engine: credhunter`` 才生效,auto 永不路过。
 ENGINE_REGISTRY: dict[str, Callable[[], type[BaseEngine]]] = {
     "direct_api": lambda: _load("direct_api", "DirectAPIEngine"),
     "static_html": lambda: _load("static_html", "StaticHTMLEngine"),
@@ -89,6 +98,7 @@ ENGINE_REGISTRY: dict[str, Callable[[], type[BaseEngine]]] = {
     "stealth_browser": lambda: _load("stealth_browser", "StealthBrowserEngine"),
     "llm_browser": lambda: _load("llm_browser", "LLMBrowserEngine"),
     "firecrawl": lambda: _load("firecrawl", "FirecrawlEngine"),
+    "credhunter": lambda: _load("credhunter", "CredhunterEngine"),
 }
 
 # Static typing view of the registry (class names resolved lazily at runtime).
@@ -115,9 +125,12 @@ def auto_degrade(preferred: str) -> list[str]:
     """Ordered fallback chain starting at ``preferred`` (链终形态七层:L1→…→L6 llm_browser).
 
     ``auto`` -> the full chain; a chain member -> its suffix (``llm_browser``
-    degrades nowhere — the L6 tail has no next layer; 失败即终止降级链并结构化
-    上报); scheduled-but-unimplemented engines raise a structured
-    :class:`EngineNotAvailableError`; anything else is a KeyError.
+    degrades nowhere — the L6 tail has no next layer, 失败即终止降级链并结构化
+    上报); a **registered non-chain engine** (``credhunter`` 类源引擎) -> a
+    single-rung chain with no degradation(链外引擎语义各属其插件,浏览器降级
+    链对它无意义;失败即源级结构化失败); scheduled-but-unimplemented engines
+    raise a structured :class:`EngineNotAvailableError`; anything else is a
+    KeyError.
 
     Raises:
         EngineNotAvailableError: explicitly selected engine not yet implemented
@@ -128,6 +141,8 @@ def auto_degrade(preferred: str) -> list[str]:
         return list(AUTO_CHAIN)
     if preferred in AUTO_CHAIN:
         return list(AUTO_CHAIN[AUTO_CHAIN.index(preferred):])
+    if preferred in ENGINE_REGISTRY:
+        return [preferred]  # 链外源引擎:显式选择即单级链,不参与降级
     if preferred in ENGINE_SCHEDULED_VERSIONS:
         raise EngineNotAvailableError(
             f"引擎 {preferred!r} 规划于 {ENGINE_SCHEDULED_VERSIONS[preferred]} 实现,"

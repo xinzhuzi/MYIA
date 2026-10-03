@@ -130,8 +130,12 @@ from myia.plugins import (
 from myia.schema import (  # _SECRET_REF_RE 复用:与 schema 同一引用语法,避免两处漂移
     _SECRET_REF_RE,
     CategoryConfig,
+    CredentialResolveError,
     LoadError,
+    SchemaValueError,
     load_category_file,
+    parse_secret_value,
+    resolve_credential,
 )
 from myia.secrets import (
     SECRET_SERVICE,
@@ -180,6 +184,16 @@ DEFAULT_PROXY_COUNT = 5
 DEFAULT_PROXY_CHECK_TIMEOUT_SECONDS = 10.0
 #: 采集类失败码 → 退出码 2(全部源抓取失败 / 零可用代理);其余退 1。
 PROXY_FETCH_FAILURE_CODES = frozenset({"fetch_failed", "no_alive_proxy"})
+#: 凭证猎手插件(myia-credhunter,进程内三 lane:credhunt/credcheck/exposure;
+#: 10-03-aipocket-fusion;正式取数走 engine: credhunter 进管线,CLI 面是
+#: 调试/冒烟口,credcheck 是读库后处理不走引擎)。
+CREDHUNTER_PLUGIN_ID = "myia-credhunter"
+#: credhunt 配置类失败码 → 1(GitHub 无 token 该源不启用,规格语义);
+#: 采集类失败由 payload 状态面(errors/items)判定,不走失败码映射。
+CREDHUNT_CONFIG_FAILURE_CODES = frozenset({"tokens_missing"})
+#: credcheck/exposure 配置类失败码 → 1;采集类判定同 credhunt(状态面)。
+CREDCHECK_CONFIG_FAILURE_CODES = frozenset({"invalid_record"})
+EXPOSURE_CONFIG_FAILURE_CODES = frozenset({"exposure_failed"})
 #: 单源试抓的每源超时(与 pipeline fetch 阶段默认一致)。
 DEFAULT_TEST_TIMEOUT_SECONDS = 120.0
 #: doctor/list 回看的最大 run 数(足够「连续 3 次失败 + 近 5 次基线」判据)。
@@ -192,6 +206,11 @@ HEALTH_BASELINE_DROP_RATIO = 0.5
 #: 变更指纹「未变」的 skip 原因词表(engines/fetch_base ChangeVerdict.reason
 #: 的未变子集 + 304 协商短路)。命中即「0 条合理」。
 FINGERPRINT_UNCHANGED_REASONS = frozenset({"not_modified", "validators_match", "hash_match"})
+
+#: 引擎**显式空态**的 skip 原因词表(10-03-aipocket-fusion):credhunter
+#: 链外源引擎的凭据未配置(exposure lane)与本地扫描无输入。0 条合理,
+#: 但理由与变更指纹不同——doctor 文案须如实区分,不得混报「指纹未变」。
+EXPLICIT_EMPTY_SKIP_REASONS = frozenset({"credential_missing", "documents_empty"})
 
 SOURCE_HEALTH_OK = "ok"
 SOURCE_HEALTH_DEGRADED = "degraded"
@@ -263,6 +282,9 @@ def build_parser() -> argparse.ArgumentParser:
     _add_skill_parser(sub)
     _add_osint_parser(sub)
     _add_proxy_parser(sub)
+    _add_credhunt_parser(sub)
+    _add_credcheck_parser(sub)
+    _add_exposure_parser(sub)
     for name, blurb in STUB_COMMANDS.items():
         sub.add_parser(name, help=f"{blurb}(后续版本实现)")
     return parser
@@ -967,6 +989,13 @@ def evaluate_source_health(entries: list[dict[str, Any]]) -> dict[str, Any]:
         if latest["skip_reason"] in FINGERPRINT_UNCHANGED_REASONS:
             base.update(state=SOURCE_HEALTH_OK, reason=f"指纹未变({latest['skip_reason']}),0 条属正常跳过")
             return base
+        if latest["skip_reason"] in EXPLICIT_EMPTY_SKIP_REASONS:
+            base.update(
+                state=SOURCE_HEALTH_OK,
+                reason=f"引擎显式空态({latest['skip_reason']}):凭据未配置或无输入,"
+                "配置凭据/输入后即恢复产出(myia secret set myia/credhunter/*)",
+            )
+            return base
         base.update(state=SOURCE_HEALTH_DEGRADED,
                     reason="指纹未跳过却产出 0 条(页面结构变化/反爬升级疑似,run 级 success 不得掩盖)")
         return base
@@ -1226,6 +1255,8 @@ def _fingerprint_view(outcome: Any) -> dict[str, Any]:
         verdict = "unknown"
     elif skip_reason in FINGERPRINT_UNCHANGED_REASONS:
         verdict = "unchanged_skip"
+    elif skip_reason in EXPLICIT_EMPTY_SKIP_REASONS:
+        verdict = "explicit_empty_skip"
     else:
         verdict = "changed_or_first_fetch"
     return {
@@ -1233,6 +1264,7 @@ def _fingerprint_view(outcome: Any) -> dict[str, Any]:
         "verdict": verdict,
         "meaning": {
             "unchanged_skip": "变更指纹未变,线上调度会跳过本轮(正常)",
+            "explicit_empty_skip": "引擎显式空态(凭据未配置/无输入,AC6;配置后即恢复产出)",
             "changed_or_first_fetch": "内容有变化或首次抓取,线上调度会正常提取",
             "unknown": "引擎链耗尽,未取得指纹判定",
         }[verdict],
@@ -2766,6 +2798,331 @@ def _add_proxy_parser(sub: argparse._SubParsersAction) -> None:
     proxy.add_argument("--json", dest="as_json", action="store_true", help="机器可读输出(单份 JSON,stdout)")
 
 
+# ---------------------------------------------------------------------------
+# myia credhunt / credcheck / exposure(myia-credhunter 插件三 lane;
+# 10-03-aipocket-fusion:正式取数走 engine: credhunter 进管线,本三命令是
+# 调试/冒烟/后处理口 —— credhunt/exposure 单次取数 stdout JSON,credcheck
+# 读凭证批探测回显。退出码族与全家桶对齐:0 成功 / 1 配置或用法错误 /
+# 2 采集全部失败 / 3 部分失败;--json 下 stdout 恒单份 JSON)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_cli_secret(value: str) -> str:
+    """解析一条 CLI 凭据实参:引用(env:/keychain:)就解析,裸值原样透传。
+
+    与品类 YAML 的「凭据只许引用」红线不同,CLI 实参是主人手工传值面
+    (冒烟场景:自备活 key/构造死 key),裸值合法;但**写成引用形态**就必须
+    解析成功——解析失败(钥匙串没写/环境变量缺)是真实错误,不把引用串
+    本身当密钥用。
+    """
+    try:
+        parse_secret_value(value, label="CLI 凭据实参")
+    except SchemaValueError:
+        return value  # 非引用形态:裸值
+    return resolve_credential(value)
+
+
+def _credhunter_status_exit_code(payload: dict[str, Any], *, command: str) -> int:
+    """payload 状态面 → 退出码(契约归 CLI;三命令同族语义)。
+
+    - credhunt:status partial=3 / degraded=2 / 其余(success/empty)=0;
+    - credcheck:transient 全占 =2(探测全败),部分 transient =3,其余 0
+      (rejected/final_verified 是探测**结论**,不是失败);
+    - exposure:查询错误全量(错误数 ≥ 计划数且零 findings)=2,部分错
+      误=3,无错误=0(无 key 显式空态 = 0,AC6)。
+    """
+    if command == "credhunt":
+        status = str(payload.get("status", "empty"))
+        if status == "partial":
+            return EXIT_PARTIAL
+        if status == "degraded":
+            return EXIT_FETCH_ALL_FAILED
+        return EXIT_OK
+    if command == "credcheck":
+        counts = payload.get("counts") or {}
+        total = int(counts.get("records", 0))
+        transient = int(counts.get("transient", 0))
+        if total and transient == total:
+            return EXIT_FETCH_ALL_FAILED
+        if transient:
+            return EXIT_PARTIAL
+        return EXIT_OK
+    # exposure:按 lane 汇总(queries_planned=0 的 credential_missing lane
+    # 不计入失败面)。
+    lanes = payload.get("lanes") or {}
+    errors = sum(int(lane.get("errors", 0)) for lane in lanes.values() if isinstance(lane, dict))
+    planned = sum(int(lane.get("queries_planned", 0)) for lane in lanes.values() if isinstance(lane, dict))
+    findings = len(payload.get("findings") or [])
+    if errors == 0:
+        return EXIT_OK
+    if findings == 0 and planned and errors >= planned:
+        return EXIT_FETCH_ALL_FAILED
+    return EXIT_PARTIAL
+
+
+def _run_credhunter_command(
+    args: argparse.Namespace,
+    *,
+    command: str,
+    config_failure_codes: frozenset[str],
+) -> tuple[dict[str, Any] | None, int]:
+    """三命令共用的装配段:加载适配器 → 调对应入口 → 结构化降级。
+
+    Returns:
+        (payload, exit_code):payload=None 表示已降级打印(退 1/2),调用方
+        直接返回退出码;否则 payload 待打印,退出码由调用面继续算。
+    """
+    try:
+        adapter = _import_plugin_adapter(args.plugins_dir, CREDHUNTER_PLUGIN_ID)
+    except (OSError, ImportError, SyntaxError) as exc:
+        _emit_generic_error(
+            "credhunter_adapter_missing",
+            str(exc),
+            as_json=args.as_json,
+            plugins_dir=str(args.plugins_dir),
+        )
+        return None, EXIT_CONFIG_ERROR
+    try:
+        if command == "credhunt":
+            tokens = [_resolve_cli_secret(token) for token in (args.github_tokens or [])]
+            payload = adapter.run_credhunt(
+                github_tokens=tokens,
+                queries=args.queries,
+                checkpoint=_load_credhunt_checkpoint_cli(args.checkpoint_file),
+            )
+        elif command == "credcheck":
+            records = [{"apikey": _resolve_cli_secret(key), "apiurl": args.apiurl} for key in (args.apikeys or [])]
+            payload = adapter.run_credcheck(records=records, probe_balance=args.balance)
+        else:
+            payload = adapter.run_exposure(
+                fofa_key=_resolve_cli_secret(args.fofa_key) if args.fofa_key else None,
+                fofa_base=args.fofa_base,
+                shodan_key=_resolve_cli_secret(args.shodan_key) if args.shodan_key else None,
+                probe=not args.no_probe,
+            )
+    except Exception as exc:  # noqa: BLE001 — 适配器一切失败都结构化降级,绝不拦核心
+        if isinstance(exc, CredentialResolveError):
+            # 凭据引用解析失败(钥匙串没写/env 缺失/名空间非法)= 配置错误。
+            _emit_generic_error(exc.code, str(exc), as_json=args.as_json)
+            return None, EXIT_CONFIG_ERROR
+        details = exc.to_dict() if hasattr(exc, "to_dict") else {"code": f"{command}_failed", "message": str(exc)}
+        code = str(details.get("code", f"{command}_failed"))
+        exit_code = EXIT_CONFIG_ERROR if code in config_failure_codes else EXIT_FETCH_ALL_FAILED
+        extra = {key: value for key, value in details.items() if key not in ("code", "message")}
+        _emit_generic_error(code, str(details.get("message", exc)), as_json=args.as_json, **extra)
+        return None, exit_code
+    return payload, EXIT_OK
+
+
+def _load_credhunt_checkpoint_cli(path: str | None) -> dict[str, Any] | None:
+    """``--checkpoint-file`` 读入(坏文件=从头续跑,不拦命令)。"""
+    if not path:
+        return None
+    try:
+        loaded = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
+def _save_credhunt_checkpoint_cli(path: str | None, payload: dict[str, Any]) -> None:
+    if path and isinstance(payload.get("checkpoint"), dict):
+        try:
+            Path(path).write_text(json.dumps(payload["checkpoint"], ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            pass  # checkpoint 持久化失败不拦本轮输出
+
+
+def _print_credhunt_human(payload: dict[str, Any], *, command: str) -> None:
+    """三命令共用的中文摘要(与 --json 同一信息,另一种皮)。"""
+    print(f"世事 {command}({payload.get('plugin')}):{payload.get('status')}")
+    if command == "credcheck":
+        counts = payload.get("counts") or {}
+        print(f"  验证 {counts.get('records', 0)} 条:final_verified={counts.get('final_verified', 0)}"
+              f" rejected={counts.get('rejected', 0)} transient={counts.get('transient', 0)}"
+              f"(余额探测:{'开' if payload.get('probe_balance') else '关'})")
+        for result in payload.get("results") or []:
+            print(f"  {result.get('provider')}/{result.get('validation_state')}:{result.get('error') or 'ok'}")
+        return
+    findings = payload.get("findings") or []
+    print(f"  发现 {len(findings)} 条(命中键一律前 8 后 4 掩码)")
+    for item in findings[:5]:
+        print(f"  - {item.get('title')}")
+    if command == "credhunt":
+        errors = payload.get("errors") or []
+        print(f"  泳道错误 {len(errors)} 条;耗时 {payload.get('duration_seconds')}s")
+        return
+    for name, lane in (payload.get("lanes") or {}).items():
+        if isinstance(lane, dict):
+            print(f"  lane {name}:{lane.get('status')}(命中 {lane.get('hits', 0)},错误 {lane.get('errors', 0)})")
+    print(f"  耗时 {payload.get('duration_seconds')}s")
+
+
+def _cmd_credhunt(args: argparse.Namespace) -> int:
+    """``shishi credhunt``:单轮 GitHub 工件凭证猎取(调试/冒烟口).
+
+    退出码:0 成功(含干净空手);1 适配器缺失/无 token(该源不启用);
+    2 全部查询失败;3 部分查询失败仍有产出。正式产出走品类 YAML 的
+    ``engine: credhunter`` 源进管线。
+    """
+    payload, exit_code = _run_credhunter_command(
+        args, command="credhunt", config_failure_codes=CREDHUNT_CONFIG_FAILURE_CODES
+    )
+    if payload is None:
+        return exit_code
+    _save_credhunt_checkpoint_cli(args.checkpoint_file, payload)
+    if args.as_json:
+        _print_json(payload)
+    else:
+        _print_credhunt_human(payload, command="credhunt")
+    return _credhunter_status_exit_code(payload, command="credhunt")
+
+
+def _cmd_credcheck(args: argparse.Namespace) -> int:
+    """``shishi credcheck``:凭证验证(+可选余额/身份探测)stdout payload.
+
+    Q7:余额/身份探测默认关,``--balance`` 显式开;Q8:串行 + 每供应商
+    RPM≤30(适配器内建 Pacer)。退出码:0 完成(rejected 是结论不是错误);
+    1 适配器缺失/记录形状坏;2 全部 transient(探测全败);3 部分 transient。
+    """
+    payload, exit_code = _run_credhunter_command(
+        args, command="credcheck", config_failure_codes=CREDCHECK_CONFIG_FAILURE_CODES
+    )
+    if payload is None:
+        return exit_code
+    if args.as_json:
+        _print_json(payload)
+    else:
+        _print_credhunt_human(payload, command="credcheck")
+    return _credhunter_status_exit_code(payload, command="credcheck")
+
+
+def _cmd_exposure(args: argparse.Namespace) -> int:
+    """``shishi exposure``:FOFA/Shodan 曝面 + L0 被动探测(调试/冒烟口).
+
+    退出码:0 成功(含无 key 显式空态,AC6);1 适配器缺失;2 全部查询
+    失败且零发现;3 部分查询失败。被动探测只做 L0 unauth_read。
+    """
+    payload, exit_code = _run_credhunter_command(
+        args, command="exposure", config_failure_codes=EXPOSURE_CONFIG_FAILURE_CODES
+    )
+    if payload is None:
+        return exit_code
+    if args.as_json:
+        _print_json(payload)
+    else:
+        _print_credhunt_human(payload, command="exposure")
+    return _credhunter_status_exit_code(payload, command="exposure")
+
+
+def _add_credhunt_parser(sub: argparse._SubParsersAction) -> None:
+    """``shishi credhunt``:GitHub 工件凭证猎取单轮直跑(myia-credhunter)."""
+    credhunt = sub.add_parser(
+        "credhunt",
+        help="GitHub 工件凭证猎取单轮直跑(myia-credhunter 插件,调试/冒烟口;正式产出走 engine: credhunter)",
+        description=(
+            "按供应商指纹库查询集跑 GitHub code search + commit message 两泳道,"
+            "联合正则十大密钥族全文匹配,产出掩码-only(前 8 后 4)发现。"
+            "无 token 该源不启用(退 1);查询预算 12/run(checkpoint 跨 run 轮转);"
+            "限速仅 403/429 退避(≤90s 只重试一轮)。授权边界:仅用于已授权"
+            "安全研究与自有/已授权资产排查。"
+        ),
+    )
+    credhunt.add_argument(
+        "--github-token",
+        dest="github_tokens",
+        action="append",
+        help="GitHub token(可重复=token 池;裸值或 env:/keychain: 引用均可)",
+    )
+    credhunt.add_argument(
+        "--query",
+        dest="queries",
+        action="append",
+        help="GitHub 搜索查询(可重复;缺省 = 指纹库全部包 github_terms 去重池)",
+    )
+    credhunt.add_argument(
+        "--checkpoint-file",
+        default=None,
+        help="跨 run 游标持久化文件(读入+写回;不传则单轮从头发起)",
+    )
+    credhunt.add_argument(
+        "--plugins-dir",
+        default=DEFAULT_PLUGINS_DIR,
+        help=f"插件目录(默认 ./{DEFAULT_PLUGINS_DIR},场景件位于 myia-credhunter/ 子目录)",
+    )
+    credhunt.add_argument("--json", dest="as_json", action="store_true", help="机器可读输出(单份 JSON,stdout)")
+
+
+def _add_credcheck_parser(sub: argparse._SubParsersAction) -> None:
+    """``shishi credcheck``:凭证验证 + 可选余额探测(myia-credhunter)."""
+    credcheck = sub.add_parser(
+        "credcheck",
+        help="凭证验证(models 三态)+ 可选余额/身份探测(myia-credhunter 插件)",
+        description=(
+            "对给定凭证批做 resolve(域名→前缀→unknown)→ models 三态验证"
+            "(final_verified/rejected/transient)→ 可选余额探测(--balance 显式开,"
+            "Q7)。串行 + 每供应商 RPM≤30(Q8);密钥全文只用于探测头,输出一律"
+            "掩码(Q9)。冒烟口径:自备活 key 验 final_verified + 构造死 key 验"
+            "rejected。"
+        ),
+    )
+    credcheck.add_argument(
+        "--apikey",
+        dest="apikeys",
+        action="append",
+        required=True,
+        help="待验证密钥(可重复;裸值或 env:/keychain: 引用均可)",
+    )
+    credcheck.add_argument(
+        "--apiurl",
+        default="",
+        help="API 基址归因提示(可空;空则按密钥前缀/规格官方基址)",
+    )
+    credcheck.add_argument(
+        "--balance",
+        action="store_true",
+        help="开余额/身份探测(默认关;Q7 决议:存活探测默认、余额显式)",
+    )
+    credcheck.add_argument(
+        "--plugins-dir",
+        default=DEFAULT_PLUGINS_DIR,
+        help=f"插件目录(默认 ./{DEFAULT_PLUGINS_DIR})",
+    )
+    credcheck.add_argument("--json", dest="as_json", action="store_true", help="机器可读输出(单份 JSON,stdout)")
+
+
+def _add_exposure_parser(sub: argparse._SubParsersAction) -> None:
+    """``shishi exposure``:FOFA/Shodan 曝面 + L0 被动探测(myia-credhunter)."""
+    exposure = sub.add_parser(
+        "exposure",
+        help="FOFA/Shodan 曝面发现 + L0 被动探测(myia-credhunter 插件,无 key 显式空态)",
+        description=(
+            "按指纹库查询集跑 FOFA(qbase64,页间 0.3s,24 查询/run)与 Shodan"
+            "(机械翻译查询,页间 1.0s,16 查询/run),命中目标做 L0 unauth_read"
+            "被动探测(2xx=未授权读发现,证据掩码+512 截断)。无 key 的 lane 显式"
+            "空态不报错(AC6);FOFA base 可配(官方/代理域部署者自决)。"
+        ),
+    )
+    exposure.add_argument("--fofa-key", default=None, help="FOFA key(裸值或 env:/keychain: 引用)")
+    exposure.add_argument(
+        "--fofa-base",
+        default=None,
+        help="FOFA base URL(官方/代理域部署者自决,刻意不写死;有 key 无 base → lane 显式 base_missing 空态)",
+    )
+    exposure.add_argument("--shodan-key", default=None, help="Shodan key(裸值或 env:/keychain: 引用)")
+    exposure.add_argument(
+        "--no-probe",
+        action="store_true",
+        help="跳过被动探测(只搜页不出曝面发现)",
+    )
+    exposure.add_argument(
+        "--plugins-dir",
+        default=DEFAULT_PLUGINS_DIR,
+        help=f"插件目录(默认 ./{DEFAULT_PLUGINS_DIR})",
+    )
+    exposure.add_argument("--json", dest="as_json", action="store_true", help="机器可读输出(单份 JSON,stdout)")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI 入口(pyproject console_scripts:``shishi = "myia.cli:main"``)。
 
@@ -2803,6 +3160,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         "skill": _cmd_skill,
         "osint": _cmd_osint,
         "proxy": _cmd_proxy,
+        "credhunt": _cmd_credhunt,
+        "credcheck": _cmd_credcheck,
+        "exposure": _cmd_exposure,
     }
     handler = handlers.get(args.command)
     if handler is not None:

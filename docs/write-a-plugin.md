@@ -16,12 +16,12 @@
 | 2 | `name` | Human-readable category name. |
 | 3 | `schedule` | Cron expression for pipeline runs. |
 | 4 | `timezone` | IANA timezone for the schedule (defaults to the system timezone). |
-| 5 | `sources` | Fetch sources. Per source: `engine` (auto / direct_api / static_html / crawl4ai / firecrawl / scrapling / stealth_browser / llm_browser — all implemented; L4–L6 have optional-dependency or external-service prerequisites, see the engine guide), `url` (supports `{placeholder}` templates), `method` (GET/POST; POST takes `post_body`), `headers` (credential refs only), `pagination` (`template` / `selector` / `scroll` + `max_pages`; `scroll` is honored by L4 scrapling, other engines reject it structurally and the auto chain degrades to L4), `extract` (`list` / `item` / `json_path` plus field selectors; `extract.url_template` renders per-item URLs from `{field}` placeholders when the payload carries none — slug/appid-only APIs, see plugins/games.yaml), `rate_limit` (qps / jitter / backoff / respect_robots), `proxy` (direct / pool:name / residential:region), `retry`. |
+| 5 | `sources` | Fetch sources. Per source: `engine` (auto / direct_api / static_html / crawl4ai / firecrawl / scrapling / stealth_browser / llm_browser — all implemented; L4–L6 have optional-dependency or external-service prerequisites, see the engine guide; plus the off-chain source engine `credhunter` — the in-process myia-credhunter scenario plugin assembles items itself and never joins the auto chain, explicit selection only), `url` (supports `{placeholder}` templates), `method` (GET/POST; POST takes `post_body`), `headers` (credential refs only), `pagination` (`template` / `selector` / `scroll` + `max_pages`; `scroll` is honored by L4 scrapling, other engines reject it structurally and the auto chain degrades to L4), `extract` (`list` / `item` / `json_path` plus field selectors; `extract.url_template` renders per-item URLs from `{field}` placeholders when the payload carries none — slug/appid-only APIs, see plugins/games.yaml), `rate_limit` (qps / jitter / backoff / respect_robots), `proxy` (direct / pool:name / residential:region), `retry`. |
 | 6 | `watchlist` | Relevance profile: `keywords` (boost) and `mute` (demote/archive); the baseline for the LLM relevance score. |
 | 7 | `classify` | First funnel: built-in seven-category keyword scan (`builtin`; unmatched titles drop) and/or custom `rules` (name / when expression / tag). Zero token. |
 | 8 | `dedup` | Dedup key template, e.g. `{symbol}-{date}` or `{url}`. Composite keys only — never title fingerprints. |
 | 9 | `enrich` | Second funnel: LLM precision scoring — `enabled`, `model` (any OpenAI-compatible endpoint), `scores` (value/relevance/credibility, 0–10), `batch`, `cache` (per-URL result cache), `budget_per_run` (token guardrail; exhausted → keyword-only for the rest of the run), plus `base_url` / `api_key` — each must be a pure `env:`/`keychain:` reference (世事 has no built-in endpoint and no default key). |
-| 10 | `push` | Delivery channels: `channel` (`feishu_card` / `telegram` / `ntfy` / `dingtalk` / `wecom` / `webhook` / `stdout`), `target` (`env:` / `keychain:` refs only; `stdout` takes none), `template` (Jinja2, optional), and webhook-only transport knobs `timeout` / `retries` / `retry_backoff_seconds`. |
+| 10 | `push` | Delivery channels: `channel` (`feishu_card` / `telegram` / `ntfy` / `dingtalk` / `wecom` / `weixin` / `webhook` / `stdout`), `target` (`env:` / `keychain:` refs only; `stdout` takes none), `template` (Jinja2, optional), and webhook-only transport knobs `timeout` / `retries` / `retry_backoff_seconds`. |
 | 11 | `push.route` | Threshold routing per channel, first match wins: `score >= 8` → `immediate`, `>= 5` → `digest` (AM/PM slots), `< 5` → `archive`. Score rules stay dormant until LLM scoring backfills a score. |
 | 12 | `storage` | Data lifecycle: `retention` (e.g. `90d`, expired items auto-purged) and `vacuum` (SQLite VACUUM cadence). |
 
@@ -97,6 +97,11 @@ token; details in `skill/SKILL.md` §2.13):
 - `ntfy`: `target` = `{server}/{topic}` string reference (e.g. `env:NTFY_TARGET`); optional auth token is read from `env:NTFY_TOKEN` (unset = anonymous public topic).
 - `dingtalk`: `target` = custom-robot webhook URL (`env:DINGTALK_WEBHOOK_URL`); optional HMAC signing secret via the `dingtalk_secret` field (unset = bare webhook).
 - `wecom`: `target` = touser userid (`env:WECOM_TUSER`); the self-built-app credentials are read from `env:WECOM_CORPID` / `env:WECOM_CORPSECRET` / `env:WECOM_AGENTID`.
+- `weixin`: optional bridge channel — outbound goes through the local Hermes-Agent CLI
+  (path overridable via `weixin_hermes_bin`); the login state lives only on the Hermes side,
+  MYIA itself holds zero credentials. `target` = conversation peer id (`env:WEIXIN_PEER_ID`,
+  direct push `weixin:<peer id>`); without a Hermes install, sends return a structured
+  `bridge_unavailable` error (the config still loads).
 - `webhook`: `target` = endpoint URL reference (e.g. `env:MYIA_WEBHOOK_URL`).
 - `stdout`: zero credentials, first choice for local verification.
 

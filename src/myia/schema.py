@@ -157,6 +157,8 @@ ENGINES = (
     "scrapling",
     "stealth_browser",
     "llm_browser",
+    # 链外源引擎(10-03-aipocket-fusion):显式选择才生效,不参与 auto 降级链。
+    "credhunter",
 )
 PAGINATION_MODES = ("template", "selector", "scroll")
 EXTRACT_TYPES = ("list", "item", "json_path", "rss")
@@ -173,7 +175,8 @@ BASELINE_WINDOWS = ("day", "week")
 REQUIRES_TOKENS = ("docker",)
 
 EngineName = Literal[
-    "auto", "direct_api", "static_html", "crawl4ai", "firecrawl", "scrapling", "stealth_browser", "llm_browser"
+    "auto", "direct_api", "static_html", "crawl4ai", "firecrawl", "scrapling", "stealth_browser", "llm_browser",
+    "credhunter",
 ]
 PaginationMode = Literal["template", "selector", "scroll"]
 ExtractType = Literal["list", "item", "json_path", "rss"]

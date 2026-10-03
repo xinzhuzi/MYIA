@@ -1,0 +1,111 @@
+# plugins/exposure.yaml — AI 基础设施曝面哨兵(FOFA/Shodan 发现 + L0 被动探测
+# + 本地文本分诊),场景件 myia-credhunter(10-03-aipocket-fusion R4/R3)。
+#
+# 授权边界(先读):仅用于已授权安全研究与自有/已授权资产的暴露面排查;
+# 不做大规模扫描、不滥用凭据;被动探测只做 L0 unauth_read(高危类
+# fail-closed 不开)。凭据命中物/证据快照按私有情报红线处理:items 与
+# 推送模板一律前 8 后 4 掩码(Q9),push 走 stdout(私有情报不出本机)。
+#
+# 引擎说明:engine: credhunter 是**链外源引擎**——注册于 EngineName 词表
+# 但不参与 auto 的 L1-L6 浏览器降级链(显式选择才生效,失败=源级结构化
+# 失败,不拦品类)。FOFA/Shodan 无 key 时该源显式空态(credential_missing
+# skip),不报错不静默(AC6);key 全走 keychain: 引用,禁明文。
+id: exposure
+name: 曝面哨兵
+schedule: "0 3 * * *"                # 每日 03:00(曝面变化低频,日巡足够)
+timezone: Asia/Shanghai
+
+plugin:                              # 场景件声明(进程内纯源码形态)
+  id: myia-credhunter
+  requires: []                       # 零 docker 零服务(desktop 分级)
+  modes:
+    local:
+      install: myia plugin install plugins/myia-credhunter
+
+sources:
+  # R4 曝面发现源:FOFA + Shodan 搜页(指纹库查询集)→ 命中目标 L0 被动探测。
+  # 无 key 的 lane 显式空态;query 预算/页间限速走插件缺省(FOFA 24/run、
+  # 0.3s 页间;Shodan 16/run、1.0s 页间,Q8)。fofa_base 官方/代理域由
+  # 部署者自决(上游默认第三方代理域,本仓刻意不写死)。
+  - name: exposure-scan
+    engine: credhunter
+    url: "https://fofa.info"         # 上游锚点(真实调用走 engine_options)
+    engine_options:
+      credhunter:
+        lane: exposure
+        fofa_apikey: keychain:myia/credhunter/fofa-key
+        # myia secret set myia/credhunter/fofa-key
+        fofa_base: https://fofa.info
+        shodan_apikey: keychain:myia/credhunter/shodan-key
+        # myia secret set myia/credhunter/shodan-key
+    proxy: direct
+    retry: 0                         # 泳道自带页间限速与逐查询降级,不吃引擎重试
+
+  # R3 手工分诊源(本地扫描 lane,零出网):把可疑日志/配置/diff 片段贴进
+  # documents,指纹库(十大密钥族 + 17 细正则 + 变量名归因)扫描后进全链。
+  # 下方示例键为**人工合成占位**(不对应任何真实账号),仅作通道演示。
+  - name: manual-triage
+    engine: credhunter
+    url: "https://api.github.com"    # 占位锚点:scan lane 不发任何请求
+    engine_options:
+      credhunter:
+        lane: scan
+        documents:
+          - text: |
+              # 待分诊片段贴在这里(示例为合成键):同文本多键会先彼此
+              # 掩码再截断进 content(Q9),全文密钥永不入 items。
+              export OPENAI_API_KEY="sk-4f1c9d2e8b7a6305abcd"
+            url: "https://example.com/triage/config.env"
+            source_type: manual
+            file_path: config.env
+    proxy: direct
+    retry: 0
+
+watchlist:
+  keywords: [泄露, 暴露, 未授权, 凭证, apikey]
+  mute: [广告]
+
+classify:                            # 凭证/曝面情报不走七大资讯类内置词典
+  builtin: false
+  rules:
+    - name: credential-leak
+      when: "'疑似泄露凭证' in title"
+      tag: credential-leak
+    - name: unauth-read
+      when: "vuln_class == 'unauth_read'"
+      tag: exposure
+    - name: provider-watch
+      when: "provider != '' and provider != 'unknown'"
+      tag: attribution
+
+dedup:
+  key: "{url}"                       # 曝面 finding 的 url=探测路径(同路径复探
+                                     # 拦截);分诊条目 url=证据 URL。两类 item
+                                     # 字段形状不同(host/product vs provider/
+                                     # key_fingerprint),{url} 是两者共有的
+                                     # 稳定身份,故不取字段组合键。
+
+enrich:
+  enabled: false                     # 掩码-only 红线:命中物不进 LLM 上下文
+  model: glm-4-flash
+  scores: [value, relevance, credibility]
+  batch: 20
+  cache: true
+  budget_per_run: 50000
+
+push:
+  - channel: stdout                  # Q9:私有情报不出本机,官方品类默认 stdout
+    route:
+      - when: "vuln_class == 'unauth_read'"
+        mode: immediate              # 曝面发现即时报(本机 stdout 卡片)
+      - when: "'疑似泄露凭证' in title"
+        mode: digest                 # 凭证命中走摘要(供人工复核后处置)
+    template: |
+      **曝面哨兵 · {{ date }}**
+      {% for item in items %}
+      - {{ item.title }}
+      {% endfor %}
+
+storage:
+  retention: 90d
+  vacuum: monthly

@@ -517,12 +517,14 @@ class TestAdapterRun:
             "credhunt": "credential_missing",
             "exposure_fofa": "credential_missing",
             "exposure_shodan": "credential_missing",
-            "credcheck": "scheduled",
+            # credcheck 的输入是 records(要验的密钥),不看 lane 凭据
+            "credcheck": "ready",
         }
 
-    def test_lane_with_credential_reports_scheduled(self, adapter):
+    def test_lane_with_credential_reports_ready(self, adapter):
+        # 接线段起出网 lane 已落地:有凭据 = ready(不再是排期态 scheduled)
         payload = adapter.run(documents=[], github_token="host-injected-placeholder")
-        assert payload["lanes"]["credhunt"] == "scheduled"
+        assert payload["lanes"]["credhunt"] == "ready"
 
     def test_invalid_document_raises_structured_error(self, adapter):
         with pytest.raises(adapter.CredhunterError) as exc_info:

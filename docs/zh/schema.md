@@ -30,7 +30,7 @@
 
 | schema 常量 | 取值 |
 |---|---|
-| `ENGINES` | `auto` `direct_api` `static_html` `crawl4ai` `firecrawl` `scrapling` `stealth_browser` `llm_browser` |
+| `ENGINES` | `auto` `direct_api` `static_html` `crawl4ai` `firecrawl` `scrapling` `stealth_browser` `llm_browser` `credhunter` |
 | `PAGINATION_MODES` | `template` `selector` `scroll` |
 | `EXTRACT_TYPES` | `list` `item` `json_path` `rss` |
 | `BACKOFF_POLICIES` | `exponential` `linear` `none` |
@@ -82,7 +82,7 @@
 | 字段 | 缺省 | 语义 |
 |---|---|---|
 | `name` | `必填` | 源名(1-64 字符,插件内唯一,doctor/test 按它定位) |
-| `engine` | `auto` | 引擎名(见词汇表;auto 按降级链,选中回写 SQLite hints 不回写 YAML) |
+| `engine` | `auto` | 引擎名(见词汇表;auto 按降级链,选中回写 SQLite hints 不回写 YAML)。`credhunter` 是**链外源引擎**:不抓取 url、由进程内场景件 myia-credhunter 就地装配 items(GitHub 工件猎取/FOFA-Shodan 曝面/本地文本分诊),不参与 auto 降级链,显式选择才生效;凭据经 `engine_options.credhunter.{github_tokens,fofa_apikey,shodan_apikey}` 引用注入,无 key 的曝面 lane 显式空态(AC6) |
 | `url` | `必填` | http(s) 地址;支持 `{placeholder}` 模板(翻页 `{page}`、扇出 `{symbol}`) |
 | `method` | `GET` | `GET` / `POST`;POST 必配 `post_body`,GET 禁止 |
 | `post_body` | `null` | POST 表单/JSON 体(映射);凭据键同 headers 禁明文 |

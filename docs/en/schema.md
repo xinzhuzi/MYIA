@@ -34,7 +34,7 @@ entry point): `plugin:` (scenario plugin dual mode, v0.3), `baseline:`
 
 | schema constant | values |
 |---|---|
-| `ENGINES` | `auto` `direct_api` `static_html` `crawl4ai` `firecrawl` `scrapling` `stealth_browser` `llm_browser` |
+| `ENGINES` | `auto` `direct_api` `static_html` `crawl4ai` `firecrawl` `scrapling` `stealth_browser` `llm_browser` `credhunter` |
 | `PAGINATION_MODES` | `template` `selector` `scroll` |
 | `EXTRACT_TYPES` | `list` `item` `json_path` `rss` |
 | `BACKOFF_POLICIES` | `exponential` `linear` `none` |
@@ -94,7 +94,7 @@ entry point): `plugin:` (scenario plugin dual mode, v0.3), `baseline:`
 | Field | Default | Semantics |
 |---|---|---|
 | `name` | required | Source name (1-64 chars, unique within the plugin; doctor/test locate by it) |
-| `engine` | `auto` | Engine name (see vocabulary; `auto` walks the degrade chain, the winner is recorded in SQLite hints, never in your YAML) |
+| `engine` | `auto` | Engine name (see vocabulary; `auto` walks the degrade chain, the winner is recorded in SQLite hints, never in your YAML). `credhunter` is an **off-chain source engine**: it never fetches the url — the in-process scenario plugin myia-credhunter assembles items itself (GitHub artifact hunting / FOFA-Shodan exposure / local text triage); it never joins the auto chain and only takes effect when selected explicitly. Credentials arrive via `engine_options.credhunter.{github_tokens,fofa_apikey,shodan_apikey}` references; keyless exposure lanes degrade to an explicit empty state |
 | `url` | required | http(s) address; supports `{placeholder}` templates (`{page}` paging, `{symbol}` fan-out) |
 | `method` | `GET` | `GET` / `POST`; POST requires `post_body`, GET forbids it |
 | `post_body` | `null` | POST form/JSON body (mapping); credential keys are plaintext-refused like headers |

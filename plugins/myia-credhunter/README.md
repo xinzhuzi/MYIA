@@ -1,9 +1,15 @@
 # myia-credhunter — 凭证猎手(credhunt / credcheck / exposure)
 
-官方场景件,v0.1 骨架。把「发现 → 验证/余额 → 曝面」三段 AI 凭证情报
-能力**原生**融进 MYIA 管线的进程内插件(desktop 分级,零 Docker 零服务
-依赖)。已部署 aipocket 实例的远程聚合接入走姊妹件 `myia-credentials`
-(remote 分级),两件共存、互不替代。
+官方场景件。把「发现 → 验证/余额 → 曝面」三段 AI 凭证情报能力**原生**
+融进 MYIA 管线的进程内插件(desktop 分级,零 Docker 零服务依赖)。已部署
+aipocket 实例的远程聚合接入走姊妹件 `myia-credentials`(remote 分级,
+endpoint + token 填在 `plugins/credentials.yaml` 的 plugin 节),两件共存、
+互不替代。
+
+**桌面路径**(desktop 分级的缺省形态):仓库即插件——品类 YAML 写
+`engine: credhunter`(链外源引擎,不进 auto 的 L1-L6 降级链),宿主经
+compile+exec 动态加载本目录 `adapter.py`,密钥一律 keychain 引用、由宿主
+解析后注入;零 Docker、零后台服务。
 
 ## 授权定位(先读,硬边界)
 
@@ -28,33 +34,58 @@ behavior-specs/`),零上游代码复制、不搬上游标识符/文案/注释;�
 
 | 能力名 | 段 | 状态 |
 |---|---|---|
-| `credhunt` | GitHub 工件凭证猎取(code search + commit message 两泳道,联合正则十大族) | v0.1 骨架:指纹库 + 本地扫描已落地,出网猎取排期件 |
-| `credcheck` | 凭证验证(models 三态)+ 余额/身份探测 | 排期件(读库后处理,CLI 子命令形态) |
-| `exposure` | FOFA/Shodan 曝面发现 + L0 被动探测 | 排期件;无 key 时显式空态不报错 |
+| `credhunt` | GitHub 工件凭证猎取(code search + commit message 两泳道,联合正则十大族) | 已落地:引擎 lane(`engine_options.credhunter.lane: credhunt`)+ CLI 冒烟口 `shishi credhunt` |
+| `credcheck` | 凭证验证(models 三态)+ 余额/身份探测 | 已落地:CLI 子命令 `shishi credcheck`(读库→探测的后处理,不走引擎) |
+| `exposure` | FOFA/Shodan 曝面发现 + L0 被动探测 | 已落地:引擎 lane(`lane: exposure`)+ CLI 冒烟口 `shishi exposure`;无 key 显式空态 |
 
-v0.1 已落地:供应商指纹库(发现层 20 查询包 + 验证层 25 规格,数据
-文件化,`credhunter/data/*.yaml` —— **加供应商 = 加数据不改码**)、
-密钥指纹(联合正则十大族 + 17 条细正则 + 变量名归因表 + 噪声过滤)、
-items 形状与 Q9 掩码、适配器双入口(引擎面 `fetch` 异步 / CLI 面 `run`
-同步)。
+供应商指纹库(发现层 20 查询包 + 验证层 25 规格,数据文件化,
+`credhunter/data/*.yaml` —— **加供应商 = 加数据不改码**)、密钥指纹
+(联合正则十大族 + 17 条细正则 + 变量名归因表 + 噪声过滤)、items 形状
+与 Q9 掩码、适配器多入口(引擎面 `fetch`/`fetch_hunt`/`fetch_exposure`
+异步,CLI 面 `run`/`run_credhunt`/`run_credcheck`/`run_exposure` 同步)。
 
 ## 接入
 
-### 品类 YAML(引擎通路,排期接线)
+### 品类 YAML(引擎通路,正式产出)
 
-品类 source 写 `engine: credhunter`(EngineName 注册属接线段任务),
-适配器 `fetch(documents)` 产出管线 items,下游 classify/dedup/store/push
-零改动复用。dedup 键建议直接引用指纹库口径:
+品类 source 写 `engine: credhunter`(链外源引擎:不抓 url、不进 auto
+降级链,显式选择才生效),lane 经 `engine_options.credhunter` 选择;产出
+items 进 classify→dedup→store→push 全链,下游零改动。dedup 键:纯凭证类
+品类建议字段组合({title} 永不进键):
+
+```yaml
+sources:
+  - name: github-hunt
+    engine: credhunter
+    url: "https://api.github.com"      # 上游锚点(不抓取)
+    engine_options:
+      credhunter:
+        lane: credhunt                 # credhunt / exposure / scan
+        github_tokens:
+          - keychain:myia/credhunter/github-token
+```
 
 ```yaml
 dedup:
   key: "{provider}-{key_fingerprint}"   # 结构化字段组合,{title} 永不进键
 ```
 
-### CLI(宿主动态加载)
+官方品类示例:`plugins/credentials.yaml`(credhunt lane,native 主力 +
+remote 聚合共存)、`plugins/exposure.yaml`(exposure + scan 双源)。
+
+### CLI(宿主动态加载,调试/冒烟口)
 
 宿主按 `plugins/myia-credhunter/adapter.py` compile+exec 挂载(与
-`myia proxy` 同一加载器),密钥一律**经参数注入**:
+`myia proxy` 同一加载器),密钥一律**经参数注入**;`--json` 下 stdout 恒
+单份 JSON,退出码族 0 成功/1 配置错/2 全败/3 部分败:
+
+```bash
+shishi credhunt --github-token keychain:myia/credhunter/github-token --json
+shishi credcheck --apikey "sk-..." --balance --json   # 冒烟:自备活 key + 构造死 key
+shishi exposure --fofa-key keychain:myia/credhunter/fofa-key --json
+```
+
+进程内(测试/引擎侧)同款入口:
 
 ```python
 adapter.run(documents=[{"text": "...", "url": "https://github.com/o/r/blob/...", "source_type": "code_snapshot"}])

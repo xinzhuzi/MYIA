@@ -55,6 +55,15 @@ YAML(或环境)→ 复验,用户只做决策。
 | L5 | `stealth_browser` | 强风控页面(反检测浏览器,经 MCP 协议驱动) | 需 Playwright-MCP 服务器;单 run 页面预算 `engine_options.stealth_browser.max_pages`(默认 10);源 `headers.Cookie` 可注入过登录墙 |
 | L6 | `llm_browser` | 以上全部失败的最后手段(LLM 驱动浏览器,skyvern) | 烧 token 只做兜底;`MYIA_SKYVERN_URL` / `MYIA_SKYVERN_API_KEY` 或 `engine_options.llm_browser.endpoint/api_key` 引用 |
 
+**链外源引擎 `credhunter`**(不在 L1-L6 层级里):进程内场景件
+`myia-credhunter`(见 `plugins/myia-credhunter/`)——items 由适配器就地装配,
+不抓取 `url`。三条 lane 经 `engine_options.credhunter.lane` 选择:
+`credhunt`(GitHub 工件猎取,token 池引用注入,无 token 显式空态不启用)、
+`exposure`(FOFA/Shodan 曝面 + L0 被动探测,无 key 显式空态)、
+`scan`(本地文本分诊,零出网)。**不参与 auto 降级链**,显式选择才生效,
+失败=源级结构化失败,不拦品类。授权用途:仅限已授权安全研究与自有/已授权
+资产的凭证泄露排查;命中物一律前 8 后 4 掩码。
+
 经验法则:先看页面源码——搜得到数据写 L2,搜不到找 API 走 L1,JS 化才 L3;
 拿不准就 `engine: auto`,用 `shishi test --json` 看实际选中引擎(`engine` 字段)。
 不要给 API 源写 CSS 选择器,不要给 SSR 页面写 json_path。所有引擎默认尊重
@@ -182,6 +191,7 @@ push:
 - `ntfy`:`target` = `{server}/{topic}` 整串引用(如 `env:NTFY_TARGET`),可选鉴权 token 从 `env:NTFY_TOKEN` 读(未设 = 匿名公共 topic)。
 - `dingtalk`:`target` = 自定义机器人 webhook URL(`env:DINGTALK_WEBHOOK_URL`),可选加签密钥配 `dingtalk_secret` 字段(不配 = 裸 webhook)。
 - `wecom`:`target` = touser userid(`env:WECOM_TUSER`),自建应用三凭据从`env:WECOM_CORPID` / `env:WECOM_CORPSECRET` / `env:WECOM_AGENTID` 读。
+- `weixin`:可选桥接通道——出站经本机 Hermes-Agent CLI(路径可用 `weixin_hermes_bin` 覆写),登录态只存 Hermes 侧、MYIA 零凭据;`target` = 会话 peer id(`env:WEIXIN_PEER_ID`,定向写 `weixin:<peer id>`),无 Hermes 环境时发送返回 `bridge_unavailable` 结构化错误(配置照常加载)。
 - `webhook`:`target` = 端点 URL 引用(如 `env:MYIA_WEBHOOK_URL`)。
 - `stdout`:零凭据,本地验证首选。
 
