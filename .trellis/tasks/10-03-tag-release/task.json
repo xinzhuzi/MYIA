@@ -3,7 +3,7 @@
   "name": "tag-release",
   "title": "tag 驱动发布:推 tag 才打包(桌面/Docker/PyPI 统一走 GitHub Release)",
   "description": "主人纠偏(2026-10-03):打包逻辑错误——发布应由推 v* tag 表示、用 GitHub 原生功能承载,而非现在\"很多个版本\"。取证:Docker 在 main 每次推送都发 GHCR 镜像(当日 15+ 次,每次堆一个 sha 版本)=版本堆积直接来源;PyPI 仅手动 dispatch 从未跑过、不构成发布语义;desktop-release.yml 已是 tag 触发且 v1.1.1 一次成功,不动。目标:一个 tag 一次完整发布(桌面 Release+GHCR 镜像+PyPI 双包+wheels 附 Release 页),main 推送零发布物。",
-  "status": "planning",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -29,6 +29,6 @@
     "docs/launch/jike-draft.md",
     "CHANGELOG.md"
   ],
-  "notes": "",
+  "notes": "2026-10-03 工作流改造开工 | 2026-10-03 执行完毕转 review(dwfrun-cc671057 质检+主会话收口;真 E2E 推 v0.0.1 tag 留主人)",
   "meta": {}
 }

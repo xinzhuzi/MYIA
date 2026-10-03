@@ -1,9 +1,15 @@
 # PyPI Publish — shishi-classifier / shishi 双包发行(1.1.1 起发行名随世事更名;模块名 myia/myia_classifier 过渡保留,模块改名后同步此处校验)(PRD 10-01-v10-classifier-pypi)。
-# 仅手动触发(workflow_dispatch),与 CI/Docker 发布刻意分离:CI 管测试,Docker 管镜像,本文件管 PyPI。
+# tag 驱动发布(10-03-tag-release):推 v* tag 即正式发布;手动 dispatch 保留为演练通道。
+# 与 CI/Docker 发布刻意分离:CI 管测试,Docker 管镜像,本文件管 PyPI。
 #
 # ── 触发方式 ─────────────────────────────────────────────────────────────────
-#   GitHub 仓库页 → Actions → "PyPI Publish" → Run workflow → 选目标仓库 + package + 鉴权方式。
-#   本工作流没有 push/tag 触发器,推送合并永远不会误发 PyPI。
+#   正式发布 = 推 v* tag:双包同发(shishi + shishi-classifier)到正式 PyPI
+#   (OIDC Trusted Publishing),wheels/sdist 附挂到同 tag 的 GitHub Release
+#   (见 attach-release job);tag 事件下 inputs 全为空串,三处解析均按 tag 语义
+#   落位(repository→pypi / package→both / use-api-token→false 走 OIDC)。
+#   手动 dispatch = 演练与兜底:GitHub 仓库页 → Actions → "PyPI Publish" →
+#   Run workflow → 选目标仓库 + package + 鉴权方式;默认 test-pypi 演练,
+#   也可显式选 pypi 兜底(PyPI 禁止同版本覆盖,重发必须 bump 版本)。
 #
 # ── Trusted Publishing 四元组(owner 发布前在 PyPI 侧按此核对)──────────────────
 #   owner             = xinzhuzi
@@ -34,10 +40,14 @@
 name: PyPI Publish
 
 on:
+  # tag 驱动(10-03-tag-release):推 v* tag = 正式发布(push 事件 inputs 全空串,
+  # 由各步骤解析为 tag 语义:双包 + 正式 PyPI + OIDC;dispatch 演练不受影响)。
+  push:
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       repository:
-        description: "目标仓库:test-pypi = TestPyPI 演练(默认),pypi = 正式发布"
+        description: "目标仓库:test-pypi = TestPyPI 演练(默认),pypi = 正式发布;tag 触发固定 pypi,本选项仅对手动 dispatch 生效"
         type: choice
         default: test-pypi
         options:
@@ -73,6 +83,65 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
+      - name: 守卫:tag 与包版本一致性(仅 tag 事件)
+        # 先于一切构建/上传:版本不符即红,零产物离库(10-03-tag-release 决议 5)。
+        # 仅 push tag 触发时运行,dispatch 演练不拦;TAG 经 env(GITHUB_REF_NAME)
+        # 取再 shell 去前缀,不内插 ${{ }},杜绝表达式注入面。
+        # 硬拦:两个 pyproject version 任一 != tag#v → 中文 ::error + exit 1;
+        # 软警:桌面侧(tauri.conf.json / Cargo.toml)不符仅 ::warning——桌面打包
+        # 版本本就从 tag 注入,无漂移面,警告只为四件套纪律可见。
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG_REF: ${{ github.ref_name }}
+        run: |
+          TAG="${TAG_REF#v}"
+          # 1) 格式守卫:v* glob 会放进 vfoo 这类非版本 tag,先拦掉
+          if ! [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::tag「${TAG_REF}」不是语义化版本(期望 vX.Y.Z 或 vX.Y.Z-rc.N 这类预发布形态);发布 tag 请对照 pyproject version 打。"
+            exit 1
+          fi
+          export TAG
+          python - <<'PY'
+          import json, os, pathlib, tomllib
+
+          tag = os.environ["TAG"]
+
+          def toml_version(path):
+              return tomllib.loads(pathlib.Path(path).read_text(encoding="utf-8"))["project"]["version"]
+
+          root_ver = toml_version("pyproject.toml")
+          clf_ver = toml_version("myia-classifier/pyproject.toml")
+          tauri_ver = json.loads(pathlib.Path("desktop/src-tauri/tauri.conf.json").read_text(encoding="utf-8"))["version"]
+          cargo_ver = tomllib.loads(pathlib.Path("desktop/src-tauri/Cargo.toml").read_text(encoding="utf-8"))["package"]["version"]
+
+          # 硬拦:双 pyproject 必须与 tag 一致(四处事实源:tag / 根 pyproject /
+          # classifier pyproject / 桌面两件,版本纪律见 RELEASE.md)
+          for label, actual, path in (
+              ("根 pyproject", root_ver, "pyproject.toml"),
+              ("classifier pyproject", clf_ver, "myia-classifier/pyproject.toml"),
+          ):
+              if actual != tag:
+                  print(
+                      f"::error::版本不一致:tag={tag},{label}={actual}({path})。"
+                      f"当前三值:tag={tag} / pyproject.toml={root_ver} / "
+                      f"myia-classifier/pyproject.toml={clf_ver};桌面侧参考:"
+                      f"desktop/src-tauri/tauri.conf.json={tauri_ver} / Cargo.toml={cargo_ver}。"
+                      "请把版本四件套与 tag 同 bump 后重推 tag。"
+                  )
+          if root_ver != tag or clf_ver != tag:
+              raise SystemExit(1)
+
+          # 软警:桌面两件不符仅告警,不拦
+          for label, actual, path in (
+              ("tauri.conf.json", tauri_ver, "desktop/src-tauri/tauri.conf.json"),
+              ("Cargo.toml", cargo_ver, "desktop/src-tauri/Cargo.toml"),
+          ):
+              if actual != tag:
+                  print(f"::warning::桌面版本软校验不符:{path}={actual} != tag={tag}(桌面打包版本从 tag 注入,不拦截;{label} 建议随四件套同 bump。)")
+
+          print(f"版本守卫通过:tag={tag} = 根 pyproject={root_ver} = classifier pyproject={clf_ver}")
+          PY
+
       - name: Build distributions
         # uv workspace 双包:根包(myia)与 myia-classifier 是两个独立发行,
         # 分两步 uv build,--out-dir 统一收口到仓库根 dist/(成员默认写各自 dist/)。
@@ -83,7 +152,9 @@ jobs:
           case "$PACKAGE" in
             myia-classifier) uv build myia-classifier --wheel --sdist --out-dir dist ;;
             myia)            uv build . --wheel --sdist --out-dir dist ;;
-            both)
+            both|"")
+              # 空串 = tag 事件(push 下 inputs.* 全为空串),tag 发布语义 = 双包
+              # 同发(shishi 依赖 shishi-classifier),与 both 同分支。
               uv build myia-classifier --wheel --sdist --out-dir dist
               uv build . --wheel --sdist --out-dir dist
               ;;
@@ -107,6 +178,8 @@ jobs:
               "myia-classifier": ["myia_classifier"],
               "myia": ["myia"],
               "both": ["myia_classifier", "myia"],
+              # 空串 = tag 事件(push 下 inputs.* 全为空串)= 双包同发,与 both 同
+              "": ["myia_classifier", "myia"],
           }.get(package)
           if projects is None:
               sys.exit(f"unknown package input: {package!r}")
@@ -190,11 +263,12 @@ jobs:
         run: |
           case "$REPOSITORY" in
             test-pypi) url="https://test.pypi.org/legacy/" ;;
-            pypi)      url="https://upload.pypi.org/legacy/" ;;
+            # 空串 = tag 事件(push 下 inputs.* 全为空串):tag 即正式发布语义,固定 pypi
+            pypi|"")   url="https://upload.pypi.org/legacy/" ;;
             *) echo "::error::未知 repository 输入:${REPOSITORY}(应为 test-pypi 或 pypi)" ; exit 1 ;;
           esac
           echo "REPOSITORY_URL=${url}" >> "$GITHUB_ENV"
-          echo "上传目标:${REPOSITORY} → ${url}"
+          echo "上传目标:${REPOSITORY:-tag 事件→固定 pypi} → ${url}"
 
       - name: Check API token is configured (token mode only)
         # 守卫:token 模式但 PYPI_API_TOKEN 未配置 → 立刻中文报错,
@@ -229,3 +303,27 @@ jobs:
           repository-url: ${{ env.REPOSITORY_URL }}
           password: ${{ secrets.PYPI_API_TOKEN }}
           verbose: true
+
+  attach-release:
+    # 仅 tag 事件:把 PyPI 产物(wheel/sdist)附挂到同 tag 的 GitHub Release 页,
+    # 与桌面资产同页(softprops 对已存在 Release 按 tag 追加资产,desktop-release
+    # 双 job 并发调用已有先例);dispatch 演练被 if 排除,TestPyPI 产物不污染 Release。
+    needs: publish
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write  # 仅本 job 提权以创建/更新 Release;build/publish 维持 contents: read(+id-token)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Attach wheels/sdist to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/*.whl
+            dist/*.tar.gz

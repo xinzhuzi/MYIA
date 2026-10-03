@@ -1,14 +1,13 @@
-# Builds and publishes the 世事 server image to GHCR (ghcr.io/xinzhuzi/shishi).
-# Separate from ci.yml on purpose: CI gates tests on every push/PR; this
-# workflow only ships images.
+# 构建并发布 世事 服务端镜像到 GHCR(ghcr.io/xinzhuzi/shishi)。
+# 仅 tag 发布:推送 v* tag 才产镜像(main 推送不产镜像,只跑 ci.yml 门禁);
+# 预发布 tag(如 v1.2.0-rc.1)只出版本镜像 tag,不移动 latest。
+# 与 ci.yml 刻意分离:CI 管 push/PR 测试门禁,本工作流只管发镜像。
 
 name: Docker Publish
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
-  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
@@ -43,11 +42,13 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # 仅 semver 一条:X.Y.Z;latest 交给下方 flavor(官方语义,semver 感知预发布)。
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=tag
             type=semver,pattern={{version}}
-            type=sha
+          # 默认即 auto,显式声明便于阅读;预发布 tag 不移动 latest——
+          # v1.2.0-rc.1 只产 1.2.0-rc.1,正式版才滚动 latest。
+          flavor: |
+            latest=auto
 
       - name: Build and push
         uses: docker/build-push-action@v6

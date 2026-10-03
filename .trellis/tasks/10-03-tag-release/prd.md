@@ -66,13 +66,13 @@ Frontier 复核:八问彼此独立、答复未引出新分叉,grill 收口。
 
 ## Acceptance Criteria
 
-- [ ] **AC1** `docker-publish.yml` 触发改为仅 push tag `v*`,**无 dispatch**;push main 不再发镜像。
-- [ ] **AC2** GHCR tag 策略:`type=semver,pattern={{version}}` + 官方 `flavor: latest=auto`;移除 sha / ref-tag / raw-latest 三条;tag 发布只产 `X.Y.Z`+`latest` 两镜像 tag;**预发布 tag(rc/beta)不移动 `latest`**。
-- [ ] **AC3** `pypi-publish.yml` 增加 push tag `v*` 触发,tag 事件三处空输入全解析正确:`repository`→`pypi`、`package`→`both`、`use-api-token`→false(OIDC);dispatch 演练路径原样(默认 test-pypi)。
-- [ ] **AC4** 版本守卫(tag 事件专属,先于 build):tag 格式校验(`v` + 语义化版本)+ `tag#v` == 根 pyproject version == myia-classifier pyproject version,不符中文 `::error` 列四处事实源当前值;tauri.conf.json / Cargo.toml 不符仅 `::warning`。
-- [ ] **AC5** 新增 `attach-release` job(仅 tag 事件、`needs: publish`、job 级 `contents: write`):PyPI 产物附到 `github.ref_name` 的 Release(已存在则追加,与桌面资产同页)。
-- [ ] **AC6** `docs/launch/RELEASE.md` 改写为 tag 驱动 runbook(逐节改写映射见 implement.md Step 4):版本四件套同 bump → CHANGELOG → commit → 推 tag → 三通道预期产物核对 → GHCR 版本管理节(存量清理入口+untagged manifest 说明);`CHANGELOG.md` `[Unreleased]` 落本次变更;`jike-draft.md` 核对并记结论。
-- [ ] **AC7** runbook 含 GHCR 历史版本手工清理入口(Packages → shishi → versions),注明属主人操作;本任务不执行任何删除。清理时点=首个 tag E2E 全绿后**全清**(决议 9 修订 grill Q4:`1.1.1`/`v1.1.1`/`sha-*` 一并删)。
+- [x] **AC1** `docker-publish.yml` 触发改为仅 push tag `v*`,**无 dispatch**;push main 不再发镜像。
+- [x] **AC2** GHCR tag 策略:`type=semver,pattern={{version}}` + 官方 `flavor: latest=auto`;移除 sha / ref-tag / raw-latest 三条;tag 发布只产 `X.Y.Z`+`latest` 两镜像 tag;**预发布 tag(rc/beta)不移动 `latest`**。
+- [x] **AC3** `pypi-publish.yml` 增加 push tag `v*` 触发,tag 事件三处空输入全解析正确:`repository`→`pypi`、`package`→`both`、`use-api-token`→false(OIDC);dispatch 演练路径原样(默认 test-pypi)。
+- [x] **AC4** 版本守卫(tag 事件专属,先于 build):tag 格式校验(`v` + 语义化版本)+ `tag#v` == 根 pyproject version == myia-classifier pyproject version,不符中文 `::error` 列四处事实源当前值;tauri.conf.json / Cargo.toml 不符仅 `::warning`。
+- [x] **AC5** 新增 `attach-release` job(仅 tag 事件、`needs: publish`、job 级 `contents: write`):PyPI 产物附到 `github.ref_name` 的 Release(已存在则追加,与桌面资产同页)。
+- [x] **AC6** `docs/launch/RELEASE.md` 改写为 tag 驱动 runbook(逐节改写映射见 implement.md Step 4):五处版本源同 bump(决议 9 口径)→ CHANGELOG → commit → 推 tag → 三通道预期产物核对 → GHCR 版本管理节(存量清理入口+untagged manifest 说明);`CHANGELOG.md` `[Unreleased]` 落本次变更;`jike-draft.md` 核对并记结论。
+- [x] **AC7** runbook 含 GHCR 历史版本手工清理入口(Packages → shishi → versions),注明属主人操作;本任务不执行任何删除。清理时点=首个 tag E2E 全绿后**全清**(决议 9 修订 grill Q4:`1.1.1`/`v1.1.1`/`sha-*` 一并删)。
 - [ ] **AC8** 结构验证:改动 yml 过 actionlint(获取方式见 implement.md Step 3,本机未装有 brew 可装)+ YAML 解析兜底 + `git diff --stat` 范围核对(只含预期文件);真 E2E(推下一个真实 tag,预期 v1.1.2)留主人,runbook 写明核对清单。
 
 ## 不做的事
@@ -97,6 +97,12 @@ Frontier 复核:八问彼此独立、答复未引出新分叉,grill 收口。
 | 本仓库并发 softprops 挂同一 Release 已有先例 | desktop-release.yml macos/windows 两 job 同 tag 并行调用,v1.1.1 实证无冲突 |
 | push 事件 `inputs.*` 为空串 | GitHub Actions inputs 语义(仅 workflow_dispatch/workflow_call 填充);与现工作流 case 语句逐行比对确认会红 |
 | actionlint 本机未装、brew 在 | `command -v` 实测 |
+
+## 验收勾档(2026-10-03 执行完毕,dwfrun-cc671057 质检 + 主会话收口)
+
+- **AC1-AC7 passed**(独立质检员两轮实测:docker-publish 仅 push tags v* 零 dispatch / 单条 semver+flavor latest=auto / pypi 三处空输入分支 both·pypi·OIDC / 守卫先于 build 且中文报错+TAG 走 env / attach-release 仅 tag 事件单 job 提权 / runbook 全文改写含 jike 结论与 GHCR 全清节:268 / 四元组 Repository 已正名 shishi)。
+- **AC8 结构半 passed**(actionlint 3 文件 0 error + rg 违禁残留 0 + diff 范围核对 + 守卫抽出真跑:0.0.1 放行/9.9.9 拦/vfoo 拦);**E2E 半待主人**(推 v0.0.1 tag,清单在 implement.md Step 5)。
+- 质检两发现流内修复:RELEASE.md:75「世事」→shishi、AC6 措辞四件套→五源。CHANGELOG 混线 hunk 按纪律不入笔,条目随在途文件走(质检已证条目落盘)。
 | 下一个 tag 预期 v1.1.2 | `docs/launch/jike-draft.md` 口径已按 1.1.2 定稿 |
 
 ## Notes
