@@ -60,7 +60,7 @@
 | D1 | .github/workflows/ci.yml | Rust(src-tauri)push/PR 零编译检查,仅 tag 发版才首次编译——PR 弄坏 Rust 代码 CI 依旧全绿 | P2 |
 | D2 | ci.yml;pyproject.toml | 无任何 lint/类型门禁(ruff/mypy 步骤与配置均无) | P2 |
 | D3 | tests/(无 __init__.py) | 裸 `pytest` 本地跑必假红:`tests/test_baseline.py:789 from tests.conftest import` 依赖 cwd 进 sys.path,只有 `python -m pytest` 可跑;**v111 implement.md 步骤 1 写的恰是失败跑法** `uv run pytest` | P2 |
-| D4 | desktop/myia.spec:9 | PyInstaller 过期生成物入库且含机器绝对路径 `/Users/zhengbingjin/...`(build-sidecar.sh:92-96 每次重新生成,入库副本纯噪声) | P2 |
+| D4 | desktop/myia.spec:9 | PyInstaller 过期生成物入库且含机器绝对路径 `/Users/zhengbingjin/...`(build-sidecar.sh:99-104 每次重新生成,入库副本纯噪声) | P2 |
 | D5 | desktop/src-tauri/tauri.conf.json:28 | externalBin 的 binaries/ 被 gitignore 且未配 beforeDevCommand:fresh clone 不先跑 build-sidecar.sh 则 `tauri dev` 直接挂 | P2 |
 | D6 | desktop-release.yml:96-99 | tag 版本只合并进 tauri.release.conf.json,package.json/pyproject 不随 tag 提升——首个 tag 后桌面版本与包版本必然漂移 | P2(设计使然,留意) |
 | E1 | CONTRIBUTING.md:89 | "时间类逻辑用 freezegun" 约定 vs 实际:freezegun 非依赖、测试刻意自建 FakeClock(tests 自注 "no freezegun needed") | P3 |
@@ -99,6 +99,7 @@
 - [x] 实跑基线记录(pytest 1397/14skip、vitest 40/40、git 状态)
 - [x] 刻意不做清单成文,防止后续误报
 - [x] 主人过目分组与路由,拍板后按路由开修复任务(2026-10-03 grill Round 3 拍板,见文末注记;活清单收口后归档)
+  - 2026-10-03 主人批准路由,已建 3 个修复任务:`10-03-docs-truth`、`10-03-v112-desktop-parity`、`10-03-ci-gates`(活清单收口,本档归档)
 - 本任务全程不改产品代码、不提交(并行会话在途,避免缠绕)
 
 ## 8. 核实通过面(不列条目的部分)
@@ -117,4 +118,8 @@
 > - B1 ✅ 已定向(tag/版本/updater/UI 接线全量入 10-03-v111-release;R2 批做全)
 > - C10 ✅ 主体已修(并行会话 02a0dce 剥开发期文案;版本一致性核对随 v111-release)
 > - B5 ✅ 获批即推(grill Q5)
-> - 其余条目开工时按上表路由建任务并回标。
+> - 2026-10-03 路由落档:已建 3 个修复任务——`10-03-docs-truth`(路由①:A 组 docs 侧 + A3/A4 + Q8/E7 搭车)、
+>   `10-03-v112-desktop-parity`(路由③:C 组全量 + B2/B3/B4 补实现;吸收 stub 10-03-v112-desktop-batch
+>   [task.json 标注 superseded] 与 10-03-v12-backlog 第 4 项;v111-release 的 B2/B3/B4 改口指向已回标至该档)、
+>   `10-03-ci-gates`(路由④:D1/D2 核心,D4/D5 顺风车)。活清单收口,本档归档。
+> - 其余条目:A 组 README 半边 / A2 / B1 → 10-03-v111-release;E4/E5 随 v112 批次做或裁;E6 → 归档会话。
