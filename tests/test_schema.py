@@ -795,6 +795,32 @@ class TestImagesSection:
         assert images.vl == "off"
         assert images.ocr_engine is None
 
+    def test_detail_defaults_off_with_max_ten(self):
+        """详情页追拍缺省零进入(10-03-detail-images AC1):false / 10。"""
+        data = _minimal_data()
+        data["images"] = {"enabled": True}
+        images = load_category(data).images
+        assert images is not None
+        assert images.detail_fetch is False
+        assert images.detail_max_items == 10
+
+    def test_detail_full_pair_loads(self):
+        data = _minimal_data()
+        data["images"] = {"enabled": True, "detail_fetch": True, "detail_max_items": 25}
+        images = load_category(data).images
+        assert images is not None
+        assert images.detail_fetch is True
+        assert images.detail_max_items == 25
+
+    def test_detail_max_items_range_enforced(self):
+        """1-50 越界拒载,错误路径钉到 $.images.detail_max_items。"""
+        for bad in (0, 51):
+            data = _minimal_data()
+            data["images"] = {"enabled": True, "detail_max_items": bad}
+            errors = _load_error(data).errors
+            assert errors, "detail_max_items 越界必须拒载"
+            assert errors[0].path == "$.images.detail_max_items"
+
     def test_full_section_loads(self):
         data = _minimal_data()
         data["images"] = {

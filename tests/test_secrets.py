@@ -631,3 +631,34 @@ class TestWindowsDPAPI:
         with pytest.raises(SecretError) as excinfo:
             get_secret(name, backend=backend)
         assert excinfo.value.code == "secret_not_found"
+
+
+class TestRealKeychainProbe:
+    """真钥匙串探针往返(10-03-image-fix-followups 小修① AC:换 key 两次保存)。
+
+    探针名 ``myia/image/probe_key``、探针值,**绝不触碰真实 key**(真项的
+    keychain: 引用不在测试里解析)。两次保存 = 第二次走「既有项更新」路径
+    —— macOS -25244/errSecAuthFailed 正是发生在这里,删旧建新回落必须把它
+    救回来(值相同重写,无损)。无钥匙串环境(Linux CI/无桌面 Secret Service)
+    或 GUI 授权被拒时结构化跳过,不红。
+    """
+
+    PROBE_NAME = "myia/image/probe_key"
+
+    def test_two_save_round_trips_on_real_keychain(self):
+        try:
+            backend = get_backend()
+            set_secret(self.PROBE_NAME, "probe-value-1", backend=backend)
+        except SecretError as exc:
+            pytest.skip(f"本机无可用系统钥匙串,真往返跳过: {exc.code}")
+        try:
+            set_secret(self.PROBE_NAME, "probe-value-2", backend=backend)  # 既有项更新路径
+            assert get_secret(self.PROBE_NAME, backend=backend) == "probe-value-2"
+            assert self.PROBE_NAME in list_secrets(backend=backend)
+        except SecretError as exc:
+            pytest.skip(f"真钥匙串操作被环境拒绝(GUI 授权/无桌面),跳过: {exc.code}")
+        finally:
+            try:
+                delete_secret(self.PROBE_NAME, backend=backend)
+            except SecretError:
+                pass  # 清理尽力而为:残留探针项不影响任何真实凭据

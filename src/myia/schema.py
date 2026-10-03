@@ -1355,7 +1355,9 @@ class ImagesConfig(_StrictModel):
     detail_fetch: bool = False
     #: 每 run 追抓条目上限(1-50):串行 + 每请求 ≥1s 间隔 + 10s/页超时,
     #: 耗尽后其余无图条目照常入库(零标记);追抓失败/超时只写
-    #: ``metadata.detail_status = failed:<原因>``,绝不阻管线。
+    #: ``metadata.detail_status = failed:<原因>``,绝不阻管线。源级
+    #: ``images_detail_max_items`` 覆写 = **该源独立预算**(不吃也不占
+    #: 共享池,可低于也可高于品类值)。
     detail_max_items: int = Field(default=DEFAULT_IMAGES_DETAIL_MAX_ITEMS, ge=1, le=50)
 
 

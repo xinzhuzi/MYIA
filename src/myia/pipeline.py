@@ -167,6 +167,8 @@ from myia.store import (
 from myia.vision.collect import (
     DOWNLOAD_TIMEOUT_SECONDS as IMAGE_DOWNLOAD_TIMEOUT_SECONDS,
     ImageRunState,
+    detail_fetch_images,
+    detail_request_headers,
     process_item_images,
 )
 from myia.vision.settings import (
@@ -1499,7 +1501,9 @@ class Pipeline:
         # 图片处理环(10-03-vision-pipeline 拍板②):fetch 尾部、条目入 checkpoint
         # 队列前逐条处理——产物挂 metadata,下方 _checkpoint_payload(current) 含
         # metadata,续跑自然可见;品类未开 images: 节 = 整环零进入(AC1 零影响)。
-        await self._process_item_images_ring(items)
+        # 详情页追抓(10-03-detail-images)在同一挂点、识图环之前:对无图条目
+        # 追抓详情页收 <img> 写回 metadata.images,随即进同一环。
+        await self._process_item_images_ring(items, context)
         report.status = "ok"
         logger.info(
             "采集步骤完成 sources=%s items=%s source_failures=%s",
@@ -1581,18 +1585,56 @@ class Pipeline:
             )
         return source_report, raw_items
 
-    async def _process_item_images_ring(self, items: list[Item]) -> None:
+    def _ring_proxy_for_source(
+        self, source: Any, context: FetchContext | None
+    ) -> tuple[httpx.AsyncClient | None, str | None, bool]:
+        """解析一个源的图片出网通道(小修④:``pool:`` 源的配图不再直连)。
+
+        Returns:
+            ``(client, proxy_url, owns_client)`` —— ``pool:`` 源返回该池的
+            共享代理 client(:meth:`FetchContext.client_for_pool`,生命周期
+            随 run 收尾的 ``aclose_pool_clients``)与解析后的上游 URL;
+            其余(direct/未注入 pools)返回 ``(None, None, False)`` 走环的
+            共享 client。解析失败(池未声明/凭据拒解)降级 direct 并告警
+            —— 该源的列表抓取此刻早已失败,条目本就不该在场,兜底不炸环。
+        """
+        kind, _, pool_name = (source.proxy or "").partition(":")
+        if kind != "pool" or context is None or context.proxy_pools is None:
+            return (None, None, False)
+        try:
+            resolved = context.proxy_pools.resolve(
+                pool_name, backend=context.keychain_backend
+            )
+            pool_client = context.client_for_pool(
+                pool_name, resolved, timeout=IMAGE_DOWNLOAD_TIMEOUT_SECONDS
+            )
+        except Exception as exc:  # noqa: BLE001 - 代理解析失败:降级 direct,不阻环
+            logger.warning(
+                "图片出网代理解析失败(降级直连) source=%s pool=%s: %s",
+                source.name, pool_name, exc,
+            )
+            return (None, None, False)
+        return (pool_client, resolved, False)
+
+    async def _process_item_images_ring(
+        self, items: list[Item], context: FetchContext | None = None
+    ) -> None:
         """图片处理环入口(10-03-vision-pipeline,拍板②:fetch 阶段尾部)。
 
         品类 ``images:`` 节未声明/未开启 → 整环零进入(零开销);开启后逐条
-        下载→本地 OCR→可选 VL,产物挂 ``metadata.image_ocr`` /
-        ``image_caption`` / ``image_status``(降级矩阵见
-        :mod:`myia.vision.collect`,任何失败只写标记不阻管线)。
+        ``detail_fetch_images``(可选详情页追抓,10-03-detail-images)→ 下载→
+        本地 OCR→可选 VL,产物挂 ``metadata.image_ocr`` / ``image_caption`` /
+        ``image_status``(降级矩阵见 :mod:`myia.vision.collect`,任何失败只写
+        标记不阻管线)。
 
         ``vision.yaml`` 落数据根(db 路径父目录,与消息平台目录同根——CLI
         cwd / 桌面 ``myia_home()`` 两形态一致);拒载按「VL 不可用、OCR 照常」
-        降级,不 fail run。``max_per_run`` 配额与 VL 预算池都是 run 级状态,
-        由本方法统一持有后逐条传入。
+        降级,不 fail run。``max_per_run`` / ``detail_max_items`` 配额与 VL
+        预算池都是 run 级状态,由本方法统一持有后逐条传入。源级出网:``pool:``
+        源的下载与追抓都骑该池的共享代理 client(小修④),其余源走共享
+        client(注入优先);追抓请求带源级 headers/UA(引擎链同款装配,
+        ``source_name`` 同传——源级 ``images_detail_max_items`` 覆写的
+        独立预算以它为键)。
         """
         images_cfg = self.config.images
         if images_cfg is None or not images_cfg.enabled:
@@ -1604,10 +1646,28 @@ class Pipeline:
                 "vision.yaml 拒载,图片处理环按 VL 不可用降级(OCR 照常): %s", exc
             )
             vision_cfg = VisionConfig()
-        run_state = ImageRunState(remaining=images_cfg.max_per_run)
+        run_state = ImageRunState(
+            remaining=images_cfg.max_per_run,
+            detail_remaining=images_cfg.detail_max_items,
+        )
         source_extra = {source.name: source.extra_params for source in self.config.sources}
-        # 测试注入的 client(MockTransport)直接复用——每请求 10s 帽与
-        # follow_redirects=False 由 collect 层保证;未注入才自建下载专用 client。
+        # 源级请求头(引擎链同款装配):详情页追抓以源配置的 UA/登录头出网,
+        # 不再是裸 httpx 默认 UA(10-03-detail-images 复查②——cocoloop 源配
+        # 的 Chrome UA 必须随行);凭据解析失败裸头降级,不阻环。
+        source_headers = {
+            source.name: detail_request_headers(
+                source.headers,
+                backend=context.keychain_backend if context is not None else None,
+            )
+            for source in self.config.sources
+        }
+        ring_proxy = {
+            source.name: self._ring_proxy_for_source(source, context)
+            for source in self.config.sources
+        }
+        # 测试注入的 client(MockTransport)直接复用——每请求 10s 帽与重定向
+        # 逐跳复核由 collect 层逐请求显式强制(timeout/follow_redirects=False,
+        # 注入 client 的默认值不参与);未注入才自建下载专用 client。
         client = self._injected_client
         own_client = client is None
         if own_client:
@@ -1616,14 +1676,29 @@ class Pipeline:
             )
         try:
             for item in items:
+                item_client, item_proxy, _owns = ring_proxy.get(
+                    item.source or "", (None, None, False)
+                )
+                effective_client = item_client or client
                 try:
+                    await detail_fetch_images(
+                        item,
+                        images_cfg=images_cfg,
+                        source_extra=source_extra.get(item.source or ""),
+                        source_name=item.source or None,
+                        headers=source_headers.get(item.source or ""),
+                        proxy_url=item_proxy,
+                        client=effective_client,
+                        run_state=run_state,
+                    )
                     await process_item_images(
                         item,
                         images_cfg=images_cfg,
                         vision_cfg=vision_cfg,
                         budget=self._run_budget,
                         run_state=run_state,
-                        client=client,
+                        client=effective_client,
+                        proxy_url=item_proxy,
                         source_extra=source_extra.get(item.source or ""),
                     )
                 except Exception as exc:  # noqa: BLE001 - 降级矩阵外的兜底:图析绝不阻管线
@@ -1634,10 +1709,12 @@ class Pipeline:
         finally:
             if own_client:
                 await client.aclose()
-        if run_state.throttled_items:
+        if run_state.throttled_items or run_state.detail_fetches:
             logger.info(
-                "图片处理环完成 items=%s run_limit_throttled=%s quota_left=%s",
+                "图片处理环完成 items=%s run_limit_throttled=%s quota_left=%s "
+                "detail_fetches=%s detail_quota_left=%s",
                 len(items), run_state.throttled_items, run_state.remaining,
+                run_state.detail_fetches, run_state.detail_remaining,
             )
 
     async def _stage_classify(

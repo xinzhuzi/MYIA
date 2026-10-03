@@ -8,12 +8,19 @@
 覆盖面 = PRD 降级矩阵逐行 + 限额双闸(max_images/max_per_run)+ SSRF +
 预算耗尽 + 管线挂点端到端(MockTransport 全链,断言 fetch 尾部产物挂
 metadata、未开 images 的品类零影响)。
+
+10-03-detail-images / 10-03-image-fix-followups 增补:详情页追抓环
+(有图/无图/超时/404/配额/同域/串行间隔/源级覆写)、``_html_image_urls``
+语义、SSRF 连接层 rebinding 复核、注入 client 强制 follow_redirects=False、
+pool 源 proxy_url 传抵(环级 + 管线级)、detail 链 E2E(fixture 本地页)。
 """
 
 from __future__ import annotations
 
 import asyncio
 import ipaddress
+import logging
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -707,3 +714,728 @@ def _yaml_to_dict(text: str) -> dict[str, Any]:
     data = yaml.safe_load(text)
     assert isinstance(data, dict)
     return data
+
+
+# ---------------------------------------------------------------------------
+# _html_image_urls:HTML 同域收集(10-03-detail-images)
+# ---------------------------------------------------------------------------
+
+
+class TestHtmlImageUrls:
+    def test_same_domain_relative_and_absolute_dedup(self):
+        html = (
+            '<img src="/a.png">'
+            '<IMG class="x" SRC = "https://example.com/b.jpg">'
+            '<img src="https://cdn.example/adv.jpg">'
+            '<img src="">'
+            '<img src="//evil.example/c.png">'
+            '<img srcset="/d.png 1x" src="/a.png">'
+            "<img>"
+        )
+        assert collect._html_image_urls(html, "https://example.com/t/1") == [
+            "https://example.com/a.png",
+            "https://example.com/b.jpg",
+        ]
+
+    def test_data_src_variants_not_matched(self):
+        """懒加载 data-src/data-srcset 深挖刻意不做:不得误收为 src。"""
+        html = '<img data-src="/lazy.png" data-srcset="/l2.png 1x" alt="无 src">'
+        assert collect._html_image_urls(html, "https://example.com/t/1") == []
+
+    def test_protocol_relative_cross_host_filtered_same_host_kept(self):
+        html = '<img src="//example.com/p.png">'
+        assert collect._html_image_urls(html, "https://example.com/t/1") == [
+            "https://example.com/p.png"
+        ]
+
+
+# ---------------------------------------------------------------------------
+# 详情页追抓环(10-03-detail-images;全 mock 零外网)
+# ---------------------------------------------------------------------------
+
+
+class TestDetailFetch:
+    def cfg(self, **overrides: Any) -> ImagesConfig:
+        return ImagesConfig(**{"enabled": True, "min_bytes": 1, "detail_fetch": True, **overrides})
+
+    @pytest.fixture(autouse=True)
+    def _fast_interval(self, monkeypatch: pytest.MonkeyPatch):
+        """串行 ≥1s 间隔测试归零加速(间隔行为另测)。"""
+        monkeypatch.setattr(collect, "DETAIL_FETCH_INTERVAL_SECONDS", 0.0)
+
+    def test_disabled_zero_entry_no_writes(self, monkeypatch):
+        item = Item(url="https://example.com/t/1")
+        client = serve({"/t/1": "<html></html>"})
+        assert run(collect.detail_fetch_images(
+            item, images_cfg=self.cfg(detail_fetch=False), client=client,
+        )) is None
+        assert item.metadata == {}
+
+    def test_item_with_images_not_refetched(self, monkeypatch):
+        """列表页已带图的条目不追抓(候选 URL 判定,含 image 单值形态)。"""
+        hits: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            hits.append(request.url.path)
+            return httpx.Response(200, text="<html></html>")
+
+        item = Item(url="https://example.com/t/1")
+        item.metadata["image"] = "https://example.com/pic.png"
+        assert run(collect.detail_fetch_images(
+            item, images_cfg=self.cfg(), client=make_client(handler),
+        )) is None
+        assert item.metadata == {"image": "https://example.com/pic.png"}
+        assert hits == []
+
+    def test_happy_collects_same_domain_and_feeds_ring(self, monkeypatch):
+        fake_ocr(monkeypatch)
+        item = Item(url="https://example.com/t/1")
+        client = serve({
+            "/t/1": (
+                '<div><img src="/assets/a.png"><img src="/assets/b.png">'
+                '<img src="https://cdn.example/x.jpg"></div>'
+            ),
+            "/assets/a.png": png_bytes(),
+            "/assets/b.png": png_bytes(),
+        })
+        state = collect.ImageRunState(remaining=100, detail_remaining=10)
+        status = run(collect.detail_fetch_images(
+            item, images_cfg=self.cfg(), client=client, run_state=state,
+        ))
+        assert status == "ok:n=2"
+        assert item.metadata["images"] == [
+            "https://example.com/assets/a.png",
+            "https://example.com/assets/b.png",
+        ]
+        assert item.metadata["detail_status"] == "ok:n=2"
+        assert state.detail_fetches == 1 and state.detail_remaining == 9
+        # 写回的 images 随即被同一 run_state 下的识图环消费(min_bytes 交接)
+        ring_status = run(collect.process_item_images(
+            item, images_cfg=self.cfg(), vision_cfg=VisionConfig(),
+            client=client, run_state=state,
+        ))
+        assert ring_status == "ok"
+        assert item.metadata["image_ocr"] == "第一行\n第二行\n第一行\n第二行"
+
+    def test_page_without_usable_images_marks_no_images(self, monkeypatch):
+        item = Item(url="https://example.com/t/1")
+        client = serve({"/t/1": "<html><p>纯文本 SPA 空页</p></html>"})
+        status = run(collect.detail_fetch_images(
+            item, images_cfg=self.cfg(), client=client,
+        ))
+        assert status == "no_images"
+        assert item.metadata == {"detail_status": "no_images"}
+
+    def test_http_error_marks_failed_not_raises(self, monkeypatch):
+        item = Item(url="https://example.com/t/1")
+        client = serve({})  # 一切 404
+        status = run(collect.detail_fetch_images(
+            item, images_cfg=self.cfg(), client=client,
+        ))
+        assert status == "failed:http_404"
+        assert item.metadata["detail_status"] == "failed:http_404"
+
+    def test_timeout_marks_failed(self, monkeypatch):
+        monkeypatch.setattr(collect, "DETAIL_FETCH_TIMEOUT_SECONDS", 0.05)
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            await asyncio.sleep(0.3)
+            return httpx.Response(200, text="<html></html>")
+
+        item = Item(url="https://example.com/t/1")
+        status = run(collect.detail_fetch_images(
+            item, images_cfg=self.cfg(), client=make_client(handler),
+        ))
+        assert status == "failed:timeout"
+        assert item.metadata["detail_status"] == "failed:timeout"
+
+    def test_run_quota_truncates_following_items(self, monkeypatch):
+        client = serve({"/t/1": '<img src="/a.png">', "/t/2": '<img src="/b.png">'})
+        state = collect.ImageRunState(remaining=100, detail_remaining=1)
+        first = Item(url="https://example.com/t/1")
+        second = Item(url="https://example.com/t/2")
+        assert run(collect.detail_fetch_images(
+            first, images_cfg=self.cfg(), client=client, run_state=state,
+        )) == "ok:n=1"
+        assert run(collect.detail_fetch_images(
+            second, images_cfg=self.cfg(), client=client, run_state=state,
+        )) is None
+        assert second.metadata == {}, "配额截断零标记,条目照常入库"
+        assert state.detail_fetches == 1 and state.detail_remaining == 0
+
+    def test_private_item_url_rejected_as_ssrf(self, monkeypatch):
+        monkeypatch.setattr(collect, "_resolve_host", lambda host: ["10.0.0.5"])
+        item = Item(url="https://internal.example/t/1")
+        client = serve({"/t/1": "<html></html>"})
+        status = run(collect.detail_fetch_images(
+            item, images_cfg=self.cfg(), client=client,
+        ))
+        assert status == "failed:ssrf"
+        assert item.metadata["detail_status"] == "failed:ssrf"
+
+    def test_redirect_followed_within_hops_each_rechecked(self, monkeypatch):
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/t/1":
+                return httpx.Response(301, headers={"Location": "/canonical/1"})
+            if request.url.path == "/canonical/1":
+                return httpx.Response(200, text='<div><img src="/assets/c.png"></div>')
+            return httpx.Response(200, content=png_bytes())
+
+        item = Item(url="https://example.com/t/1")
+        status = run(collect.detail_fetch_images(
+            item, images_cfg=self.cfg(), client=make_client(handler),
+        ))
+        assert status == "ok:n=1"
+        assert item.metadata["images"] == ["https://example.com/assets/c.png"]
+
+    def test_serial_interval_sleeps_before_second_request(self, monkeypatch):
+        monkeypatch.setattr(collect, "DETAIL_FETCH_INTERVAL_SECONDS", 0.05)
+        client = serve({"/t/1": "<html></html>", "/t/2": "<html></html>"})
+        state = collect.ImageRunState(remaining=100, detail_remaining=10)
+        first = Item(url="https://example.com/t/1")
+        second = Item(url="https://example.com/t/2")
+        t0 = time.monotonic()
+        run(collect.detail_fetch_images(
+            first, images_cfg=self.cfg(), client=client, run_state=state,
+        ))
+        assert time.monotonic() - t0 < 0.05, "首个请求前不等待"
+        run(collect.detail_fetch_images(
+            second, images_cfg=self.cfg(), client=client, run_state=state,
+        ))
+        assert time.monotonic() - t0 >= 0.05, "第二 个请求前必须 sleep ≥ 间隔"
+
+    def test_source_override_enables_detail(self, monkeypatch):
+        item = Item(url="https://example.com/t/1")
+        client = serve({"/t/1": '<img src="/a.png">'})
+        status = run(collect.detail_fetch_images(
+            item,
+            images_cfg=self.cfg(detail_fetch=False),
+            source_extra={"images_detail_fetch": True},
+            client=client,
+        ))
+        assert status == "ok:n=1"
+
+    # -- 10-03-detail-images 复查①:源级 max_items 覆写在共享 run_state 生效 --
+
+    def test_source_max_items_override_is_own_budget_not_shared_pool(self, monkeypatch):
+        """源级 ``images_detail_max_items`` 覆写 = 该源独立预算:管线恒传共享
+        run_state(其 detail_remaining 只按品类级初始化),覆写源吃自己的池
+        (1 条),不吃也不占共享池;无覆写源照旧吃共享池。"""
+        client = serve({
+            "/t/1": '<img src="/a.png">',
+            "/t/2": '<img src="/b.png">',
+            "/t/3": '<img src="/c.png">',
+        })
+        state = collect.ImageRunState(remaining=100, detail_remaining=10)
+        extra = {"images_detail_max_items": 1}
+        first = Item(url="https://example.com/t/1")
+        second = Item(url="https://example.com/t/2")
+        assert run(collect.detail_fetch_images(
+            first, images_cfg=self.cfg(), source_extra=extra, source_name="ov",
+            client=client, run_state=state,
+        )) == "ok:n=1"
+        assert run(collect.detail_fetch_images(
+            second, images_cfg=self.cfg(), source_extra=extra, source_name="ov",
+            client=client, run_state=state,
+        )) is None, "覆写预算耗尽:零进入零标记,条目照常入库"
+        assert second.metadata == {}
+        assert state.detail_remaining == 10, "覆写源不得吃共享池"
+        assert state.detail_remaining_by_source == {"ov": 0}
+        third = Item(url="https://example.com/t/3")
+        assert run(collect.detail_fetch_images(
+            third, images_cfg=self.cfg(), source_name="plain",
+            client=client, run_state=state,
+        )) == "ok:n=1", "无覆写源照旧吃共享池(品类级先到先得)"
+        assert state.detail_remaining == 9
+
+    def test_source_max_items_override_raises_above_category_cap(self, monkeypatch):
+        """覆写值高于品类上限也生效:独立预算 2 > 品类共享池 1,第二条照抓。"""
+        client = serve({"/t/1": '<img src="/a.png">', "/t/2": '<img src="/b.png">'})
+        state = collect.ImageRunState(remaining=100, detail_remaining=1)
+        extra = {"images_detail_max_items": 2}
+        cfg = self.cfg(detail_max_items=1)
+        first = Item(url="https://example.com/t/1")
+        second = Item(url="https://example.com/t/2")
+        assert run(collect.detail_fetch_images(
+            first, images_cfg=cfg, source_extra=extra, source_name="ov",
+            client=client, run_state=state,
+        )) == "ok:n=1"
+        assert run(collect.detail_fetch_images(
+            second, images_cfg=cfg, source_extra=extra, source_name="ov",
+            client=client, run_state=state,
+        )) == "ok:n=1"
+        assert state.detail_remaining == 1, "共享池未被覆写源吃掉"
+
+    def test_out_of_range_override_drops_only_that_key(self, monkeypatch, caplog):
+        """复查①连带:越界覆写值(100 > le=50,能过 >0 类型预过滤)只弃本键,
+        不连坐整批——同批 ``images_detail_fetch: true`` 必须存活,源级 detail
+        不再被静默关闭。"""
+        item = Item(url="https://example.com/t/1")
+        client = serve({"/t/1": '<img src="/a.png">'})
+        with caplog.at_level(logging.WARNING, logger="myia.vision.collect"):
+            status = run(collect.detail_fetch_images(
+                item,
+                images_cfg=self.cfg(detail_fetch=False),
+                source_extra={"images_detail_fetch": True, "images_detail_max_items": 100},
+                client=client,
+            ))
+        assert status == "ok:n=1", "detail_fetch 覆写不得被越界 max_items 连坐弃掉"
+        assert "越界" in caplog.text, "弃键必须告警可见"
+
+    # -- 10-03-detail-images 复查②:追抓请求带源级 headers(引擎链装配语义)--
+
+    def test_detail_request_carries_source_headers(self, monkeypatch):
+        """详情页追抓以源级请求头出网(源配 UA/登录 Cookie),不再裸 httpx。"""
+        seen: dict[str, Any] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen["ua"] = request.headers.get("user-agent")
+            seen["cookie"] = request.headers.get("cookie")
+            return httpx.Response(200, text='<img src="/a.png">')
+
+        item = Item(url="https://example.com/t/1")
+        status = run(collect.detail_fetch_images(
+            item, images_cfg=self.cfg(), client=make_client(handler),
+            headers={"User-Agent": "Mozilla/5.0 (Macintosh) Chrome/126", "Cookie": "sid=1"},
+        ))
+        assert status == "ok:n=1"
+        assert seen["ua"] == "Mozilla/5.0 (Macintosh) Chrome/126"
+        assert seen["cookie"] == "sid=1"
+
+    def test_detail_request_headers_assembly_shapes(self, monkeypatch):
+        """装配面:空头补引擎缺省 UA;自定义 UA 原样;env: 凭据引用真解析;
+        凭据解析失败裸头降级(只告警不抛)。"""
+        from myia.engines.fetch_base import DEFAULT_USER_AGENT
+
+        assert collect.detail_request_headers(None) == {"User-Agent": DEFAULT_USER_AGENT}
+        assert collect.detail_request_headers({"User-Agent": "UA/1"}) == {"User-Agent": "UA/1"}
+        monkeypatch.setenv("MYIA_TEST_DETAIL_SID", "s3cret")
+        assert collect.detail_request_headers({"Cookie": "env:MYIA_TEST_DETAIL_SID"}) == {
+            "Cookie": "s3cret",
+            "User-Agent": DEFAULT_USER_AGENT,
+        }
+
+        def boom(headers, *, backend=None):  # noqa: ANN001
+            raise RuntimeError("凭据拒解")
+
+        monkeypatch.setattr(collect, "resolve_headers", boom)
+        assert collect.detail_request_headers({"Cookie": "keychain:myia/x/y"}) == {}
+
+
+# ---------------------------------------------------------------------------
+# SSRF 加固(10-03-image-fix-followups 小修⑤:rebinding 连接层复核 +
+# 注入 client 强制 follow_redirects=False)
+# ---------------------------------------------------------------------------
+
+
+class TestSsrfHardening:
+    def cfg(self, **overrides: Any) -> ImagesConfig:
+        return ImagesConfig(**{"enabled": True, "min_bytes": 1, **overrides})
+
+    def test_injected_client_follow_redirects_true_cannot_bypass_hop_check(self, monkeypatch):
+        """注入 client 开着 follow_redirects=True 也不能绕过逐跳 SSRF 复核:
+        每请求显式 False 强制,私网重定向跳在发请求前就被拒。"""
+        resolve_map = {"public.example": ["93.184.216.34"], "internal.example": ["192.168.1.9"]}
+        monkeypatch.setattr(collect, "_resolve_host", lambda host: resolve_map[host])
+        fake_ocr(monkeypatch)
+        requested_hosts: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requested_hosts.append(request.url.host)
+            if request.url.path == "/hop.png":
+                return httpx.Response(302, headers={"Location": "https://internal.example/leak.png"})
+            return httpx.Response(200, content=png_bytes())
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True)
+        item = Item()
+        item.metadata["image"] = "https://public.example/hop.png"
+        status = run(collect.process_item_images(
+            item, images_cfg=self.cfg(), vision_cfg=VisionConfig(), client=client,
+        ))
+        asyncio.run(client.aclose())
+        assert status == "none"
+        assert requested_hosts == ["public.example"], "私网跳不得被 client 自动跟进"
+
+    def test_connection_layer_rebind_to_private_rejected(self, monkeypatch):
+        """DNS rebinding 复核:前置解析公网、实际连上私网(两次解析被切)→ 拒。"""
+        fake_ocr(monkeypatch)
+        monkeypatch.setattr(collect, "_connected_server_ip", lambda response: "10.9.9.9")
+        item = Item()
+        item.metadata["image"] = "https://example.com/pic.png"
+        client = serve({"/pic.png": png_bytes()})
+        status = run(collect.process_item_images(
+            item, images_cfg=self.cfg(), vision_cfg=VisionConfig(), client=client,
+        ))
+        assert status == "none"
+
+    def test_detail_connection_layer_rebind_rejected(self, monkeypatch):
+        monkeypatch.setattr(collect, "_connected_server_ip", lambda response: "10.9.9.9")
+        item = Item(url="https://example.com/t/1")
+        client = serve({"/t/1": '<img src="/a.png">'})
+        status = run(collect.detail_fetch_images(
+            item, images_cfg=ImagesConfig(enabled=True, min_bytes=1, detail_fetch=True),
+            client=client,
+        ))
+        assert status == "failed:ssrf_rebind"
+
+    def test_connected_server_ip_shapes(self):
+        """extensions 无 network_stream(MockTransport)→ None;两种底层形态取 IP。"""
+
+        class _ExtraStream:
+            def get_extra_info(self, info: str):
+                assert info == "server_addr"
+                return ("203.0.113.9", 443)
+
+        class _ConnInfo:
+            server_addr = ("203.0.113.10", 443)
+
+        class _ConnInfoStream:
+            def get_conn_info(self):
+                return _ConnInfo()
+
+        assert collect._connected_server_ip(httpx.Response(200)) is None
+        response_extra = httpx.Response(200, extensions={"network_stream": _ExtraStream()})
+        assert collect._connected_server_ip(response_extra) == "203.0.113.9"
+        response_conn = httpx.Response(200, extensions={"network_stream": _ConnInfoStream()})
+        assert collect._connected_server_ip(response_conn) == "203.0.113.10"
+
+
+# ---------------------------------------------------------------------------
+# proxy 传抵(10-03-image-fix-followups 小修④:pool 源配图不再直连)
+# ---------------------------------------------------------------------------
+
+
+class TestProxyPassthrough:
+    def cfg(self, **overrides: Any) -> ImagesConfig:
+        return ImagesConfig(**{"enabled": True, "min_bytes": 1, **overrides})
+
+    def test_own_download_client_mounts_proxy_url(self, monkeypatch):
+        """client 未注入时,proxy_url 必须真的挂上自建下载 client。"""
+        fake_ocr(monkeypatch)
+        recorded: dict[str, Any] = {}
+        # 先建好 mock client 再打桩:工厂替换的是全局 httpx.AsyncClient,
+        # serve() 内部也要走它,现造必递归。
+        mock_client = serve({"/pic.png": png_bytes()})
+
+        def factory(**kwargs: Any) -> httpx.AsyncClient:
+            recorded.update(kwargs)
+            return mock_client
+
+        monkeypatch.setattr(collect.httpx, "AsyncClient", factory)
+        item = Item()
+        item.metadata["image"] = "https://example.com/pic.png"
+        status = run(collect.process_item_images(
+            item, images_cfg=self.cfg(), vision_cfg=VisionConfig(),
+            proxy_url="http://proxy.example:8080",
+        ))
+        assert status == "ok"
+        assert recorded["proxy"] == "http://proxy.example:8080"
+        assert recorded["follow_redirects"] is False
+
+    CATEGORY_POOL_SOURCE = """
+id: demo-pool
+name: 池演示
+schedule: "0 9 * * *"
+sources:
+  - name: pooled
+    engine: static_html
+    url: "https://example.com/list"
+    proxy: "pool:main"
+    extract:
+      type: list
+      item: "article"
+      fields:
+        title: "h3"
+        url: "h3 a@href"
+  - name: directsrc
+    engine: static_html
+    url: "https://example.com/other"
+    extract:
+      type: list
+      item: "article"
+      fields:
+        title: "h3"
+        url: "h3 a@href"
+classify:
+  builtin: false
+  rules: []
+images:
+  enabled: true
+  min_bytes: 1
+"""
+
+    def test_pool_source_ring_and_detail_ride_pool_client(self, monkeypatch, tmp_path):
+        """管线环级:pool 源条目的 detail 追抓与识图环都骑该池共享代理 client,
+        proxy_url 传抵 collect 层;direct 源条目走环的共享 client、零 proxy。"""
+        import myia.pipeline as pipeline_module
+        from myia.engines.fetch_base import DEFAULT_USER_AGENT, ProxyPools
+        from myia.pipeline import Item, Pipeline
+        from myia.store import SQLiteStore
+
+        config = load_category(_yaml_to_dict(self.CATEGORY_POOL_SOURCE))
+        store = SQLiteStore(tmp_path / "pool.db")
+        calls: list[dict[str, Any]] = []
+
+        async def fake_ring(item, **kwargs: Any) -> None:
+            calls.append({"stage": "ring", "url": item.url, **kwargs})
+
+        async def fake_detail(item, **kwargs: Any) -> None:
+            calls.append({"stage": "detail", "url": item.url, **kwargs})
+
+        monkeypatch.setattr(pipeline_module, "process_item_images", fake_ring)
+        monkeypatch.setattr(pipeline_module, "detail_fetch_images", fake_detail)
+
+        mock_client = make_client(lambda request: httpx.Response(404))
+        pipeline = Pipeline(
+            config, store=store, client=mock_client,
+            proxy_pools=ProxyPools({"main": "http://proxy.example:8080"}),
+        )
+        context = pipeline._context_for_run(mock_client, store)
+        items = [
+            Item.from_extracted({"url": "https://example.com/t/1", "title": "池源"}, "pooled"),
+            Item.from_extracted({"url": "https://example.com/t/2", "title": "直连"}, "directsrc"),
+        ]
+        try:
+            asyncio.run(pipeline._process_item_images_ring(items, context))
+            pool_client = context.pool_clients.get("main")
+        finally:
+            store.close()
+            asyncio.run(context.aclose_pool_clients())
+
+        pooled = [c for c in calls if c["url"].endswith("/t/1")]
+        direct = [c for c in calls if c["url"].endswith("/t/2")]
+        assert {c["stage"] for c in calls} == {"detail", "ring"}, "detail 环在识图环之前逐条先行"
+        assert pooled and all(c["proxy_url"] == "http://proxy.example:8080" for c in pooled)
+        assert all(c["client"] is pool_client for c in pooled)
+        assert direct and all(c["proxy_url"] is None for c in direct)
+        assert all(c["client"] is mock_client for c in direct)
+        # 复查①/②环级传参:source_name(源级独立预算键)+ 源级请求头
+        # (引擎链同款装配;两源未配 headers → 补缺省 UA)——只断言 detail
+        # 阶段调用(识图环 process_item_images 无此二参,契约面不同)。
+        detail_calls = [c for c in calls if c["stage"] == "detail"]
+        assert detail_calls
+        assert all(c["source_name"] in ("pooled", "directsrc") for c in detail_calls)
+        assert all(c["headers"] == {"User-Agent": DEFAULT_USER_AGENT} for c in detail_calls), (
+            "环必须给追抓传引擎链同款装配的源级请求头"
+        )
+
+    # -- 经代理出网跳过连接层复核(10-03 复查:proxy×rebind 组合此前零覆盖)--
+
+    @staticmethod
+    def _raw_response(payload: bytes, content_type: str) -> bytes:
+        return (
+            f"HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\n"
+            f"Content-Length: {len(payload)}\r\nConnection: close\r\n\r\n"
+        ).encode("ascii") + payload
+
+    @classmethod
+    async def _via_local_proxy(cls, payload: bytes, content_type: str, request):
+        """本地真代理 e2e(零外网):127.0.0.1 起假代理回固定响应,client 显式
+        挂它发请求。经代理时 network_stream.server_addr = 代理 127.0.0.1(非
+        目标站 IP),连接层复核若仍执行必判 ssrf_rebind——本组测试钉死它跳过。"""
+
+        async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+            try:
+                await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=5)
+            except (asyncio.IncompleteReadError, asyncio.TimeoutError):
+                pass  # 请求头没读完也照回:假代理不解析,只演示「代理在中间」
+            writer.write(cls._raw_response(payload, content_type))
+            await writer.drain()
+            writer.close()
+
+        server = await asyncio.start_server(handle, "127.0.0.1", 0)
+        port = server.sockets[0].getsockname()[1]
+        try:
+            async with httpx.AsyncClient(
+                proxy=f"http://127.0.0.1:{port}", trust_env=False
+            ) as client:
+                return await request(client)
+        finally:
+            server.close()
+            await server.wait_closed()
+
+    def test_client_egress_is_proxied_shapes(self):
+        """判别面:显式 http/socks 代理 → True;trust_env=False 直连与
+        MockTransport 注入(无 _pool)→ False(测试注入 client 永不误判)。"""
+        clients = [
+            httpx.AsyncClient(proxy="http://127.0.0.1:8766", trust_env=False),
+            httpx.AsyncClient(proxy="socks5://127.0.0.1:1080", trust_env=False),
+            httpx.AsyncClient(trust_env=False),
+            serve({"/x": b"x"}),
+        ]
+        try:
+            assert collect._client_egress_is_proxied(clients[0])
+            assert collect._client_egress_is_proxied(clients[1])
+            assert not collect._client_egress_is_proxied(clients[2])
+            assert not collect._client_egress_is_proxied(clients[3])
+        finally:
+            for client in clients:
+                asyncio.run(client.aclose())
+
+    def test_download_via_local_proxy_egress_not_killed_as_rebind(self, tmp_path):
+        """经代理下载不判 ssrf_rebind:复核跳过后图片照过全关(PNG 魔法字节)。
+        修复前该路径静默全灭(pool 上游/环自建 client 吃系统代理均此形态)。"""
+
+        async def request(client: httpx.AsyncClient):
+            return await collect._download_image(
+                client, "http://example.com/pic.png", tmp_path, min_bytes=1
+            )
+
+        outcome = run(self._via_local_proxy(png_bytes(), "image/png", request))
+        assert isinstance(outcome, collect._Downloaded), f"经代理不得判 ssrf_rebind: {outcome}"
+        assert outcome.path.read_bytes()[:8] == PNG_HEAD
+
+    def test_detail_via_local_proxy_egress_not_killed_as_rebind(self):
+        """经代理的详情页追抓不判 ssrf_rebind:照常收同域图写 metadata。"""
+        item = Item(url="http://example.com/t/1")
+
+        async def request(client: httpx.AsyncClient):
+            return await collect.detail_fetch_images(
+                item,
+                images_cfg=ImagesConfig(enabled=True, min_bytes=1, detail_fetch=True),
+                client=client,
+            )
+
+        status = run(
+            self._via_local_proxy(
+                b"<html><body><img src='http://example.com/a.png'></body></html>",
+                "text/html",
+                request,
+            )
+        )
+        assert status == "ok:n=1", f"经代理详情追抓不得判 ssrf_rebind: {status}"
+        assert item.metadata["images"] == ["http://example.com/a.png"]
+
+
+# ---------------------------------------------------------------------------
+# detail 链管线 E2E(fixture 本地页:列表无图 + 详情页一好一 404 + 配额截断)
+# ---------------------------------------------------------------------------
+
+
+CATEGORY_WITH_DETAIL = """
+id: demo-detail
+name: 演示
+schedule: "0 9 * * *"
+sources:
+  - name: textlist
+    engine: static_html
+    url: "https://example.com/list"
+    extract:
+      type: list
+      item: "article"
+      fields:
+        title: "h3"
+        url: "h3 a@href"
+classify:
+  builtin: false
+  rules: []
+images:
+  enabled: true
+  min_bytes: 1
+  detail_fetch: true
+  detail_max_items: 2
+"""
+
+
+class TestPipelineDetailHook:
+    def _client(self, hits: list[str]) -> httpx.AsyncClient:
+        def handler(request: httpx.Request) -> httpx.Response:
+            hits.append(request.url.path)
+            if request.url.path.endswith("/robots.txt"):
+                return httpx.Response(404, text="")
+            if request.url.path == "/list":
+                return httpx.Response(200, text=(
+                    '<article><h3><a href="/items/1">条目一</a></h3></article>'
+                    '<article><h3><a href="/items/2">条目二</a></h3></article>'
+                    '<article><h3><a href="/items/3">条目三</a></h3></article>'
+                ))
+            if request.url.path == "/items/1":
+                return httpx.Response(200, text=(
+                    '<div><img src="/assets/a.png"><img src="/assets/b.png">'
+                    '<img src="https://cdn.example/x.jpg"></div>'
+                ))
+            if request.url.path in ("/assets/a.png", "/assets/b.png"):
+                return httpx.Response(200, content=png_bytes())
+            return httpx.Response(404, text="missing")
+
+        return httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=False)
+
+    def test_detail_chain_end_to_end(self, monkeypatch, tmp_path):
+        """AC2/AC3 fixture 版:无图列表 → 条目一经 detail 链出 image_ocr;
+        失败页 detail_status 落标记且条目照常入库;配额截断第三条零进入。"""
+        from myia.pipeline import Pipeline
+        from myia.store import SQLiteStore
+
+        fake_ocr(monkeypatch)
+        monkeypatch.setattr(collect, "DETAIL_FETCH_INTERVAL_SECONDS", 0.0)
+        hits: list[str] = []
+        client = self._client(hits)
+        config = load_category(_yaml_to_dict(CATEGORY_WITH_DETAIL))
+        store = SQLiteStore(tmp_path / "detail.db")
+        pipeline = Pipeline(config, store=store, client=client)
+        result = asyncio.run(pipeline.run())
+        store.close()
+        asyncio.run(client.aclose())
+        assert result.status == "success", result.stats_dict()
+        items = result.items
+        assert len(items) == 3
+
+        first, second, third = items
+        # 条目一:详情页收 2 张同域图 → 同一识图环出 OCR 产物
+        assert first.metadata["detail_status"] == "ok:n=2"
+        assert first.metadata["images"] == [
+            "https://example.com/assets/a.png",
+            "https://example.com/assets/b.png",
+        ]
+        assert first.metadata["image_ocr"] == "第一行\n第二行\n第一行\n第二行"
+        assert first.metadata["image_status"] == "ok"
+        # 条目二:404 → failed 标记,条目照常入库,识图环零进入
+        assert second.metadata["detail_status"] == "failed:http_404"
+        assert "images" not in second.metadata
+        assert "image_status" not in second.metadata
+        # 条目三:detail_max_items=2 截断 → 零进入零标记,详情页从未被抓
+        assert "detail_status" not in third.metadata
+        assert "/items/3" not in hits, "配额截断的详情页不得发起请求"
+
+    def test_detail_fetch_rides_source_headers(self, monkeypatch, tmp_path):
+        """复查②管线级:源 ``headers`` 配的 UA 随 detail 追抓请求出网(引擎链
+        同一装配语义),不再是裸 httpx 默认 UA;列表抓取同 UA(既有引擎语义),
+        图片下载不在本契约面(不注入源头)。"""
+        from myia.pipeline import Pipeline
+        from myia.store import SQLiteStore
+
+        fake_ocr(monkeypatch)
+        monkeypatch.setattr(collect, "DETAIL_FETCH_INTERVAL_SECONDS", 0.0)
+        category = _yaml_to_dict(CATEGORY_WITH_DETAIL.replace(
+            '    url: "https://example.com/list"\n',
+            '    url: "https://example.com/list"\n'
+            '    headers:\n'
+            '      User-Agent: "TestUA/1 (detail)"\n',
+        ))
+        uas: dict[str, str] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            uas[request.url.path] = request.headers.get("user-agent", "")
+            if request.url.path.endswith("/robots.txt"):
+                return httpx.Response(404, text="")
+            if request.url.path == "/list":
+                return httpx.Response(200, text=(
+                    '<article><h3><a href="/items/1">条目一</a></h3></article>'
+                ))
+            if request.url.path == "/items/1":
+                return httpx.Response(200, text='<div><img src="/assets/a.png"></div>')
+            if request.url.path == "/assets/a.png":
+                return httpx.Response(200, content=png_bytes())
+            return httpx.Response(404, text="")
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=False)
+        store = SQLiteStore(tmp_path / "detail-headers.db")
+        pipeline = Pipeline(load_category(category), store=store, client=client)
+        result = asyncio.run(pipeline.run())
+        store.close()
+        asyncio.run(client.aclose())
+        assert result.status == "success", result.stats_dict()
+        assert result.items[0].metadata.get("detail_status") == "ok:n=1"
+        assert uas.get("/list") == "TestUA/1 (detail)", "列表抓取带源 UA(既有引擎语义)"
+        assert uas.get("/items/1") == "TestUA/1 (detail)", "detail 追抓必须带源 UA 出网"
+        assert uas.get("/assets/a.png") != "TestUA/1 (detail)", "图片下载不在本契约面"
