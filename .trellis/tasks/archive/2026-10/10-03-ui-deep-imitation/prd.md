@@ -83,3 +83,5 @@
 
 - **消息屏列已完成**(不必再排):`10-03-messaging-hermes-look` 已按「以上游为准最大程度贴近」交付(be044a2,review)——平台头像(AvatarChip 画法近逐字对应,Telegram 路径数据与 simple-icons 630B 逐字节相同)、左网格右详情面板(照上游 MasterDetail)、三态色彩走 CSS 变量、底部状态条;质检对照上游源码逐处核过系模仿非自由发挥。集成时直接复用其 platform-icons.tsx 与详情面板范式。
 - **Phase 0 拆解研究已完成(2026-10-03)**:research/ 五件——三份闭源拆解表(34 条可抄,逐条映射到本仓组件/token)+ licenses.md(Crawlab=BSD-3 可直借;EasySpider=AGPL 只看不抄)。动工门只剩大工作流收尾。
+
+> **2026-10-04 归档会话注记**:AC 框为交付会话遗留未逐勾,不作为未完成证据;交付与验收以既录证据为准——evidence/ 逐屏截图+research/ 拆解表与许可证档齐(33adb56/26d16b2/415ec9b);执行工作流 dwfrun-b35a7fa9 completed。装机/真机类冒烟项统一移交 `10-04-wrapup-checklist` 装机验收节。
