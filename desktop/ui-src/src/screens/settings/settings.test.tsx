@@ -6,10 +6,11 @@
 // doctor 回显(凭据存在性 + enrich 现值 + findings)/ 推送凭据保存 / 代理池探测。
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 
 const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: mocks.invoke }));
-// updater-card 随设置屏挂载:两插件模块也须 mock(真实 plugin-updater 会从
+// updater-card 随「更新」分区挂载:两插件模块也须 mock(真实 plugin-updater 会从
 // core 导入 Resource/Channel,上面的极简 core mock 不提供;本文件不点更新按钮,
 // 行为用例在 updater-card.test.tsx)。
 vi.mock("@tauri-apps/plugin-updater", () => ({ check: vi.fn() }));
@@ -162,6 +163,20 @@ async function typeByLabel(label: string, value: string): Promise<void> {
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 }
 
+/** D4 结构重做后设置屏用 useSearchParams(?section= 驱动分区),渲染须包 Router */
+function renderScreen(initialEntry = "/settings") {
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <SettingsScreen />
+    </MemoryRouter>,
+  );
+}
+
+/** 经左侧分区导航切区(拆解表第 1 条:导航驱动右侧子区一屏) */
+async function openSection(sectionId: string): Promise<void> {
+  fireEvent.click(await screen.findByTestId(`settings-nav-${sectionId}`));
+}
+
 beforeEach(() => {
   mocks.invoke.mockReset();
 });
@@ -175,7 +190,7 @@ afterEach(() => {
 describe("设置:LLM 凭据保存(钥匙链唯一路径,零回显)", () => {
   it("base_url+key 各写一个规范名;保存即清 key;值不出现在任何 DOM", async () => {
     const state = installSidecar();
-    render(<SettingsScreen />);
+    renderScreen();
     await typeByLabel("base_url", "https://open.bigmodel.cn/api/paas/v4");
     await typeByLabel("model", "glm-4-flash");
     await typeByLabel("LLM API Key", "sk-secret-123456");
@@ -197,7 +212,7 @@ describe("设置:LLM 凭据保存(钥匙链唯一路径,零回显)", () => {
 
   it("base_url 为 env: 引用 → 不经界面写(无 secret.set),给出入 YAML 提示", async () => {
     const state = installSidecar();
-    render(<SettingsScreen />);
+    renderScreen();
     await typeByLabel("base_url", "env:MYIA_LLM_BASE_URL");
     await typeByLabel("model", "glm-4-flash");
     fireEvent.click(screen.getByRole("button", { name: "保存 LLM 凭据" }));
@@ -211,7 +226,7 @@ describe("设置:LLM 凭据保存(钥匙链唯一路径,零回显)", () => {
 
   it("model 为空不拦凭据保存(model 不经界面持久化,只有凭据走 secret.set)", async () => {
     installSidecar();
-    render(<SettingsScreen />);
+    renderScreen();
     await typeByLabel("base_url", "https://api.example.com");
     fireEvent.click(screen.getByRole("button", { name: "保存 LLM 凭据" }));
 
@@ -224,7 +239,7 @@ describe("设置:LLM 凭据保存(钥匙链唯一路径,零回显)", () => {
 
   it("base_url 非法(既非 URL 也非引用)→ 前端校验拦下,零写调用", async () => {
     installSidecar();
-    render(<SettingsScreen />);
+    renderScreen();
     await typeByLabel("base_url", "ftp://not-allowed");
     fireEvent.click(screen.getByRole("button", { name: "保存 LLM 凭据" }));
 
@@ -240,7 +255,7 @@ describe("设置:LLM 凭据保存(钥匙链唯一路径,零回显)", () => {
       if (args.method === "doctor") return doctorFixture();
       throw JSON.stringify({ code: "method_not_found", path: "method", message: `未知方法 ${args.method}` });
     });
-    render(<SettingsScreen />);
+    renderScreen();
     await typeByLabel("model", "glm-4-flash");
     await typeByLabel("LLM API Key", "sk-do-not-echo");
     fireEvent.click(screen.getByRole("button", { name: "保存 LLM 凭据" }));
@@ -283,7 +298,7 @@ describe("设置:doctor 验证回显", () => {
         ],
       }),
     );
-    render(<SettingsScreen />);
+    renderScreen();
 
     const panel = await screen.findByTestId("doctor-verify");
     expect(panel.textContent).toContain("myia/stocks/tg_token");
@@ -301,7 +316,7 @@ describe("设置:doctor 验证回显", () => {
         credentials: [...[...state.secrets.keys()].map((name) => credentialFixture({ name, ref: `keychain:${name}` }))],
       }),
     );
-    render(<SettingsScreen />);
+    renderScreen();
     await screen.findByTestId("doctor-verify");
 
     await typeByLabel("LLM API Key", "sk-later-verify");
@@ -320,7 +335,8 @@ describe("设置:doctor 验证回显", () => {
 describe("设置:推送通道凭据", () => {
   it("按 scope+名字写 myia/<scope>/<name>;值零回显", async () => {
     const state = installSidecar();
-    render(<SettingsScreen />);
+    renderScreen();
+    await openSection("push");
     await typeByLabel("品类 scope", "stocks");
     await typeByLabel("推送凭据名", "chat_id");
     await typeByLabel("推送凭据值", "oc_abc123private");
@@ -335,7 +351,8 @@ describe("设置:推送通道凭据", () => {
 
   it("scope 非法 → 前端校验拦截,零协议调用", async () => {
     installSidecar();
-    render(<SettingsScreen />);
+    renderScreen();
+    await openSection("push");
     await typeByLabel("品类 scope", "Stocks!");
     await typeByLabel("推送凭据值", "whatever");
     fireEvent.click(screen.getByRole("button", { name: "保存推送凭据" }));
@@ -355,7 +372,7 @@ describe("设置:代理池", () => {
         pools: [{ pool: "main", ok: true, latency_seconds: 0.42 }],
       });
     });
-    render(<SettingsScreen />);
+    renderScreen();
     await screen.findByTestId("doctor-verify"); // 等挂载 doctor 结算,探测按钮可点
     await typeByLabel("pools YAML 路径", "config/pools.yaml");
     fireEvent.click(screen.getByRole("button", { name: "探测" }));
@@ -371,7 +388,7 @@ describe("设置:代理池", () => {
 
   it("池凭据写入 myia/proxy/<pool>", async () => {
     const state = installSidecar();
-    render(<SettingsScreen />);
+    renderScreen();
     await typeByLabel("代理池名", "main");
     await typeByLabel("代理凭据值", "user-ref:pass-ref");
     fireEvent.click(screen.getByRole("button", { name: "保存代理凭据" }));
@@ -386,11 +403,12 @@ describe("设置:代理池", () => {
 // C5(10-03-v112-desktop-parity):钥匙链凭据删除(secret.delete;inline 二次确认)
 // ---------------------------------------------------------------------------
 
-describe("设置:凭据删除(C5)", () => {
+describe("设置:凭据删除(C5;D4 后居「高级」分区危险区)", () => {
   it("删除按钮 → 二次确认 → secret.delete → 名单刷新不再列出", async () => {
     const state = installSidecar();
     state.secrets.set("myia/llm/api_key", "v");
-    render(<SettingsScreen />);
+    renderScreen();
+    await openSection("advanced");
 
     await screen.findByText("myia/llm/api_key");
     // 第一次点击只亮出确认,不直接删
@@ -406,7 +424,8 @@ describe("设置:凭据删除(C5)", () => {
   it("取消确认零删除;删除失败(secret_not_found)结构化上屏", async () => {
     const state = installSidecar();
     state.secrets.set("myia/push/token", "v");
-    render(<SettingsScreen />);
+    renderScreen();
+    await openSection("advanced");
 
     await screen.findByText("myia/push/token");
     fireEvent.click(screen.getByRole("button", { name: "删除凭据 myia/push/token" }));
@@ -521,17 +540,17 @@ describe("设置:评分与反馈分区(B3+C11)", () => {
 
   it("挂载即渲染逐品类行(doctor enrich 节);budget 只读护栏明示", async () => {
     installYamlSidecar();
-    render(<SettingsScreen />);
+    renderScreen();
     const row = await screen.findByTestId("enrich-row-plugins/stocks.yaml");
     expect(row.textContent).toContain("stocks.yaml");
     expect(row.textContent).toContain("budget_per_run = 40");
     expect(row.textContent).toContain("精评已启用");
   });
 
-  it("停用开关:yaml.read → 文本手术(enabled: true→false)→ yaml.save(mtime 锁)→ doctor 复核", async () => {
+  it("停用开关(Switch 即时写回):yaml.read → 文本手术(enabled: true→false)→ yaml.save(mtime 锁)→ doctor 复核", async () => {
     const state = installYamlSidecar();
-    render(<SettingsScreen />);
-    const toggle = await screen.findByRole("button", { name: /停用精评:plugins\/stocks\.yaml/ });
+    renderScreen();
+    const toggle = await screen.findByRole("switch", { name: "精评开关 plugins/stocks.yaml" });
     fireEvent.click(toggle);
 
     await waitFor(() => expect(state.saved).not.toBeNull());
@@ -550,7 +569,7 @@ describe("设置:评分与反馈分区(B3+C11)", () => {
 
   it("model 写回:与现值一致禁用保存;改值后 yaml.save 带 mtime 锁", async () => {
     const state = installYamlSidecar();
-    render(<SettingsScreen />);
+    renderScreen();
     const input = await screen.findByLabelText("精评模型 plugins/stocks.yaml");
     // 现值一致 → 保存禁用(本项目无 jest-dom,原生 disabled 直查)
     expect((screen.getByRole("button", { name: /保存 model/ }) as HTMLButtonElement).disabled).toBe(true);
@@ -577,9 +596,9 @@ describe("设置:评分与反馈分区(B3+C11)", () => {
         }
       },
     });
-    render(<SettingsScreen />);
-    fireEvent.click(await screen.findByRole("button", { name: /停用精评:plugins\/stocks\.yaml/ }));
-    // 断言限定本分区(vision-form 挂载同屏可能另有 alert,不搅)
+    renderScreen();
+    fireEvent.click(await screen.findByRole("switch", { name: "精评开关 plugins/stocks.yaml" }));
+    // 断言限定本卡(结构重做后 vision-form 仅在「视觉」分区挂载,本区唯一 alert)
     const card = screen.getByTestId("enrich-feedback-card");
     const box = await within(card).findByRole("alert");
     expect(box.textContent).toContain("mtime_conflict");
@@ -612,16 +631,17 @@ describe("设置:评分与反馈分区(B3+C11)", () => {
         throw JSON.stringify({ code: "method_not_found", path: "method", message: "x" });
       },
     );
-    render(<SettingsScreen />);
-    fireEvent.click(await screen.findByRole("button", { name: /停用精评:plugins\/stocks\.yaml/ }));
+    renderScreen();
+    fireEvent.click(await screen.findByRole("switch", { name: "精评开关 plugins/stocks.yaml" }));
     const note = await screen.findByTestId("enrich-node-error");
     expect(note.textContent).toContain("缺少 enrich");
     expect(note.textContent).toContain("配置编辑");
   });
 
-  it("push 声明指引链接 → 配置编辑屏路由(HashRouter 锚点)", async () => {
+  it("push 声明指引链接(在「推送」分区卡底)→ 配置编辑屏路由(HashRouter 锚点)", async () => {
     installYamlSidecar();
-    render(<SettingsScreen />);
+    renderScreen();
+    await openSection("push");
     const link = await screen.findByRole("link", { name: "去配置编辑改 push 声明" });
     expect(link.getAttribute("href")).toBe("#/yaml-editor");
   });
@@ -634,7 +654,8 @@ describe("设置:评分与反馈分区(B3+C11)", () => {
 describe("设置:推送测试(G5)", () => {
   it("scope 已填 → target 组 keychain 引用下发;成功回显 ok 徽标", async () => {
     installSidecar();
-    render(<SettingsScreen />);
+    renderScreen();
+    await openSection("push");
 
     await typeByLabel("品类 scope", "stocks");
     fireEvent.click(screen.getByRole("button", { name: "发送测试" }));
@@ -653,7 +674,8 @@ describe("设置:推送测试(G5)", () => {
 
   it("scope 空 → 不带 target(走通道默认 env 引用链,如实测)", async () => {
     installSidecar();
-    render(<SettingsScreen />);
+    renderScreen();
+    await openSection("push");
 
     fireEvent.click(screen.getByRole("button", { name: "发送测试" }));
     await waitFor(() => expect(callsOf("push.test")).toHaveLength(1));
@@ -669,12 +691,121 @@ describe("设置:推送测试(G5)", () => {
         message: "环境变量 FEISHU_BOT_TOKEN 未设置",
       });
     };
-    render(<SettingsScreen />);
+    renderScreen();
+    await openSection("push");
 
     fireEvent.click(screen.getByRole("button", { name: "发送测试" }));
     expect(await screen.findByText("通道失败")).toBeTruthy();
     const note = screen.getByTestId("push-test-result");
     expect(note.textContent).toContain("env_var_missing");
     expect(note.textContent).toContain("FEISHU_BOT_TOKEN");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D4 结构重做(10-03-ui-deep-imitation,对照 teardown-linear-settings 第 1/2/5/6
+// 条):左分区导航(当前项高亮)+ 右侧每子区一屏(区标题+描述+卡片列)+ URL
+// ?section= 驱动深链 + 危险区 Destructive Card 隔离。
+// ---------------------------------------------------------------------------
+
+describe("设置:分区导航与危险区(D4 结构重做)", () => {
+  it("五分区导航齐(通用/视觉/推送/更新/高级);缺省进通用,通用卡直见而他区卡不挂载", async () => {
+    installSidecar();
+    renderScreen();
+
+    for (const id of ["general", "vision", "push", "update", "advanced"]) {
+      expect(screen.getByTestId(`settings-nav-${id}`)).toBeTruthy();
+    }
+    // 当前项高亮:aria-current 打在通用上
+    expect(screen.getByTestId("settings-nav-general").getAttribute("aria-current")).toBe("true");
+    expect(screen.getByTestId("settings-nav-vision").getAttribute("aria-current")).toBeNull();
+    // 每子区一屏:通用区可见(LLM 表单),看图/更新卡未挂载
+    expect(screen.getByTestId("settings-section-general")).toBeTruthy();
+    expect(screen.getByLabelText("base_url")).toBeTruthy();
+    expect(screen.queryByLabelText("本地 base_url")).toBeNull(); // VisionForm 未挂载
+    expect(screen.queryByTestId("updater-status")).toBeNull(); // UpdaterCard 未挂载(其 idle 态无 status 节点,双保险)
+    expect(screen.queryByTestId("settings-danger-zone")).toBeNull(); // 危险区不在通用
+  });
+
+  it("点导航切区:右列换屏 + aria-current 随迁;视觉区挂 VisionForm 两卡所需表单", async () => {
+    mocks.invoke.mockImplementation(async (_command: string, args: { method: string }) => {
+      if (args.method === "secret.list") return { names: [] };
+      if (args.method === "doctor") return doctorFixture();
+      if (args.method === "image.config.read") {
+        return {
+          file: "/home/vision.yaml",
+          exists: true,
+          config: {
+            channel_default: "local",
+            local: { base_url: "http://127.0.0.1:8080/v1", model: "" },
+            cloud: { base_url: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4.6v", api_key: null },
+            ocr: { enabled: true, engine_default: "vision" },
+          },
+        };
+      }
+      throw JSON.stringify({ code: "method_not_found", path: "method", message: `未知方法 ${args.method}` });
+    });
+    renderScreen();
+    await screen.findByTestId("doctor-verify");
+
+    await openSection("vision");
+    expect(screen.getByTestId("settings-section-vision")).toBeTruthy();
+    expect(screen.queryByTestId("settings-section-general")).toBeNull(); // 每子区一屏:通用卸载
+    expect(screen.getByTestId("settings-nav-vision").getAttribute("aria-current")).toBe("true");
+    await waitFor(() => {
+      expect((screen.getByLabelText("本地 base_url") as HTMLInputElement).value).toBe("http://127.0.0.1:8080/v1");
+    });
+    // 区标题+描述在位(拆解表第 2 条)
+    expect(screen.getByRole("heading", { level: 2, name: "视觉" })).toBeTruthy();
+  });
+
+  it("URL ?section= 深链:直进高级区,危险区 Destructive 卡直见且为该区末位卡", async () => {
+    const state = installSidecar();
+    state.secrets.set("myia/llm/api_key", "v");
+    renderScreen("/settings?section=advanced");
+
+    const danger = await screen.findByTestId("settings-danger-zone");
+    expect(danger.textContent).toContain("危险区");
+    expect(danger.textContent).toContain("二次确认");
+    expect(danger.textContent).toContain("myia/llm/api_key");
+    // 危险区在高级区底部:其后仅安全底线文案,无其他设置卡(section 内最后一个 Card)
+    const section = screen.getByTestId("settings-section-advanced");
+    const cards = section.querySelectorAll("[data-slot='card']");
+    expect(cards[cards.length - 1]).toBe(danger);
+    // 非法 section 值回落通用
+  });
+
+  it("非法 ?section= 值回落通用分区(不白屏)", async () => {
+    installSidecar();
+    renderScreen("/settings?section=nonsense");
+    expect(screen.getByTestId("settings-section-general")).toBeTruthy();
+    expect(screen.getByLabelText("base_url")).toBeTruthy();
+  });
+
+  it("每区保存态反馈在卡片底栏:保存中禁用按钮,成功后 save-status 留在本卡", async () => {
+    let releaseSave: (() => void) | null = null;
+    mocks.invoke.mockImplementation(async (_command: string, args: { method: string; params?: unknown }) => {
+      if (args.method === "doctor") return doctorFixture();
+      if (args.method === "secret.list") return { names: [] };
+      if (args.method === "secret.set") {
+        await new Promise<void>((resolve) => {
+          releaseSave = resolve; // 挂起保存,冻结「保存中」态供断言
+        });
+        const { name, value } = args.params as SecretSetParams;
+        return { name, stored: value.length > 0 };
+      }
+      throw JSON.stringify({ code: "method_not_found", path: "method", message: "x" });
+    });
+    renderScreen();
+    await typeByLabel("base_url", "https://api.example.com");
+    const save = screen.getByRole("button", { name: "保存 LLM 凭据" }) as HTMLButtonElement;
+    fireEvent.click(save);
+    // 保存中:按钮禁用 + 行内保存中文案(role=status)
+    await screen.findByText("保存中…");
+    expect((screen.getByRole("button", { name: "保存 LLM 凭据" }) as HTMLButtonElement).disabled).toBe(true);
+    (releaseSave as (() => void) | null)?.();
+    const status = await screen.findByTestId("save-status");
+    expect(status.textContent).toContain("myia/llm/base_url");
+    expect(status.closest("[data-slot='card']")?.textContent).toContain("LLM 精评"); // 反馈留在本卡底栏
   });
 });
