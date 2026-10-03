@@ -219,6 +219,33 @@ fn main() {
                 next_id: AtomicU64::new(1),
             });
             pump_task(app.handle().clone(), rx);
+            // MYIA_SMOKE_ROUTE 静默冒烟钩子(v1.1.1 装机五屏截图用):launchctl
+            // setenv 传入路由名(如 "feed"),启动即设 window.location.hash("#/feed");
+            // 未设则零行为变化。立即 + 1500ms 两次 eval 兜底 webview 未就绪的窗口期,
+            // 同值幂等;不 show 不 focus,静默启动语义不受影响。
+            if let Ok(route) = std::env::var("MYIA_SMOKE_ROUTE") {
+                let hash = if route.starts_with('#') {
+                    route
+                } else {
+                    format!("#/{}", route.trim_start_matches('/'))
+                };
+                if let Some(win) = app.get_webview_window("main") {
+                    let script = format!(
+                        "window.location.hash = {}",
+                        serde_json::to_string(&hash).unwrap_or_else(|_| "\"#/\"".into())
+                    );
+                    let _ = win.eval(&script);
+                    let (win, script) = (win.clone(), script.clone());
+                    tauri::async_runtime::spawn(async move {
+                        tokio::time::sleep(Duration::from_millis(1500)).await;
+                        let _ = win.eval(&script);
+                        // 亮窗必须等 run loop 转起:setup 期 show() 的 orderFront 会被
+                        // visible:false 的初始排序覆盖(实测 2026-10-03);Reopen 路径
+                        // 能亮正是事件循环起来之后。同样仅冒烟 env 存在时触达。
+                        let _ = win.show();
+                    });
+                }
+            }
             // 静默启动(10-03-quiet-launch):主窗口 visible:false 出厂,Dock 点击
             // (RunEvent::Reopen)或对运行中实例再 open -a 才亮出。dev 构建与
             // MYIA_SHOW_ON_START=1 例外照旧启动即显示(open 不透传 shell env,
