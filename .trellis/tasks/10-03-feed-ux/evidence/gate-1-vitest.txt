@@ -1,0 +1,32 @@
+# 门禁 1:vitest 全量
+# 命令:cd desktop/ui-src && npm test -- --run
+# 日期:2026-10-03 20:22;退出码=0
+
+> myia-desktop-ui@0.1.0 test
+> vitest run --run
+
+
+ RUN  v4.1.11 /Users/zhengbingjin/Project/Github/MYIA/desktop/ui-src
+
+ ✓ src/lib/api/client.test.ts (6 tests) 7ms
+ ✓ src/screens/messaging/platform-icons.test.tsx (8 tests) 73ms
+ ✓ src/screens/yaml-editor/editor-pane.test.tsx (2 tests) 106ms
+ ✓ src/screens/settings/updater-card.test.tsx (4 tests) 129ms
+ ✓ src/screens/logs/logs-screen.test.tsx (5 tests) 125ms
+ ✓ src/components/layout/top-bar.test.tsx (3 tests) 210ms
+ ✓ src/screens/yaml-editor/yaml-editor-dialog.test.tsx (8 tests) 211ms
+ ✓ src/screens/dashboard/dashboard-screen.test.tsx (9 tests) 234ms
+ ✓ src/hooks/use-sidecar-status.test.tsx (5 tests) 336ms
+ ✓ src/screens/settings/vision-form.test.tsx (5 tests) 262ms
+ ✓ src/screens/sources/sources.test.tsx (14 tests) 437ms
+ ✓ src/screens/yaml-editor/yaml-editor-screen.test.tsx (17 tests) 588ms
+ ✓ src/screens/messaging/messaging-screen.test.tsx (31 tests) 600ms
+ ✓ src/screens/settings/settings.test.tsx (16 tests) 794ms
+ ✓ src/screens/feed/feed-screen.test.tsx (20 tests) 944ms
+     ✓ 分页加载:首页 50 条出「加载更早」按钮,翻页带 before/before_id 复合游标,取尽后按钮消失  359ms
+
+ Test Files  15 passed (15)
+      Tests  153 passed (153)
+   Start at  20:22:28
+   Duration  1.74s (transform 1.46s, setup 0ms, import 3.51s, tests 5.05s, environment 6.08s)
+

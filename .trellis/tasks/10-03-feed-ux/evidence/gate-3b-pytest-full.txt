@@ -1,0 +1,19 @@
+# 全量 pytest(implement.md 步骤 8 口径,信息性)
+# 命令:uv run pytest -q
+# 日期:2026-10-03 20:23;退出码=1
+=========================== short test summary info ============================
+FAILED tests/test_plugins.py::test_plugin_builds_a_pipeline[ai-news] - myia.e...
+FAILED tests/test_plugins.py::test_plugin_two_runs_dedup_blocks_and_no_duplicate_rows[ai-news]
+2 failed, 2489 passed, 19 skipped in 58.31s
+
+## 第二次复跑(20:24)与归因注记
+
+- 复跑退出码 1:2 failed(test_plugins.py::test_plugin_builds_a_pipeline[ai-news] /
+  test_plugin_two_runs_dedup_blocks_and_no_duplicate_rows[ai-news]),2489 passed。
+- 失败根因 = 并行线在途 plugins/ai-news.yaml(mtime 20:21,恰在两次运行之间)给
+  enrich 节新增 `base_url: env:MYIA_LLM_BASE_URL`,本 shell 未导出该变量 →
+  schema.py:489 KeyError。与本批(feed-ux)零关联:本批未动任何 Python/yaml。
+- 对照验证:MYIA_LLM_BASE_URL=https://open.bigmodel.cn/api/paas/v4 uv run pytest
+  tests/test_plugins.py -q -k ai-news → 14 passed,退出码 0。
+- 本批门禁以协议面为准(tests/test_desktop_sidecar_protocol.py 86 passed 稳定绿);
+  全量两次结果均如实留档,第一次(20:21 前)2491 passed 全绿。

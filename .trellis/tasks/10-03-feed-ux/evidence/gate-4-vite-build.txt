@@ -1,0 +1,13 @@
+# vite build(implement.md 步骤 5-7 验证口径)
+# 命令:cd desktop/ui-src && npm run build(tsc -b && vite build)
+# 日期:2026-10-03 20:33;退出码=0
+../ui/assets/index-kQqWoOaR.css     38.91 kB │ gzip:   7.54 kB
+../ui/assets/index-D_f_-4mN.js       1.25 kB │ gzip:   0.48 kB
+../ui/assets/index-CGnhrk0V.js       2.20 kB │ gzip:   0.81 kB
+../ui/assets/index-BUAneAvJ.js   1,092.45 kB │ gzip: 350.70 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1.49s

@@ -1,0 +1,4 @@
+# 门禁 2:TypeScript 构建
+# 命令:cd desktop/ui-src && npx tsc -b
+# 日期:2026-10-03 20:22;退出码=0(零输出零错)
+[tsc 输出终止,无任何诊断]

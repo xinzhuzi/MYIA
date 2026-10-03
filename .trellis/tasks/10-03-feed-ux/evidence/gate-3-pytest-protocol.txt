@@ -1,0 +1,17 @@
+# 门禁 3a:协议面 pytest
+# 命令:uv run pytest tests/test_desktop_sidecar_protocol.py -q
+# 日期:2026-10-03 20:23;退出码=0
+........................................................................ [ 83%]
+..............                                                           [100%]
+86 passed in 4.13s
+
+## 20:38 复跑注记(并行会话冲突,非本批卡点)
+
+- 20:35 复跑:2 failed(test_protocol_version_bumped_for_feed_ux /
+  test_store_items_projects_image_ocr_scalar)+ 84 passed——运行期间树被换。
+- 根因实查:vision 线(10-03-vision-*)正在途编辑 desktop/entry.py,20:26 落笔的
+  中间态在 2450 区域有 SyntaxError(`try:` 块未合,image.models.* handler 未写完),
+  且 PROTOCOL_VERSION 已被其 4→5;至 20:41 mtime 不再变化(其编辑进程疑似中断)。
+- 本批零 Python 改动,entry.py 属 vision 线在途持有,按并行纪律不修不回滚。
+- 本批协议面绿证据 = 20:23 运行(entry.py 当时为 HEAD 已提交态):86 passed 退出码 0。
+- UI 侧门禁(vitest/tsc/vite build)不依赖 entry.py,20:22 后 UI 文件零改动,持续有效。
