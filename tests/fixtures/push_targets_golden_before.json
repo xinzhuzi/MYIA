@@ -248,7 +248,7 @@
    ]
   },
   "dedup": {
-   "key": "{url}"
+   "key": "{url}-{final_price}"
   },
   "enrich": {
    "api_key": null,
@@ -282,7 +282,7 @@
      }
     ],
     "target": "env:FEISHU_CHAT_ID",
-    "template": "**游戏情报 · {{ date }}**\n{% for item in items %}\n- [{{ item.title }}]({{ item.url }}) {% if item.price_text is defined %}{{ item.price_text }}{% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}\n{% endfor %}\n",
+    "template": "**游戏情报 · {{ date }}**\n{% for item in items %}\n- [{{ item.title }}]({{ item.url }}) {% if item.price_text is defined %}{{ item.price_text }}{% elif item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}\n{% endfor %}\n",
     "timeout": 10.0
    },
    {
@@ -300,7 +300,7 @@
      }
     ],
     "target": "env:TELEGRAM_CHAT_ID",
-    "template": "游戏情报 · {{ date }}\n{% for item in items %}\n- {{ item.title }} {{ item.url }} {% if item.price_text is defined %}{{ item.price_text }}{% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}\n{% endfor %}\n",
+    "template": "游戏情报 · {{ date }}\n{% for item in items %}\n- {{ item.title }} {{ item.url }} {% if item.price_text is defined %}{{ item.price_text }}{% elif item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}\n{% endfor %}\n",
     "timeout": 10.0
    }
   ],
@@ -377,6 +377,7 @@
     "extract": {
      "fields": {
       "deal_id": "$[*].dealID",
+      "final_price": "$[*].salePrice",
       "metacritic": "$[*].metacriticScore",
       "normal_price": "$[*].normalPrice",
       "sale_price": "$[*].salePrice",
@@ -408,6 +409,7 @@
     "engine": "direct_api",
     "extract": {
      "fields": {
+      "final_price": "$.products[*].price.finalMoney.amount",
       "gog_id": "$.products[*].id",
       "image": "$.products[*].coverVertical",
       "normal_price": "$.products[*].price.baseMoney.amount",

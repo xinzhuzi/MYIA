@@ -12,8 +12,9 @@ id: games
 name: 游戏情报
 
 # 每日 11:00(AM 槽)一跑:Epic 喜加一周四刷新、Steam 特惠每日轮换,每日
-# 一跑全覆盖。长促销会在每个新槽位/新日重推一次(dedup 槽位抑制语义,
-# 窗口期可见性优先,grill 决议⑥);嫌吵调稀 cron(如 0 11 * * 4,6)是
+# 一跑全覆盖。dedup 见 is_seen 全期拦截(10-03-games-dedup-fix 勘误:槽位
+# 抑制只管 should_send 推送层,入库层见过即永拒)——同 url 同价只推一次,
+# 价格变化(含正式免费日)才是再推信号;嫌吵调稀 cron(如 0 11 * * 4,6)是
 # 排程旋钮,不动结构。
 schedule: "0 11 * * *"
 timezone: Asia/Shanghai
@@ -109,10 +110,30 @@ sources:
       fields:
         title: "$[*].title"             # 游戏名
         deal_id: "$[*].dealID"          # 构 URL 用(已 URL-encoded,见上)
-        sale_price: "$[*].salePrice"    # 美元元,字符串直出("0.50";不归一 final_price)
+        sale_price: "$[*].salePrice"    # 美元元,字符串直出("0.50";数值不归一进
+                                         # 人民币分基线=v3 决议④;dedup 键价格态
+                                         # 的字符串别名见下方 final_price 注释)
         savings_pct: "$[*].savings"     # 字符串 %("97.057092");规则里 float() 白名单转换
         normal_price: "$[*].normalPrice"  # 美元元,字符串直出("16.99")
         metacritic: "$[*].metacriticScore"  # 显示参考(字符串;0 = 无评分)
+        # dedup 键带价格态(10-03-games-dedup-fix)的配套提取:键 {url}-{final_price}
+        # 在 dedup.make_key 对**缺失字段抛 ValueError** 的实锤下(dedup.py
+        # 「缺少字段」分支,实测:缺失→条目按 dedup_key_error 整条丢弃),四源
+        # 每条目都必须携带 final_price——CS/GOG 原先只有美元字段,故各补一份
+        # **字符串形态**的价格进 final_price(别名,不动 sale_price)。三条
+        # 安全性论证(10-03-games-dedup-fix 实测验证):
+        # 1. 模板显示分支:模板 elif 链已重排为 price_text → sale_price →
+        #    final_price,CS/GOG 条目走 $sale_price(原价 X) 美元段,
+        #    final_price/100 分支(对字符串会 TypeError)永不触达;
+        # 2. 限免规则:`final_price == 0` 对字符串 "0.50"/"0.00" 恒 False
+        #    (str == int 不抛错、不误判),CS 实测无 0 元 deal,immediate
+        #    仍只属限免——GOG 限免判定继续走 sale_price/normal_price 析取;
+        # 3. 基线:numeric_value 拒 str(只收 int/float),美元字符串不写
+        #    final_price 人民币分基线,vs_yesterday 不受污染。
+        # 已知代价(与大折扣规则对 CS 条目的既有噪音同类,可接受):digest
+        # 路由 when `final_price > 0` 对字符串 TypeError → 按不命中 → 保守
+        # 缺省 digest,落点与今天完全一致,仅逐条 WARNING 日志。
+        final_price: "$[*].salePrice"   # 美元元字符串("0.50"),仅作 dedup 键价格态;显示/规则/基线均不消费(见上论证)
     # 无 pagination:pageSize=20 单请求全量(每日 1 请求,不需要 {page} 翻页)
     rate_limit:                 # 礼貌档(同 Epic/Steam)
       qps: 0.5
@@ -160,6 +181,13 @@ sources:
         image: "$.products[*].coverVertical"                # 竖版封面绝对 URL
         sale_price: "$.products[*].price.finalMoney.amount"   # 美元元字符串("0.00")
         normal_price: "$.products[*].price.baseMoney.amount"  # 美元元字符串("19.99";永久免费="0.00")
+        # dedup 键价格态配套(10-03-games-dedup-fix,同 CS 源注释的三条安全
+        # 论证):make_key 对缺失字段抛 ValueError→dedup_key_error 整条丢弃,
+        # GOG 条目也必须携带 final_price。字符串形态("0.00"/"19.99"):
+        # 限免判定继续走 sale_price/normal_price 双保险析取(str=="0.00" !=
+        # int 0,final_price==0 半边不误判也不抢判);模板走 $sale_price 段
+        # (elif 链已重排);numeric_value 拒 str 不写分基线。
+        final_price: "$.products[*].price.finalMoney.amount"  # 美元元字符串,仅作 dedup 键价格态
     # 无 pagination:limit=48 单请求(每日 1 请求礼貌档;0 元全集 419 条/9 页
     # 是永久免费噪音,不为它翻页)
     rate_limit:                 # 礼貌档(同 Epic/Steam)
@@ -196,9 +224,11 @@ classify:                       # 零 token 第一漏斗;游戏标题不落七�
       when: 'final_price == 0 or (discount_pct or 0) >= 100 or (float(sale_price or "-1") == 0 and float(normal_price or "-1") > 0)'
       tag: 限免
     # v2 决议②:「下周免费」预告——字段融合进同一条目(upcoming_pct 并列
-    # 提取),dedup 稳定 {url} 不动:预告日 digest、正式限免日新槽 immediate,
-    # 切换碰撞由槽位抑制语义自然消解。预告不是现在能领的,路由不设
-    # immediate(final_price>0 天然落 digest)。
+    # 提取)。10-03-games-dedup-fix 勘误:原判断「dedup 稳定 {url}、切换
+    # 碰撞由槽位抑制消解」不成立——is_seen 是全期拦截,预告日推过的同 url
+    # 到正式免费日被吞,限免 immediate 失效;修法=dedup 键带价格态,免费日
+    # final_price 变 0 即新键入库,immediate 照常落地。预告不是现在能领的,
+    # 路由不设 immediate(final_price>0 天然落 digest)。
     - name: 下周免费
       when: "upcoming_pct >= 100"
       tag: 下周免费
@@ -216,10 +246,18 @@ classify:                       # 零 token 第一漏斗;游戏标题不落七�
       tag: 多店半价+
 
 dedup:
-  key: "{url}"                  # 稳定键(不带 {date}):槽位抑制语义下同一条
-                                # 每天每槽最多重推一次;baseline 价格历史按
-                                # dedup_key 存,带 {date} 每天换键会断链
-                                # (vs_yesterday 失效)。{title} schema 永拒。
+  # 键带价格态(10-03-games-dedup-fix):is_seen 是**全期**拦截入库
+  # (pipeline.py _stage_dedup → DedupRegistry.is_seen,条目见过即永拒),
+  # 纯 {url} 键=条目一生只推一次——v2 预告字段融合后,预告日 digest 推过
+  # 的同 url 到正式免费日被 seen 吞掉,限免 immediate 失效(本修复的靶心)。
+  # 带价格态后:同 url 同价=同键,仍只推一次;价格变化=新键新入库——预告日
+  # 键 {url}-5300,免费日键 {url}-0,immediate 照常落地。价格基线不受键轮换
+  # 影响:item_metric_key 已改 url 优先(templates.py),vs_yesterday 按
+  # 商品 url 取昨值,不断链。{date}/{slot} 不进键:槽位轮换键会把同一价
+  # 格态每槽重推一遍(seen 全期语义下只有价格变化才值得再推)。{title}
+  # schema 永拒。四源都携带 final_price(Epic/Steam 人民币分 int;CS/GOG
+  # 美元元字符串,补齐理由与安全性论证见各源 fields 注释)。
+  key: "{url}-{final_price}"
 
 enrich:                         # 零 token 路线:游戏价格数值自解释,不烧
   enabled: false                # LLM 精评(趋势交给 baseline 数值基线)
@@ -243,18 +281,22 @@ push:
       - when: "final_price > 0"                           # 普通折扣进日报
         mode: digest
     # 四源字段形态并存(wrap):价格优先 price_text(Epic "¥60.00"/"0" 直出),
-    # Steam 无该字段退 final_price/100(分 → 元),CS 条目两者皆无 → 美元段
+    # Steam 无该字段退 final_price/100(分 → 元),CS/GOG 条目走美元段
     # $sale_price(原价 normal_price)直出(字符串形态免换算)——GOG 条目
     # (wrap)美元字段与 CS 同名同形态,同一段 $现价(原价 X) 自动复用,
-    # sale_price=="0.00" 即限免。守卫用 `is defined`/`default`:
-    # StrictUndefined 下裸 default(final_price/100) 对 CS/GOG 条目会先求值
-    # 缺字段而炸(default 实参是急求值)。savings 是字符串
-    # %,先 |float 再 |round|int(裸 |round 对 str 直接 TypeError)。折扣只在
-    # 有值时显示(vs_yesterday 无历史时渲染空串,不是错误)。
+    # sale_price=="0.00" 即限免。**elif 链顺序 sale_price 先于 final_price
+    # (10-03-games-dedup-fix)**:CS/GOG 为 dedup 键价格态补了字符串
+    # final_price 后,若 final_price 分支在前,str/100 会 TypeError 炸整卡;
+    # 重排后美元条目照走 $ 段,final_price/100 只属 Steam(分 int)。
+    # 守卫用 `is defined`/`default`:StrictUndefined 下裸
+    # default(final_price/100) 对 CS/GOG 条目会先求值缺字段而炸(default
+    # 实参是急求值)。savings 是字符串 %,先 |float 再 |round|int(裸 |round
+    # 对 str 直接 TypeError)。折扣只在有值时显示(vs_yesterday 无历史时
+    # 渲染空串,不是错误)。
     template: |
       **游戏情报 · {{ date }}**
       {% for item in items %}
-      - [{{ item.title }}]({{ item.url }}) {% if item.price_text is defined %}{{ item.price_text }}{% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}
+      - [{{ item.title }}]({{ item.url }}) {% if item.price_text is defined %}{{ item.price_text }}{% elif item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}
       {% endfor %}
 
   # telegram 加挂(wrap 落地 v1 决议⑤「单通道起步,telegram 后续加挂 =
@@ -276,7 +318,7 @@ push:
     template: |
       游戏情报 · {{ date }}
       {% for item in items %}
-      - {{ item.title }} {{ item.url }} {% if item.price_text is defined %}{{ item.price_text }}{% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}
+      - {{ item.title }} {{ item.url }} {% if item.price_text is defined %}{{ item.price_text }}{% elif item.sale_price is defined %}${{ item.sale_price }}(原价 {{ item.normal_price }}){% elif item.final_price is defined %}{{ item.final_price / 100 }}{% endif %}{% if item.discount_pct | default(0) > 0 %} -{{ item.discount_pct }}%{% endif %}{% if item.savings_pct | default(0) | float > 0 %} -{{ item.savings_pct | float | round | int }}%{% endif %}{% if item.upcoming_pct | default(0) >= 100 %} 📅{{ item.upcoming_start[:10] }}起免费{% endif %} {{ vs_yesterday(item, 'final_price') }}
       {% endfor %}
 
 storage:                        # 基线期自动长于条目期:metric_history 按

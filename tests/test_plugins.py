@@ -21,6 +21,10 @@ wrap (task 10-03-games-wrap) added the GOG catalog free-source (fourth:
 wins over any template) and mounted the telegram push entry (v1 决议⑤:
 same two-tier route, plain-text template variant — telegram sends user
 templates without parse_mode).
+dedup-fix (task 10-03-games-dedup-fix) made the games entry key carry
+price state (``{url}-{final_price}``; CS/GOG gained a string-form
+``final_price`` alias for it) and reversed :func:`item_metric_key` to
+url-first so rotating entry keys no longer break price baselines.
 """
 
 import asyncio
@@ -37,7 +41,7 @@ from myia.engines.fetch_base import extract_html, extract_json
 from myia.pipeline import Pipeline
 from myia.push.base import SendContext
 from myia.push.route import resolve_route, routes_from_config
-from myia.push.templates import TemplateRenderer
+from myia.push.templates import TemplateRenderer, item_metric_key
 from myia.schema import ClassifyConfig, LoadError, SourceConfig, load_category, load_category_file
 from myia.store import SQLiteStore
 
@@ -166,8 +170,10 @@ def test_games_uses_direct_api_json_path_with_url_template():
     """10-03-games D1/D6 + v3 + wrap:四源 direct_api + json_path。Epic/Steam/
     CS 三源响应无页面 URL(只有 urlSlug / 数字 id / 已编码 dealID),条目 URL
     全靠 url_template 渲染;GOG(wrap 第四源)是反向形态——storeLink 即绝对
-    URL,url 字段直出免模板(schema 二选一的另一边)。dedup 稳定键 {url}
-    (baseline 价格历史按 dedup_key 存,不能带日期)。"""
+    URL,url 字段直出免模板(schema 二选一的另一边)。dedup 键带价格态
+    {url}-{final_price}(10-03-games-dedup-fix:is_seen 全期拦截下纯 {url} 键
+    =条目一生只推一次,预告→免费的切换会被吞);baseline 价格历史按 url 存
+    (item_metric_key url 优先),键随价格态轮换不断链。"""
     config = _load("games")
     assert {source.name for source in config.sources} == {
         "epic-free", "steam-specials", "cheapshark", "gog-free",
@@ -182,7 +188,13 @@ def test_games_uses_direct_api_json_path_with_url_template():
         else:  # gog-free:storeLink 绝对链接,url 字段胜出、无模板
             assert source.extract.url_template is None
             assert "url" in source.extract.fields
-    assert config.dedup.key == "{url}"
+        # dedup 键价格态的硬前提(10-03-games-dedup-fix):make_key 对缺失
+        # 字段抛 ValueError→条目按 dedup_key_error 丢弃,四源必须都产出
+        # final_price(Epic/Steam 人民币分 int;CS/GOG 美元元字符串)。
+        assert "final_price" in source.extract.fields, (
+            f"{source.name}: dedup 键 {{url}}-{{final_price}} 缺 final_price 提取,条目会被整条丢弃"
+        )
+    assert config.dedup.key == "{url}-{final_price}"
     assert config.classify.builtin is False, "游戏标题不落七大类,内置扫描只会误杀"
     assert config.baseline is not None and config.baseline.enabled
     assert config.baseline.fields == ["final_price"], "人民币分单位可直接比;CS/GOG 美元元不归一(v3 决议④)"
@@ -206,11 +218,15 @@ def test_games_gog_source_declares_catalog_query_and_double_insurance():
     assert gog.extract is not None
     assert gog.extract.url_template is None, "storeLink 绝对 URL,url 字段直出"
     assert set(gog.extract.fields) == {
-        "title", "url", "gog_id", "image", "sale_price", "normal_price",
+        "title", "url", "gog_id", "image", "sale_price", "normal_price", "final_price",
     }
     for name, path in gog.extract.fields.items():
         assert path.startswith("$.products[*]."), f"GOG 字段 {name} 应为 $.products[*] 前缀,当前 {path!r}"
-    assert "final_price" not in gog.extract.fields and "discount_pct" not in gog.extract.fields
+    assert "discount_pct" not in gog.extract.fields
+    # final_price(美元元字符串)= dedup 键价格态配套(10-03-games-dedup-fix):
+    # 只作键成分,限免判定仍走 sale_price/normal_price 双保险析取,数值基线
+    # 拒 str 不受污染(numeric_value 只收 int/float)。
+    assert gog.extract.fields["final_price"] == "$.products[*].price.finalMoney.amount"
     assert gog.rate_limit is not None
     assert gog.rate_limit.respect_robots is True, "catalog.gog.com robots.txt 404(2026-10-03 实测),缺省即允许"
 
@@ -281,9 +297,12 @@ def test_games_cheapshark_source_declares_three_stores_top_array_prefix():
     assert cs.extract.fields
     for name, path in cs.extract.fields.items():
         assert path.startswith("$[*]."), f"CS 顶层数组字段 {name} 应为 $[*] 前缀,当前 {path!r}"
-    # 美元字段独立命名,不碰归一化字段(决议④:人民币分基线不容美元元)
-    assert set(cs.extract.fields) == {"title", "deal_id", "sale_price", "savings_pct", "normal_price", "metacritic"}
-    assert "final_price" not in cs.extract.fields and "discount_pct" not in cs.extract.fields
+    # 美元字段独立命名,不碰归一化字段(决议④:人民币分基线不容美元元);
+    # final_price(= $.salePrice 字符串)是 dedup 键价格态配套
+    # (10-03-games-dedup-fix),只作键成分不进显示/规则/数值基线。
+    assert set(cs.extract.fields) == {"title", "deal_id", "sale_price", "savings_pct", "normal_price", "metacritic", "final_price"}
+    assert cs.extract.fields["final_price"] == "$[*].salePrice"
+    assert "discount_pct" not in cs.extract.fields
     assert cs.rate_limit is not None
     assert cs.rate_limit.respect_robots is False, "CS robots Disallow: /api/1.0/ → deliberate override(判例注释在 YAML)"
 
@@ -318,9 +337,11 @@ def test_games_free_item_hits_rules_and_immediate_route():
 
 def test_games_upcoming_free_hits_tag_rule_and_stays_digest():
     """10-03-games-v2 决议②:Epic「下周免费」预告走**字段融合**——upcoming_pct
-    并入同一条目,dedup 稳定 {url} 不变(预告日 digest 推过,正式限免日新槽
-    照常 immediate,切换碰撞由槽位语义消解)。预告不是现在能领的,必须留在
-    digest、绝不 immediate。"""
+    并入同一条目。10-03-games-dedup-fix 勘误:原「dedup 稳定 {url}、切换碰撞
+    由槽位抑制消解」不成立(is_seen 全期拦截,预告日推过的同 url 到免费日
+    被吞);修法=dedup 键带价格态 {url}-{final_price},免费日价格变 0 即新键
+    入库,immediate 照常落地。预告不是现在能领的,必须留在 digest、绝不
+    immediate。"""
     config = _load("games")
     rules = {
         rule.tag: rule
@@ -444,6 +465,38 @@ def _send_context() -> SendContext:
     return SendContext(slot="am", date="2026-10-01", category="演示", kind="digest")
 
 
+# ---------------------------------------------------------------------------
+# item_metric_key(10-03-games-dedup-fix:url 优先,退 dedup_key)
+# ---------------------------------------------------------------------------
+
+
+def test_item_metric_key_prefers_url_over_stateful_dedup_key():
+    """url≠dedup_key 时取 url:条目键带状态后(games ``{url}-{final_price}``),
+   价格基线的稳定身份是商品 url——键随价格态轮换,昨日/上周快照才不断链,
+    vs_yesterday 对「这游戏今天又降了」才有基线可比。"""
+    games_view = {
+        "url": "https://store.epicgames.com/zh-CN/p/buried-stars",
+        "dedup_key": "https://store.epicgames.com/zh-CN/p/buried-stars-0",
+        "final_price": 0,
+    }
+    assert item_metric_key(games_view) == "https://store.epicgames.com/zh-CN/p/buried-stars"
+    # stocks 同理:dedup 键 {symbol}-{date}-{slot} 每槽轮换,旧序(键优先)
+    # 会让每日快照落在不同键上,vs_yesterday 恒空——反转后按稳定 url 存。
+    stocks_view = {"url": "NVDA", "dedup_key": "NVDA-2026-10-03-am"}
+    assert item_metric_key(stocks_view) == "NVDA"
+
+
+def test_item_metric_key_falls_back_to_dedup_key_without_url():
+    """无 url(或空串)退 dedup_key;两者皆无 → None(条目不进数值基线)。"""
+    assert item_metric_key({"dedup_key": "k-1"}) == "k-1"
+    assert item_metric_key({"url": "", "dedup_key": "k-2"}) == "k-2"
+    assert item_metric_key({"url": "https://example.com/a"}) == "https://example.com/a"
+    assert item_metric_key({"url": "", "dedup_key": ""}) is None
+    assert item_metric_key({}) is None
+    # 非字符串形态(引擎脏值)不算可用身份
+    assert item_metric_key({"url": 42, "dedup_key": None}) is None
+
+
 @pytest.mark.parametrize("name", OFFICIAL_PLUGINS)
 def test_plugin_template_renders_with_representative_items(name):
     """Templates survive the sandboxed renderer with realistic item fields."""
@@ -471,16 +524,21 @@ def test_plugin_template_renders_with_representative_items(name):
              "final_price": 5300, "original_price": 5300, "upcoming_pct": 100,
              "upcoming_start": "2026-10-08T15:00:00.000Z"},
             # v3 决议④:CS 美元形态(sale_price/normal_price/savings_pct 全字符串;
-            # URL 已含 URL-encoded dealID,钉不二次编码)
+            # URL 已含 URL-encoded dealID,钉不二次编码)。final_price 美元字符串
+            # 是 dedup 键价格态配套(10-03-games-dedup-fix)——同时钉模板 elif
+            # 链 sale_price 先于 final_price:美元条目走 $ 段,final_price/100
+            # 分支(对 str 会 TypeError)永不触达。
             {"title": "Unclaimed World",
              "url": "https://www.cheapshark.com/redirect?dealID=hV1uGbDuy%2FdMUfxYZb%2BPCBj345sgqPwRWHlLgtuAxAk%3D",
-             "sale_price": "0.50", "normal_price": "16.99", "savings_pct": "97.057092"},
+             "sale_price": "0.50", "normal_price": "16.99", "savings_pct": "97.057092",
+             "final_price": "0.50"},
             # wrap 第四源 GOG 限免双保险形状(裁自 evidence/
             # gog-probe-catalog-freegames-p1.json [1],价格调整为 giveaway 形态
-            # ——2026-10-03 无在途限免可实录,同 CS savings 合成先例)
+            # ——2026-10-03 无在途限免可实录,同 CS savings 合成先例);
+            # final_price 美元字符串同 CS(dedup 键价格态配套)
             {"title": "BROK The InvestiGator - prologue",
              "url": "https://www.gog.com/en/game/brok_the_investigator_prologue",
-             "sale_price": "0.00", "normal_price": "19.99"},
+             "sale_price": "0.00", "normal_price": "19.99", "final_price": "0.00"},
         ],
         # gpu-prices:vs_msrp/vs_* 在无 msrp/trends 上下文时渲染空串(契约),
         # keyword_trends 缺省空列表——模板必须裸渲染存活
@@ -708,6 +766,7 @@ _SNIPPETS = {
         "expect_second": {
             "url": "https://www.cheapshark.com/redirect?dealID=nlp3qDJuphBKbhB375Uh1maMvh4fQqKur9BHFfgLZqI%3D",
             "sale_price": "0.59",
+            "final_price": "0.59",
             "savings_pct": "45.0",
         },
     },
@@ -756,6 +815,7 @@ _SNIPPETS = {
             "image": "https://images.gog-statics.com/9c14ad41ca4ae00e80badd6326324603ec495a91d5554688bb872f315b0d9bd6.jpg",
             "sale_price": "0.00",
             "normal_price": "19.99",
+            "final_price": "0.00",
         },
     },
     # v2ex is parked (commented out in wool.yaml, challenge-gated until a
@@ -793,9 +853,9 @@ def test_plugin_extract_matches_recorded_markup(plugin, source_name):
         for field in second.get("absent", []):
             assert field not in items[1], f"{plugin}/{source_name}: {field} 应逐元素省略"
         # 断言键集随源字段形态扩(v3:CS 美元字符串字段;wrap:GOG 同款美元
-        # 字段 + id/image 直出)
+        # 字段 + id/image 直出;dedup-fix:CS/GOG final_price 美元字符串)
         for key in ("url", "title", "discount_pct", "expire", "upcoming_pct", "upcoming_start",
-                    "sale_price", "savings_pct", "normal_price", "gog_id", "image"):
+                    "sale_price", "savings_pct", "normal_price", "gog_id", "image", "final_price"):
             if key in second:
                 assert items[1].get(key) == second[key], f"{plugin}/{source_name}: 第二形状 {key} 错位"
 
@@ -822,11 +882,15 @@ def test_plugin_builds_a_pipeline(name):
 # One representative live source per plugin; second-run payloads change the
 # content (new price / new topic) so the fetch-level change fingerprint does
 # NOT swallow the second run — the interception under test is the dedup stage.
-def _epic_free_body(discount_price: int, fmt_price: str) -> dict:
+def _epic_free_body(
+    discount_price: int, fmt_price: str, *, promo_end: str = "2026-10-08T15:00:00.000Z"
+) -> dict:
     """One-element Epic freeGamesPromotions body(trimmed evidence 形状).
 
-    Same catalogNs pageSlug both runs → same url_template 渲染 → 同一 {url}
-    dedup 键;price 变化让内容指纹不吞掉第二次 run(拦截发生在 dedup 阶段)。
+    Same catalogNs pageSlug → same url_template 渲染;``promo_end`` 搅动**未被
+    extract 的字段**(促销窗 endDate),让两跑 body 哈希不同、fetch 层指纹放行
+    ——games 键带价格态后(10-03-games-dedup-fix),「拦截」用例的第二跑还必须
+    同 ``discount_price``(同 url 同价=同键),变价=新键=入库,由专门测试钉。
     """
     return {"data": {"Catalog": {"searchStore": {"elements": [{
         "title": "深埋之星",
@@ -840,7 +904,7 @@ def _epic_free_body(discount_price: int, fmt_price: str) -> dict:
             "fmtPrice": {"originalPrice": "¥116.00", "discountPrice": fmt_price},
         }},
         "promotions": {"promotionalOffers": [{"promotionalOffers": [{
-            "startDate": "2026-10-01T15:00:00.000Z", "endDate": "2026-10-08T15:00:00.000Z",
+            "startDate": "2026-10-01T15:00:00.000Z", "endDate": promo_end,
             "discountSetting": {"discountType": "PERCENTAGE", "discountPercentage": 0},
         }]}], "upcomingPromotionalOffers": []},
     }]}}}}
@@ -880,9 +944,13 @@ _TWO_RUN_PLANS: dict[str, dict[str, Any]] = {
     },
     "games": {
         "source": "epic-free",
+        # 键含价后(10-03-games-dedup-fix)「拦截」用例须同 url 同价:两跑
+        # discountPrice 都是 0(限免实录形状)→ 同键 {url}-0;endDate 搅动
+        # 让 fetch 指纹放行,拦截点钉在 dedup 阶段。变价=新键=入库的语义
+        # 由 test_games_two_runs_price_change_creates_new_key 单独钉。
         "payloads": [
-            _epic_free_body(0, "0"),            # 限免价 0(实录形状)
-            _epic_free_body(100, "¥1.00"),      # 促销价变了,URL 不变
+            _epic_free_body(0, "0"),
+            _epic_free_body(0, "0", promo_end="2026-10-09T15:00:00.000Z"),
         ],
     },
     # gpu-prices(10-03-games-v2):zol 形状合成 markup(真实页被反爬检查页
@@ -956,6 +1024,43 @@ def test_plugin_two_runs_dedup_blocks_and_no_duplicate_rows(name, tmp_path):
     assert len(rows) == len({record.dedup_key for record in rows}), (
         f"{name}: store must not hold duplicate entries"
     )
+    store.close()
+    asyncio.run(client.aclose())
+
+
+def test_games_two_runs_price_change_creates_new_key(tmp_path):
+    """10-03-games-dedup-fix 新语义:键 {url}-{final_price} 下**变价=新键**——
+    同 url 第二跑价格变化(0 → 100)不被 seen 拦截,新键入库(限免 immediate
+    在正式免费日落地的机制基础);同键唯一性仍由上面的通用两跑测试钉
+    (同 url 同价=拦截)。这是 v2 决议②缺陷的回归钉:旧纯 {url} 键下,
+    预告日推过的条目到免费日被 is_seen 全期吞掉。"""
+    store = SQLiteStore(tmp_path / "dedup-price.db")
+    plan = {
+        "payloads": [
+            _epic_free_body(0, "0"),            # 预告期/限免价 0 → 键 {url}-0
+            _epic_free_body(100, "¥1.00"),      # 变价 100 → 新键 {url}-100
+        ],
+    }
+    client = httpx.AsyncClient(transport=httpx.MockTransport(_two_run_handler(plan)))
+    pipeline = Pipeline(_single_source_config("games"), store=store, client=client)
+
+    result1 = asyncio.run(pipeline.run())
+    assert result1.status == "success", result1.stats_dict()
+    assert result1.stage("dedup").items_out == 1
+
+    result2 = asyncio.run(pipeline.run())
+    assert result2.status == "success", result2.stats_dict()
+    # 变价=新键:第二跑不被 seen 拦截(0 skips),照常入库
+    assert result2.stage("dedup").skips.get("dedup_seen", 0) == 0, (
+        "变价后的条目是新键,不得被旧价格的 seen 记录拦截"
+    )
+    assert result2.stage("dedup").items_out == 1
+
+    rows = store.list_items()
+    assert len(rows) == 2, f"两价格态应各入库一行,当前 {len(rows)}"
+    keys = {record.dedup_key for record in rows}
+    url = "https://store.epicgames.com/zh-CN/p/buried-stars-d7c88c"
+    assert keys == {f"{url}-0", f"{url}-100"}, f"键应带价格态,当前 {keys}"
     store.close()
     asyncio.run(client.aclose())
 

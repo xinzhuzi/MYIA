@@ -1,0 +1,186 @@
+{
+ "description": "games dedup 键带价格态(10-03-games-dedup-fix)同库两跑真验证:plugins/games.yaml 对 /tmp 沙箱库连续真跑(非 --dry-run,--dry-run 无持久化副作用攒不起 dedup_seen)。语义靶心:同 url 同价=同键,第二跑应被 is_seen 全期拦截(dedup_seen),只推新(变价=新键)。",
+ "generated_at": "2026-10-03T07:03:12.208199+00:00",
+ "command": ".venv/bin/shishi run plugins/games.yaml --db /tmp/myia-games-dedup-proof/sandbox.db --json",
+ "plugin": "plugins/games.yaml @ commit-time working tree (dedup.key={url}-{final_price})",
+ "sandbox_db": "/tmp/myia-games-dedup-proof/sandbox.db",
+ "runs": [
+  {
+   "label": "run1 冷库首跑",
+   "run_id": 1,
+   "started_at": "2026-10-03T07:01:30.446807+00:00",
+   "finished_at": "2026-10-03T07:01:33.978905+00:00",
+   "status": "partial",
+   "dry_run": false,
+   "sources_item_count": {
+    "epic-free": 12,
+    "steam-specials": 10,
+    "cheapshark": 20,
+    "gog-free": 0
+   },
+   "sources_skip": {},
+   "stages": {
+    "fetch": {
+     "items_in": 4,
+     "items_out": 42,
+     "skips": {}
+    },
+    "classify": {
+     "items_in": 42,
+     "items_out": 42,
+     "skips": {}
+    },
+    "dedup": {
+     "items_in": 42,
+     "items_out": 41,
+     "skips": {
+      "dedup_seen": 1
+     }
+    },
+    "analyze": {
+     "items_in": 41,
+     "items_out": 41,
+     "skips": {}
+    },
+    "push": {
+     "items_in": 41,
+     "items_out": 41,
+     "skips": {}
+    }
+   },
+   "items_stored_this_run": 41,
+   "dedup_seen": 1,
+   "note": "四源真抓(epic 12+steam 10+cheapshark 20+gog 0);steam specials 列表内含 1 条同 url 同价重复条目,被新键语义同 run 拦截(dedup_seen=1)——41 入库。push 阶段因沙箱无 FEISHU/TELEGRAM 凭据失败(status=partial),不影响 dedup 入库与 seen 登记。"
+  },
+  {
+   "label": "run2 同库紧接二跑(原生)",
+   "run_id": 2,
+   "started_at": "2026-10-03T07:02:36.847490+00:00",
+   "finished_at": "2026-10-03T07:02:40.583871+00:00",
+   "status": "success",
+   "dry_run": false,
+   "sources_item_count": {
+    "epic-free": 12,
+    "steam-specials": 0,
+    "cheapshark": 0,
+    "gog-free": 0
+   },
+   "sources_skip": {
+    "steam-specials": "not_modified",
+    "cheapshark": "not_modified",
+    "gog-free": "hash_match"
+   },
+   "stages": {
+    "fetch": {
+     "items_in": 4,
+     "items_out": 12,
+     "skips": {}
+    },
+    "classify": {
+     "items_in": 12,
+     "items_out": 12,
+     "skips": {}
+    },
+    "dedup": {
+     "items_in": 12,
+     "items_out": 0,
+     "skips": {
+      "dedup_seen": 12
+     }
+    },
+    "analyze": {
+     "items_in": 0,
+     "items_out": 0,
+     "skips": {}
+    },
+    "push": {
+     "items_in": 0,
+     "items_out": 0,
+     "skips": {}
+    }
+   },
+   "items_stored_this_run": 0,
+   "dedup_seen": 12,
+   "note": "fetch 层增量指纹先行:steam/cheapshark 条件请求 304(not_modified)、gog body 哈希不变(hash_match)→ 三源 0 条到达 dedup;epic 12 条全数到达且全数 dedup_seen 拦截,0 入库。这层拦截是 fetch 指纹(变没变),不是本修复的 dedup 语义——故补 run3 剥离该层复证。"
+  },
+  {
+   "label": "run3 同库+清 change_baseline(剥离 fetch 指纹层)",
+   "run_id": 3,
+   "started_at": "2026-10-03T07:03:10.005770+00:00",
+   "finished_at": "2026-10-03T07:03:12.208199+00:00",
+   "status": "success",
+   "dry_run": false,
+   "sources_item_count": {
+    "epic-free": 12,
+    "steam-specials": 10,
+    "cheapshark": 20,
+    "gog-free": 0
+   },
+   "sources_skip": {},
+   "stages": {
+    "fetch": {
+     "items_in": 4,
+     "items_out": 42,
+     "skips": {}
+    },
+    "classify": {
+     "items_in": 42,
+     "items_out": 42,
+     "skips": {}
+    },
+    "dedup": {
+     "items_in": 42,
+     "items_out": 0,
+     "skips": {
+      "dedup_seen": 42
+     }
+    },
+    "analyze": {
+     "items_in": 0,
+     "items_out": 0,
+     "skips": {}
+    },
+    "push": {
+     "items_in": 0,
+     "items_out": 0,
+     "skips": {}
+    }
+   },
+   "items_stored_this_run": 0,
+   "dedup_seen": 42,
+   "note": "DELETE FROM change_baseline 后真跑:四源全量重新提取 42 条,dedup 层 items_in=42 → dedup_seen=42、items_out=0——同 url 同价=同键,旧条目 100% 拦截,只推新(价格变化才会产生新键)。"
+  }
+ ],
+ "store_after_all_runs": {
+  "items_rows": 41,
+  "dedup_registry_rows": 41,
+  "metric_history_rows": 27,
+  "metric_key_samples_url_first": [
+   "https://store.epicgames.com/zh-CN/p/buried-stars-d7c88c",
+   "https://store.epicgames.com/zh-CN/p/eternal-threads-197169",
+   "https://store.epicgames.com/zh-CN/p/ghostrunner-2",
+   "https://store.epicgames.com/zh-CN/p/lisa-the-definitive-edition",
+   "https://store.epicgames.com/zh-CN/p/lost-castle-abb2e2",
+   "https://store.epicgames.com/zh-CN/p/luftrausers-51e5e9",
+   "https://store.epicgames.com/zh-CN/p/model-builder-complete-edition-f9b456",
+   "https://store.epicgames.com/zh-CN/p/monument-valley-1d99d3"
+  ],
+  "metric_key_note": "metric_history 按 item_metric_key(url 优先)落键:Epic/Steam final_price 为 int 有快照,CS/GOG 美元字符串被 numeric_value 拒收不写基线——样本键即商品 url,不带价格态后缀。",
+  "metric_history_distinct_keys": 27,
+  "metric_key_breakdown": "21 个条目键(Epic 12 + Steam 9,全部裸商品 url,零价格态后缀——item_metric_key url 优先的实库验证;CS/GOG 美元字符串被 numeric_value 拒收不写基线)+ 6 个 keyword:<watchlist 词> 提及量键 = 27。"
+ },
+ "verdict": {
+  "ask": "第二次应大量 dedup_seen 跳过(旧条目被拦=只推新)",
+  "run2_dedup_seen": 12,
+  "run2_dedup_items_in": 12,
+  "run3_full_coverage_dedup_seen": 42,
+  "run3_full_coverage_dedup_items_in": 42,
+  "passed": true,
+  "note": "紧接二跑(run2)12/12 到达条目全拦;清 fetch 指纹后同库复跑(run3)42/42 全拦、0 入库——「只推新」语义成立:唯一能再入库的形态是价格变化(新键 {url}-{new_price}),即正式免费日 immediate 不再被吞的机制基础(单测 test_games_two_runs_price_change_creates_new_key 已钉)。"
+ },
+ "environment_notes": [
+  "gog-free 两跑均 0 条:catalog.gog.com 端点健康(HTTP 200),当前 price=between:0,0&discounted=eq:true 真返回 productCount=0/products=[](2026-10-03 15:0x curl 复核),非代码故障;wrap 探查时该查询有 419 条,属上游数据漂移。",
+  "push 阶段沙箱无凭据(env_var_missing)致 run1 status=partial、exit 3;dedup/入库/seen 登记不受影响(run2/run3 无待推条目,status=success)。",
+  "每跑均真发网络请求:Epic zh-CN / Steam cc=cn / CheapShark / GOG 各 1 次,qps 0.5 礼貌档。"
+ ]
+}

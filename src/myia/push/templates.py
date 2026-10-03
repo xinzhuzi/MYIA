@@ -123,8 +123,15 @@ def numeric_value(raw: Any) -> float | None:
 
 
 def item_metric_key(view: Mapping[str, Any]) -> str | None:
-    """The stable per-item identity for metric history (dedup_key 优先,退回 url)."""
-    key = view.get("dedup_key") or view.get("url")
+    """The stable per-item identity for metric history (url 优先,退回 dedup_key).
+
+    条目 dedup 键带上状态后(games 的 ``{url}-{final_price}``、stocks 的
+    ``{symbol}-{date}-{slot}`` 都随价格态/槽位轮换),dedup_key 不再是跨轮
+    稳定身份——键一换,昨日/上周快照就断链,vs_yesterday/vs_last_week 恒空。
+    价格基线的稳定身份是商品 url:url 缺失(如 stocks 以 symbol 充 url 的
+    兜底形态)或为空时才退回 dedup_key。
+    """
+    key = view.get("url") or view.get("dedup_key")
     return key if isinstance(key, str) and key else None
 
 
