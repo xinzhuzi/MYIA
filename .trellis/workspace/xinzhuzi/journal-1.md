@@ -250,3 +250,27 @@
 
 - messaging-core(交付 2b54865 在 main)、shared-build-races(e45e650,验收 3/3 实跑 EXIT=0)、v12-crawl4ai-l3(60022ff,验收 6/6、全量 1822 passed)、yaml-editor(c74eda0+cf0eb32,验收 14/14)四档目录 git status 干净,task.py archive 落 archive/2026-10/(均直落 main 无独立分支,--skip-branch-validation + --no-commit);其余 28 个活动档(games-v2/v3、shishi-everywhere、v12-backlog 在途改动及 games-wrap/vision-pipeline 等新立项)未收口,一律保留不动
 - a40c632:README 发帖前置清零(cd shishi×2、Windows 如实化 zh+en;连带收编并行会话在途的 dmg 名/v1.1.2 口径 4 个正确 hunk,提交信息注明);docs 锁 80 绿。发布线 AI 侧全清,主人侧剩 PYPI_API_TOKEN/四帖定稿/私钥备份。
+
+## 2026-10-03 games 收尾清零(task 10-03-games-wrap,工作流 dwfrun-e68f9e3e→review;games 线 v1+v2+v3+wrap 全收口)
+
+- 主人令「按照你的建议,将剩下的尾巴检查后都做完」;三探查员并行+条件实现,两笔提交 c958397(代码)+1f74878(档+证据 44 文件)
+- **三路探查定论**:①**GOG 限免=可行并已接入第四源**——catalog.gog.com/v1/catalog 官方 JSON(gog.com 官网 SSR 同款,honest UA 直连;discounted=eq:true 服务端过滤实测 0↔419 区分成立;storeLink 绝对链接免拼接;限免判定=finalMoney=="0.00" 且 baseMoney>0 双保险+URL 参数同信号);LootScraper Atom feed 记为第三方 backstop 备选;②**资讯源=需新能力**——机核 gcores RSS 最健康(honest UA 200/robots 准/中文 20 条)但 RSS 是 XML,static_html 实测 <link> void 元素拿不到条目 url(20/20 缺)+IGN CDATA 污染,**硬接=静默零产出**;落地方案=fetch 层加 RSS 解析小能力(feedparser 或 extract.type 扩展),立独立任务再做;Reddit .rss 虽 200 但全站 robots Disallow+官方政策限自动化,无推翻证据不可接;③**smzdm=关闭**——SSR 卡片可提取但无 discount_pct/original_price 结构化字段(games 全部规则永不命中)、priceshow 人民币文本与分单位冲突、内容实为游戏硬件优惠(将来立「数码优惠」独立插件可复用字段图)
+- 直接交付:telegram 加挂(v1 决议⑤,第二 push 条目+golden 同步)+CS 扩店/Switch 检查后关闭(决议③维持)+文案漂移交 messaging 线(该文件在途收窄改造,严禁触碰护栏生效)
+- 门禁:全量 1819→1826 零新红、ruff 零、dry-run 0、真跑全品类 41 条;独立质检 4 low 0 修(robots 404 断言证据链缺口[质检员复测为真+fetch_base fail-open 无行为风险]/「too too」注释笔误/限免判定三条件收窄为二[URL 参数已编码同信号,有据收窄]/夹具 discount 串形态瑕疵[不在映射内零影响])——全部零行为影响,留档即可
+- games 线四档终态:v1 completed(归档)/v2 review/v3 review/wrap review;待主人侧唯二:配凭据环境真收飞书/telegram 卡;资讯 RSS 能力若要,另立任务(fetch 层 feedparser 小改)
+
+## 2026-10-03 全库探查与 games 线终局归档(dwfrun-28e44594 + 并行会话合奏)
+
+- 主人令「探查可做的,不与其他会话冲突,能做的做完」;冲突地图=四线全活(大工作流 c79aa339/W2 消息 0b3ab00d/看图入管线 bbf0cc5e/shishi 改名 18df6728),desktop/vision/messaging/skills/v12 面全占;无冲突可做集=games 自家线两件:wrap 两 low 收尾+三档归档
+- **B 小修成**:games.yaml「too too→is too large」笔误(81a592f,scoped 绿+dry-run 0 后提交);GOG robots 404 证据件写出后被并行归档「顺带收编」进 86ce778(同 845f64a 判例,归属混代码无损)
+- **A 归档=双会话合奏**:我工作流的 archive world.run 三连报 could not resolve——正是撞上并行会话 14:13:52-58 三秒三连移动目录的瞬间;最终由它完成(v2 cf2c68f/v3 063d2f9/wrap 86ce778),殊途同归无双搬;**竞态教训:archive resolve 落空≠失败,先查对方是否正在搬同名档**(git log 有无同名 archive commit)再决定重试;顺带 cf2c68f 收编了它线 10-03-ci-gates/prd.md(auto-commit scoped 承诺未完全兑现,归属混不损代码,判例+1)
+- 探查报告(dashboard 卡「全库探查与无冲突收尾报告」):其余 11 项候选逐一跳过——messaging 8 档(W2 在途,跨线代办=抢收口权)/desktop·feed-ux·v112·ui-deep-imitation 4 档(大工作流面+正在写)/看图 2 档(整档未跟踪=建档会话脚下)/shishi(in_progress 被持有)/v12-backlog 双脏在编/grill-v112(决议权威档非归档形状)/archive-review(门禁=独立会话+tag 后,越权 43 档)/v0.1-v1.1 老 8 档(planning 状态债,report-only 留主人)
+- **games 线终局:v1+v2+v3+wrap 四档全部归档 completed**,活目录零残留;悬空引用仅两处注释级(games.yaml:4/test_plugins.py:193,仓库先例容忍,report-only 留档)
+
+## 2026-10-03 归档会话收口(task 10-03-archive-review;grill-v112+消息线四档)
+
+- 终态 6 归档/20 保留:games-wrap 系并行会话先归(86ce778,双会话合奏判例,核实 completed/2026-10-03 双侧干净);本次 5 档(grill-v112/messaging-feishu/hermes-look/telegram/ui)目录干净后 `task.py archive --skip-branch-validation --no-commit` 落 archive/2026-10/——五档均直落 main 无独立分支,裸命令被分支校验拒、按脚本自示补救执行(与前次归档会话同款)
+- 冲突裁定一句:prd 保留名单与并行会话「grill-v112 决议权威档非归档形状」的保留意见,一律让位主令终版清单——规则③双条件齐备(决议全沉淀本档 prd+验收五项全勾)即改判归档,在途子任务系自身生命周期非本档义务
+- 归档副作用:grill-v112 摘链改 4 活动子档 parent——v112-desktop-batch/parity 与本档随收口 commit 入库;v12-backlog/task.json 系在途脏文件(并行会话补挂 crawl4ai-l3 children),摘链随其会话提交不代提交
+- 其余 20 活动档(hermes-messaging 父伞挂冒烟欠账、v112 双批在途、shishi/ui-deep-imitation/v12-backlog 在编、feed-ux、messaging-platforms/w2/weixin-bridge、v11 双档、v01-v04+v10 记录伞档、image-fix-followups/vision-pipeline 新立项、本档)keep 不动
+- 本档状态直改 review(未经 finish);一笔 chore(task) 收口 commit 只含 .trellis(并发会话正动 spec/index.md 与已归档 ci-gates/gap-census prd,staging 精确到路径避免收编)

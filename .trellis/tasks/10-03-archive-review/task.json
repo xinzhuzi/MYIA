@@ -3,7 +3,7 @@
   "name": "archive-review",
   "title": "归档会话:43 个 review 任务批量核对归档",
   "description": "普查 E6:review 滞留任务逐个核对,真做完的归档(机制已被 49e223b 示范);保留活跃档;独立会话执行,排 tag 后(grill Q7)",
-  "status": "planning",
+  "status": "review",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -19,7 +19,7 @@
   "pr_url": null,
   "subtasks": [],
   "children": [],
-  "parent": "10-03-grill-v112",
+  "parent": null,
   "relatedFiles": [],
   "notes": "",
   "meta": {}

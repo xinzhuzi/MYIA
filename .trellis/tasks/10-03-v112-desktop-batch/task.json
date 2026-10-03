@@ -19,7 +19,7 @@
   "pr_url": null,
   "subtasks": [],
   "children": [],
-  "parent": "10-03-grill-v112",
+  "parent": null,
   "relatedFiles": [],
   "notes": "superseded by 10-03-v112-desktop-parity(2026-10-03 路由落档:C 组全量 + B2-B4 补实现吸收进该档;本 stub 零施工,勿在此开工)",
   "meta": {
