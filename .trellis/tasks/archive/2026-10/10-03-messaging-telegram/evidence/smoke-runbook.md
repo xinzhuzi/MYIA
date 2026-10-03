@@ -8,7 +8,7 @@
 ```bash
 export SMOKE=/tmp/tg-smoke && mkdir -p $SMOKE
 export TELEGRAM_BOT_TOKEN=<BotFather 的 token>   # 只在本窗口,不落盘
-E=.trellis/tasks/10-03-messaging-telegram/evidence
+E=.trellis/tasks/archive/2026-10/10-03-messaging-telegram/evidence
 ```
 
 ## 步骤 0(可选 sanity):passive 平台上报不失败

@@ -38,3 +38,60 @@ entry.py/测试文件的瞬态,复跑即绿,与本任务无关。)
 均查,均无;`~/.hermes/.env` 只有 FEISHU 键)。冒烟对象仅限主人 TG 私聊,
 须主人自 BotFather 取 token 并亲自发消息——步骤与配套 YAML 见
 `smoke-runbook.md`(accumulate/targets/legacy 三份 YAML 已随档备好)。
+
+---
+
+## 复验记录(2026-10-03 晚,接手收口路线第二跑)
+
+任务已归档(基线 ed1276f 仍在 HEAD 祖先链);工作树压着 vision-v2 /
+feed-ux 等并行会话在途改动(telegram.py 的在途增量是 sendPhoto 带图,
+属 10-03-vision-v2,非本任务面)。本次在**当前在途树**上原命令复验:
+
+```
+$ .venv/bin/python -m pytest tests/test_messaging_telegram.py -q
+45 passed in 0.09s                                        EXIT_CODE=0
+$ .venv/bin/python -m pytest tests/ -q -k telegram
+80 passed, 2501 deselected in 0.30s                       EXIT_CODE=0
+$ .venv/bin/python -m pytest tests/ -q
+2562 passed, 19 skipped in 55.86s                         EXIT_CODE=0
+```
+
+全量较上午基线(1758 passed)多出的测试为并行线新增,零红。
+
+附加无头核验:
+
+- runbook 步骤 0:`python -m myia.cli channels refresh telegram --db <一次性db>`
+  →「telegram 为被动目录平台…」,EXIT_CODE=0(passive 分支不触网不触凭据)。
+- 三份冒烟 YAML 经 `myia.schema.load_category_file` 现载加载器逐一加载通过
+  (targets/target 寻址形态与现 schema 一致)。
+- `smoke-runbook.md` 的 `E=` 证据路径已随归档改指
+  `.trellis/tasks/archive/2026-10/10-03-messaging-telegram/evidence`(归档后
+  原路径失效,主人照抄会 file-not-found——本次修正)。
+
+AC2 仍留主人(runbook 步骤 A/B/C 不变)。
+
+---
+
+## 复验确认(2026-10-03 晚,接手收口第三跑 = 本次会话)
+
+工作树较第二跑又进(vision-v2 在途增量已随 dc1cf86 收编提交;本任务面
+源文件零在途改动——`git diff --stat -- src/myia/push/ src/myia/pipeline.py
+src/myia/cli.py tests/test_messaging_telegram.py` 为空,实现触点逐一在位:
+telegram.py supports_targeting/parse_direct_ref、telegram_feedback.py on_chat
+sink、directory.py merge_entries、pipeline.py:2414 注入、cli.py passive
+分支、PLATFORMS["telegram"] 注册)。原命令三跑全绿:
+
+```
+$ .venv/bin/python -m pytest tests/test_messaging_telegram.py -q
+45 passed in 0.10s                                        EXIT_CODE=0
+$ .venv/bin/python -m pytest tests/ -q -k telegram
+80 passed, 2973 deselected in 0.47s                       EXIT_CODE=0
+$ .venv/bin/python -m pytest tests/ -q
+3034 passed, 19 skipped in 61.54s                         EXIT_CODE=0
+```
+
+全量较第二跑(2562 passed)再增的测试为并行线新增,零红。附加两项亦
+复验通过:passive 分支 CLI(一次性 db,输出「telegram 为被动目录平台…」
+EXIT_CODE=0);三份冒烟 YAML 经 `myia.schema.load_category_file` 逐一
+加载通过(pushes=['telegram'])。`smoke-runbook.md` 归档路径修正经复核
+在位。AC2 真机冒烟仍留主人,runbook 步骤 A/B/C 不变。
