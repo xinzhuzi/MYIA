@@ -29,8 +29,8 @@ AskUserQuestion 三项决议(2026-10-03):
 | W1(本轮) | feishu 飞书 | `plugins/platforms/feishu/` | MYIA 已有 im/v1/messages 通道,补目录发现 |
 | W1(本轮) | telegram | `plugins/platforms/telegram/` | MYIA 已有 sendMessage;目录靠被动积累 |
 | W1(本轮) | —(核心引擎+UI) | `gateway/channel_directory.py` 等 | 见子任务 |
-| W2(档已立,执行等主人令) | wecom 企微、dingtalk 钉钉、ntfy | `plugins/platforms/{wecom,dingtalk,ntfy}` | `10-03-messaging-w2-platforms`:三平台蓝本形态(事实核订:企微=自建应用 text 私聊出站、钉钉=静态自定义机器人 text、ntfy=一次性 POST;三家零目录发现;「bot relay 依赖」旧说不实——微信走 iLink,见下) |
-| 独立(同批,档已立) | weixin 微信 | `gateway/platforms/weixin.py` | `10-03-messaging-weixin-bridge`:可选桥接(iLink 每条出站须回显 context_token,token 只由常驻 long-poll 落盘,冷发必拒——自实现即半个常驻服务,已否决;出站经本机 Hermes) |
+| W2(已执行完 2026-10-03,commit 48284fd) | wecom 企微、dingtalk 钉钉、ntfy | `plugins/platforms/{wecom,dingtalk,ntfy}` | `10-03-messaging-w2-platforms`:三平台蓝本形态(事实核订:企微=自建应用 text 私聊出站、钉钉=静态自定义机器人 text、ntfy=一次性 POST;三家零目录发现;「bot relay 依赖」旧说不实——微信走 iLink,见下) |
+| 独立(已执行完 2026-10-03,commit fa9aaf6;真机桥接冒烟 ✓ 实发主人微信) | weixin 微信 | `gateway/platforms/weixin.py` | `10-03-messaging-weixin-bridge`:可选桥接(iLink 每条出站须回显 context_token,token 只由常驻 long-poll 落盘,冷发必拒——自实现即半个常驻服务,已否决;出站经本机 Hermes) |
 | W3 | slack、discord、whatsapp_cloud、signal、line、matrix、mattermost、google_chat、teams、email、sms、irc、simplex、bluebubbles、msgraph_webhook、qqbot、yuanbao、a2a、buzz、photon、raft、homeassistant | `gateway/platforms/` 与 `plugins/platforms/` 对应目录 | 长尾;官方 API 直连可行的先做,需外部守护进程的(signal/bluebubbles)标 extras |
 
 W3 不预建子任务,到波次开工时再建(本 PRD 清单即登记锚点);W2 经 grill round-2 已立档两任务(见子任务地图),执行等主人令。
@@ -115,6 +115,13 @@ W3 不预建子任务,到波次开工时再建(本 PRD 清单即登记锚点);W2
 - 引擎侧零障碍:`PLATFORMS` 注册表、`Channel` 协议三能力(`supports_targeting`/`parse_direct_ref`/`discover_directory`)、死信账本、`myia channels` CLI 均已就位
 - **round-2 已立档并完成架构 grill**(原「weixin 开工先 grill 架构」条件已清):`10-03-messaging-w2-platforms`(企微/钉钉/ntfy 蓝本形态,三件套齐)+ `10-03-messaging-weixin-bridge`(可选桥接,iLink 事实定案);执行等主人令,最佳时机=真机冒烟清账后
 - 事实更正:微信依赖是 iLink context_token(非 bot relay);wecom/dingtalk 走 telegram 范式(无目录发现,别名+直达)而非 feishu 范式(仅飞书有列表 API)
+
+## W2 执行结果(2026-10-03 收口,主控代跑)
+
+- `10-03-messaging-w2-platforms`:48284fd(企微/钉钉/ntfy 蓝本形态适配;注意该 commit 顺带收编了 vision 会话在 schema/pipeline/entry 等共享文件的在飞挂点,其提交信息已自认混载);task.json review。
+- `10-03-messaging-weixin-bridge`:fa9aaf6(出站经 hermes CLI 子进程桥接,design/implement 档随流水线补齐);**真机冒烟 ✓**——标注消息经 MYIA→hermes→iLink 实发主人微信私聊(dedup_key=smoke-20261003-weixin-001);task.json review。
+- 门禁教训沉淀:多会话仓库门禁必须「本域」判定(pytest 文件白名单 + vitest 消息屏白名单),全绿要求会被并行在途红死锁;配额断供(1308)经 resume 零重付续跑。
+- 剩主人:企微/钉钉/ntfy 各一条真机冒烟(凭据清单在各任务 prd)+ W3 排期。
 
 ## 非目标
 
