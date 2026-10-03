@@ -24,3 +24,11 @@
 
 - 轻量 research 任务,PRD-only;交付物为同目录 research.md
 - 非目标:不改产品代码、不产出用户文档(文档取材是后续任务,见 research.md 末尾出口清单)
+
+## Grill 决议(2026-10-03,五问全按推荐)
+
+- Q1 出口一 → 已立任务 `10-03-zero-cost-setup`(zh 先 en 后;落笔前核 ○ 升 ●)
+- Q2 出口二 → 已落 spec `.trellis/spec/domain/connector-selection.md`(免费路径硬规则)
+- Q3 出口三 → 入池不立项,排期权留主人(首选 Discord/Slack webhook)
+- Q4 ○ 项核实 → 引用时核 + 回写 research.md 升 ●(机制详录 research.md 末节)
+- Q5 档案形态 → 活档案;zero-cost-setup 执行完成后本任务 archive

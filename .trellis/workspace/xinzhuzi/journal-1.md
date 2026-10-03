@@ -121,3 +121,8 @@
 - 反情报要点落档:Fly.io/X API 免费层翻车案例、free tier trap(结构性营销)、「云端连接器必须有免费路径」选型硬规则建议、OpenAI 兼容 base_url 是 MYIA 天然接口(vision/enrich 换 base_url 即接 OpenRouter :free 等)
 - 网络注意:本机 gh api/raw.githubusercontent 直连不通(gh search/zread 服务端通道正常,事实均双通道交叉核实);free-for.dev 无 LICENSE→只记要点与链接不搬运原文
 - 状态直改 review(并行工作流 dwfrun-9808b474 在途,循例不用 start/finish 抢指针);后续出口三条在 research.md 末尾(用户零成本接入指引/选型 spec 硬规则/push 扩展候选池)
+
+## 2026-10-03 supplier-map grill 补全决议落地(五问全按推荐)
+
+- grill(grilling 技能)对 10-03-free-tier-supplier-map 文档拷问一轮清前沿,主人令「按推荐去做」:Q1 出口一立 `10-03-zero-cost-setup`(docs/zh|en/zero-cost.md,zh 先 en 后,PRD 硬约束=落笔前核 ○ 升 ●,planning 不启动);Q2 出口二落 `.trellis/spec/domain/connector-selection.md`(云端连接器必须有免费路径+信号分级,根 spec/index.md 已挂行);Q3 push 候选入池不立项排期权留主人;Q4 ○ 项「引用时核+回写升 ●」机制录 research.md 末节;Q5 活档案,zero-cost-setup 执行完成后 archive(trigger 已记 task.json notes)
+- spec 撰写循 trellis-update-spec 技能(设计决策型,非 7 段基建契约);domain 层格式对齐 security-baseline(铁律短句+grill 引注);仓库公开红线照办(全部文档无凭据无私有痕迹)
