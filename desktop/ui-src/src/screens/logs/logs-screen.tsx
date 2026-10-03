@@ -1,17 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RefreshCw, Terminal } from "lucide-react";
+import { ChevronDown, RefreshCw } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SidecarRequestError } from "@/lib/api";
 import type { RunEntry, SidecarEvent, UnlistenFn } from "@/lib/api";
 
 import { buildRunRows, eventToRow, isRowError, isRowWarn, loadRunLogs, loadRuns, subscribeRunEvents, tailToRows } from "./api";
-import type { LogRow } from "./api";
+import type { LogRow, RunRowModel } from "./api";
+
+/**
+ * 采集日志(D4 结构性重做,对标 Crawlab 日志 UI + Kestra run 视图;Crawlab BSD-3
+ * 可直借,licenses.md 实核):单列 run 瀑布(新→旧),每 run 一段折叠组——
+ * 统计行(耗时/条数/状态/错误行数)+ 等宽字体日志体;错误行 dead 色高亮;
+ * 展开组新行到达自动滚底(终端惯例,Crawlab revealLine 同款)。
+ * 数据面不变:run.status + logs.tail(展开时惰性拉取,缓存)+ sidecar://event 续播。
+ */
 
 /** run 状态 → 列表徽标(退出码语义 0/1/2/3 + cancelled,见 types.ts RunExitStatus) */
 function runBadge(status: RunEntry["status"], state: RunEntry["state"]) {
@@ -33,44 +41,10 @@ function runBadge(status: RunEntry["status"], state: RunEntry["state"]) {
   }
 }
 
-function RunListRow({
-  run,
-  selected,
-  onSelect,
-}: {
-  run: ReturnType<typeof buildRunRows>[number];
-  selected: boolean;
-  onSelect: (runId: number) => void;
-}) {
-  const badge = runBadge(run.status, run.state);
-  return (
-    <button
-      type="button"
-      data-testid={`run-row-${run.runId}`}
-      aria-pressed={selected}
-      onClick={() => onSelect(run.runId)}
-      className={`flex w-full items-center justify-between gap-2 rounded-md border px-2.5 py-2 text-left transition-colors ${
-        selected ? "border-primary/40 bg-primary/10" : "border-transparent hover:bg-accent"
-      }`}
-    >
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="font-mono text-[11px] text-muted-foreground">#{run.runId}</span>
-        <span className="truncate text-xs font-medium text-foreground">{run.category}</span>
-        {run.dry ? <Badge variant="outline">dry</Badge> : null}
-      </div>
-      <div className="flex shrink-0 items-center gap-2 text-[11px] text-muted-foreground">
-        {run.itemCount !== null ? <span>{run.itemCount} 条</span> : null}
-        <span className="font-mono">{run.durationText}</span>
-        <Badge variant={badge.variant}>{badge.label}</Badge>
-      </div>
-    </button>
-  );
-}
-
 function LogRowView({ row }: { row: LogRow }) {
   if (row.stream === "system") {
     return (
-      <p data-testid="log-system-row" className="text-muted-foreground/80">
+      <p data-testid="log-system-row" className="whitespace-pre-wrap break-words text-muted-foreground/80">
         <span className="mr-1.5 text-brand-from">▸</span>
         {row.text}
       </p>
@@ -85,10 +59,10 @@ function LogRowView({ row }: { row: LogRow }) {
       data-warn={warn ? "true" : undefined}
       className={
         error
-          ? "rounded-sm bg-destructive/15 px-1 text-destructive" // 错误行高亮(红)
+          ? "whitespace-pre-wrap break-words rounded-sm bg-dead/15 px-1 text-dead" // 错误行 dead 色高亮(D4)
           : warn
-            ? "px-1 text-warning/85" // stderr 非错误行(WARNING+ 日志)弱警示
-            : "px-1 text-foreground/90"
+            ? "whitespace-pre-wrap break-words px-1 text-warning/85" // WARNING 级 / 裸 stderr 诊断行弱警示
+            : "whitespace-pre-wrap break-words px-1 text-foreground/90"
       }
     >
       <span className="mr-1.5 text-muted-foreground/60">·</span>
@@ -97,29 +71,181 @@ function LogRowView({ row }: { row: LogRow }) {
   );
 }
 
+/** 折叠组头 = 每 run 统计行:品类 + 耗时/条数/状态/错误行数(Kestra 步骤头同款) */
+function RunGroupHeader({
+  run,
+  badge,
+  errorCount,
+  expanded,
+  onToggle,
+}: {
+  run: RunRowModel;
+  badge: { variant: "default" | "ok" | "warning" | "destructive" | "unknown"; label: string };
+  errorCount: number;
+  expanded: boolean;
+  onToggle: (runId: number) => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-testid={`run-group-header-${run.runId}`}
+      aria-expanded={expanded}
+      aria-controls={`run-group-body-${run.runId}`}
+      onClick={() => onToggle(run.runId)}
+      className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors duration-(--duration-fast) hover:bg-accent/60"
+    >
+      <ChevronDown
+        aria-hidden
+        className={`size-3.5 shrink-0 text-muted-foreground transition-transform duration-(--duration-fast) ${expanded ? "" : "-rotate-90"}`}
+      />
+      <span className="shrink-0 font-mono text-xs text-muted-foreground">#{run.runId}</span>
+      <span className="min-w-0 truncate text-sm font-medium text-foreground">{run.category}</span>
+      {run.dry ? <Badge variant="outline">dry</Badge> : null}
+      <span className="ml-auto flex shrink-0 items-center gap-2 text-2xs text-muted-foreground">
+        {errorCount > 0 ? (
+          <span data-testid={`run-error-count-${run.runId}`} className="font-medium text-dead">
+            {errorCount} 错误行
+          </span>
+        ) : null}
+        {run.itemCount !== null ? <span>{run.itemCount} 条</span> : null}
+        <span className="font-mono">{run.durationText}</span>
+        <Badge variant={badge.variant}>{badge.label}</Badge>
+      </span>
+    </button>
+  );
+}
+
 /**
- * 采集日志:左列 run 列表(状态/耗时/条目数),右侧选中 run 的日志终端。
- * 渲染 = logs.tail 历史打底 + sidecar://event 流式续播;错误行红底高亮。
+ * 展开组的日志体:等宽终端块 + 瘦元信息条(logs.tail 来源/行数/截断/实时),
+ * 新行到达自动滚底(Crawlab TaskDetailTabLogs revealLine 同款,无条件滚)。
  */
+function RunLogBody({
+  runId,
+  rows,
+  truncated,
+  loadError,
+  running,
+  live,
+}: {
+  runId: number;
+  rows: LogRow[] | undefined;
+  truncated: boolean;
+  loadError: string | null;
+  running: boolean;
+  live: boolean;
+}) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const errorCount = rows?.filter(isRowError).length ?? 0;
+
+  // 自动滚底(D4):行集变化即贴底(终端惯例;展开瞬间 rows 未必到位,依赖数组带 rows 兜两拍)
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el !== null) el.scrollTop = el.scrollHeight;
+  }, [rows, runId]);
+
+  return (
+    <div id={`run-group-body-${runId}`} data-testid={`run-log-${runId}`} className="border-t border-border bg-sidebar">
+      <div
+        data-testid={`run-log-meta-${runId}`}
+        className="flex items-center justify-between gap-2 px-3 py-1.5 text-2xs text-muted-foreground"
+      >
+        <span className="truncate font-mono">logs.tail run_id={runId}</span>
+        <span className="flex shrink-0 items-center gap-2">
+          {truncated ? <Badge variant="outline">缓冲截断</Badge> : null}
+          {errorCount > 0 ? <Badge variant="destructive">{errorCount} 错误行</Badge> : null}
+          {rows !== undefined ? <span className="font-mono">{rows.length} 行</span> : null}
+          {running ? <Badge variant={live ? "ok" : "unknown"}>{live ? "实时跟踪中" : "未跟踪"}</Badge> : null}
+        </span>
+      </div>
+      <div
+        ref={scrollRef}
+        className="max-h-[26rem] overflow-y-auto px-3 pb-3 font-mono text-xs leading-relaxed"
+      >
+        {loadError !== null ? (
+          <p className="text-dead">
+            <span className="mr-1.5">●</span>日志加载失败({loadError})
+          </p>
+        ) : rows === undefined ? (
+          <p className="text-muted-foreground">
+            <span className="text-brand-from">▍</span> 正在拉取 logs.tail…
+          </p>
+        ) : rows.length === 0 ? (
+          <p className="text-muted-foreground">
+            <span className="text-brand-from">▍</span> 该 run 暂无日志(环形缓冲只保留最近 4000 行)
+          </p>
+        ) : (
+          rows.map((row) => <LogRowView key={row.key} row={row} />)
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function LogsScreen() {
   const [runs, setRuns] = useState<RunEntry[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [rows, setRows] = useState<LogRow[]>([]);
-  /** tail 相对环形缓冲是否被截断(lines 上限内只回尾部;如实展示) */
-  const [truncated, setTruncated] = useState(false);
+  /** 逐 run 日志行:展开时 tail 打底 + 事件续播(未加载的 run 先缓冲,加载时合并) */
+  const [rowsByRun, setRowsByRun] = useState<Record<number, LogRow[]>>({});
+  const [truncatedByRun, setTruncatedByRun] = useState<Record<number, boolean>>({});
+  /** 逐 run tail 拉取失败(code:message);成功即清除,重展开可重试 */
+  const [loadErrors, setLoadErrors] = useState<Record<number, string>>({});
+  const [expanded, setExpanded] = useState<ReadonlySet<number>>(new Set());
   const [live, setLive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<SidecarRequestError | null>(null);
   const eventSeq = useRef(0);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  /** 已成功 tail 打底的 run(重展开不重拉,缓存驻屏) */
+  const loadedRunsRef = useRef<Set<number>>(new Set());
+  /** 拉取在途的 run(防双发) */
+  const fetchingRef = useRef<Set<number>>(new Set());
+  /** 已见过的 run_id(自动跟随=新出现的 running run 才展开,不打扰用户折叠态) */
+  const knownRunIdsRef = useRef<Set<number>>(new Set());
+
+  /** 展开 run 的日志惰性加载(Kestra 步骤展开同款):首次展开才 logs.tail;
+   *  加载期间到达的事件行已在缓冲,合并时排在 tail 历史之后(事件比快照新) */
+  const ensureTail = useCallback((runId: number) => {
+    if (loadedRunsRef.current.has(runId) || fetchingRef.current.has(runId)) return;
+    fetchingRef.current.add(runId);
+    void loadRunLogs(runId)
+      .then((tail) => {
+        loadedRunsRef.current.add(runId);
+        setRowsByRun((prev) => ({ ...prev, [runId]: [...tailToRows(tail), ...(prev[runId] ?? [])] }));
+        setTruncatedByRun((prev) => ({ ...prev, [runId]: tail.truncated }));
+        setLoadErrors((prev) => {
+          if (!(runId in prev)) return prev;
+          const next = { ...prev };
+          delete next[runId];
+          return next;
+        });
+      })
+      .catch((err) => {
+        const message = err instanceof SidecarRequestError ? `${err.code} · ${err.message}` : String(err);
+        setLoadErrors((prev) => ({ ...prev, [runId]: message }));
+      })
+      .finally(() => {
+        fetchingRef.current.delete(runId);
+      });
+  }, []);
 
   const refreshRuns = useCallback(async () => {
     try {
       const list = await loadRuns();
       setRuns(list);
-      // 无选中时自动跟踪最新 run(列表新→旧,见 entry.py `_m_run_status`);
-      // 用户已选中则尊重其选择
-      setSelectedId((current) => current ?? list[0]?.run_id ?? null);
+      // 跟随策略(Crawlab 活动任务跟踪同款):初次进屏展开最新 run;
+      // 之后仅新出现的 running run 自动展开跟随,用户折叠过的不强扒
+      const known = knownRunIdsRef.current;
+      let followId: number | null = null;
+      if (known.size === 0 && list.length > 0) {
+        followId = list[0].run_id;
+      } else {
+        const newcomer = list.find((run) => run.state === "running" && !known.has(run.run_id));
+        followId = newcomer ? newcomer.run_id : null;
+      }
+      if (followId !== null) {
+        const target = followId;
+        setExpanded((prev) => (prev.has(target) ? prev : new Set(prev).add(target)));
+        ensureTail(target);
+      }
+      knownRunIdsRef.current = new Set(list.map((run) => run.run_id));
     } catch (err) {
       setError(
         err instanceof SidecarRequestError
@@ -127,7 +253,7 @@ export function LogsScreen() {
           : new SidecarRequestError({ code: "transport_error", path: "$", message: String(err) }),
       );
     }
-  }, []);
+  }, [ensureTail]);
 
   useEffect(() => {
     void (async () => {
@@ -137,24 +263,23 @@ export function LogsScreen() {
     })();
   }, [refreshRuns]);
 
-  // 选中 run 变化:tail 打底 + 订阅事件续播(卸载/切换时退订并丢弃迟到结果)
+  /** 事件流订阅(挂屏一次,不随展开态变化):任意 run 的事件按 run_id 归组缓冲;
+   *  completed 另触发列表刷新(终态/耗时落表)。 */
   useEffect(() => {
     let cancelled = false;
-    setRows([]);
-    setTruncated(false);
-    setError(null);
-    // 显式标注:订阅链保持 Promise<UnlistenFn>(供清理退订);拒绝单列处理
     const unlisten: Promise<UnlistenFn> = subscribeRunEvents((event: SidecarEvent) => {
       // 采集日志只续播 run 域事件(log/progress/completed;10-03-vision-pipeline
       // 拆屏后协议已无 image.* 事件,过滤保留为穷尽防御)
       if (event.type !== "log" && event.type !== "progress" && event.type !== "completed") return;
       if (event.type === "completed") {
-        // 任意 run 完成都刷新列表;选中 run 另行落一行完成摘要
         void refreshRuns();
       }
-      if (event.run_id !== selectedId) return;
       eventSeq.current += 1;
-      setRows((current) => [...current, eventToRow(event, eventSeq.current)]);
+      const row = eventToRow(event, eventSeq.current);
+      // run 域事件必带 run_id;null 分支仅为类型穷尽(提取局部量以保持闭包内收窄)
+      const runId = row.runId;
+      if (runId === null) return;
+      setRowsByRun((prev) => ({ ...prev, [runId]: [...(prev[runId] ?? []), row] }));
     }).then((fn) => {
       if (!cancelled) setLive(true);
       return fn;
@@ -162,44 +287,33 @@ export function LogsScreen() {
     unlisten.catch(() => {
       // 事件通道不可用(如浏览器直开):tail 历史仍可用,不拦界面
     });
-    void (async () => {
-      try {
-        const tail = await loadRunLogs(selectedId);
-        if (cancelled) return;
-        setRows(tailToRows(tail));
-        setTruncated(tail.truncated);
-      } catch (err) {
-        if (!cancelled) {
-          setError(
-            err instanceof SidecarRequestError
-              ? err
-              : new SidecarRequestError({ code: "transport_error", path: "$", message: String(err) }),
-          );
-        }
-      }
-    })();
     return () => {
       cancelled = true;
       setLive(false);
       void unlisten.then((fn) => fn()).catch(() => undefined);
     };
-  }, [selectedId, refreshRuns]);
+  }, [refreshRuns]);
 
-  // 新行到达自动滚底(终端惯例)
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (el !== null) el.scrollTop = el.scrollHeight;
-  }, [rows]);
+  const handleToggle = useCallback(
+    (runId: number) => {
+      if (!expanded.has(runId)) ensureTail(runId);
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        if (next.has(runId)) next.delete(runId);
+        else next.add(runId);
+        return next;
+      });
+    },
+    [expanded, ensureTail],
+  );
 
   const runRows = useMemo(() => buildRunRows(runs), [runs]);
-  const selectedRun = useMemo(() => runs.find((run) => run.run_id === selectedId) ?? null, [runs, selectedId]);
-  const errorCount = rows.filter(isRowError).length;
 
   return (
     <div className="flex flex-col gap-4 pb-6">
       <PageHeader
         title="采集日志"
-        description="run 瀑布列表 + 选中 run 的流式终端(logs.tail 打底,事件续播,错误行高亮)"
+        description="run 瀑布(新→旧)· 逐 run 耗时/条数统计 · 错误行高亮 · 展开组流式续播自动滚底"
         actions={
           <Button variant="outline" size="sm" onClick={() => void refreshRuns()} disabled={loading}>
             <RefreshCw className={loading ? "size-3.5 animate-spin" : "size-3.5"} />
@@ -221,63 +335,57 @@ export function LogsScreen() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 px-6 lg:grid-cols-[minmax(280px,380px)_1fr]">
-        {/* run 列表 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>run 列表</CardTitle>
-            <CardDescription>状态 / 耗时 / 条目数(新→旧)</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-1">
-            {loading && runs.length === 0 ? (
-              <>
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </>
-            ) : runRows.length === 0 ? (
-              <EmptyState
-                compact
-                title="还没有 run 记录"
-                description="从源管理触发一次采集后,run 将按新→旧出现在这里"
-              />
-            ) : (
-              runRows.map((run) => (
-                <RunListRow key={run.runId} run={run} selected={run.runId === selectedId} onSelect={setSelectedId} />
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 日志终端 */}
-        <div className="flex h-[28rem] flex-col overflow-hidden rounded-lg border border-border bg-[#070b14]">
-          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5">
-            <div className="flex items-center gap-2">
-              <Terminal className="size-3.5 text-muted-foreground" />
-              <span data-testid="terminal-title" className="font-mono text-[11px] text-muted-foreground">
-                {selectedId === null
-                  ? "logs.tail — 未选中 run"
-                  : `logs.tail run_id=${selectedId}${selectedRun ? ` · ${selectedRun.record?.category ?? selectedRun.yaml}` : ""}`}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              {truncated ? <Badge variant="outline">缓冲截断</Badge> : null}
-              {errorCount > 0 ? <Badge variant="destructive">{errorCount} 错误行</Badge> : null}
-              <span className="font-mono">{rows.length} 行</span>
-              <Badge variant={live ? "ok" : "unknown"}>{live ? "实时跟踪中" : "未跟踪"}</Badge>
-            </div>
-          </div>
-          <div ref={scrollRef} data-testid="terminal-body" className="min-h-0 flex-1 overflow-y-auto p-3 font-mono text-xs leading-relaxed">
-            {rows.length === 0 ? (
-              <p className="text-muted-foreground">
-                <span className="text-brand-from">▍</span>
-                {selectedId === null
-                  ? " 选中左侧一个 run 查看其日志;实时输出将自动续播至此终端"
-                  : " 该 run 暂无日志(环形缓冲只保留最近 4000 行)"}
-              </p>
-            ) : (
-              rows.map((row) => <LogRowView key={row.key} row={row} />)
-            )}
-          </div>
+      <div className="px-6">
+        {/* run 瀑布:每 run 一段折叠组(Crawlab 运行瀑布 + Kestra 步骤折叠) */}
+        <div className="flex flex-col gap-2" data-testid="run-waterfall">
+          {loading && runs.length === 0 ? (
+            <>
+              <Skeleton className="h-12 w-full rounded-lg" />
+              <Skeleton className="h-12 w-full rounded-lg" />
+              <Skeleton className="h-12 w-full rounded-lg" />
+            </>
+          ) : runRows.length === 0 ? (
+            <Card>
+              <CardContent>
+                <EmptyState
+                  compact
+                  title="还没有 run 记录"
+                  description="从源管理触发一次采集后,run 将按新→旧出现在这里"
+                />
+              </CardContent>
+            </Card>
+          ) : (
+            runRows.map((run) => {
+              const badge = runBadge(run.status, run.state);
+              const rows = rowsByRun[run.runId];
+              const errorCount = rows?.filter(isRowError).length ?? 0;
+              return (
+                <div
+                  key={run.runId}
+                  data-testid={`run-group-${run.runId}`}
+                  className="overflow-hidden rounded-lg border border-border bg-card animate-fade-in"
+                >
+                  <RunGroupHeader
+                    run={run}
+                    badge={badge}
+                    errorCount={errorCount}
+                    expanded={expanded.has(run.runId)}
+                    onToggle={handleToggle}
+                  />
+                  {expanded.has(run.runId) ? (
+                    <RunLogBody
+                      runId={run.runId}
+                      rows={rows}
+                      truncated={truncatedByRun[run.runId] ?? false}
+                      loadError={loadErrors[run.runId] ?? null}
+                      running={run.state === "running"}
+                      live={live}
+                    />
+                  ) : null}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>

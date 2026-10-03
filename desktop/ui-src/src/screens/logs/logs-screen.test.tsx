@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
 /**
- * 采集日志组件测试 —— mock sidecar(vi.mock "@/lib/api":run.status / logs.tail
- * 返回夹具;onSidecarEvent 捕获处理器以注入 log/progress/completed 事件)。
- * 覆盖:run 列表(状态/耗时/条目数) / tail 打底渲染与错误行高亮 / 事件流式续播
- * / completed 刷新列表 / 结构化错误与空态。
+ * 采集日志组件测试(D4 结构性重做后)—— mock sidecar(vi.mock "@/lib/api":
+ * run.status / logs.tail 返回夹具;onSidecarEvent 捕获处理器以注入
+ * log/progress/completed 事件)。
+ * 覆盖:run 瀑布分组 + 统计行(状态/耗时/条数/错误行数)/ 最新 run 自动展开与
+ * 惰性 tail / 折叠-缓存-再展开不重拉 / 错误行 dead 高亮与级别着色(INFO 不再
+ * 全染警示)/ 事件按 run_id 归组续播(含折叠组缓冲-展开合并)/ completed 刷新
+ * 列表 / 结构化错误与空态。
  */
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SidecarRequestError } from "@/lib/api";
@@ -82,11 +85,13 @@ const run1Success: RunEntry = {
 const tailFixture = {
   lines: [
     { seq: 1, ts: "t1", run_id: 2, stream: "stdout" as const, line: "fetch https://example.com" },
-    { seq: 2, ts: "t2", run_id: 2, stream: "stderr" as const, line: "ERROR source fetch failed: timeout" },
-    { seq: 3, ts: "t3", run_id: 2, stream: "stderr" as const, line: "WARNING 源限速 backoff 2s" },
-    { seq: 4, ts: "t4", run_id: 2, stream: "stderr" as const, line: "采集步骤完成 sources=1 items=5 source_failures=0" },
+    // INFO 级 stderr 行(本仓采集管线日志全走 stderr):正常运行日志,不染警示色
+    { seq: 2, ts: "t2", run_id: 2, stream: "stderr" as const, line: "2026-10-02 12:00:00,001 INFO myia.pipeline: 运行开始 category=tech run_id=2 sources=1" },
+    { seq: 3, ts: "t3", run_id: 2, stream: "stderr" as const, line: "ERROR source fetch failed: timeout" },
+    { seq: 4, ts: "t4", run_id: 2, stream: "stderr" as const, line: "2026-10-02 12:00:01,002 WARNING 源限速 backoff 2s" },
+    { seq: 5, ts: "t5", run_id: 2, stream: "stderr" as const, line: "2026-10-02 12:00:02,003 INFO myia.pipeline: 采集步骤完成 sources=1 items=5 source_failures=0" },
   ],
-  total: 4,
+  total: 5,
   truncated: false,
 };
 
@@ -112,56 +117,95 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("LogsScreen", () => {
-  it("run 列表:状态/耗时/条目数;自动选中最新 run 并渲染 tail 历史", async () => {
+  it("run 瀑布:统计行(状态/耗时/条数/错误行数)+ 最新 run 自动展开渲染 tail", async () => {
     mockSidecar([run2Running, run1Success]);
     render(<LogsScreen />);
 
-    // 列表:运行中 run 耗时 —、无条目数;完成 run 显示 1.2s 与 5 条
-    await screen.findByTestId("run-row-2");
-    expect(screen.getByTestId("run-row-2").textContent).toContain("daily-tech"); // record 缺失 → yaml 基名
-    expect(screen.getByTestId("run-row-2").textContent).toContain("—");
-    expect(screen.getByTestId("run-row-1").textContent).toContain("科技资讯");
-    expect(screen.getByTestId("run-row-1").textContent).toContain("1.2s");
-    expect(screen.getByTestId("run-row-1").textContent).toContain("5 条");
+    // 两个 run 组,新→旧;统计行带品类/耗时/条数/状态
+    const header2 = await screen.findByTestId("run-group-header-2");
+    expect(header2.textContent).toContain("daily-tech"); // record 缺失 → yaml 基名
+    expect(header2.textContent).toContain("—"); // 运行中耗时未知
+    expect(header2.getAttribute("aria-expanded")).toBe("true"); // 最新 run 自动展开
+    const header1 = screen.getByTestId("run-group-header-1");
+    expect(header1.textContent).toContain("科技资讯");
+    expect(header1.textContent).toContain("1.2s");
+    expect(header1.textContent).toContain("5 条");
+    expect(header1.textContent).toContain("成功");
+    expect(header1.getAttribute("aria-expanded")).toBe("false"); // 其余折叠
 
-    // 自动选中最新(运行中的 run 2),终端标题与 tail 参数
-    expect(await screen.findByTestId("terminal-title").then((el) => el.textContent)).toContain("run_id=2");
+    // 自动展开 = 惰性 tail 拉取(run_id=2)
     await waitFor(() => expect(logsTailMock).toHaveBeenLastCalledWith({ lines: 400, run_id: 2 }));
+    expect(screen.getByTestId("run-log-meta-2").textContent).toContain("run_id=2");
 
-    // tail 四行:错误行标红(data-error),stderr 非错误行弱警示(data-warn),
-    // stderr 里的进度信号行(采集步骤完成)不算错误
+    // tail 五行:错误行 dead 高亮;WARNING 级警示;INFO 级不染;进度信号行不算错误
     const rows = await screen.findAllByTestId("log-row");
-    expect(rows).toHaveLength(4);
+    expect(rows).toHaveLength(5);
     const errorRow = rows.find((row) => row.textContent?.includes("ERROR"));
     expect(errorRow?.getAttribute("data-error")).toBe("true");
+    expect(errorRow?.className).toContain("text-dead"); // D4:错误行 dead 色
+    expect(errorRow?.className).toContain("bg-dead");
     const warnRow = rows.find((row) => row.textContent?.includes("源限速"));
     expect(warnRow?.getAttribute("data-warn")).toBe("true");
     expect(warnRow?.getAttribute("data-error")).toBeNull();
+    const infoRow = rows.find((row) => row.textContent?.includes("运行开始"));
+    expect(infoRow?.getAttribute("data-error")).toBeNull();
+    expect(infoRow?.getAttribute("data-warn")).toBeNull(); // INFO 级 stderr 不再全染警示
     const progressSignal = rows.find((row) => row.textContent?.includes("采集步骤完成"));
     expect(progressSignal?.getAttribute("data-error")).toBeNull();
     const normalRow = rows.find((row) => row.textContent?.includes("fetch https://"));
     expect(normalRow?.getAttribute("data-error")).toBeNull();
     expect(normalRow?.getAttribute("data-warn")).toBeNull();
-    // 错误行计数徽标
-    expect(screen.getByText("1 错误行")).toBeTruthy();
+
+    // 统计行与元信息条的错误行计数
+    expect(screen.getByTestId("run-error-count-2").textContent).toBe("1 错误行");
+    expect(screen.getByTestId("run-log-meta-2").textContent).toContain("5 行");
   });
 
-  it("流式续播:log/progress 事件上屏,completed 落摘要并刷新 run 列表;他 run 事件不入屏", async () => {
+  it("折叠交互:展开惰性拉取,折叠卸载,再展开走缓存不重拉", async () => {
     mockSidecar([run2Running, run1Success]);
     render(<LogsScreen />);
-    await screen.findByTestId("run-row-2");
+    await screen.findByTestId("run-group-header-2");
+    await waitFor(() => expect(logsTailMock).toHaveBeenCalledTimes(1));
+
+    // 展开 run 1 → 以 run_id=1 拉取,日志体挂载
+    fireEvent.click(screen.getByTestId("run-group-header-1"));
+    expect(screen.getByTestId("run-group-header-1").getAttribute("aria-expanded")).toBe("true");
+    await waitFor(() => expect(logsTailMock).toHaveBeenLastCalledWith({ lines: 400, run_id: 1 }));
+    expect(
+      await within(screen.getByTestId("run-log-1")).findAllByTestId("log-row"),
+    ).toHaveLength(5);
+
+    // 折叠 → 日志体卸载(行不可见),不产生新请求
+    fireEvent.click(screen.getByTestId("run-group-header-1"));
+    expect(screen.getByTestId("run-group-header-1").getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByTestId("run-log-1")).toBeNull();
+
+    // 再展开 → 缓存命中,不重拉(总调用数仍 2)
+    fireEvent.click(screen.getByTestId("run-group-header-1"));
+    expect(screen.getByTestId("run-group-header-1").getAttribute("aria-expanded")).toBe("true");
+    expect(
+      await within(screen.getByTestId("run-log-1")).findAllByTestId("log-row"),
+    ).toHaveLength(5);
+    expect(logsTailMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("流式续播:事件按 run_id 归组;折叠组先缓冲、展开时合并到 tail 之后", async () => {
+    mockSidecar([run2Running, run1Success]);
+    render(<LogsScreen />);
+    await screen.findByTestId("run-group-header-2");
     await screen.findAllByTestId("log-row");
     expect(harness.handler).not.toBeNull();
 
-    // 他 run 的 log 事件:不入当前终端
+    // 他 run 的 log 事件:不入任何可见组(runs 列表也没有该组)
     emit({ type: "log", run_id: 99, stream: "stdout", line: "他 run 的行", ts: "t5" });
     expect(screen.queryByText("他 run 的行")).toBeNull();
+    expect(screen.queryByTestId("run-group-99")).toBeNull();
 
-    // 选中 run 的实时 log 行
+    // 展开组(自动跟随的 run 2)的实时 log 行
     emit({ type: "log", run_id: 2, stream: "stdout", line: "实时输出行", ts: "t6" });
     expect(await screen.findByText(/实时输出行/)).toBeTruthy();
 
-    // stderr 错误行实时高亮
+    // stderr 错误行实时高亮(dead)
     emit({ type: "log", run_id: 2, stream: "stderr", line: "ERROR 实时错误", ts: "t7" });
     await waitFor(() =>
       expect(screen.getByText(/实时错误/).getAttribute("data-error")).toBe("true"),
@@ -194,22 +238,21 @@ describe("LogsScreen", () => {
     expect(await screen.findByText(/run 2 结束/).then((el) => el.textContent)).toContain("status=success");
     await waitFor(() => expect(runStatusMock).toHaveBeenCalledTimes(2));
 
-    // 他 run 的 completed:只刷新列表,不落当前终端行
+    // 他 run 的 completed:只刷新列表,不落摘要行
     emit({ type: "completed", run_id: 99, exit_code: 2, status: "failed", dry: false, ts: "t10" });
     await waitFor(() => expect(runStatusMock).toHaveBeenCalledTimes(3));
     expect(screen.queryByText(/run 99 结束/)).toBeNull();
-  });
 
-  it("点击列表切换选中 run:tail 以新 run_id 重拉", async () => {
-    mockSidecar([run2Running, run1Success]);
-    render(<LogsScreen />);
-    await screen.findByTestId("run-row-2");
-    await waitFor(() => expect(logsTailMock).toHaveBeenLastCalledWith({ lines: 400, run_id: 2 }));
-
-    fireEvent.click(screen.getByTestId("run-row-1"));
-    await waitFor(() => expect(logsTailMock).toHaveBeenLastCalledWith({ lines: 400, run_id: 1 }));
-    expect(screen.getByTestId("terminal-title").textContent).toContain("run_id=1");
-    expect(screen.getByTestId("terminal-title").textContent).toContain("科技资讯");
+    // 折叠组(run 1)的迟到事件先缓冲;展开时 tail 打底 + 缓冲行合并其后
+    emit({ type: "log", run_id: 1, stream: "stdout", line: "run1 迟到行", ts: "t11" });
+    expect(screen.queryByText("run1 迟到行")).toBeNull(); // 折叠中不可见
+    fireEvent.click(screen.getByTestId("run-group-header-1"));
+    await screen.findAllByTestId("log-row");
+    expect(screen.getByText("run1 迟到行")).toBeTruthy();
+    const body = screen.getByTestId("run-log-1");
+    const texts = Array.from(body.querySelectorAll('[data-testid="log-row"]')).map((el) => el.textContent);
+    const bufferedIndex = texts.findIndex((t) => t?.includes("run1 迟到行"));
+    expect(bufferedIndex).toBe(texts.length - 1); // 缓冲行排在 tail 历史之后
   });
 
   it("sidecar 结构化错误上屏(sidecar_not_running)", async () => {
@@ -224,11 +267,12 @@ describe("LogsScreen", () => {
     expect(banner.textContent).toContain("sidecar 未运行");
   });
 
-  it("空态:无 run 记录给引导文案,终端提示先选中", async () => {
+  it("空态:无 run 记录给引导文案,不渲染任何分组", async () => {
     mockSidecar([]);
     render(<LogsScreen />);
 
     expect(await screen.findByText(/还没有 run 记录/)).toBeTruthy();
-    expect(screen.getByTestId("terminal-title").textContent).toContain("未选中 run");
+    expect(screen.queryByTestId("run-group-header-1")).toBeNull();
+    expect(screen.queryByTestId("run-group-header-2")).toBeNull();
   });
 });
