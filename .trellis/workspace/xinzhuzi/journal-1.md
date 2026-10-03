@@ -274,3 +274,8 @@
 - 归档副作用:grill-v112 摘链改 4 活动子档 parent——v112-desktop-batch/parity 与本档随收口 commit 入库;v12-backlog/task.json 系在途脏文件(并行会话补挂 crawl4ai-l3 children),摘链随其会话提交不代提交
 - 其余 20 活动档(hermes-messaging 父伞挂冒烟欠账、v112 双批在途、shishi/ui-deep-imitation/v12-backlog 在编、feed-ux、messaging-platforms/w2/weixin-bridge、v11 双档、v01-v04+v10 记录伞档、image-fix-followups/vision-pipeline 新立项、本档)keep 不动
 - 本档状态直改 review(未经 finish);一笔 chore(task) 收口 commit 只含 .trellis(并发会话正动 spec/index.md 与已归档 ci-gates/gap-census prd,staging 精确到路径避免收编)
+
+## 2026-10-03 残余清扫归档(task 10-03-archive-review;hermes-messaging 收档)
+
+- 主令零冲突残余清单终审:10-03-hermes-messaging review 态归档 archive/2026-10(每目录两轮核脏零在途;prd 载五交付 commit fbba437/2b54865/b3c8084/ed1276f/4be1325 实核在库+双轮验收——首跑 1759 全绿、终跑 7 failed 全归并行在飞而 -k push 222 消息范围零失败;四子任务 core/feishu/telegram/hermes-look 已 completed);games-v2/v3 已净零动作(归档提交 cf2c68f/063d2f9 实核,task.json completed);归档摘链 3 活动子档 parent(platforms/w2-platforms/weixin-bridge,diff 仅此一字段随本笔入库);一笔 chore(task) 只含 .trellis,journal 以 hash-object 外科入库未收编并行 news-rss 块
+
