@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "shishi"
-version = "1.1.1"
+version = "0.0.1"
 description = "AI-native intelligence hub — config-driven fetch, classify, analyze, push. 说需求,AI 做其余。"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -18,10 +18,13 @@ dependencies = [
     "pydantic>=2.7",
     "jinja2>=3.1",
     "keyring>=25",
+    # RSS 提取(10-03-news-rss):extract.type=rss 的 feed 解析(RSS1/2/Atom、
+    # CDATA、编码坑全覆盖);BSD-2 纯 Python 轻依赖(sgmllib3k),零重依赖。
+    "feedparser>=6",
     # 分类引擎已拆为独立发行(任务 10-01-v10-classifier-pypi);固定版本范围,
     # 语义由 src/myia/classify 兼容 shim 保留,import 路径不变。
-    # 版本窗随 v1.1.1 双包对齐抬到 1.1 主版本(0.1/1.1 不兼容混装)。
-    "shishi-classifier>=1.1,<2",
+    # 版本窗随版本序列归零重定为 0.0 序列(2026-10-03 主人令从 0.0.1 重新开始)。
+    "shishi-classifier>=0.0.1,<0.1",
 ]
 
 [project.optional-dependencies]
