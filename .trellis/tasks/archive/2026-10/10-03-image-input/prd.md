@@ -99,3 +99,7 @@ MYIA 是情报中枢不是聊天助手(五屏无输入框),「看图」落成**�
 10. **v2 优先序**:模型下载+server 代管捆绑第一优先(下载即能用),feed enrich 自动看图第二;v1 schema 不设死 v2 字段,扩展不破协议
 
 技术自决(随决议落档):错误码统一 `image_` 前缀;heic 经 sips 转 png 后收;结果复制按钮 navigator.clipboard 失败退化手动选中复制;钥匙链前缀统一 `myia/image/*`;VL 发送前长边 >2048 先压缩再 base64。
+
+## 验收记录(2026-10-03,受主人委托代验)
+
+**verdict: conditional** —— AC2-AC11 全数仓库内证据复核通过:entry.py `_HANDLERS` 注册 `image.import/ocr/analyze/status/config.read/config.save` 六方法(entry.py:2664-2669);代验实跑 `tests/test_desktop_sidecar_protocol.py` 85 passed(image.* 全方法往返+错误矩阵:image_no_credentials / image_unreachable / image_engine_unknown / 明文拒载零写入),前端 image.test.tsx 20 + vision-form.test.tsx 5 全绿(实跑);vision/client.py:93 `timeout_seconds=180.0`(AC5)、vision/settings.py:49 KEYCHAIN_API_KEY=`myia/image/api_key`(AC6);evidence/ 复核:describe local 52,995ms / cloud glm-4.6v 21,103ms / 无字图 32,766ms、OCR vision 55 行/881ms + rapidocr 56 行/780ms(AC1 替代证据)、zero-egress-sample3 全 loopback、sandbox-launch-r2 沙箱冒烟在档(AC9/AC10 全量数字取自任务档 r2 记录,代验按规未跑全量套件,任务自带测试全绿)。**conditional 遗留:AC1 拖拽/粘贴交互待主人真人手验**;另钥匙串既有项跨进程更新报 keychain_operation_failed(-25244)系已记档待修项,不阻塞本验收。
