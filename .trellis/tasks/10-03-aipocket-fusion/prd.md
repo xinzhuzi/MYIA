@@ -28,8 +28,8 @@ MYIA 现状(融合前):
 | aipocket 模块 | 功能 | 价值 | 融合候选(MYIA 侧) |
 |---|---|---|---|
 | `clients/`(fofa/github/shodan/tavily) | 四个上游 REST 客户端 | 高 | 数据源插件的取数层 |
-| `discovery/github_artifacts` | GitHub 工件猎取:统一 diff 解析(Added/Removed/Context 侧 + hunk 行号)提取**新增行**凭证 | **最高**(独门能力,直连情报管线) | 新场景插件:GitHub 凭证猎手源 |
-| `discovery/packs` | 21 个 AI 供应商包(openai/anthropic/gemini/glm/kimi/qwen/deepseek/cursor/windsurf/xai/kiro/qoder/longcat/together/fireworks/replicate/cohere/minimax/aws_bedrock/azure_openai…,含 regex 指纹) | 高 | 供应商指纹库(Python 侧数据文件) |
+| `discovery/github_artifacts` | GitHub 工件猎取。**深化修正**:实况只有两泳道——code search(≤5页×100)+ commit message 搜索(≤12 查询),全文跑联合正则;统一 diff 解析器(三侧聚合)已建未接线 | **最高**(直连情报管线) | 新场景插件:GitHub 凭证猎手源(两泳道照抄+diff 解析收编为增强件) |
+| `discovery/packs` | 发现层 **20** 个供应商查询包(openai/anthropic/gemini/xai/qoder/kiro/aws_bedrock/cursor/windsurf/azure_openai + 10 家仅 GitHub 键名查询)+ 验证层 **25** 个供应商规格(多 nvidia/ksyun/siliconflow/groq/openrouter);三套独立指纹(联合正则/细正则+归因表/resolve 链) | 高 | 供应商指纹库(Python 侧数据文件) |
 | `prober/`(validator/engines/capability/products) | 凭证验证 + 被动探测(passive_prober:目标已知路径 GET,2xx → unauth_read 发现 + 证据快照) | 高 | enrich/验证阶段插件 |
 | `services/balance` | 余额查询(balance_usd/tier/quota/usage/entitlements/identity)+ models 探测(401/403 = definitive auth rejection 判死) | **最高**(凭证猎手价值核心) | 新插件:余额/能力查询 |
 | `services/`(scanner/scheduler/pipeline/analyzer) | 扫描编排/调度/流水线/分析 | 中(MYIA 已有同构物) | **复用 MYIA 现有 pipeline/dedup/调度,不重写** |
@@ -38,9 +38,9 @@ MYIA 现状(融合前):
 
 ## 4. 需求(v1 终版——2026-10-03 grill 定档:全量含 R4)
 
-- **R1 GitHub 工件凭证猎手(源插件)**:按供应商指纹扫描 GitHub 公开工件,统一 diff 解析取**新增行**,产出凭证情报进管线;去重回用 `dedup.py`。
-- **R2 凭证验证 + 余额查询(插件)**:对 R1 产出做活性/余额/配额探测(401/403 判死语义按行为规格复刻),结果落库。
-- **R3 供应商指纹库**:21 供应商包重实现为 MYIA 侧数据;留扩展接口,后续加供应商不动核心。
+- **R1 GitHub 工件凭证猎手(源插件)**:按供应商查询集跑 GitHub 两泳道——code search(`sk- filename:.env` 类查询,≤5页×100)+ commit message 搜索(≤12 查询)——联合正则十大密钥族全文匹配,apiurl 按前缀归因官方地址;统一 diff 解析(Added/Removed/Context 三侧聚合)作为工件二次加工的增强件(上游已建未接线,我们接线=增值);去重回用 `dedup.py`。
+- **R2 凭证验证 + 余额查询(插件)**:对 R1 产出做 resolve(域名→前缀)→ 三态验证(final_verified / rejected=401/403 或 2xx 无模型 / transient)→ 余额/身份探测(13 供应商可匿名探测矩阵 + 仅存活性家族 + kiro/azure/vertex 无探测=诚实 unknown),BalanceResult 17 字段回填落库。
+- **R3 供应商指纹库**:发现层 20 包 + 验证层 25 规格重实现为 MYIA 侧数据(两层数据形状见 fingerprints.md);留扩展接口,后续加供应商不动核心。
 - **R4 FOFA/Shodan 曝面发现源**:凭 API key 的暴露面搜索 + 被动探测(unauth_read);API key 主人自备,插件无 key 时显式空态不报错。
 - **R5 `myia-credentials` 远程插件处置(已决)**:保留共存,降为可选聚合源;原生插件为主力,不删远程件。
 
@@ -59,3 +59,11 @@ MYIA 现状(融合前):
 - **Q2 远程插件 = 保留共存,降为可选**(按推荐)。
 - **Q3 排期 = 等 dwfrun-0e1749cb 大工作流收尾后 start**(按推荐;规划三件套先行备齐,收尾即 start)。
 - **Q4 出网纪律(未单问,按推荐默认)**:验证/余额探测默认串行 + 每供应商 RPM 上限(数值 design 阶段定);R4 入一期后,FOFA/Shodan API 调用同样走限速预算池。
+
+## 7. 深化事实补注(2026-10-03「深化与补全」)
+
+- **行为规格四件已产出**(`research/behavior-specs/`:ghhunt/credcheck/fingerprints/exposure),实现只认规格不回看 aipocket 源码;MYIA 侧集成真值落 `research/myia-integration-facts.md`(引擎通路、CLI 注册三件套、golden 五处同步清单)。
+- **两大假设修正**:①上游 diff 解析泳道未接实况(实况=两泳道联合正则全文扫描),R1 照抄实况、diff 收编增强件;②MYIA 无进程内插件进管线现成通路 → 唯一路线=注册新引擎 `engine: credhunter`(schema EngineName + ENGINE_REGISTRY + engines/credhunter.py,下游 classify/dedup/store/push 零改动;EngineName 是 12 节公开契约,三锁+golden 同步在案)。
+- **数量修正**:发现层 20 包、验证层 25 规格(原「21」为初版误计)。
+- **探测档位收窄**:v1 只做 L0 unauth_read 被动探测(与上游扫描器硬编码一致);weak_password/idor/ssrf/sqli/rce 规格在案但 fail-closed 不开,授权范围机制留二期。
+- **FOFA base 上游默认第三方代理域(fofoapi.com)**:我们做 endpoint 可配占位,官方/代理由部署者自决,不写死。

@@ -1,6 +1,11 @@
 {"file": ".trellis/tasks/10-03-aipocket-fusion/prd.md", "reason": "需求终版+grill 决议(全量含 R4/远程共存/等大工作流)+ AC1-AC6+AGPL 零入仓硬约束"}
 {"file": ".trellis/tasks/10-03-aipocket-fusion/design.md", "reason": "总体形态(进程内场景插件 myia-credhunter)/契约面(plugin.yaml/CLI/品类 YAML)/模块映射/分阶段交付 P0-P4"}
 {"file": ".trellis/tasks/10-03-aipocket-fusion/implement.md", "reason": "分阶段执行清单+每阶段验证命令+回滚点"}
+{"file": ".trellis/tasks/10-03-aipocket-fusion/research/behavior-specs/ghhunt.md", "reason": "R1 权威行为规格:两泳道/分页/token 轮转/限速/归因映射/边界情形;实现只认规格不回看 aipocket 源码"}
+{"file": ".trellis/tasks/10-03-aipocket-fusion/research/behavior-specs/credcheck.md", "reason": "R2 权威行为规格:resolve 链/三态归类/BalanceResult 17 字段/13 家可探测矩阵"}
+{"file": ".trellis/tasks/10-03-aipocket-fusion/research/behavior-specs/fingerprints.md", "reason": "R3 权威行为规格:20 发现包+25 验证规格+三套指纹+噪声过滤+URL 规范化"}
+{"file": ".trellis/tasks/10-03-aipocket-fusion/research/behavior-specs/exposure.md", "reason": "R4 权威行为规格:FOFA/Shodan 客户端/被动探测 L0/scan 编排/上游默认参数速查"}
+{"file": ".trellis/tasks/10-03-aipocket-fusion/research/myia-integration-facts.md", "reason": "MYIA 集成落点 file:line:引擎通路 A/CLI 注册三件套/golden 五处同步/keychain/限速真值"}
 {"file": ".trellis/spec/python/index.md", "reason": "Python 层规范索引,写码前按层取用"}
 {"file": ".trellis/spec/guides/engineering-discipline.md", "reason": "长任务监控/先报量再动手/高星参考等工程纪律"}
 {"file": "docs/zh/write-a-plugin.md", "reason": "插件开发权威指南:品类 YAML 十二节 schema/引擎分级/凭据引用铁律/doctor 自诊断"}
