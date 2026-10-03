@@ -206,8 +206,16 @@
 - 七决议:robots 推翻/并入 games 第三源(独立品类否决)/storeID=7,11,15(GOG·Humble·Fanatical,与 Steam 源零重叠)/美元字段独立 sale_price·savings_pct 不进 final_price 基线+路由零改动全 digest(跳楼价 96% off 一堆,immediate 即噪音)/.com redirect/zol·smzdm 不搭车/等主人开工令(决议⑨模式,test_plugins.py+golden 是共享热点)
 - PRD 含实现要点($[*] 顶层数组前缀与 Epic/Steam 嵌套前缀不同/dealID 已 URL-encoded 直拼/规则 float(savings_pct)>=50)与**开工前置红字:games.yaml 源数变化必须同步 golden 基件**(v2 教训写进验收);证据三件(stores/多店 deals/0 元空集)入档;validate 绿;状态 planning 未 start 不抢指针
 
-## 2026-10-03 MYStudio 有用内容迁入 MYIA(task 10-03-spec-discipline-sop-gitnexus,review 休止)
+## 2026-10-03 源私有仓库有用内容迁入 MYIA(task 10-03-spec-discipline-sop-gitnexus,review 休止)
 
-- 主人令三轮定范围:三纪律+搜索SOP+.gitnexus;逐段评估否掉 macOS 打包/ComfyUI 知识库(MYStudio 专属)。产出:engineering-discipline.md(长任务监控/先报量查改分家/高星参考)+ MYIA 版 search-sop.md + 双 index 接线 + AGENTS.md 块外指针段;commit 1ff1058
+- 主人令三轮定范围:三纪律+搜索SOP+.gitnexus;逐段评估否掉 macOS 打包/ComfyUI 知识库(源仓库专属)。产出:engineering-discipline.md(长任务监控/先报量查改分家/高星参考)+ MYIA 版 search-sop.md + 双 index 接线 + AGENTS.md 块外指针段;commit 1ff1058
 - **GitNexus 落地关键教训**:裸 `analyze` 会改写 AGENTS.md 的 gitnexus 管理块(markers 间是工具领地,手写内容会被替换)并生成 `.claude/`+`CLAUDE.md` 副本——对策=块外引言段声明「以本段为准」+ 日常刷新一律 `analyze --index-only`(实测无副作用)+ 副本 gitignore;本机 MCP 未注册,CLI 是唯一通道(查询必须 `-r MYIA` 多仓消歧);技能真身在 `~/.agents/skills/gitnexus-*` 非 `~/.zcode/skills`
 - trellis-check 两轮:首轮 FAIL(副作用残留违 PRD+MCP 声明失实+中文举例误带入)→ 修复 → 复验 PASS;索引 7154 节点/15449 边,query 实测可用
+- 深化补全(主人令 grill 六问,全按推荐):公开仓私有名泛化(两 guide+prd+task.json+本条目,真实指针入 LOCAL-NOTES)、check 两轮报告落档 evidence/、prd 勾验收+执行结果与决议节(维持 PRD-only)、os-etiquette 不加互链/不挂索引保鲜钩子/AGENTS 工具块瑕疵维持(块外声明覆盖);另发现 image-input 任务文档有本机绝对路径+真实用户名残留(非本任务领地),已报主人待其认领
+
+## 2026-10-03 定名跟改 + v1.1.1 发布驱动(task 10-03-shishi-everywhere,in_progress)
+
+- 主人令「跟,发布」。跟改:PyPI 名额核实全空(shishi/shishi-classifier 未被占,myia 系从未发布)→ 发行名/CLI/横幅/README(31处)/docs 双语/发布帖/ISSUE 模板/docker/updater endpoint/uv.lock 全跟改;刻意保留功能标识(src/myia 模块、myia_classifier、myia-core/myia-desktop、MYIA_* env、com.myia.app、keychain:myia、plugins/myia-*、skill 目录名),模块改名排今晚
+- 踩坑三记:①perl \bmyia\b 扫伤 `from myia.x import`(点也是词边界!)→ 回滚改精确字面量替换;②zsh 不词切分坑到第三次($FILES 单参),数组语法终结此坑;③干净 worktree 门禁逮出 9 红(脏树测试会掩盖)——schema 文档 YAML 钥匙串凭据名必须 myia/<scope>(校验器契约)、demo 文件随链 git mv、5 处测试断言随新横幅/发行名跟改,两轮收绿 1771/0
+- 对外:gh repo rename MYIA→shishi 成功(旧 URL 自动重定向);push main(远端已被并行流推平);tag v1.1.1 推送 → desktop-release 触发即守卫失败(设计内):缺 TAURI_UPDATER_PUBKEY/TAURI_SIGNING_PRIVATE_KEY secrets=主人侧前置(UPDATER.md §2)。Docker Publish/CI 正常在跑
+- 待办:主人配 3 updater secrets → rerun tag 流水线出 dmg+release;今晚模块改名后 workflow_dispatch 跑 PyPI(需 PYPI_API_TOKEN secret,先 test.pypi 演练)

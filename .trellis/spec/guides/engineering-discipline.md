@@ -1,6 +1,6 @@
 # 工程纪律(长任务监控 / 先报量再动手 / 高星参考)
 
-> 2026-10-03 迁入(任务 10-03-spec-discipline-sop-gitnexus):从 MYStudio 工程铁律体系蒸馏的三条 MYIA 此前无明文的通用纪律。其余纪律已由本仓库既有机制覆盖:验证先行与流程门禁在 `.trellis/workflow.md`,凭据与安全底线在 [security-baseline](../domain/security-baseline.md),静默操作在 [os-etiquette](../domain/os-etiquette.md)。
+> 2026-10-03 迁入(任务 10-03-spec-discipline-sop-gitnexus):从另一私有仓库的工程铁律体系蒸馏的三条 MYIA 此前无明文的通用纪律(源仓库真实指针见 `LOCAL-NOTES.md`)。其余纪律已由本仓库既有机制覆盖:验证先行与流程门禁在 `.trellis/workflow.md`,凭据与安全底线在 [security-baseline](../domain/security-baseline.md),静默操作在 [os-etiquette](../domain/os-etiquette.md)。
 
 ---
 

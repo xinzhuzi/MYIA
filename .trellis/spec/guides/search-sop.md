@@ -2,7 +2,7 @@
 
 > **项目根目录**: `~/Project/Github/MYIA`
 >
-> 2026-10-03 迁入(任务 10-03-spec-discipline-sop-gitnexus):由 MYStudio 权威版 search-sop 改写为 MYIA 布局。热路径与仓库外路径以本文件为 MYIA 唯一权威版;变更热路径、排除规则或网络路由时同步本文件,**不要**复制完整配方到其它规则文件。
+> 2026-10-03 迁入(任务 10-03-spec-discipline-sop-gitnexus):由另一私有仓库的 search-sop 权威版改写为 MYIA 布局(源仓库真实指针见 `LOCAL-NOTES.md`)。热路径与仓库外路径以本文件为 MYIA 唯一权威版;变更热路径、排除规则或网络路由时同步本文件,**不要**复制完整配方到其它规则文件。
 >
 > ## 🚨 两大铁律(执行搜索前必读)
 >
@@ -155,7 +155,7 @@ Claude / 非交互 shell 用原生 `rg` / `fd`,**不得假设** zsh 别名或函
 ### 使用规则(强制)
 
 > 索引过时时在仓库根运行 `node .gitnexus/run.cjs analyze`(自动选择 runner);无 `run.cjs` 则 `gitnexus analyze`。
-> ⚠️ **多仓库消歧**: 全局索引了多个仓库(MYIA / MYStudio / MA),CLI 查询命令(`query`/`impact`/`context`/`detect-changes`)**必须带 `-r MYIA`**——`status` 在仓库目录下能自动识别,但 `query` 不行,不带会报 "Multiple repositories indexed"。(MCP 工具本机未注册,CLI 是唯一通道,见下。)
+> ⚠️ **多仓库消歧**: 本机全局索引了多个仓库(其余为私有仓库,清单见 `LOCAL-NOTES.md`),CLI 查询命令(`query`/`impact`/`context`/`detect-changes`)**必须带 `-r MYIA`**——`status` 在仓库目录下能自动识别,但 `query` 不行,不带会报 "Multiple repositories indexed"。(MCP 工具本机未注册,CLI 是唯一通道,见下。)
 
 **必做 (Always Do)**
 
