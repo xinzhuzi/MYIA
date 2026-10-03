@@ -331,7 +331,7 @@ class Crawl4AIEngine(BaseEngine):
         # 本会随 markdown 纯文本化丢光;此处收集**同域**图 URL 进 metadata
         # (跨域广告/追踪像素不收),品类 images: 节开启时由管线消费——未开启
         # 则该键静默随 metadata 入库,零行为差异。非空才带键,payload 不膨胀。
-        images = markdown_image_urls(markdown, target_url)
+        images = _markdown_image_urls(markdown, target_url)
         if images:
             record["images"] = images
         return [record]
