@@ -1,0 +1,41 @@
+# myia-credhunter — 官方场景件:凭证猎手(AI 凭证泄露发现/验证/曝面)。
+#
+# 定位:把「发现(GitHub 工件猎取)→ 验证/余额(credcheck)→ 曝面
+# (FOFA/Shodan + 被动探测)」三段能力原生融进 MYIA 管线的进程内插件。
+#
+# 许可边界(任务 10-03-aipocket-fusion 硬约束):本插件是**功能重实现**,
+# 零上游代码复制 —— 上游(AGPL-3.0)只以只读观察产出的行为规格为模仿
+# 对象,实现不搬上游标识符/文案/注释;本包所有代码与数据由 MYIA 侧
+# 从零创作。授权用途:仅用于已授权安全研究与自有/已授权资产的泄露
+# 凭证排查,不做大规模扫描、不滥用凭据;凭据命中物按私有情报红线处理
+# (不入 git、不外发,items 一律前 8 后 4 掩码)。
+#
+# 市场插件包 = 一个目录:plugin.yaml(manifest 规范见
+# src/myia/plugins/manifest.py)+ README + adapter.py(进程内适配器,
+# 供应商指纹库为插件内数据文件,加供应商=加数据不改码)。
+# 核心仓库只装声明与文档,装不上不拦核心流水线(铁律)。
+id: myia-credhunter
+name: 凭证猎手(credhunter)
+version: 0.1.0
+compatible: ">=0.1,<2.0"
+# 分级 desktop:纯进程内能力(指纹库 + 数据文件),零 docker 零服务依赖。
+tier: desktop
+requires: []
+# 三段能力名(品类 YAML / 桌面侧按名引用):
+#   credhunt  = GitHub 工件凭证猎取(R1)
+#   credcheck = 凭证验证 + 余额探测(R2,读库后处理,CLI 子命令形态)
+#   exposure  = FOFA/Shodan 曝面发现 + L0 被动探测(R4)
+provides: [credhunt, credcheck, exposure]
+# 进程内适配器:引擎侧(engine: credhunter)与 CLI 侧经宿主动态加载器
+# compile+exec 挂载本入口;密钥一律经参数注入(宿主解析 keychain: 引用),
+# 适配器不读钥匙链、不落盘、不硬编码任何凭据。
+adapter:
+  entry: adapter.py
+  mode: in_process
+# 纯源码形态:无 compose、无 remote 服务端点(已部署 aipocket 实例的
+# 聚合接入走 myia-credentials 插件,与本件共存);local 安装 = 市场安装。
+modes:
+  local:
+    install: myia plugin install plugins/myia-credhunter
+install:
+  source: https://github.com/xinzhuzi/MYIA.git
