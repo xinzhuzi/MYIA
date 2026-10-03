@@ -1,0 +1,2 @@
+ensure 应答(10.3s): {"running": true, "base_url": "http://127.0.0.1:8080/v1", "model": "/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx", "healthy": true, "started": true}
+stderr tail: 

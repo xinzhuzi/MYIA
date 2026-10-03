@@ -1,0 +1,8 @@
+enrich_cache rows (Run A, db/myia.db):
+------------------------------------------------------------
+url=https://www.cocoloop.cn/t/topic/14325
+  model=glm-4-flash key=value+relevance+credibility@p2 ts=2026-10-03T12:30:11.346622+00:00
+  result={"scores": {"value": 7, "relevance": 8, "credibility": 6}, "score": 7.0, "reason": "提及Agent和模型切换，相关度高，内容具体"}
+url=https://www.cocoloop.cn/t/topic/20382
+  model=glm-4-flash key=value+relevance+credibility@p2 ts=2026-10-03T12:30:11.346917+00:00
+  result={"scores": {"value": 5, "relevance": 6, "credibility": 5}, "score": 5.3, "reason": "涉及LLM和模型变化，相关度一般，内容泛泛"}

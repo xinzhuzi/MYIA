@@ -1,0 +1,31 @@
+{
+  "steps": [
+    {
+      "name": "①侧栏无「看图」项",
+      "ok": true,
+      "evidence": "导航项 8 个:[\"仪表盘\",\"情报流\",\"源管理\",\"配置编辑\",\"采集日志\",\"消息\",\"设置\",\"世事\"];含看图=false",
+      "screenshot": "v2-01-sidebar.png"
+    },
+    {
+      "name": "②settings 看图模型管理卡渲染且清单含 qwen3-vl-8b-mlx(真数据)",
+      "ok": true,
+      "evidence": "卡片在=true;标题「看图模型管理」=true;模型行={\"text\":\"qwen3-vl-8b-mlx 16.3 GB 当前\",\"active\":true,\"path\":\"/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx\"}",
+      "screenshot": "v2-02-settings-models.png"
+    },
+    {
+      "name": "③服务徽章渲染(真 8080 状态)",
+      "ok": true,
+      "evidence": "徽章文本=\"运行中 · 健康\"(image.server.status 探真实 127.0.0.1:8080)",
+      "screenshot": "v2-03-server-badge.png"
+    },
+    {
+      "name": "④feed 图析展开(OCR 全文 + 逐行置信度 + caption)",
+      "ok": true,
+      "evidence": "收起态图析行=true;展开点击=true;OCR 全文块=true;逐行=3 行 conf=[\"98%\",\"74%\",\"41%\"];caption=配图描述(VL caption) V2 装机验证配图描述:渐变图与文字截图(VL caption 全文)。",
+      "screenshot": "v2-04-feed-expanded.png"
+    }
+  ],
+  "consoleErrors": [
+    "pageerror: TypeError: Cannot read properties of undefined (reading 'unregisterListener')"
+  ]
+}

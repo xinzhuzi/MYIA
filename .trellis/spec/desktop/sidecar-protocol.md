@@ -9,11 +9,12 @@
   请求 `{"id","method","params"}`;应答 `{"id","result"}` 或
   `{"id","error":{code,path,message,data}}`;`id` 缺省 = 通知(只执行不应答);
   事件无 id,以 `type` 区分。
-- 事件 4 类:`log` / `progress` / `completed`(run 族)/ `test.completed`(试抓 job,C13)。
+- 事件 7 类:`log` / `progress` / `completed`(run 族)/ `test.completed`(试抓 job,C13)/
+  `image.models.progress` / `image.models.completed`(模型下载 job)/ `image.server.completed`(server 自启 job;vision-v2 批)。
 - 错误结构化透传(对齐 spec python/error-handling):`path` 字段路径、`message` 中文原因、`data` 原始细节。
 - EOF = 干净退出 0(serve,entry.py:1941)。
 
-## 方法注册表(本文现列 35 行;代码 `_HANDLERS` 现值 41 —— 差额 = vision-v2 六方法待其随注,见下方注;单一事实源 = 代码)
+## 方法注册表(本文现列 42 行;代码 `_HANDLERS` 现值 42,对账一致;单一事实源 = 代码)
 
 | # | 方法 | 处理器 | 语义 |
 |---|------|----------------|------|
@@ -52,10 +53,13 @@
 | 33 | `feedback.list` | `_m_feedback_list` | 反馈记录直读(SQLiteStore.list_feedback,新→旧;键同 CLI `_feedback_row_dict`;v112 批 B2) |
 | 34 | `feedback.stats` | `_m_feedback_stats` | 窗口统计 + 生效调参 + 调参历史(FeedbackTuner/TuningPolicy/load_active_tuning 同门,键同 CLI stats 载荷;v112 批 B2) |
 | 35 | `store.trend` | `_m_store_trend` | 采集量趋势(SQLiteStore.daily_item_counts,UTC 逐日计数旧→新;days 钳制 [1,90],零数日补齐归前端;v112 批 B4) |
-
-> 注:vision-v2 批的 `image.models.*`×4 / `image.server.*`×2 六方法已在代码
-> `_HANDLERS` 注册但注册表行未随注(归 10-03-vision-v2 线,勿代注);
-> `data.allowed` 对账时以代码为准,现值 41。
+| 36 | `image.models.list` | `_m_image_models_list` | `<home>/models` 扫描 → `{models:[{name,path,bytes,active,incomplete}]}`;半成品 = 缺 config.json/*.safetensors 的目录(incomplete=true,可续传);空目录 = 合法空表(vision-v2 批) |
+| 37 | `image.models.download` | `_m_image_models_download` | 异步 job(HF snapshot_download,repo 必须 `mlx-community/<name>`——MLX 量化权重直下免 convert;磁盘预检 + `local_dir` 断点续传);提交即返 `{job_id}`,进度/终态走 `image.models.progress`/`image.models.completed` 两事件(一切失败以完成事件 `ok:false+error` 收口);单飞 `download_busy`(vision-v2 批) |
+| 38 | `image.models.delete` | `_m_image_models_delete` | 删模型目录 → `{ok}`;active 模型拒删 `model_active_refused`(在用权重删除会让本地 VL 突然失效;vision-v2 批) |
+| 39 | `image.models.activate` | `_m_image_models_activate` | 激活 = vision.yaml `local.model` 原子改写(同门校验失败零写入)→ `{ok}`;半成品拒激活 `model_incomplete`,写失败 `image_config_invalid`(vision-v2 批) |
+| 40 | `image.server.status` | `_m_image_server_status` | 本地 mlx_vlm.server 快照 `{running, base_url, model, healthy}`(探 `base_url/models` 2s 帽,零副作用;vision-v2 批) |
+| 41 | `image.server.ensure` | `_m_image_server_ensure` | 快慢双路径:快路径已健康 → status+`{started:false}` 零后台;慢路径后台线程自起 `uvx --from mlx-vlm mlx_vlm.server` + 健康等待 ≤120s(同步等会冻死单线程 serve 循环全协议队头阻塞——复查修复拍板),应答立即返快照超集+`{ensuring:true, job_id}`,终态走 `image.server.completed` 事件;单飞 `ensure_busy`;日志 `<home>/vision-server.log`(>5MB 轮转;vision-v2 批) |
+| 42 | `image.files.purge` | `_m_image_files_purge` | 按 mtime 清 `<数据根>/images` 超龄落图 `{days}`(整数 ≥1)→ `{deleted, bytes_freed}`;只删文件不动目录(内容寻址平铺);CLI 面能力零 UI;目录不存在 = 合法零删(vision-v2 批复查) |
 
 分组:核心 10(1-9 + 13-14 的 logs.tail/secret.set/secret.list)+
 源启停 1(16)+ 品类 YAML 编辑 6(18-23,task 10-03-yaml-editor)+
@@ -67,6 +71,8 @@ v1.1.2 桌面对齐批(task 10-03-v112-desktop-parity)新增 8:7 `run.cancel`(C2
 32 `feedback.mark` / 33 `feedback.list` / 34 `feedback.stats`(B2)/
 35 `store.trend`(B4,第二切片)。
 weixin-bridge 批(task 10-03-messaging-weixin-bridge)新增 1:31 `bridge.status`。
+vision-v2 批(task 10-03-vision-v2)新增 7:36-39 `image.models.*` 四 +
+40-41 `image.server.*` 两 + 42 `image.files.purge`;协议 v5。
 
 **store.items 参数(合流形状,v112 批 C1 × feed-ux G1/G3)**:`db/category/since/limit`
 之外增 `before`(ISO,first_seen 严格小于)、`before_id`(与 before 组成
@@ -81,7 +87,28 @@ LIKE NOCASE,%/_ 按字面转义)。旧调用零感知。
 `push.test {channel: myia.push.CHANNELS 键, target?(env:/keychain: 引用), template?}`
 → `{ok: true, channel, preview?}`(preview 仅 stdout 通道——serve stdout 是协议流,
 卡片行入内存缓冲随应答回显)。协议版本随批 bump:v3(feed-ux 三方法)、
-v4(weixin-bridge 批 `bridge.status`)。
+v4(weixin-bridge 批 `bridge.status`)、v5(vision-v2 批:`image.models.*` 四 +
+`image.server.*` 两 + `image.files.purge` + `store.items` 投影三键,见下段)。
+
+**vision-v2 批七方法契约(task 10-03-vision-v2;能力实现 `myia.vision.models` /
+`myia.vision.server`,重依赖惰性,huggingface-hub 在 extras `myia[vision]`)**:
+`image.models.list` / `image.server.status` / `image.server.ensure` 零参;
+`image.models.download {repo: mlx-community/<name>, name?(缺省 = repo 名段)}` →
+`{job_id}` + **下载两事件** `image.models.progress {job_id, repo, done_bytes,
+total_bytes?}` / `image.models.completed {job_id, ok, error?}`(磁盘预检不足
+`disk_insufficient`、网络失败、未预期异常一律以完成事件 error 收口,不发请求
+错误);`image.models.delete` / `image.models.activate` `{name}`;`image.files.purge
+{days}`(整数 ≥1)。错误码:entry 静态 `invalid_params`(repo/name/days 形状)+
+单飞 `download_busy` / `ensure_busy`;`VisionModelError` / `VisionServerError`
+code 动态透传(`invalid_repo` / `hf_unavailable` / `repo_unreachable` /
+`disk_insufficient` / `model_exists` / `model_incomplete` /
+`model_active_refused` / `no_local_model` / `model_dir_missing` /
+`spawn_failed` / `server_died` / `server_start_failed` 等,源头
+`src/myia/vision/`):delete/activate 透传为应答错误,download/ensure 收口为
+完成事件 `error` 字段。`store.items` 的 `_item_dict` 白名单投影补
+`image_caption` / `image_files` / `image_ocr_lines` **三键**(随落图开关
+产生;`image_ocr_lines` 逐行 `{text, conf}` 原样透传供详情逐行置信度渲染,
+形态不符整体置 None 不半投影——`image_ocr` 旧键 vision-pipeline 已有)。
 
 ## 错误码表
 
@@ -111,6 +138,7 @@ v4(weixin-bridge 批 `bridge.status`)。
 | feed-ux 导出 | `export_path_invalid` / `export_write_failed` | `feed.export`:路径空/相对/父目录不存在 / 写盘 IO 失败(task 10-03-feed-ux G3) |
 | feed-ux 排程 | `invalid_cron`(防御性;另复用 `invalid_params`/`not_yaml_suffix`/`path_outside_root`/`source_file_unreadable`) | `schedule.preview`:`build_cron_trigger` 兜底 / 参数 / 围栏 / 品类装不上(task 10-03-feed-ux G4) |
 | 消息 | `unknown_platform` / `discover_not_supported` / `channel_refresh_failed` / `alias_write_failed` / `push_write_unsupported`(另复用 `category_invalid` / `file_not_found` / `path_outside_root` / `source_write_failed` / `invalid_params`) | channels.* / push.write 全链路(task 10-03-messaging-ui;数据面错误码透传 push 层如 `credential_not_found` 经 `channel_refresh_failed.data.code` 携带) |
+| 看图模型/服务 | `download_busy` / `ensure_busy`(另复用 `invalid_params`;activate 改写 vision.yaml 失败复用 `image_config_invalid`) | image.models.* / image.server.* 单飞拒绝与参数形状;`VisionModelError`/`VisionServerError` code 透传(delete/activate 走应答错误,download/ensure 走完成事件 error 字段,枚举见上方 vision-v2 契约段;task 10-03-vision-v2) |
 
 ### 透传族(`exc.code` 动态透传,不在 entry.py 静态出现)
 

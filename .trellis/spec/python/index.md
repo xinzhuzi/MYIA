@@ -27,7 +27,7 @@ classify/       builtin(七大类+双信号,数据与代码分离)/ custom(YAML 
 dedup.py store/ SQLite + 去重注册表 + 变更基线;接口可插拔(PG 留位)
 enrich/         LLM 精评(批量/缓存/预算护栏)
 push/           通道(feishu_card/telegram/webhook/stdout)+ 阈值分级路由 + 消息平台层(directory/targets/delivery:通道目录+对象解析+定向投递)
-vision/         看图:双引擎 OCR(ocrmac+rapidocr-onnxruntime)+ OpenAI 兼容 VisionClient + vision.yaml 配置 + collect.py 管线图片处理环(fetch 尾部下载→OCR→可选 VL 描述,品类 images: 节驱动,降级只写 image_status 绝不阻管线)(extras myia[vision],惰性 import)
+vision/         看图:双引擎 OCR(ocrmac+rapidocr-onnxruntime)+ OpenAI 兼容 VisionClient + vision.yaml 配置 + collect.py 管线图片处理环(fetch 尾部下载→OCR→可选 VL 描述,品类 images: 节驱动,降级只写 image_status 绝不阻管线)+ models.py 模型仓管(HF mlx-community 直下免 convert:snapshot_download+local_dir 断点续传、HfApi 预检磁盘不足即拒、清单/删除/激活,huggingface-hub 惰性 import 在 extras)+ server.py mlx_vlm.server 代管(status 2s 探 / ensure 自起+健康等待 ≤120s:并发互斥锁、超窗杀孤儿不留、日志 >5MB 轮转;失败结构化上抛绝不阻管线)(extras myia[vision],惰性 import;10-03-vision-v2)
 ```
 
 - 现有文件多为薄壳:任务是**填充**而非新建;新模块先在对应 PRD 登记

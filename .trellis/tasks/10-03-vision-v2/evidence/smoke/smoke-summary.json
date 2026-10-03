@@ -1,0 +1,52 @@
+{
+ "task": "10-03-vision-v2 真机冒烟(2026-10-03 晚)",
+ "precondition": "8080 mlx-vlm Qwen3-VL-8B;冒烟中途原手工 nohup 进程死亡(连接拒绝),经 image.server.ensure 自起修复(10.3s healthy,进程 setsid 存活至今)——即 R2「零手工」的实证,证据 sidecar-ensure-autostart.txt",
+ "isolation": "全部跑在隔离副本:sidecar 用 /tmp/myia-e2e/v2smoke/home1(vision.yaml 逐字节拷贝 + models/qwen3-vl-8b-mlx 软链真目录);persist E2E 用独立 db /tmp/myia-e2e/v2smoke/persist/myia.db(数据根 images/ 同目录);真 MYIA_HOME / 真 myia.db 零触碰(vision.yaml shasum 前后一致)",
+ "items": {
+  "sidecar-methods": {
+   "status": "passed",
+   "evidence": [
+    "sidecar-methods-transcript.json",
+    "sidecar-methods-run.txt",
+    "sidecar-ensure-autostart.txt"
+   ],
+   "detail": "S1 status running+healthy(真8080)/S2 ensure started:false 短路/S2b ensure 自起路径(started:true,10.3s)/S3 list 含 qwen3-vl-8b-mlx active(17.5GB 真扫描)/S4 delete(active)→model_active_refused/S5 download 非法repo→job_id+completed{ok:false,error:invalid_repo}/S6 activate 往返+delete 假模型+vision.yaml 逐字节复原"
+  },
+  "sidecar-models-download-real": {
+   "status": "manual",
+   "evidence": [
+    "sidecar-methods-transcript.json 里 S7 标 MANUAL-SKIP"
+   ],
+   "detail": "真下载 ~16GB 大模型不在冒烟范围;非法 repo 结构化拒已实证,磁盘预检/断点续传留待真下载窗口"
+  },
+  "persist-e2e": {
+   "status": "passed",
+   "evidence": [
+    "persist-e2e-run-result.json",
+    "persist-e2e-run-stderr.log",
+    "persist-e2e-db-report.json",
+    "persist-e2e-category.yaml"
+   ],
+   "detail": "本地 fixture 页(127.0.0.1:8766)+公网真字图(twimg,SSRF 拒环回故图走公网,daily run B 同法);shishi run exit 0 success 4.0s;db 断言 P1-P6 全过:image_files 文件真实存在/文件名=sha256(content)[:16]/image_ocr_lines 53 行带 conf/image_ocr 全文/vl off 无 caption;图落数据根 images/9655fe0b0f556a25.jpg"
+  },
+  "gui-headless": {
+   "status": "passed",
+   "evidence": [
+    "gui-headless-run.txt",
+    "gui-headless-transcript.json",
+    "gui-01-feed-collapsed.png",
+    "gui-02-feed-expanded.png",
+    "gui-03-settings-models.png",
+    "gui-04-settings-download-error.png"
+   ],
+   "detail": "vite dev(localhost:5213)+bridge(.venv entry serve,MYIA_HOME=隔离副本)+Playwright shim;G1 feed 展开=OCR全文+53行逐行置信度表+caption+图文件1张(fixture db=冒烟2真库+注入 daily 真 VL caption 一字段,同一张图);G2 settings 看图模型管理卡含 qwen3-vl-8b-mlx(16.3GB 当前)+服务徽章 运行中·健康;G3 非法 repo→role=alert 结构化报错零 job;两条 pageerror(unregisterListener)为 shim 限制非应用缺陷(既往冒烟同款)"
+  },
+  "daily-reference": {
+   "status": "passed",
+   "evidence": [
+    "../10-03-vision-daily/evidence/(SUMMARY.md, run-a-*, run-b*)"
+   ],
+   "detail": "A 线真跑证据核对齐全未重跑:run-a 真站 141.7s partial+enrich_cache 2行;run-b1 本地页 success 125.7s+2条 image_caption(vl:local 真出)+2条 image_ocr+push 卡 scores{value,relevance,credibility}+enrich_model glm-4-flash;run-b2 二跑 2.1s 零成本;yaml 副本 vl:local+enrich 双引用在档"
+  }
+ }
+}

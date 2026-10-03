@@ -1,0 +1,84 @@
+# 装机记录(10-03-vision-v2,2026-10-03 21:53-22:03 CST)
+
+## 1. sidecar 重打包
+
+- 最小补丁(huggingface_hub 收编,extras 必需):`myia/vision/models.py` 的
+  snapshot_download/HfApi 走 importlib 惰性 import(`_import_hub`),PyInstaller
+  静态分析看不见(同 openai 先例)——
+  - `desktop/myia-core.spec`:+`collect_all('huggingface_hub')`(手维 spec 是构建正源)
+  - `desktop/build-sidecar.sh`:CLI 重生成兜底分支 +`--collect-all huggingface_hub`
+    (spec 头注释要求两路等价);脚本本体照现状跑,`--extra vision` 既有
+    (uv.lock 已冻 huggingface-hub 1.33.0)
+- 体积:前 117,091,280 B(sha256 42a0d19c…,10-03 19:16 detail-images 件)
+  → 后 123,902,768 B(sha256 ac47b9bc…)+6,811,488 B(+6.81 MB,hf_hub+传递依赖)
+- 重打包前把旧 sidecar 二进制先 `mv` 出 binaries/(并行会话 .zcode/smoke/bridge.mjs
+  的两个 serve 进程正持有该文件;原地 cp 会打断他们,改名换 inode 零影响——
+  事后复核 42065/42074 全程存活)
+- 冒烟:冻结件 `serve` → version protocol=5;`image.models.download` 伪 repo
+  终态事件 `repo_unreachable`(非 `hf_unavailable`)⇒ hf_hub 在冻结包内可导入
+
+## 2. 构建
+
+- `npm --prefix desktop/ui-src run build` → exit 0,1.45s(vite 产物落 desktop/ui)
+- `cd desktop && npx tauri build --bundles app,dmg`(**未设 MYIA_SIDECAR_SKIP**,
+  beforeBuildCommand 链重跑 build-sidecar.sh + ui build,PyInstaller 全量重打一遍;
+  cargo release 12.20s)→ exit 0
+- 产物:.app = desktop/src-tauri/target/release/bundle/macos/世事.app(du 132M;
+  MacOS/MYIA 13,480,368 B + myia-core 123,902,240 B,均 21:59 新产物);
+  dmg = 世事_0.0.1_aarch64.dmg(128M);Info.plist:0.0.1 / 世事
+
+## 3. 换装(全程未抢前台)
+
+- 前台检查:frontmost=WeChat(非世事)→ 放行;open 前/后/终态 frontmost 均
+  非世事(WeChat→WeChat→ZCode,焦点链全程无世事)
+- 优雅退出:旧版在跑(pid 39507),`osascript tell application id "com.myia.app"
+  to quit` → 1s 内干净退出(未用 kill)
+- `mv /Applications/世事.app /tmp/世事.app.bak-pre-v2-1003`(125M 备份保留)
+  → `ditto <新构建>.app /Applications/世事.app`(132M)→ `open -g` exit 0
+
+## 4. 进程验证
+
+- 新 pid 75857 MYIA(launchd 子,open 语义)→ 75867 myia-core serve(壳拉起)
+  → 75870(onefile bootloader payload);父子关系已核,单实例
+- 存活:22:00:30 起,10s 后在,29s 复核仍在(etime 02:29 终态仍在跑)
+
+## 5. 无头 GUI 四断言(Playwright+bridge 法,先例 detail-images install)
+
+桥 bridge-install-v2.mjs:spawn **已装 app 的冻结 myia-core serve**,
+MYIA_HOME=真实数据根(②③ 用真数据;全链只发读方法,零写入零 ensure)。
+UI = desktop/ui 构建产物静态 serve(即 .app 内嵌同一份)。唯一注入:
+store.items params.db=/tmp/myia-v2-install/fixture-v2.db(④ 的逐行置信度
+/caption 数据;真实库暂无 image 条目)。桥探针:version protocol=5;
+models.list=[qwen3-vl-8b-mlx 16.3GB active];server.status=running·healthy。
+首跑 ②③ 误判:settings 已分区化(并行 10-03-ui-deep-imitation 改动,?section=
+驱动),深链改 `#/settings?section=vision` 后四断言全过 → drive-run.log:
+
+1. PASS ①侧栏无「看图」:导航 8 项(仪表盘/情报流/源管理/配置编辑/采集日志/
+   消息/设置/世事),含看图=false → v2-01-sidebar.png
+2. PASS ②settings「看图模型管理」卡:vision-models-card 在;模型行
+   "qwen3-vl-8b-mlx 16.3 GB 当前"(真数据:真 models 目录扫描,active 徽章)
+   → v2-02-settings-models.png
+3. PASS ③服务徽章:vision-server-badge="运行中 · 健康"(真 127.0.0.1:8080,
+   curl /v1/models=200 佐证)→ v2-03-server-badge.png
+4. PASS ④feed 图析展开:收起态图析行在;点击「展开条目」后 OCR 全文块 +
+   逐行 3 行(98%/74%/41% 置信度色阶)+ caption 全文块
+   → v2-04-feed-expanded.png(+full)
+
+## 终态
+
+- 装机后 app 持续在跑(pid 75857);验证桥已清理(:54131 无监听)
+- 备份:/tmp/世事.app.bak-pre-v2-1003(旧 .app 125M)+
+  /tmp/v2-install/sidecar-pre-v2-moved-aside(旧 sidecar 二进制)
+- 并行会话资产零扰动:smoke bridge 两 serve 进程(42065/42074)全程存活;
+  8080 mlx_vlm.server(pid 19876,主人 21:11 起的)未动
+- 证据:sidecar-build.log / ui-build.log / tauri-build.log / bridge-install-v2.mjs /
+  bridge-install-v2.log / install-verify-drive.cjs / drive-run.log /
+  v2-install-verify-transcript.json / v2-0{1..4}-*.png(本目录)
+
+## 未跑项(如实)
+
+- dmg 未做装机验证(装的是 .app 本体,dmg 只构建未挂载冒烟)
+- image.models.download 真下载/断点续传、image.server.ensure 自起链未在装机件
+  上跑(需动真模型目录/起进程,归功能验收面;装机件上仅验证 hf 可导入 +
+  status/list 读链)
+- 推送带图(TG sendPhoto/飞书 img)不在本批装机断言内

@@ -1,0 +1,16 @@
+[PASS] S1 image.server.status → 真 8080 running/healthy :: {"running": true, "base_url": "http://127.0.0.1:8080/v1", "model": "/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx", "healthy": true}
+[PASS] S2 image.server.ensure → 健康 started:false 短路 :: {"running": true, "base_url": "http://127.0.0.1:8080/v1", "model": "/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx", "healthy": true, "started": false}
+[PASS] S3 image.models.list → qwen3-vl-8b-mlx 在且 active :: 清单 ['qwen3-vl-8b-mlx'];qwen3 条目={"name": "qwen3-vl-8b-mlx", "path": "/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx", "bytes": 17548625536, "active": true}
+[PASS] S4 image.models.delete(active) → model_active_refused :: {"code": "model_active_refused", "path": "params.name", "message": "模型 qwen3-vl-8b-mlx 正被 vision.yaml local.model 使用,拒绝删除(先切换激活模型)", "data": {"error_type": "model_active_refused", "message": "模型 qwen3-vl-8b-mlx 正被 vision.yaml local.model 使用,拒绝删除(先切换激活模型)", "name": "qwen3-vl-8b-mlx", "path": "/tmp/myia-e2e/v2smoke/home1/models/qwen3-vl-8b-mlx"}}
+[PASS] S5 image.models.download(非法 repo)→ completed{ok:false,error:invalid_repo} :: 应答={"job_id": 1};completed={"type": "image.models.completed", "job_id": 1, "ok": false, "ts": "2026-10-03T13:08:10.328+00:00", "error": "invalid_repo"}
+[PASS] S6 image.models.activate 往返 + delete 假模型 + vision.yaml 复原 :: activate假=True;yaml中段含假模型=True;list假active=True;activate回原=True;list复原=True;delete假ok且目录消失=True;yaml终态=初始(逐字节)=True
+[PASS] S7 image.models.download 真大模型 :: MANUAL-SKIP:8B 级模型 ~16GB 真下载不在冒烟范围,标 manual(见 notes)
+
+==== SUMMARY ====
+PASS  S1 image.server.status → 真 8080 running/healthy
+PASS  S2 image.server.ensure → 健康 started:false 短路
+PASS  S3 image.models.list → qwen3-vl-8b-mlx 在且 active
+PASS  S4 image.models.delete(active) → model_active_refused
+PASS  S5 image.models.download(非法 repo)→ completed{ok:false,error:invalid_repo}
+PASS  S6 image.models.activate 往返 + delete 假模型 + vision.yaml 复原
+PASS  S7 image.models.download 真大模型

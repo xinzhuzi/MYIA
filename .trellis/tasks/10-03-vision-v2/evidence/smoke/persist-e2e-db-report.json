@@ -1,0 +1,47 @@
+{
+ "url": "http://127.0.0.1:8766/items/v2persist1",
+ "title": "开源大模型社区发布多模态 LLM 新版本,评测基准全部开源",
+ "image_status": "ok",
+ "image_files": [
+  "/private/tmp/myia-e2e/v2smoke/persist/images/9655fe0b0f556a25.jpg"
+ ],
+ "image_files_bytes": [
+  158191
+ ],
+ "images_dir": "/private/tmp/myia-e2e/v2smoke/persist/images",
+ "images_dir_listing": [
+  "9655fe0b0f556a25.jpg"
+ ],
+ "ocr_lines_count": 53,
+ "ocr_lines_sample": [
+  {
+   "text": "Agent Arena",
+   "conf": 1.0
+  },
+  {
+   "text": "GPT-6.1Sol：",
+   "conf": 0.5
+  },
+  {
+   "text": "Ranked #5",
+   "conf": 0.5
+  },
+  {
+   "text": "Gmm Arena",
+   "conf": 0.30000001192092896
+  },
+  {
+   "text": "ARENA.AI",
+   "conf": 0.5
+  }
+ ],
+ "ocr_text_head": "Agent Arena\nGPT-6.1Sol：\nRanked #5\nGmm Arena\nARENA.AI\nClaude Fable 5.1（Max）\n2\nClaude Opus 5.5（High）\n3\nClaude Sonnet 5.5（Max）\n4\nGPT-6 Astra （Max）\n5\nGPT-6.1 Sol （Max）\nGPT-6 Sol （Max）\nClaude Opus 5 （High）",
+ "checks": {
+  "P1 metadata.image_files 非空且文件真实存在": true,
+  "P2 metadata.image_ocr_lines 带逐行 conf": true,
+  "P3 metadata.image_ocr 全文非空": true,
+  "P4 数据根 images/ 有内容寻址文件": true,
+  "P5 文件名 = 内容 sha256 前 16 hex": true,
+  "P6 vl off ⇒ 无 image_caption": true
+ }
+}

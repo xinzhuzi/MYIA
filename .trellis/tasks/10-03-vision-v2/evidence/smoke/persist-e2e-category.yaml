@@ -1,0 +1,67 @@
+# 10-03-vision-v2 冒烟2:persist 落图 E2E 品类副本
+# images: enabled + persist: true + vl: off(任务口径);enrich 关(零 LLM token);
+# push 剥 stdout;源 = 本地 fixture 页(127.0.0.1:8766),封面公网真字图。
+id: ai-news
+name: AI资讯
+schedule: "0 8,20 * * *"
+timezone: Asia/Shanghai
+
+sources:
+  - name: aihot
+    engine: static_html
+    url: "http://127.0.0.1:8766/"
+    method: GET
+    headers:
+      User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    extract:
+      type: list
+      item: "article[data-item-id]"
+      fields:
+        title: "h3"
+        url: "h3 a@href"
+        image: "img@src"
+    rate_limit:
+      qps: 0.5
+      jitter: "2s"
+      backoff: exponential
+      respect_robots: true
+    proxy: direct
+    retry: 3
+
+watchlist:
+  keywords: [LLM, Agent, 开源模型, AI芯片, 大模型, 多模态]
+  mute: [广告, 招聘]
+
+classify:
+  builtin: true
+  rules: []
+
+dedup:
+  key: "{url}"
+
+enrich:
+  enabled: false
+
+push:
+  - channel: stdout
+    route:
+      - when: "category == 'ai-news'"
+        mode: immediate
+    template: |
+      **AI 资讯 · {{ date }}**
+      {% for item in items %}
+      - [{{ item.title }}]({{ item.url }})
+      {% endfor %}
+
+storage:
+  retention: 90d
+  vacuum: monthly
+
+images:
+  enabled: true
+  persist: true     # 10-03-vision-v2 冒烟主体:落图 + image_files/image_ocr_lines
+  max_images: 3
+  max_per_run: 30
+  min_bytes: 10240
+  vl: "off"         # 任务口径:只 OCR(零 VL token,8080 不参与;裸 off 会被
+                    # YAML 1.1 读成布尔 False,schema 拒——引号必带)

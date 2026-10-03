@@ -1,0 +1,8 @@
+[PASS] G1:feed 图析条目展开 = OCR 全文 + 逐行置信度表 + caption + 图文件 N 张 :: 折叠摘要="图Agent Arena GPT-6.1Sol： Ranked #5 Gmm Arena ARENA.AI Claude Fable 5.1（Max） 2 Cl";展开后 OCR全文头="Agent Arena\nGPT-6.1Sol：\nRanked #5\nGmm Arena\nARENA.AI\nClaude Fable 5.1（Max）\n2\nClaude Opus 5.5（High）\n3";逐行 53 行(样例 ["Agent Arena100%","GPT-6.1Sol：50%","Ranked #550%","Gmm Arena30%"]);conf 百分比渲染=true;caption头="配图描述(VL caption)① 图中内容：一张由 Arena.AI 发布的“Agent Arena”排行榜截图，展示";图文件="图文件 1 张(路径)/privat
+[PASS] G2:settings「看图模型管理」卡(清单含真模型)+ 服务徽章运行中 :: 卡在=true;标题=true;模型行=[{"testid":"vision-model-qwen3-vl-8b-mlx","text":"qwen3-vl-8b-mlx16.3 GB当前","hasCurrent":true}];服务徽章="运行中 · 健康";下载表单=true
+[PASS] G3:下载表单非法 repo → 前端结构化报错(role=alert),零 job 提交 :: 报错="下载失败:repo 须为 mlx-community/<name> 形式(MLX 格式权重直下免 convert)";无进度条=true
+
+==== SUMMARY ====
+PASS  G1:feed 图析条目展开 = OCR 全文 + 逐行置信度表 + caption + 图文件 N 张
+PASS  G2:settings「看图模型管理」卡(清单含真模型)+ 服务徽章运行中
+PASS  G3:下载表单非法 repo → 前端结构化报错(role=alert),零 job 提交

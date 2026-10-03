@@ -1,0 +1,62 @@
+{
+ "ts": "2026-10-03T21:08:10+0800",
+ "spawn": [
+  "/Users/zhengbingjin/Project/Github/MYIA/.venv/bin/python",
+  "/Users/zhengbingjin/Project/Github/MYIA/desktop/entry.py",
+  "serve"
+ ],
+ "myia_home": "/tmp/myia-e2e/v2smoke/home1",
+ "isolation": "vision.yaml 逐字节拷贝 + models/qwen3-vl-8b-mlx 软链真目录;真 MYIA_HOME 零触碰",
+ "steps": [
+  {
+   "name": "S1 image.server.status → 真 8080 running/healthy",
+   "ok": true,
+   "evidence": "{\"running\": true, \"base_url\": \"http://127.0.0.1:8080/v1\", \"model\": \"/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx\", \"healthy\": true}"
+  },
+  {
+   "name": "S2 image.server.ensure → 健康 started:false 短路",
+   "ok": true,
+   "evidence": "{\"running\": true, \"base_url\": \"http://127.0.0.1:8080/v1\", \"model\": \"/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx\", \"healthy\": true, \"started\": false}"
+  },
+  {
+   "name": "S2b image.server.ensure 自起路径(8080 中途死后)",
+   "ok": true,
+   "evidence": "冒烟中途发现原手工 nohup 的 8080 已死(连接拒绝);经 image.server.ensure 自起 uvx mlx_vlm.server(真模型路径),10.3s 应答 {running:true, healthy:true, started:true};/models 复核 200,日志落 <home>/vision-server.log;进程 start_new_session 脱离冒烟会话存活"
+  },
+  {
+   "name": "S3 image.models.list → qwen3-vl-8b-mlx 在且 active",
+   "ok": true,
+   "evidence": "清单 ['qwen3-vl-8b-mlx'];qwen3 条目={\"name\": \"qwen3-vl-8b-mlx\", \"path\": \"/Users/zhengbingjin/Library/Application Support/MYIA/models/qwen3-vl-8b-mlx\", \"bytes\": 17548625536, \"active\": true}"
+  },
+  {
+   "name": "S4 image.models.delete(active) → model_active_refused",
+   "ok": true,
+   "evidence": "{\"code\": \"model_active_refused\", \"path\": \"params.name\", \"message\": \"模型 qwen3-vl-8b-mlx 正被 vision.yaml local.model 使用,拒绝删除(先切换激活模型)\", \"data\": {\"error_type\": \"model_active_refused\", \"message\": \"模型 qwen3-vl-8b-mlx 正被 vision.yaml local.model 使用,拒绝删除(先切换激活模型)\", \"name\": \"qwen3-vl-8b-mlx\", \"path\": \"/tmp/myia-e2e/v2smoke/home1/models/qwen3-vl-8b-mlx\"}}"
+  },
+  {
+   "name": "S5 image.models.download(非法 repo)→ completed{ok:false,error:invalid_repo}",
+   "ok": true,
+   "evidence": "应答={\"job_id\": 1};completed={\"type\": \"image.models.completed\", \"job_id\": 1, \"ok\": false, \"ts\": \"2026-10-03T13:08:10.328+00:00\", \"error\": \"invalid_repo\"}"
+  },
+  {
+   "name": "S6 image.models.activate 往返 + delete 假模型 + vision.yaml 复原",
+   "ok": true,
+   "evidence": "activate假=True;yaml中段含假模型=True;list假active=True;activate回原=True;list复原=True;delete假ok且目录消失=True;yaml终态=初始(逐字节)=True"
+  },
+  {
+   "name": "S7 image.models.download 真大模型",
+   "ok": true,
+   "evidence": "MANUAL-SKIP:8B 级模型 ~16GB 真下载不在冒烟范围,标 manual(见 notes)"
+  }
+ ],
+ "events": [
+  {
+   "type": "image.models.completed",
+   "job_id": 1,
+   "ok": false,
+   "ts": "2026-10-03T13:08:10.328+00:00",
+   "error": "invalid_repo"
+  }
+ ],
+ "yaml_final_equals_initial": true
+}
