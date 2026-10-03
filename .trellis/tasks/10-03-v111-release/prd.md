@@ -89,3 +89,19 @@
   就位后才能闭环);密钥扫描(留待终检员,结论未出);tag/GitHub Release/PyPI
   (主人门禁:三密钥 Secrets / PyPI 凭据,AI 侧不可代持);四帖素材(截图已备,
   文案随 R2-4 主人定稿节奏)。
+
+## 收尾遗留(2026-10-03 12:1x,装机冒烟+截图工作流 dwfrun-cd231466 后)
+
+- **README 六处「排 v1.2」旧口径**(118/267/277/412/574/585,终检员定位):应改「v1.1.2
+  桌面对齐批次」口径——README 正被并行改名波重写,树静后核改(改前先重定位行号)。
+- **装机路径口径**:终检实测装机在 `~/Applications/MYIA.app`(1.1.1 无误),/Applications
+  槽位为并行会话占用终态(借用-归还礼节执行,详见冒烟注记);对外文档写安装路径时对齐。
+- **裸 cargo build 白屏隐患**:Cargo.toml 无 [features] custom-protocol 转发,绕过 tauri
+  CLI 的构建产出白屏二进制(冒烟实测);UPDATER.md 已加警示,根治(features 段)建议入
+  v1.1.2 批次。
+- **MYIA_SMOKE_ROUTE 冒烟钩子已回归 main**(a39f8dd 合并 smoke-v1111-showfix;845f64a
+  整理时曾丢失,v1.1.2 静默截图复用)。
+- ⚠️ **「世事」更名波冲击本档口径**:cb87302(12:02)起 myia→shishi/shishi-classifier
+  全线更名(CLI 输出已 `shishi 1.1.1`)。本档的 tag 名 `v1.1.1`、PyPI 双包
+  `myia/myia-classifier`、README 徽章与安装节是否随更名改口,**待主人重批**——
+  与 R2-3(先 test.pypi 演练)合并裁决即可。

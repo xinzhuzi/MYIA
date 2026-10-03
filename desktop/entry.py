@@ -199,7 +199,9 @@ from myia.vision import (
     save_vision_config,
 )
 
-PROTOCOL_VERSION = 1
+#: v2 = 消息族(channels.*/push.write)入表;yaml.*/image.* 并线期未及 bump,
+#: 本次统一收口(v1 停在 10 方法时代)。
+PROTOCOL_VERSION = 2
 #: 日志环形缓冲容量(行);logs.tail 的硬上限。
 LOG_RING_CAPACITY = 4000
 #: 单次 run 的日志事件与环形上限一致;超限仅丢最旧行。

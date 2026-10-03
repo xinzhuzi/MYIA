@@ -113,3 +113,8 @@ npx tauri build --bundles app,dmg --config \
 - **Windows**:构建级 job 允许失败;WiX(mssi)/签名实机验证、passive 安装交互需主人于 Windows 实机确认;
 - **密钥轮换**:pubkey 是信任根,换公钥 = 已发布客户端全部失去升级通道(需重装)。私钥疑似泄露时才轮换,且必须伴随一次人工通知;
 - macOS 对外分发还需 Apple Developer ID 签名 + notarization 公证(与 updater 签名是两回事),未配置前下载 dmg 需右键绕过 Gatekeeper。
+
+> **构建警示(2026-10-03 装机冒烟实测)**:任何**绕过 tauri CLI 的裸 `cargo build`**
+> 都会产出零资产嵌入、烤死 devUrl 的白屏二进制(Cargo.toml 无 `[features]`
+> custom-protocol 转发)。发版/验证一律走 `npm run tauri build`(或
+> build-sidecar.sh 链);根治方案(features 段转发)已建议入 v1.1.2 桌面对齐批次。

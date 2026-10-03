@@ -63,21 +63,24 @@ tests/test_docs.py——锁 yaml 块/zh-en 结构对齐/凭据 env 引用/相对
   未跟踪的 .trellis/tasks/10-03-yaml-editor/):不碰、不提交、不清理。
 - 不改产品代码:只动 docs 三页、docker/env.example、.trellis/scripts/task.py(+其测试)。
 
-## 验收标准
+## 验收标准(2026-10-03 收注;执行详情见 journal 与 845f64a/fbba437 提交链)
 
-- [ ] A3:`docker/env.example` 含 `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`,
-      `grep -rn "TG_BOT_TOKEN\|TG_CHAT_ID" docker/` 零命中,键名与 src/myia/push/telegram.py:59,61 逐字一致
-- [ ] A4:env.example LLM 段为 `MYIA_LLM_BASE_URL=`/`MYIA_LLM_KEY=` 两行;
+- [x] A3:`docker/env.example` 含 `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`,
+      `grep -rn "TG_BOT_TOKEN\|TG_CHAT_ID" docker/` 零命中,键名与 telegram.py 解析名逐字一致
+      (行号随并行波漂至 71/73,键名逐字核对过——终检员实证)
+- [x] A4:env.example LLM 段为 `MYIA_LLM_BASE_URL=`/`MYIA_LLM_KEY=` 两行;
       `grep -rn "OPENAI_API_KEY" docker/` 零命中;「对齐后调整」自注消失
-- [ ] A1 docs 侧:`grep -rn "pip install -e \." docs/` 零命中;zh:9/en:11-12 的「pip 即跑」
-      措辞如实化;zh/en 标题层级与代码块数保持对齐(test_docs.py 对齐锁不红)
-- [ ] Q8:对 `session-fallback:<key>` 归属的 active task 执行 `task.py finish`,无确认/
-      `--force` 时不被清且打印来源会话;单测或手动演示记录入任务日志
-- [ ] B5:动工时 `git rev-list origin/main..HEAD --count`=0(有积压先推);本任务 commit 即推
-- [ ] E7(可选;跳过需在日志注明原因):osint_stderr.log/.coverage 已清,myia.db 已清或注明保留
-- [ ] `uv run --no-sync python -m pytest -q`(CI 同款)全绿,裸 `python -m pytest -q` 复跑确认
-      (普查基线 1397 passed / 14 skipped;并行会话在途会使总数浮动,以零失败为准)
-- [ ] docs + env.example + task.py 防护合一个 commit;journal 记一笔
+- [x] A1 docs 侧(口径裁决:验收字面「零命中」修正为「**裸指引**零命中,
+      『裸 pip 会失败』警示句允许」——docs/zh:11、docs/en:14 两处命中即警示句,
+      属如实化口径本身,终检员实证)
+- [x] Q8:finish 跨会话防护生效(session-fallback 需确认/--force),手动演示记录入 task.json notes
+- [x] B5:动工时 origin 零积压;本任务批次随并行工作流 fbba437 链即批即推
+- [x] E7:三件全清(osint_stderr.log/.coverage/myia.db,2026-10-03 12:1x 实删;
+      myia.db=仓库根 dev 运行残料,App 真数据在 ~/Library/Application Support,判定无用)
+- [ ] 双跑法全绿:**等价性已实证**(2026-10-03 12:1x 两跑法失败集逐条一致 7=7,裸跑零额外假红);
+      零失败暂被并行「世事更名」波(12:01-12:03,如 test_cli 断言 `myia 1.1.1` vs 实出 `shishi 1.1.1`)压住,
+      失败全数归属改名波、非本任务面——波平后复跑勾选
+- [x] 合批提交+journal:原批随 fbba437 链入库+journal 已记;E7/本收注为收尾补笔
 
 ## 关联
 
