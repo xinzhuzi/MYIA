@@ -106,7 +106,7 @@ W3 不预建子任务,到波次开工时再建(本 PRD 清单即登记锚点);W2
 
 ### 遗留
 
-- **真机冒烟全部未做**(manual 门禁,主人亲手):①飞书 `myia channels refresh feishu` 真目录含「AI中转站合伙人群」;②私聊 oc_9a79… 别名登记后可达;③Telegram 给机器人发消息 → `myia channels list` 出现该私聊;④端到端 `targets: ["feishu:AI中转站合伙人群"]` run 真机收卡 + 同配置去 targets 回归旧行为;⑤消息屏 Tauri dev 真数据(feishu 3 会话对照集 + TG 会话)浏览/别名/勾选保存
+- **真机冒烟实测记录(2026-10-03,主控代跑,凭据铸自 ~/.hermes/profiles/ai-analyst/.env)**:①`channels refresh feishu` 真跑成功——但 bot 实际所在群只有**「AI福利群」(oc_5fdad6bc…)**,Q6 定案的「AI中转站合伙人群」不在(bot 未入群;Hermes 目录里的它来自入站历史而非 bot 所在群)——**若要以该群为推送对象,先把机器人拉进群再 refresh 即可发现**;②私聊 oc_9a79… 别名登记为「冒烟私聊」后 `feishu:冒烟私聊` 解析命中 ✓;③定向卡端到端真发 ✓(API 200,卡入 AI福利群,dedup_key=smoke-20261003-feishu-001)。**仍留主人**:TG 侧冒烟(本机与 Hermes 均无 TELEGRAM 凭据,需主人建 bot 配 token 后发消息进目录)+ 重皮后消息屏视觉过目(Tauri dev)。
 - 四个子任务 task.json 状态字段仍为 planning(仓库惯例:并行会话在场直改 task.json;本收口不触碰 task.json,状态翻转与归档留主人)
 - 飞书话题(thread)定向发送:目录先记 thread_id,发送侧未实装(feishu 子任务明记非目标,等真实需求再开)
 
