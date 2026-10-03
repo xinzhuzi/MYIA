@@ -59,7 +59,19 @@ from myia.engines.fetch_base import (
     extract_html,
     mask_proxy_url,
 )
-from myia.vision.collect import markdown_image_urls
+
+
+def _markdown_image_urls(markdown: str, base_url: str) -> list[str]:
+    """同域图片链接收集(10-03-vision-pipeline 拍板⑥),依赖未提交前的可选降级。
+
+    myia.vision.collect 由 vision 会话按自己的节奏发行;引擎对它是软依赖——
+    模块缺席时跳过图片收集(零行为差异),不挡采集主路径。
+    """
+    try:
+        from myia.vision.collect import markdown_image_urls
+    except ImportError:
+        return []
+    return markdown_image_urls(markdown, base_url)
 
 logger = logging.getLogger(__name__)
 
