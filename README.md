@@ -264,8 +264,8 @@ shishi doctor --json                        # 拿 findings;agent 自修后复查
 
 核心流水线已实现且有测试覆盖 —— 1300+ 测试跑在 CI 里,无一条碰真实网络。
 桌面端自 v1.1.1 起可日常使用(数据通路统一、官方插件随包、开箱 demo、
-签名更新通道);桌面卡片内反馈按钮、设置反馈开关、采集量趋势排 v1.2
-(反馈闭环 CLI 现已可用);Windows 产物为构建级验证,未做装机冒烟。
+签名更新通道);桌面卡片内反馈按钮、设置反馈开关、采集量趋势排下一批次
+(v1.1.2 桌面对齐,反馈闭环 CLI 现已可用);Windows 产物为构建级验证,未做装机冒烟。
 
 | 里程碑 | 范围 | 状态 |
 |---|---|---|
@@ -274,7 +274,7 @@ shishi doctor --json                        # 拿 findings;agent 自修后复查
 | v0.3 生态 | Agent Skill、插件市场(本地/远端双模)、Scrapling L4、反馈闭环(CLI + 回调接收) | ✅ 已交付 |
 | v0.4 深水区 | stealth_browser L5、llm_browser L6、趋势基线、事件聚合 | ✅ 已交付 |
 | v1.0 发布 | 双语文档、演示物料、GitHub 门面、公开交付 | ✅ 已交付 |
-| v1.1 桌面优先 | Tauri 桌面壳(Python 核心以 sidecar 嵌入)、五屏 UI、进程内插件级;卡片内反馈按钮/settings 反馈开关/采集量趋势排 v1.2(反馈 CLI 已可用) | ✅ 已交付 |
+| v1.1 桌面优先 | Tauri 桌面壳(Python 核心以 sidecar 嵌入)、五屏 UI、进程内插件级;卡片内反馈按钮/settings 反馈开关/采集量趋势排 v1.1.2 桌面对齐批次(反馈 CLI 已可用) | ✅ 已交付 |
 | v1.1.1 通路修复 | 桌面数据通路统一(MYIA_HOME/官方插件随包/首跑种子)、开箱 demo 插件、签名更新通道(检查更新 + 自动安装) | ✅ 已交付 |
 | Web UI | 同一核心上的浏览器前端 | 📋 规划中 |
 
@@ -409,7 +409,8 @@ not just a human.
 
 🔁 **A feedback loop that tunes itself**
 Mark pushed items valuable / not valuable (CLI today; Telegram/Feishu
-callback receivers ship now, in-card buttons land in v1.2) —
+callback receivers ship now, in-card buttons land in the v1.1.2
+desktop-parity batch) —
 negative feedback retunes watchlist weights and thresholds over time.
 
 </td>
@@ -582,7 +583,7 @@ smoke-tested on install.
 | v0.3 ecosystem | Agent Skill, plugin market (local/remote dual-mode), Scrapling L4, feedback loop (CLI + callback receivers) | ✅ shipped |
 | v0.4 deep water | stealth_browser L5, llm_browser L6, trend baselines, event aggregation | ✅ shipped |
 | v1.0 launch | Bilingual docs, demo assets, GitHub facade, public delivery | ✅ shipped |
-| v1.1 desktop-first | Tauri desktop shell (Python core as sidecar), five-screen UI, in-process plugin tier; in-card feedback buttons / settings feedback toggle / collection trends land in v1.2 (feedback works via CLI today) | ✅ shipped |
+| v1.1 desktop-first | Tauri desktop shell (Python core as sidecar), five-screen UI, in-process plugin tier; in-card feedback buttons / settings feedback toggle / collection trends land in the v1.1.2 desktop-parity batch (feedback works via CLI today) | ✅ shipped |
 | v1.1.1 data paths | Desktop data-path unification (MYIA_HOME / bundled official plugins / first-run seed), out-of-the-box demo plugin, signed update channel (check + install) | ✅ shipped |
 | Web UI | browser front-end on the same core | 📋 planned |
 
