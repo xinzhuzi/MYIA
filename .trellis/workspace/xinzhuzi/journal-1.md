@@ -239,3 +239,7 @@
 - **首跑事故与修复**:GitHub 剥非 ASCII 资产名(世事.app.tar.gz→app.tar.gz、世事_1.1.1_aarch64.dmg→_1.1.1_aarch64.dmg)而 latest.json 指原名 → updater 必 404。修:同字节复制 shishi.* 重传+latest.json 改指(200 验通)、删坏名小件;dmg 122MB 重命名副本上传中;workflow 已改 ASCII 产物名(bfb60a0,下版生效)
 - 口径追批入 grill-v112:世事更名发布口径/密钥代执行/tag 由来,全记录
 - 剩余:PyPI(主人 PYPI_API_TOKEN+test.pypi 演练开关未实现)、四帖素材(截图已备)
+
+## 2026-10-03 E6 尾巴收口:4 归档/24 保留
+
+- messaging-core(交付 2b54865 在 main)、shared-build-races(e45e650,验收 3/3 实跑 EXIT=0)、v12-crawl4ai-l3(60022ff,验收 6/6、全量 1822 passed)、yaml-editor(c74eda0+cf0eb32,验收 14/14)四档目录 git status 干净,task.py archive 落 archive/2026-10/(均直落 main 无独立分支,--skip-branch-validation + --no-commit);其余 24 个活动档(games-v2/v3、shishi-everywhere、v12-backlog 在途改动及 games-wrap/vision-pipeline 等新立项)未收口,一律保留不动
