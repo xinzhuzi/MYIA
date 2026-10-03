@@ -14,7 +14,7 @@
 - 错误结构化透传(对齐 spec python/error-handling):`path` 字段路径、`message` 中文原因、`data` 原始细节。
 - EOF = 干净退出 0(serve,entry.py:1941)。
 
-## 方法注册表(本文现列 42 行;代码 `_HANDLERS` 现值 42,对账一致;单一事实源 = 代码)
+## 方法注册表(本文现列 43 行;代码 `_HANDLERS` 现值 43,对账一致;单一事实源 = 代码)
 
 | # | 方法 | 处理器 | 语义 |
 |---|------|----------------|------|
@@ -60,6 +60,7 @@
 | 40 | `image.server.status` | `_m_image_server_status` | 本地 mlx_vlm.server 快照 `{running, base_url, model, healthy}`(探 `base_url/models` 2s 帽,零副作用;vision-v2 批) |
 | 41 | `image.server.ensure` | `_m_image_server_ensure` | 快慢双路径:快路径已健康 → status+`{started:false}` 零后台;慢路径后台线程自起 `uvx --from mlx-vlm mlx_vlm.server` + 健康等待 ≤120s(同步等会冻死单线程 serve 循环全协议队头阻塞——复查修复拍板),应答立即返快照超集+`{ensuring:true, job_id}`,终态走 `image.server.completed` 事件;单飞 `ensure_busy`;日志 `<home>/vision-server.log`(>5MB 轮转;vision-v2 批) |
 | 42 | `image.files.purge` | `_m_image_files_purge` | 按 mtime 清 `<数据根>/images` 超龄落图 `{days}`(整数 ≥1)→ `{deleted, bytes_freed}`;只删文件不动目录(内容寻址平铺);CLI 面能力零 UI;目录不存在 = 合法零删(vision-v2 批复查) |
+| 43 | `feed.enrich` | `_m_feed_enrich` | 情报流卡单条「AI 摘要」:`{item}`(items.id 或 dedup_key/URL,`resolve_item_ref` 同 `feedback.mark` 口径)→ `{item_id, model, scores, score, cached}`;骑 `myia.enrich.LLMEnricher` 现跑(端点 = 条目所属品类 YAML `enrich:` 节 `env:`/`keychain:` 引用解析;enrich_cache 缓存语义复用,命中零 token;分数原路回填 items 表);async `enrich()` 在 handler 内 `asyncio.run` 同步应答,挂 `EnrichSettings.timeout_seconds` 超时;未启用/缺端点/品类 YAML 缺失 = `enrich_not_configured`(graceful;fe-small-batch 批 G8) |
 
 分组:核心 10(1-9 + 13-14 的 logs.tail/secret.set/secret.list)+
 源启停 1(16)+ 品类 YAML 编辑 6(18-23,task 10-03-yaml-editor)+
@@ -73,6 +74,8 @@ v1.1.2 桌面对齐批(task 10-03-v112-desktop-parity)新增 8:7 `run.cancel`(C2
 weixin-bridge 批(task 10-03-messaging-weixin-bridge)新增 1:31 `bridge.status`。
 vision-v2 批(task 10-03-vision-v2)新增 7:36-39 `image.models.*` 四 +
 40-41 `image.server.*` 两 + 42 `image.files.purge`;协议 v5。
+fe-small-batch 批(task 10-03-fe-small-batch)新增 1:43 `feed.enrich`(G8,
+情报流卡 AI 摘要;前端门面接线归 G8 前端件);协议 v6。
 
 **store.items 参数(合流形状,v112 批 C1 × feed-ux G1/G3)**:`db/category/since/limit`
 之外增 `before`(ISO,first_seen 严格小于)、`before_id`(与 before 组成
@@ -88,7 +91,8 @@ LIKE NOCASE,%/_ 按字面转义)。旧调用零感知。
 → `{ok: true, channel, preview?}`(preview 仅 stdout 通道——serve stdout 是协议流,
 卡片行入内存缓冲随应答回显)。协议版本随批 bump:v3(feed-ux 三方法)、
 v4(weixin-bridge 批 `bridge.status`)、v5(vision-v2 批:`image.models.*` 四 +
-`image.server.*` 两 + `image.files.purge` + `store.items` 投影三键,见下段)。
+`image.server.*` 两 + `image.files.purge` + `store.items` 投影三键,见下段)、
+v6(fe-small-batch 批 `feed.enrich`,契约见下段)。
 
 **vision-v2 批七方法契约(task 10-03-vision-v2;能力实现 `myia.vision.models` /
 `myia.vision.server`,重依赖惰性,huggingface-hub 在 extras `myia[vision]`)**:
@@ -109,6 +113,26 @@ code 动态透传(`invalid_repo` / `hf_unavailable` / `repo_unreachable` /
 `image_caption` / `image_files` / `image_ocr_lines` **三键**(随落图开关
 产生;`image_ocr_lines` 逐行 `{text, conf}` 原样透传供详情逐行置信度渲染,
 形态不符整体置 None 不半投影——`image_ocr` 旧键 vision-pipeline 已有)。
+
+**feed.enrich 契约(task 10-03-fe-small-batch G8;能力实现 `myia.enrich`,
+与 `myia run` 第二层漏斗同门)**:`feed.enrich {item: int|str, db?}` →
+`{item_id, model, scores, score, cached}`。`item` 引用口径同 `feedback.mark`
+(`resolve_item_ref`:items.id(int/纯数字串)或 dedup_key/URL;条目不存在
+`item_not_found`)。端点配置 = 条目所属品类 YAML `enrich:` 节:插件目录扫描
+品类 id 精确匹配(同 `_collect_category_ids` 确定性约定,坏文件不参与),
+`base_url`/`api_key` 由 `EnrichSettings`/`LLMEnricher` 构造期走
+`env:`/`keychain:` 引用解析(无内置端点、无默认 key,grill Q6);enrich_cache
+缓存语义原样复用((url, model, scores_key) 命中零 token,`cached:true`),
+分数经 `LLMEnricher.enrich` 原路回填 items 表(含缓存命中路径);async
+`enrich()` 在 handler 内 `asyncio.run` 同步应答(serve 单线程,单条单批
+不破队头),整段挂 `EnrichSettings.timeout_seconds` 超时帽。错误码:
+`enrich_not_configured`(graceful 明示无配置,`data.reason` ∈
+`enrich_disabled` / `endpoint_missing` / `category_yaml_not_found`)/
+`enrich_timeout` / `enrich_failed`(预算耗尽或批次失败条目未获分,
+`data` 带 `degrade_reason` + `failures`);`EnrichConfigError` code 原文透传
+(`credential_unresolved` / `invalid_base_url` 等,追源头去
+`src/myia/enrich/`)。mute 命中走管线零 token 降权路径,照常应答
+(三维 0 分 + `cached:false`)。
 
 ## 错误码表
 
@@ -137,6 +161,7 @@ code 动态透传(`invalid_repo` / `hf_unavailable` / `repo_unreachable` /
 | 看图配置 | `image_config_invalid` | `image.config.read` 装载拒载 / `image.config.save` 未过校验零写入(拆四留二后看图族仅余此码) |
 | feed-ux 导出 | `export_path_invalid` / `export_write_failed` | `feed.export`:路径空/相对/父目录不存在 / 写盘 IO 失败(task 10-03-feed-ux G3) |
 | feed-ux 排程 | `invalid_cron`(防御性;另复用 `invalid_params`/`not_yaml_suffix`/`path_outside_root`/`source_file_unreadable`) | `schedule.preview`:`build_cron_trigger` 兜底 / 参数 / 围栏 / 品类装不上(task 10-03-feed-ux G4) |
+| 单条精评 | `enrich_not_configured` / `enrich_timeout` / `enrich_failed`(另复用 `invalid_params`/`item_not_found`/`store_corrupt`;`EnrichConfigError` code 动态透传) | `feed.enrich`:品类未启用 enrich/缺端点引用/品类 YAML 缺失(graceful,`data.reason` 三分)/ `asyncio.run` 整段超时 / 条目未获分(degrade_reason+failures 入 data);凭据解析失败透传 `credential_unresolved` 等(fe-small-batch 批 G8) |
 | 消息 | `unknown_platform` / `discover_not_supported` / `channel_refresh_failed` / `alias_write_failed` / `push_write_unsupported`(另复用 `category_invalid` / `file_not_found` / `path_outside_root` / `source_write_failed` / `invalid_params`) | channels.* / push.write 全链路(task 10-03-messaging-ui;数据面错误码透传 push 层如 `credential_not_found` 经 `channel_refresh_failed.data.code` 携带) |
 | 看图模型/服务 | `download_busy` / `ensure_busy`(另复用 `invalid_params`;activate 改写 vision.yaml 失败复用 `image_config_invalid`) | image.models.* / image.server.* 单飞拒绝与参数形状;`VisionModelError`/`VisionServerError` code 透传(delete/activate 走应答错误,download/ensure 走完成事件 error 字段,枚举见上方 vision-v2 契约段;task 10-03-vision-v2) |
 

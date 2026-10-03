@@ -2187,26 +2187,28 @@ def test_method_registry_allowed_matches_handlers():
     feed-ux 批(feed.export/push.test/schedule.preview)+
     weixin-bridge 批(bridge.status)+
     vision-v2 批(image.models.*×4 + image.server.*×2 + image.files.purge)+
-    v1.1.2 批第二切片(feedback.mark/list/stats + store.trend)后 = 42。"""
+    v1.1.2 批第二切片(feedback.mark/list/stats + store.trend)+
+    fe-small-batch 批(feed.enrich)后 = 43。"""
     code, responses, _ = rpc({"id": 1, "method": "no.such.method", "params": {}})
     allowed = responses[0]["error"]["data"]["allowed"]
     assert allowed == sorted(entry._HANDLERS)
-    assert len(allowed) == 42
+    assert len(allowed) == 43
     for method in ("run.cancel", "runs.list", "secret.delete", "sources.test",
                    "feed.export", "push.test", "schedule.preview", "bridge.status",
                    "image.models.list", "image.models.download",
                    "image.models.delete", "image.models.activate",
                    "image.server.status", "image.server.ensure",
-                   "image.files.purge"):
+                   "image.files.purge", "feed.enrich"):
         assert method in allowed
 
 
 def test_protocol_version_bumped_for_feed_ux():
     """feed-ux 批新增三方法 → PROTOCOL_VERSION 3;weixin-bridge 批
     (bridge.status,10-03-messaging-weixin-bridge)→ v4;vision-v2 批
-    (image.models.*/image.server.* + store.items 三新投影键)→ v5。"""
+    (image.models.*/image.server.* + store.items 三新投影键)→ v5;
+    fe-small-batch 批(feed.enrich,10-03-fe-small-batch G8)→ v6。"""
     code, responses, _ = rpc({"id": 1, "method": "version", "params": {}})
-    assert responses[0]["result"]["protocol"] == 5
+    assert responses[0]["result"]["protocol"] == 6
 
 
 # ---------------------------------------------------------------------------
@@ -2362,6 +2364,218 @@ def test_push_test_sends_via_channel_with_target(monkeypatch):
     assert sent["target"] == "keychain:myia/feishu/chat_id"
     assert "MYIA 推送测试" in sent["items"][0]["title"]
     assert sent["context"].kind == "immediate"
+
+
+# ---------------------------------------------------------------------------
+# feed.enrich(10-03-fe-small-batch G8,协议 v6 #43):单条情报卡 AI 摘要,
+# 骑 myia.enrich.LLMEnricher 同门管线(端点 env: 引用 + enrich_cache 复用)
+# ---------------------------------------------------------------------------
+
+
+ENRICH_YAML = """
+id: feed-enrich-demo
+name: 精评夹具品类
+schedule: "0 9 * * *"
+sources:
+  - name: local-api
+    engine: direct_api
+    url: "http://127.0.0.1:9/list"
+    rate_limit:
+      qps: 1000.0
+      respect_robots: false
+    retry: 0
+    extract:
+      type: json_path
+      fields:
+        title: "$.data[*].title"
+        url: "$.data[*].url"
+classify:
+  builtin: false
+watchlist:
+  keywords: ["模型"]
+enrich:
+  enabled: true
+  model: fake-model-x
+  scores: [value, relevance]
+  base_url: "env:MYIA_TEST_ENRICH_BASE"
+  api_key: "env:MYIA_TEST_ENRICH_KEY"
+push:
+  - channel: stdout
+"""
+
+ENRICH_URL = "https://example.com/enrich-1"
+ENRICH_KEY = "enrich-key-1"
+
+
+class _FakeCompletion:
+    """Scripted completion client(tests/test_enrich.py FakeCompletionClient
+    同款);零外网,fake 注入走 entry.LLMEnricher 的 client= 关键字。"""
+
+    def __init__(self, responses: list[str] | None = None, *, fail: bool = False):
+        self.responses = list(responses or [])
+        self.fail = fail
+        self.calls: list[str] = []
+
+    async def complete(self, *, model: str, system: str, user: str):
+        from myia.enrich.client import CompletionResult
+
+        self.calls.append(user)
+        if self.fail:
+            raise RuntimeError("模拟端点故障")
+        text = self.responses.pop(0) if self.responses else "[]"
+        return CompletionResult(text=text, total_tokens=88)
+
+
+def _inject_enrich_client(monkeypatch, client: _FakeCompletion) -> None:
+    """handler 侧 LLMEnricher(config, settings) → 真类 + 注入 fake client。"""
+    real = entry.LLMEnricher
+    monkeypatch.setattr(
+        entry, "LLMEnricher",
+        lambda config, settings: real(config, settings, client=client),
+    )
+
+
+def _enrich_home(tmp_path: Path, monkeypatch, yaml_text: str = ENRICH_YAML) -> Path:
+    """MYIA_HOME 模式夹具:<home>/plugins 放品类 YAML(端点 env: 引用密闭)。"""
+    home = tmp_path / "enrich-home"
+    (home / "plugins").mkdir(parents=True, exist_ok=True)  # 同测多次换 YAML 复用
+    (home / "plugins" / "demo.yaml").write_text(yaml_text, encoding="utf-8")
+    monkeypatch.setenv("MYIA_HOME", str(home))
+    return home
+
+
+def _seed_enrich_db(tmp_path: Path, *, category: str = "feed-enrich-demo") -> str:
+    """一条带 content 的种子条目(category 可指向不存在的品类测拒配)。"""
+    from datetime import datetime, timezone
+
+    from myia.store.models import ItemRecord
+
+    db = tmp_path / "enrich.db"
+    store = SQLiteStore(str(db))
+    store.save_item(ItemRecord(
+        url=ENRICH_URL, dedup_key=ENRICH_KEY, title="精评条目:模型发布了",
+        category=category, content="正文摘要一段",
+        first_seen=datetime(2026, 10, 3, tzinfo=timezone.utc),
+    ))
+    store.close()
+    return str(db)
+
+
+def test_feed_enrich_fresh_then_cache_roundtrip(tmp_path, monkeypatch):
+    """G8 往返:首评 LLM(shape 同 fake 端点)→ 二评 enrich_cache 命中零
+    token;分数回填 items 表(缓存命中路径同回填,管线契约)。"""
+    import json as _json
+
+    _enrich_home(tmp_path, monkeypatch)
+    monkeypatch.setenv("MYIA_TEST_ENRICH_BASE", "https://llm.test.local/v1")
+    monkeypatch.setenv("MYIA_TEST_ENRICH_KEY", "test-key-not-real")
+    db = _seed_enrich_db(tmp_path)
+    reply = _json.dumps(
+        [{"url": ENRICH_URL, "value": 8, "relevance": 9, "reason": "干货"}],
+        ensure_ascii=False,
+    )
+    client = _FakeCompletion([reply])
+    _inject_enrich_client(monkeypatch, client)
+
+    code, responses, _ = rpc(
+        {"id": 1, "method": "feed.enrich", "params": {"db": db, "item": ENRICH_KEY}},
+    )
+    assert code == 0
+    result = responses[0]["result"]
+    assert set(result.keys()) == {"item_id", "model", "scores", "score", "cached"}
+    assert isinstance(result["item_id"], int)
+    assert result["model"] == "fake-model-x"  # 品类 enrich 节模型透传
+    assert result["scores"] == {"value": 8, "relevance": 9}
+    assert result["score"] == 8.5  # composite = 配置两维均值 1 位小数
+    assert result["cached"] is False
+    assert len(client.calls) == 1
+    assert ENRICH_URL in client.calls[0] and "精评条目" in client.calls[0]
+
+    # 二评:enrich_cache 命中 —— 零新调用,cached=true,分数同形
+    code, responses, _ = rpc(
+        {"id": 2, "method": "feed.enrich",
+         "params": {"db": db, "item": str(responses[0]["result"]["item_id"])}},
+    )
+    cached_result = responses[0]["result"]
+    assert cached_result["cached"] is True
+    assert cached_result["scores"] == result["scores"] and cached_result["score"] == 8.5
+    assert len(client.calls) == 1
+
+    # items 行回填复核:扁平维度 + score 标量(_persist_scores 契约)
+    store = SQLiteStore(db)
+    try:
+        row = store.get_item_by_dedup_key(ENRICH_KEY)
+        assert row.scores == {"value": 8, "relevance": 9, "score": 8.5}
+    finally:
+        store.close()
+
+
+def test_feed_enrich_not_configured_three_reasons(tmp_path, monkeypatch):
+    """graceful 拒配三分:enrich_disabled / endpoint_missing /
+    category_yaml_not_found;另 item_not_found / invalid_params 拒绝面。"""
+    # ① enabled=false → enrich_disabled
+    _enrich_home(tmp_path, monkeypatch, yaml_text=ENRICH_YAML.replace("enabled: true", "enabled: false"))
+    db = _seed_enrich_db(tmp_path)
+    code, responses, _ = rpc(
+        {"id": 1, "method": "feed.enrich", "params": {"db": db, "item": ENRICH_KEY}},
+    )
+    error = responses[0]["error"]
+    assert error["code"] == "enrich_not_configured"
+    assert error["data"]["reason"] == "enrich_disabled"
+
+    # ② 启用但缺端点引用(api_key 留空)→ endpoint_missing
+    _enrich_home(tmp_path, monkeypatch,
+                 yaml_text=ENRICH_YAML.replace('  api_key: "env:MYIA_TEST_ENRICH_KEY"\n', ""))
+    code, responses, _ = rpc(
+        {"id": 2, "method": "feed.enrich", "params": {"db": db, "item": ENRICH_KEY}},
+    )
+    error = responses[0]["error"]
+    assert error["code"] == "enrich_not_configured"
+    assert error["data"]["reason"] == "endpoint_missing"
+
+    # ③ 条目品类无 YAML(已删品类的历史条目)→ category_yaml_not_found
+    _enrich_home(tmp_path, monkeypatch)
+    db_ghost = _seed_enrich_db(tmp_path, category="ghost-category")
+    code, responses, _ = rpc(
+        {"id": 3, "method": "feed.enrich", "params": {"db": db_ghost, "item": ENRICH_KEY}},
+    )
+    error = responses[0]["error"]
+    assert error["code"] == "enrich_not_configured"
+    assert error["data"]["reason"] == "category_yaml_not_found"
+
+    # 拒绝面:条目不存在 = item_not_found(同 feedback.mark 口径);缺 item = invalid_params
+    code, responses, _ = rpc(
+        {"id": 4, "method": "feed.enrich", "params": {"db": db, "item": "no-such"}},
+    )
+    assert responses[0]["error"]["code"] == "item_not_found"
+    code, responses, _ = rpc(
+        {"id": 5, "method": "feed.enrich", "params": {"db": db}},
+    )
+    assert responses[0]["error"]["code"] == "invalid_params"
+
+
+def test_feed_enrich_endpoint_error_passthrough_and_unscored(tmp_path, monkeypatch):
+    """EnrichConfigError code 原文透传(env 未设 = credential_unresolved);
+    端点故障批次失败条目未获分 = enrich_failed(degrade_reason 入 data)。"""
+    # ① 端点 env: 引用配置了但环境变量未设 → 构造期 credential_unresolved
+    _enrich_home(tmp_path, monkeypatch)  # 不 setenv 两个 MYIA_TEST_ENRICH_* 变量
+    db = _seed_enrich_db(tmp_path)
+    code, responses, _ = rpc(
+        {"id": 1, "method": "feed.enrich", "params": {"db": db, "item": ENRICH_KEY}},
+    )
+    assert responses[0]["error"]["code"] == "credential_unresolved"
+
+    # ② 端点整批失败(LLMEnricher 降级不中断 → 条目无分 → handler 结构化收口)
+    monkeypatch.setenv("MYIA_TEST_ENRICH_BASE", "https://llm.test.local/v1")
+    monkeypatch.setenv("MYIA_TEST_ENRICH_KEY", "test-key-not-real")
+    _inject_enrich_client(monkeypatch, _FakeCompletion(fail=True))
+    code, responses, _ = rpc(
+        {"id": 2, "method": "feed.enrich", "params": {"db": db, "item": ENRICH_KEY}},
+    )
+    error = responses[0]["error"]
+    assert error["code"] == "enrich_failed"
+    assert error["data"]["degrade_reason"] == "llm_batch_failed"
+    assert error["data"]["failures"][0]["url"] == ENRICH_URL
 
 
 # ---------------------------------------------------------------------------

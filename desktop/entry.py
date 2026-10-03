@@ -58,6 +58,11 @@ feed.export       (list_items 同一查询面直写)     当前过滤视图导�
                                                  (sidecar 直写,数据不经
                                                  webview;只写对话框选定的
                                                  单个文件)
+feed.enrich       (LLMEnricher.enrich 同门)       单条情报卡 AI 摘要/精评
+                                                 (item 引用同 feedback.mark;
+                                                 品类 enrich 节端点;缓存复用
+                                                 enrich_cache;未配置 =
+                                                 enrich_not_configured)
 schedule.preview  (build_cron_trigger 纯计算)     品类排程未来 count 次时刻
                                                  (Apify 式 Next runs 预览,
                                                  防 cron 写错)
@@ -164,6 +169,19 @@ push.test          (通道 send(items, context))    合成单条测试条目真�
   选定;空/相对/父目录不存在 = ``export_path_invalid``)、``category``/``query``
   (与 ``store.items`` 同一查询面);应答 ``{path, count, bytes}``,写盘 IO 失败 =
   ``export_write_failed``。只写该一个文件,不建目录不删除任何东西。
+- ``feed.enrich`` params(G8,10-03-fe-small-batch):``item``(items.id 或
+  dedup_key/URL,解析口径同 ``feedback.mark``)、``db?``;应答
+  ``{item_id, model, scores, score, cached}`` —— 单条现跑
+  :class:`~myia.enrich.LLMEnricher`(端点 = 条目所属品类 YAML ``enrich:``
+  节,``base_url``/``api_key`` 走 ``env:``/``keychain:`` 引用解析;分数原路
+  回填 items 表 + enrich_cache 缓存语义复用,缓存命中零 token;async
+  :meth:`~myia.enrich.LLMEnricher.enrich` 在 handler 内 ``asyncio.run``
+  同步应答,整段挂 ``EnrichSettings.timeout_seconds`` 超时帽)。品类未启用
+  enrich / 端点引用缺失 / 品类 YAML 不在 plugins 目录 =
+  ``enrich_not_configured``(graceful,data.reason 三分);超时 =
+  ``enrich_timeout``;条目未获分(预算耗尽/批次失败)= ``enrich_failed``;
+  ``EnrichConfigError`` 的 code 原文透传(``credential_unresolved`` /
+  ``invalid_base_url`` 等)。
 - ``schedule.preview`` params:``file``(围栏同 yaml.*/sources.test)、``count``
   (缺省 5,钳制 [1,20]);应答 ``{file, schedule, timezone, runs[]}``,品类装不上 =
   ``source_file_unreadable``,纯计算零副作用。
@@ -258,6 +276,7 @@ import myia
 import yaml
 from myia import push as myia_push
 from myia.cli import DEFAULT_DB_PATH, DEFAULT_PLUGINS_DIR, main as cli_main
+from myia.enrich import EnrichConfigError, EnrichSettings, LLMEnricher
 from myia.feedback import (
     FeedbackTuner,
     TuningPolicy,
@@ -311,7 +330,10 @@ from myia.vision.server import (
 #: v5 = vision-v2 批(image.models.* 四方法 + image.server.* 两方法,及
 #: store.items 投影补 image_caption/image_files/image_ocr_lines 三键,
 #: 10-03-vision-v2;契约与前端 TS 侧同形状冻结)。
-PROTOCOL_VERSION = 5
+#: v6 = fe-small-batch G8(feed.enrich 单条情报卡 AI 摘要/精评:骑 enrich
+#: 管线同门 LLMEnricher,品类 enrich 节端点 + enrich_cache 缓存语义复用,
+#: 10-03-fe-small-batch)。
+PROTOCOL_VERSION = 6
 #: 日志环形缓冲容量(行);logs.tail 的硬上限。
 LOG_RING_CAPACITY = 4000
 #: 单次 run 的日志事件与环形上限一致;超限仅丢最旧行。
@@ -887,6 +909,168 @@ def _m_feed_export(params: dict[str, Any]) -> dict[str, Any]:
         ) from exc
     size = target.stat().st_size
     return {"path": str(target), "count": written, "bytes": size}
+
+
+# ---------------------------------------------------------------------------
+# 方法:feed.enrich(单条情报卡 AI 摘要/精评;G8,10-03-fe-small-batch)
+# ---------------------------------------------------------------------------
+
+
+class _EnrichItemAdapter:
+    """ItemRecord → :meth:`LLMEnricher.enrich` 的鸭子类型单条形态。
+
+    enrich() 对 items 的契约是 duck-typed(url/title/metadata/scores/
+    add_tags/dedup_key,可选 content 属性;tests/test_enrich.py FakeItem
+    同款先例),不引 pipeline.Item 重构造。``scores`` 恒起于 None:本次调用
+    的产出才有意义,行内既有旧分不冒充本轮结果(未获分 = ``enrich_failed``
+    结构化上报,不静默回落)。``metadata`` 种自 ``ItemRecord.raw``
+    (pipeline 以 raw=item.metadata 入库,image_ocr/image_caption 等图析
+    产物由此随单条再进 prompt,与管线条目同形)。
+    """
+
+    def __init__(self, record: Any) -> None:
+        self.url = record.url
+        self.title = record.title
+        self.dedup_key = record.dedup_key
+        self.content = record.content
+        self.scores: dict[str, Any] | None = None
+        self.metadata: dict[str, Any] = (
+            dict(record.raw) if isinstance(record.raw, Mapping) else {}
+        )
+        self.tags: list[str] = list(record.tags or [])
+
+    def add_tags(self, tags: list[str]) -> None:
+        """mute 命中路径专用;就地内存去重合入,不回写 items 表。"""
+        self.tags = list(dict.fromkeys([*self.tags, *tags]))
+
+
+def _category_config_for_item(category: Any, plugins_dir: str) -> Any:
+    """条目所属品类的已装配置(plugins 目录扫描,品类 id 精确匹配)。
+
+    确定性同 :func:`_collect_category_ids`:同 id 多文件取字典序首个;
+    坏文件(LoadError)不参与 id 空间 —— 装不起来的 YAML 供不了端点配置,
+    如实按未配置处理(调用方报 ``enrich_not_configured``)。
+    """
+    if not isinstance(category, str) or not category:
+        return None
+    for path in _yaml_files(Path(plugins_dir)):
+        try:
+            config = load_category_file(path)
+        except LoadError:
+            continue
+        if config.id == category:
+            return config
+    return None
+
+
+def _m_feed_enrich(params: dict[str, Any]) -> dict[str, Any]:
+    """情报流卡单条「AI 摘要」:骑 enrich 管线现跑 LLMEnricher(G8)。
+
+    ``item`` 解析口径同 ``feedback.mark``(:func:`resolve_item_ref`:
+    items.id(int/纯数字串)或 dedup_key/URL(str));端点配置 = 条目所属
+    品类 YAML ``enrich:`` 节(schema ``EnrichConfig``),``base_url`` /
+    ``api_key`` 沿 ``env:``/``keychain:`` 引用链在 :class:`EnrichSettings`
+    / :class:`LLMEnricher` 构造期解析(无内置端点、无默认 key,grill Q6,
+    与 ``myia run`` 同门);enrich_cache 缓存语义复用((url, model,
+    scores_key) 命中零 token),分数经 :meth:`LLMEnricher.enrich` 原路
+    回填 items 表 + 缓存表。async :meth:`~myia.enrich.LLMEnricher.enrich`
+    在 handler 内 ``asyncio.run`` 同步应答,整段挂
+    ``EnrichSettings.timeout_seconds`` 超时帽(单条单批,内层还有同值
+    的 per-completion wait_for,外层兜缓存读写/渲染的全程)。
+
+    err:``enrich_not_configured``(graceful 明示无配置:品类未启用
+    enrich / 端点引用缺失 / 品类 YAML 不在 plugins 目录,``data.reason``
+    三分 ``enrich_disabled`` / ``endpoint_missing`` /
+    ``category_yaml_not_found``)/ ``enrich_timeout`` / ``enrich_failed``
+    (预算耗尽或批次失败条目未获分,degrade_reason + failures 入 data);
+    :class:`EnrichConfigError` 的 code 原文透传(``credential_unresolved``
+    / ``invalid_base_url`` 等,追源头去 ``src/myia/enrich/``)。
+    """
+    item_ref = params.get("item")
+    if isinstance(item_ref, bool) or item_ref is None or item_ref == "":
+        raise ProtocolError("invalid_params", "缺少条目引用 item(items.id 或 dedup_key/URL)", path="params.item")
+    ctx = _serve_context()
+    db = params.get("db") or ctx.db
+    try:
+        store = SQLiteStore(db)
+    except StoreSchemaError as exc:
+        raise ProtocolError(exc.code, str(exc), path="params.db", data=exc.details) from exc
+    try:
+        item = resolve_item_ref(store, item_ref)
+        if item is None:
+            raise ProtocolError(
+                "item_not_found",
+                f"条目不存在: {item_ref!r}(可传 items.id 或 dedup_key/URL)",
+                path="params.item",
+            )
+        config = _category_config_for_item(item.category, ctx.plugins_dir)
+        enrich_cfg = config.enrich if config is not None else None
+        if enrich_cfg is None or not enrich_cfg.enabled:
+            if config is None:
+                reason = "category_yaml_not_found"
+                detail = f"条目所属品类 {item.category!r} 的 YAML 不在 plugins 目录"
+            else:
+                reason = "enrich_disabled"
+                detail = f"品类 {item.category!r} 未启用 enrich(enabled=false)"
+            raise ProtocolError(
+                "enrich_not_configured",
+                f"无法精评:{detail};请在品类 YAML enrich 节配置并启用端点",
+                path="params.item",
+                data={"category": item.category, "reason": reason},
+            )
+        if enrich_cfg.base_url is None or enrich_cfg.api_key is None:
+            raise ProtocolError(
+                "enrich_not_configured",
+                f"品类 {item.category!r} 的 enrich 节缺少端点引用"
+                "(base_url/api_key 必须是 env:/keychain: 引用)",
+                path="params.item",
+                data={"category": item.category, "reason": "endpoint_missing"},
+            )
+        try:
+            settings = EnrichSettings(
+                base_url_ref=enrich_cfg.base_url, api_key_ref=enrich_cfg.api_key
+            )
+            enricher = LLMEnricher(enrich_cfg, settings)
+        except EnrichConfigError as exc:
+            raise ProtocolError(
+                exc.code, str(exc), path="params.item",
+                data={**exc.details, "category": item.category},
+            ) from exc
+        adapter = _EnrichItemAdapter(item)
+        try:
+            outcome = asyncio.run(
+                asyncio.wait_for(
+                    enricher.enrich([adapter], watchlist=config.watchlist, store=store),
+                    timeout=settings.timeout_seconds,
+                )
+            )
+        except asyncio.TimeoutError as exc:
+            raise ProtocolError(
+                "enrich_timeout",
+                f"精评超时(>{settings.timeout_seconds}s):端点无响应",
+                path="params.item",
+                data={"timeout_seconds": settings.timeout_seconds},
+            ) from exc
+        if adapter.scores is None or "score" not in adapter.metadata:
+            first_failure = outcome.failures[0]["message"] if outcome.failures else "端点未返回该条目评分"
+            raise ProtocolError(
+                "enrich_failed",
+                f"精评未获分(degrade_reason={outcome.degrade_reason!r}):{first_failure}",
+                path="params.item",
+                data={
+                    "degrade_reason": outcome.degrade_reason,
+                    "failures": outcome.failures,
+                },
+            )
+        return {
+            "item_id": item.id,
+            "model": enrich_cfg.model,
+            "scores": adapter.scores,
+            "score": adapter.metadata["score"],
+            "cached": outcome.cached >= 1,
+        }
+    finally:
+        store.close()
 
 
 # ---------------------------------------------------------------------------
@@ -3400,6 +3584,7 @@ _HANDLERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "logs.tail": _m_logs_tail,
     "store.items": _m_store_items,
     "feed.export": _m_feed_export,
+    "feed.enrich": _m_feed_enrich,
     "schedule.preview": _m_schedule_preview,
     "secret.set": _m_secret_set,
     "secret.list": _m_secret_list,
