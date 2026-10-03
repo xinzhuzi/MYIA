@@ -69,3 +69,13 @@
 - GitHub 无 token = 源不启用(上游同款);桌面首跑无 token 时空态引导要在 README/doctor 讲清。
 - Shodan 无 scheme host 拼探测 URL 的成功率坑(exposure.md 未核实项)——实现时先做 scheme 归一再探测,与上游差异记档。
 - 适配器 `import myia.*` 无先例(integration-facts.md §6)——P1 评审时给出口径(读 keychain/限速器=宿主能力)。
+
+## P4 残留清单(2026-10-03 交付后,质检核实 7 条;主人过目后逐项收)
+
+- [ ] **发现4(low)**:plugins/credentials.yaml push 仍 feishu_card,与 Q9「官方品类模板默认 stdout」不一致(exposure 已 stdout)——改 stdout 需同步 push_targets golden(改值=取值漂移,golden 手工同改)。
+- [ ] **发现5(low)**:credcheck「读库→探测→回填」口径(adapter.py/cli.py/README 三处 docstring)与实现(--apikey 显式传键、零 store 代码)分叉——store 回填通路补齐或口径改写,二选一。
+- [ ] **发现6(low)**:ghhunt.py:15 docstring「run 预算 12 条查询」重复连写两遍。
+- [ ] **发现(低,规格文档)**:behavior-specs/credcheck.md 仍钉上游字面 error/source 值,实现已本地化机器码(auth_denied/no_api_url 等)——规格加注「输出值已本地化,上游字面值仅指语义」。
+- [ ] **发现3(线权)**:plugins/myia-credentials/plugin.yaml compatible('>=0.1,<2.0'→'0.0.1 矩阵')工作树已修但属 tag-release 线领地不代收——提交树该行仍旧,依赖 tag-release 线版本落定后同批收。
+- [ ] **发现7(提交卫生,主人裁决)**:ca613ee 混入 weixin 通道文档行(skill/SKILL.md,疑 messaging W2 在途内容被收编);未推送,可 rebase 拆分——是否重写历史归主人。
+- [ ] **主人侧三项**:myia secret set myia/credhunter/github-token(credhunt 真跑 ≥1 finding,AC2)/活 key 显式 --balance(余额矩阵验证)/myia/credhunter/{fofa,shodan}-key(曝面真跑)。
