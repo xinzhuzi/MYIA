@@ -1,0 +1,32 @@
+{
+  "what": "smzdm 游戏频道 L2 提取可行性定论(10-03-games-wrap;三问:卡片结构/登录墙/判重)",
+  "date": "2026-10-03",
+  "method": "plain curl 默认 UA(全程无 UA 伪装、无登录 Cookie),13 次请求零拦截;原始件见同目录 smzdm-probe-*",
+  "q1_card_structure": {
+    "verdict": "技术上可 CSS 提取(v2『JS 装配』结论被推翻——卡片是 SSR 直出,只是换了类名)",
+    "v2_note_overturned": "v2 用旧标记 feed-row-wide/feed-block-title 计 0 判『可能 JS 装配』;实测新类名体系下 30 卡全在静态 HTML",
+    "census_p1": {"total": 30, "haojia_deal": 9, "zhuanzai_repost": 10, "shaiwu_showoff": 4, "changwen_article": 4, "product_wiki": 3},
+    "deal_card_field_map": {
+      "item": "div.haojia-card-container",
+      "title": "a.card-right-box-title 文本",
+      "url": "a.card-right-box-title@href → https://www.smzdm.com/p/<id>/ 规范稳定",
+      "price": "容器属性 @priceshow(如 \"2183.1元\";8/9 有值,1 空)",
+      "merchant_link": "容器属性 @directlink(tmall/jd/yangkedo 深链)",
+      "discount": "不存在结构化折扣字段——仅 tags 自由文本(2/9 卡有:『比上次发布低5%』『365天新低』),语义是环比/新低,非 MSRP 折扣%;无 original_price、无 mall 字段"
+    },
+    "stability_caveat": "11 次抓取(p1-p10/haojia/jar)类名结构一致,但均为本会话内;无跨天样本(v2 未存原始 HTML),类名带 Vue data-v 哈希属 SSR scoped 正常形态"
+  },
+  "q2_login_wall_risk_control": {
+    "verdict": "无登录墙、无风控拦截第 1 页;但翻页仅存在于客户端 JS——不带 Cookie 有效可得 = 第 1 页 30 卡",
+    "evidence": "p2-p10 路径式翻页全 HTTP 200(无 403/挑战页),但条目集合与 p1 完全相等(set equality True,33 ids);cookie jar 复测无效;分页组件 damo-pagination 为无 href 的 JS 控件,浏览器翻页走查询串 ajax 即落入 robots Disallow: /*?*",
+    "robots": "/fenlei/youxi/ 不在 Disallow 名单(仅三个具体类目 + /*?* + /p/*/p*/);路径式 /p2/ 对 robots 允许,卡点在服务端忽略页码参数",
+    "waf": "x-waf-uuid 头存在但全程零拦截零 429(13 请求)",
+    "untested": "登录态下翻页是否解锁(无凭据未测)"
+  },
+  "q3_dedup_overlap": {
+    "url_key": "smzdm.com/p/* 与 epicgames/steampowered/cheapshark 域零交叉,{url} 判重不撞(证实)",
+    "content_overlap": "抽样 9/9 好价卡全是游戏硬件(Switch 2 主机×5、PS5 Slim、R36S 掌机、DualSense 手柄、京东会员),游戏软件折扣 0 条;与三源(Epic/Steam/CS-GOG·Humble·Fanatical 软件折扣)重合度≈0——但方向是『非目标信号』而非『重复信号』",
+    "field_fit": "缺 discount_pct/original_price → games.yaml 全部 classify 规则(限免/大折扣/多店大折扣)永不命中;priceshow 是人民币文本(2183.1元)与基线分单位冲突(v3 决议④拒绝单位混入的判例);含史低/免费关键词的卡片是 post.smzdm.com 社区视频帖,无价格字段,只会进 digest 当噪音"
+  },
+  "final_recommendation": "不接。通道三判据过二缺一:免伪装 UA ✓、结构稳定(SSR 卡片+@priceshow)✓、核心判定字段 ✗(无折扣%、无原价、内容是 CN 游戏硬件电商信息流而非游戏软件折扣)。若未来立『游戏硬件/数码优惠』独立插件,可用形态:仅第 1 页、item=div.haojia-card-container、title/url/@priceshow/@directlink、tags 文本仅展示、上限约 9 条/日,永不并入 games.yaml 的 final_price 基线"
+}

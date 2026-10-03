@@ -1,0 +1,5 @@
+_excerpt of gog-probe-main.js (full 1244984 bytes) for patterns ['PriceRange\\?\\(H="price"']
+
+@@@
+
+...Y.instantiateProducts(ne.products)))}parseCriteria(L){const W=this.applyPreservationProgramCriteria(L);return Object.entries(W).map(([H,ne])=>{if(this.FILTER_TYPES_TO_IGNORE.includes(H))return null;let ce=`${ne}`;return H===b.Qk.Query?ce=`like:${ne}`:H===b.Qk.PriceRange?(H="price",ce=`between:${this.sort(ne)}`):H===b.Qk.ReleaseDateRange?(H="releaseDate",ce=`between:${this.sort(ne)}`):H===b.Qk.Discounted||H===b.Qk.Wishlist?ce=`eq:${ne}`:H===b.Qk.HideOwned||H===b.Qk.OnlyDlcForOwned?ce=`${ne}`:H===b.Qk.HideDLCs?(H="productType",ce="true"=...

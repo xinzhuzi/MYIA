@@ -1,0 +1,265 @@
+{
+ "_note": "trimmed: page1 of free-price query, kept first 2 products",
+ "pages": 9,
+ "productCount": 419,
+ "products": [
+  {
+   "id": "1096877296",
+   "slug": "whateverland_prologue",
+   "features": [
+    {
+     "name": "Overlay",
+     "slug": "overlay"
+    },
+    {
+     "name": "Single-player",
+     "slug": "single"
+    }
+   ],
+   "screenshots": [
+    "https://images.gog-statics.com/58fca049a86ecdc4836435e54992cef971c4e59731c36a7d8d3e2687b6291d46_{formatter}.jpg",
+    "https://images.gog-statics.com/6268c2718103f2942f528c81643a2d66f52138d6993fba75d5cc8da012412412_{formatter}.jpg",
+    "https://images.gog-statics.com/2bb4af47fb36ccc9cfebdbb39b7e1da97b370c181e8c57a48f14b10750fca307_{formatter}.jpg",
+    "https://images.gog-statics.com/329d7962368dc34a24257a08d5535d08126e48ee6a1e49c461b0804d62368f39_{formatter}.jpg",
+    "https://images.gog-statics.com/a3a68a3185297cb5897ec26fa1ee1ca379501894e3316ac5aedf3d755f506435_{formatter}.jpg"
+   ],
+   "userPreferredLanguage": {
+    "code": "en",
+    "inAudio": true,
+    "inText": true
+   },
+   "releaseDate": "2020.07.10",
+   "storeReleaseDate": "2020.07.28",
+   "productType": "game",
+   "title": "Whateverland: Prologue",
+   "coverHorizontal": "https://images.gog-statics.com/fdfb97535650d09bdaf7f93dc9cd050e44d84c9d25fdd7e92cc895e19ef48be1.png",
+   "coverVertical": "https://images.gog-statics.com/fc8da75e14fecef86f1e045e8def81652824570c8d8e25434d7a0e01496f0321.jpg",
+   "logo": "https://images.gog-statics.com/229676a1f33c9c047633b2d5dcdcad416f01609a3455241a647dd6ff7a8c2302.png",
+   "galaxyBackgroundImage": "https://images.gog-statics.com/b65be9f510571f0401d7826c77f5ec65bf440e254b9651f09c5b7033796d6003.jpg",
+   "developers": [
+    "Caligari Games"
+   ],
+   "publishers": [
+    "Caligari Games"
+   ],
+   "operatingSystems": [
+    "windows",
+    "linux",
+    "osx"
+   ],
+   "price": {
+    "final": "$0.00",
+    "base": "$0.00",
+    "discount": null,
+    "finalMoney": {
+     "amount": "0.00",
+     "currency": "USD",
+     "discount": "0.00"
+    },
+    "baseMoney": {
+     "amount": "0.00",
+     "currency": "USD"
+    }
+   },
+   "productState": "default",
+   "genres": [
+    {
+     "name": "Adventure",
+     "slug": "adventure"
+    },
+    {
+     "name": "Point-and-click",
+     "slug": "pointandclick"
+    },
+    {
+     "name": "Detective-mystery",
+     "slug": "detective"
+    }
+   ],
+   "tags": [
+    {
+     "name": "Adventure",
+     "slug": "adventure"
+    },
+    {
+     "name": "Indie",
+     "slug": "indie"
+    },
+    {
+     "name": "Puzzle",
+     "slug": "puzzle"
+    },
+    {
+     "name": "Choices Matter",
+     "slug": "choices-matter"
+    },
+    {
+     "name": "Point&Click",
+     "slug": "point-and-click"
+    },
+    {
+     "name": "Multiple Endings",
+     "slug": "multiple-endings"
+    },
+    {
+     "name": "Cartoony",
+     "slug": "cartoony"
+    },
+    {
+     "name": "Investigation",
+     "slug": "investigation"
+    },
+    {
+     "name": "Choose Your Own Adventure",
+     "slug": "choose-your-own-adventure"
+    },
+    {
+     "name": "Demo",
+     "slug": "demo"
+    },
+    {
+     "name": "Detective-mystery",
+     "slug": "detective"
+    },
+    {
+     "name": "Dark Comedy",
+     "slug": "dark-comedy"
+    }
+   ],
+   "reviewsRating": 27,
+   "reviewsCount": 21,
+   "editions": [],
+   "ratings": [],
+   "storeLink": "https://www.gog.com/en/game/whateverland_prologue"
+  },
+  {
+   "id": "1129298921",
+   "slug": "brok_the_investigator_prologue",
+   "features": [
+    {
+     "name": "Controller support",
+     "slug": "controller_support"
+    },
+    {
+     "name": "Overlay",
+     "slug": "overlay"
+    }
+   ],
+   "screenshots": [
+    "https://images.gog-statics.com/4f681ac3aeb206d6dfa7383124c03a7d81d91f4d05d902adf141caa36f38cfe8_{formatter}.jpg",
+    "https://images.gog-statics.com/5c3428fda8a0a79c32b0f25362b2689a4c993e8a5457206ccc1551c019c0b99c_{formatter}.jpg",
+    "https://images.gog-statics.com/e51090c82fe3aa47500fc67d1dcbfb38a6b2e694c84cf3bcc9453b842c8160b5_{formatter}.jpg",
+    "https://images.gog-statics.com/428e268fa40e4478b4db87883d6fb89f6711058a6b79edcb9c4c27709129136f_{formatter}.jpg",
+    "https://images.gog-statics.com/b75da83914636bae02a47b277a6b88ce41f654803e24d6fda2823d0e7f88cfdd_{formatter}.jpg",
+    "https://images.gog-statics.com/037db2af3b7710c17e7e06d7d2cb1a3027ea1ff78f54fd5dd7c09f25d2a4f660_{formatter}.jpg",
+    "https://images.gog-statics.com/5ac9cd48d86758e2d4cca67ddfd34c5034bbec46787d9e59a388159209c681cd_{formatter}.jpg",
+    "https://images.gog-statics.com/85ff01266f2dae7dd4603ec908420880ab86638c3bb99d7da13c053f5b6e2fb9_{formatter}.jpg",
+    "https://images.gog-statics.com/a787a5be37cc1e24aa812a69687406a405d6e791bb226f59fcea30afd0d10d39_{formatter}.jpg",
+    "https://images.gog-statics.com/0031f5cc89276836fdd3ba4289b51c3196346ecf488c24fc98fcf5f8e638d068_{formatter}.jpg",
+    "https://images.gog-statics.com/3d3d736ee05780dd9bf4943d7af08057952b8d5b9181f5627a2e16dde9b64f78_{formatter}.jpg",
+    "https://images.gog-statics.com/8b84ecd31471df6c72b3b189cb6f34f141944828aeb29b0baaa987ccec4a0baa_{formatter}.jpg",
+    "https://images.gog-statics.com/8da2fa7297055cd76ce7562fdedf093ce8a9914c72a224c276a91aa14145ad57_{formatter}.jpg",
+    "https://images.gog-statics.com/5cf2c60d89cd56d7bafc4da48493f95c6b2f88de18d7fb92ac929883070223a1_{formatter}.jpg",
+    "https://images.gog-statics.com/e78f4ef082cfc761791a683298fe3b3392d0e61bd914b4bad552f01c04704991_{formatter}.jpg"
+   ],
+   "userPreferredLanguage": {
+    "code": "en",
+    "inAudio": true,
+    "inText": true
+   },
+   "releaseDate": "2020.12.02",
+   "storeReleaseDate": "2020.12.02",
+   "productType": "game",
+   "title": "BROK The InvestiGator - prologue",
+   "coverHorizontal": "https://images.gog-statics.com/ac0421702436c799a39281a3b9e76c9fe46fae0ae40390f3e50164a36333941d.png",
+   "coverVertical": "https://images.gog-statics.com/9c14ad41ca4ae00e80badd6326324603ec495a91d5554688bb872f315b0d9bd6.jpg",
+   "logo": "https://images.gog-statics.com/1d90ec66ed50f1b948d2d09dde103fc36b3a9e317010ff5f312decce67cd078e.png",
+   "galaxyBackgroundImage": "https://images.gog-statics.com/d1bd00ffa889d0ec1f68741ecd048efce748ea49b8090d575aaedf4ab2a1c3bf.jpg",
+   "developers": [
+    "COWCAT"
+   ],
+   "publishers": [
+    "COWCAT"
+   ],
+   "operatingSystems": [
+    "windows"
+   ],
+   "price": {
+    "final": "$0.00",
+    "base": "$0.00",
+    "discount": null,
+    "finalMoney": {
+     "amount": "0.00",
+     "currency": "USD",
+     "discount": "0.00"
+    },
+    "baseMoney": {
+     "amount": "0.00",
+     "currency": "USD"
+    }
+   },
+   "productState": "default",
+   "genres": [
+    {
+     "name": "Adventure",
+     "slug": "adventure"
+    },
+    {
+     "name": "Point-and-click",
+     "slug": "pointandclick"
+    },
+    {
+     "name": "Fighting",
+     "slug": "fighting"
+    }
+   ],
+   "tags": [
+    {
+     "name": "Adventure",
+     "slug": "adventure"
+    },
+    {
+     "name": "Choices Matter",
+     "slug": "choices-matter"
+    },
+    {
+     "name": "Mystery",
+     "slug": "mystery"
+    },
+    {
+     "name": "Point&Click",
+     "slug": "point-and-click"
+    },
+    {
+     "name": "Multiple Endings",
+     "slug": "multiple-endings"
+    },
+    {
+     "name": "Investigation",
+     "slug": "investigation"
+    },
+    {
+     "name": "Demo",
+     "slug": "demo"
+    },
+    {
+     "name": "Fighting",
+     "slug": "fighting"
+    },
+    {
+     "name": "Dystopian",
+     "slug": "dystopian"
+    },
+    {
+     "name": "Beat 'em up",
+     "slug": "beat-em-up"
+    }
+   ],
+   "reviewsRating": 48,
+   "reviewsCount": 28,
+   "editions": [],
+   "ratings": [],
+   "storeLink": "https://www.gog.com/en/game/brok_the_investigator_prologue"
+  }
+ ]
+}

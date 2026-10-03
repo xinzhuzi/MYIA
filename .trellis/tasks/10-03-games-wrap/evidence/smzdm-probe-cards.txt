@@ -1,0 +1,66 @@
+# smzdm /fenlei/youxi/ page-1 card census (probe 2026-10-03, plain curl default UA, no cookie)
+# parser: regex over SSR HTML — equivalent to selectolax CSS: item=div.<x>-card-container
+
+total cards: 30
+type census: {'shaiwu-card-container': 4, 'haojia-card-container': 9, 'changwen-card-container': 4, 'product-card-container': 3, 'zhuanzai-card-container': 10}
+
+ALL CARDS (type | priceshow attr | directlink attr | title | url):
+01 shaiwu-card-container      price=-            direct=-                                             买游戏也背刺？Epic游戏新低价&amp;免费游戏喜+N
+02 haojia-card-container      price=2183.1元      direct=https://detail.tmall.com/item.htm?id=913704359147 宅家玩乐：任天堂 Switch 2 游戏主机
+03 changwen-card-container    price=-            direct=-                                             游戏机也可化身健身神器！盘点NS上的那些健身游戏
+04 changwen-card-container    price=-            direct=-                                             好玩不花钱 Steam免费游戏推荐
+05 haojia-card-container      price=2698.2元      direct=https://item.jd.com/10220832488689.html       宅家玩乐：索尼 PS5 Slim 数字版 4K高清游戏机
+06 changwen-card-container    price=-            direct=-                                             登录steam的国产武侠单机游戏合集 当武侠游戏走出国门
+07 shaiwu-card-container      price=-            direct=-                                             超级好用游戏手柄
+08 product-card-container     price=-            direct=-                                             SONY 索尼 PlayStation5系列 PS5 Pro 游戏机
+09 haojia-card-container      price=2949元        direct=https://mobile.yangkeduo.com/goods.html?goods_id=1006659520934 宅家玩乐：任天堂 国内发货 顺丰包邮 任天堂游戏 SWITCH2主机 韩版 多国
+10 shaiwu-card-container      price=-            direct=-                                             游戏机之三
+11 zhuanzai-card-container    price=-            direct=-                                             60-600多的游戏盒子，还有投影游戏机？ 60-600多的游戏盒子，还有投影游
+12 haojia-card-container      price=2979元        direct=https://mobile.yangkeduo.com/goods.html?goods_id=1004536040451 宅家玩乐：任天堂 港版Switch2主机NS2语言版游戏机游戏
+13 zhuanzai-card-container    price=-            direct=-                                             “廉价版”游戏是什么？ #单机游戏 #主机游戏
+14 zhuanzai-card-container    price=-            direct=-                                             【特卖游戏节】Steam挂机游戏节，简单盘点，热门上班摸鱼挂机游戏。﻿#stea
+15 haojia-card-container      price=97.8元        direct=https://jingfen.jd.com/detail/8YQBRBBCMaJIBpUtCJ04IBpUzKU0aQ_391fbKkDY71TEFClwu.html 宅家玩乐：京喜 R36S 掌上游戏机2.2 万游戏+街机+GBA
+16 zhuanzai-card-container    price=-            direct=-                                             体感游戏机炫酷又好玩#测评 #游戏机 #这个游戏很好玩 #体感游戏 #游戏
+17 zhuanzai-card-container    price=-            direct=-                                             聊聊 亲子游戏 情侣游戏 体感游戏 掌机游戏都具备的 #游戏机 #switch 
+18 product-card-container     price=-            direct=-                                             Game Science 游戏科学 动作角色扮演游戏 《黑神话：悟空》
+19 haojia-card-container      price=2979元        direct=https://mobile.yangkeduo.com/goods.html?goods_id=1009251754787 宅家玩乐：任天堂 Switch任天堂Switch2港版日版游戏机
+20 zhuanzai-card-container    price=-            direct=-                                             steam超级便宜的史低游戏【steam每周史低游戏推荐】 #steam #st
+21 zhuanzai-card-container    price=-            direct=-                                             旧手机不要丢留着当游戏机玩 #DIY游戏机 #安卓手机 #怀旧游戏 #童年游戏 
+22 haojia-card-container      price=2929元        direct=https://mobile.yangkeduo.com/goods.html?goods_id=913704751024 宅家玩乐：任天堂 switch 2 新款二代 港版 便携体感多语言 游戏机
+23 zhuanzai-card-container    price=-            direct=-                                             最后30个小时！Steam大量必玩的骨折游戏折扣即将结束 #STEAM游戏 #单
+24 changwen-card-container    price=-            direct=-                                             重返游戏：The Game Awards 2018大奖年度游戏提名榜 你心目中的
+25 haojia-card-container      price=-            direct=https://shop.m.jd.com/shop/home?shopId=1000004489 入会20 没入的来
+26 zhuanzai-card-container    price=-            direct=-                                             steam上最难的游戏？想要通关至少要死一万次？？！ #像素游戏 #游戏鉴赏家 
+27 zhuanzai-card-container    price=-            direct=-                                             《面容》 史上最恐怖的游戏#面容 #visage #恐怖游戏 #steam游戏 
+28 haojia-card-container      price=359元         direct=https://mobile.yangkeduo.com/goods.html?goods_id=742971029233 宅家玩乐：PlayStation DualSense 无线控制器 蓝牙游戏手柄
+29 shaiwu-card-container      price=-            direct=-                                             便携游戏机
+30 product-card-container     price=-            direct=-                                             Nintendo 任天堂 国行 Switch游戏主机 续航加强版
+
+DEAL CARDS detail (haojia-card-container only):
+- title=宅家玩乐：任天堂 Switch 2 游戏主机
+  priceshow='2183.1元'  directlink=https://detail.tmall.com/item.htm?id=913704359147
+  tags=['比上次发布低5%', '游戏硬件热度Top5']  (NO discount_pct / original_price / mall field anywhere in card)
+- title=宅家玩乐：索尼 PS5 Slim 数字版 4K高清游戏机
+  priceshow='2698.2元'  directlink=https://item.jd.com/10220832488689.html
+  tags=['游戏硬件热度Top1', '商品好评率96%']  (NO discount_pct / original_price / mall field anywhere in card)
+- title=宅家玩乐：任天堂 国内发货 顺丰包邮 任天堂游戏 SWITCH2主机 韩版 多国语言版
+  priceshow='2949元'  directlink=https://mobile.yangkeduo.com/goods.html?goods_id=10066595209
+  tags=[]  (NO discount_pct / original_price / mall field anywhere in card)
+- title=宅家玩乐：任天堂 港版Switch2主机NS2语言版游戏机游戏
+  priceshow='2979元'  directlink=https://mobile.yangkeduo.com/goods.html?goods_id=10045360404
+  tags=[]  (NO discount_pct / original_price / mall field anywhere in card)
+- title=宅家玩乐：京喜 R36S 掌上游戏机2.2 万游戏+街机+GBA
+  priceshow='97.8元'  directlink=https://jingfen.jd.com/detail/8YQBRBBCMaJIBpUtCJ04IBpUzKU0aQ
+  tags=[]  (NO discount_pct / original_price / mall field anywhere in card)
+- title=宅家玩乐：任天堂 Switch任天堂Switch2港版日版游戏机
+  priceshow='2979元'  directlink=https://mobile.yangkeduo.com/goods.html?goods_id=10092517547
+  tags=[]  (NO discount_pct / original_price / mall field anywhere in card)
+- title=宅家玩乐：任天堂 switch 2 新款二代 港版 便携体感多语言 游戏机
+  priceshow='2929元'  directlink=https://mobile.yangkeduo.com/goods.html?goods_id=91370475102
+  tags=[]  (NO discount_pct / original_price / mall field anywhere in card)
+- title=入会20  没入的来
+  priceshow=''  directlink=https://shop.m.jd.com/shop/home?shopId=1000004489
+  tags=[]  (NO discount_pct / original_price / mall field anywhere in card)
+- title=宅家玩乐：PlayStation DualSense 无线控制器 蓝牙游戏手柄
+  priceshow='359元'  directlink=https://mobile.yangkeduo.com/goods.html?goods_id=74297102923
+  tags=['365天新低']  (NO discount_pct / original_price / mall field anywhere in card)

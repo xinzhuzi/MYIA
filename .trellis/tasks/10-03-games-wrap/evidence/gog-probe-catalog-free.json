@@ -1,0 +1,13 @@
+{
+ "_note": "trimmed: WRONG-SYNTAX query (price=between-0-0 dash form) returns unfiltered shell",
+ "keys": [
+  "pages",
+  "currentlyShownProductCount",
+  "productCount",
+  "products",
+  "dreamlistGames",
+  "filters",
+  "searchAlgo"
+ ],
+ "productCount": 0
+}

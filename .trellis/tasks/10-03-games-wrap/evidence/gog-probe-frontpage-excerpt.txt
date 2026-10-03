@@ -1,0 +1,13 @@
+_excerpt of gog-probe-frontpage.html (full 938692 bytes) for patterns ['giveaway__content-header']
+
+@@@
+
+...t:-16px;animation-delay:.4s}.giveaway__content--claimed[_ngcontent-gogcom-store-c856394590]{padding:24px 16px}.giveaway__content--claimed[_ngcontent-gogcom-store-c856394590]   .giveaway__content-description[_ngcontent-gogcom-store-c856394590]{margin-bottom:0}.giveaway__content-header[_ngcontent-gogcom-store-c856394590]{margin-bottom:8px;font-size:16px;font-weight:700;line-height:1.5;color:var(--c-giveaway-header)}.giveaway__content-header--accent[_ngcontent-gogcom-store-c856394590]{color:var(--c-giveaway-header-accent)}.giveaway__content-...
+
+@@@
+
+...ore-c856394590]   .giveaway__content-description[_ngcontent-gogcom-store-c856394590]{margin-bottom:0}.giveaway__content-header[_ngcontent-gogcom-store-c856394590]{margin-bottom:8px;font-size:16px;font-weight:700;line-height:1.5;color:var(--c-giveaway-header)}.giveaway__content-header--accent[_ngcontent-gogcom-store-c856394590]{color:var(--c-giveaway-header-accent)}.giveaway__content-header--error[_ngcontent-gogcom-store-c856394590]{color:var(--c-giveaway-error)}.giveaway__icon[_ngcontent-gogcom-store-c856394590]{width:16px;height:16px;mar...
+
+@@@
+
+...ay__content-header[_ngcontent-gogcom-store-c856394590]{margin-bottom:8px;font-size:16px;font-weight:700;line-height:1.5;color:var(--c-giveaway-header)}.giveaway__content-header--accent[_ngcontent-gogcom-store-c856394590]{color:var(--c-giveaway-header-accent)}.giveaway__content-header--error[_ngcontent-gogcom-store-c856394590]{color:var(--c-giveaway-error)}.giveaway__icon[_ngcontent-gogcom-store-c856394590]{width:16px;height:16px;margin-right:2px;vertical-align:middle}.giveaway__content-description[_ngcontent-gogcom-store-c856394590]{z-ind...

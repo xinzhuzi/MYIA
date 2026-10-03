@@ -1,0 +1,22 @@
+User-agent: *
+
+Disallow: /search
+Disallow: /terms
+Disallow: /gpass_policy
+Disallow: /subscription_policy
+Disallow: /privacy
+Disallow: /signin
+Disallow: /signout
+Disallow: /account/
+Disallow: /mails_with/
+Disallow: /originals/hit
+Disallow: /link
+Disallow: /pages/test
+Disallow: /qrcode
+Disallow: /health-check
+Disallow: /external/
+Disallow: /console
+Disallow: /taobao
+
+User-agent: Sogouspider
+Disallow: /

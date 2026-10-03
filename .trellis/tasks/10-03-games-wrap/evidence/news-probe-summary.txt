@@ -1,0 +1,44 @@
+# news-probe 汇总证据(2026-10-03,UA=MYIA/0.1 (config-driven intelligence hub))
+
+## 1) 通道实测(curl,-A 'MYIA/0.1 (config-driven intelligence hub)')
+- gcores RSS https://www.gcores.com/rss -> HTTP 200, 80800B, RSS 2.0, 20 items(见 news-probe-gcores-rss.xml);robots.txt User-agent:* 的 Disallow 列表不含 /rss -> 允许(见 news-probe-gcores-robots.txt)
+- gcores JSON API 猜测端点 https://www.gcores.com/api/public/articles?page=1&limit=5 -> 404(Rails 错误页,服务端真实响应)——无公开 JSON 通道证据
+- IGN RSS:feeds.ign.com 302 -> https://www.ign.com/rss/articles/feed?tags=games;直取终 URL -> HTTP 200, 153746B, application/xml, RSS 2.0, 20 items(news-probe-ign-rss.xml);robots User-agent:* Disallow 列表不含 /rss -> 允许(news-probe-ign-robots.txt)
+- 小黑盒:api.xiaoheihe.com/bhai/app/web/news -> 301 Cloudflare -> https://yydsai.com/bhai/...?utm_source=api.xiaoheihe.com(无关站点接管);api.xiaoheihe.cn/v2/burst/news -> 404。无公开稳定通道
+- Reddit:https://www.reddit.com/r/GamingNews/new.json -> 403 + HTML(190240B,news-probe-reddit-json-403.html);https://www.reddit.com/r/GamingNews/.rss -> 200 Atom 48172B(news-probe-reddit-atom.xml)——但 robots.txt User-agent:* Disallow: / 全站禁抓(news-probe-reddit-robots.txt),MYIA respect_robots 下不可接
+
+## 2) static_html 引擎解析 RSS 实测(news-probe-extract-script.py,MYIA 真实 extract_html+ExtractConfig)
+- RSS 2.0(gcores+IGN):title/pubDate/description 可提取;**url 全部缺失**(link 文本/ link@href 两形态都不行,20/20 条)——lexbor 把 <link> 当 HTML void 元素,文本成了 CSS 不可达的游离 text 节点(实测 link node text='' attrs={})
+- IGN 标题 CDATA 污染:提取文本带字面 '<![CDATA[' 与 ']]>' 包裹
+- Atom(Reddit 样本):entry + link@href -> title/url 25/25 全提取成功(void 元素的属性保留)——static_html 能解 Atom 属性形态,不能解 RSS 2.0 文本形态
+
+所有失败均为服务端真实判定响应(403/404/301 有真实 body),非本机代理抽风,未触发换路复测条件。
+--- A: item + title text / url=link text (naive RSS-as-HTML): 20 items
+    {'title': '第二届RED LAND今日开岛：160+人气IP齐聚复兴岛，全球首创游戏二次元花车巡游'}
+    {'title': '《恶魔城：贝尔蒙特的诅咒》试玩版今日上线'}
+    {'title': '对“死亡”的极致迷恋：电影与绘画中的死亡狂欢'}
+--- B: url=link@href attribute (Atom-style): 20 items
+    {'title': '第二届RED LAND今日开岛：160+人气IP齐聚复兴岛，全球首创游戏二次元花车巡游'}
+    {'title': '《恶魔城：贝尔蒙特的诅咒》试玩版今日上线'}
+    {'title': '对“死亡”的极致迷恋：电影与绘画中的死亡狂欢'}
+--- C: channel > item + pubDate/description: 20 items
+    {'title': '第二届RED LAND今日开岛：160+人气IP齐聚复兴岛，全球首创游戏二次元花车巡游', 'pubDate': 'Fri, 02 Oct 2026 21:53:58 +0800', 'desc': ' 10月2日，小红书开放世界冒险岛RED LAND正式开幕，上海杨浦复兴岛再次变身”痛岛”。早上不到10点，船台公园入口…'}
+    {'title': '《恶魔城：贝尔蒙特的诅咒》试玩版今日上线', 'pubDate': 'Fri, 02 Oct 2026 20:01:17 +0800', 'desc': ' 科乐美今日正式推出传奇恶魔城系列最新作品《恶魔城：贝尔蒙特的诅咒》 的试玩版，登陆 PlayStation 5、Nin…'}
+    {'title': '对“死亡”的极致迷恋：电影与绘画中的死亡狂欢', 'pubDate': 'Fri, 02 Oct 2026 18:15:51 +0800', 'desc': ' 凡人终有一死，但从未有过死去的人返回现世，告诉我们那个世界的样子。这恰恰激发了艺术家对于死后世界的想象。从中世纪的死亡…'}
+
+## 3) 补测:IGN RSS 2.0 与 Reddit Atom(真实 extract_html,news-probe-extract-round2.py)
+--- IGN rss: item, url=link (text): 20 items, union of keys = ['title']
+    {'title': '<![CDATA[Love and Deepspace Devs Issue Warning to Players After Deadly'}
+    {'title': '<![CDATA[Former NFL Coach Mike Tomlin Is a Hardcore Minecraft Player, '}
+--- IGN rss: item, url=link@href: 20 items, union of keys = ['title']
+    {'title': '<![CDATA[Love and Deepspace Devs Issue Warning to Players After Deadly'}
+    {'title': '<![CDATA[Former NFL Coach Mike Tomlin Is a Hardcore Minecraft Player, '}
+--- IGN rss: pubDate/description: 20 items, union of keys = ['pubDate', 'title']
+    {'title': '<![CDATA[Love and Deepspace Devs Issue Warning to Players After Deadly', 'pubDate': 'Sat, 3 Oct 2026 02:18:57 +0000'}
+    {'title': '<![CDATA[Former NFL Coach Mike Tomlin Is a Hardcore Minecraft Player, ', 'pubDate': 'Fri, 2 Oct 2026 22:46:50 +0000'}
+--- Reddit atom: entry, url=link@href: 25 items, union of keys = ['title', 'url']
+    {'title': 'Weekly /r/gamingnews Discussion - What Game You Will Play This Weekend', 'url': 'https://www.reddit.com/r/gamingnews/comments/1wvqufr/weekly_rgamingnew'}
+    {'title': 'PS5 Slim Gets Another Hardware Revision With Replaceable Battery & New', 'url': 'https://www.reddit.com/r/gamingnews/comments/1ww1183/ps5_slim_gets_ano'}
+--- Reddit atom: entry, url=link text: 25 items, union of keys = ['title']
+    {'title': 'Weekly /r/gamingnews Discussion - What Game You Will Play This Weekend'}
+    {'title': 'PS5 Slim Gets Another Hardware Revision With Replaceable Battery & New'}

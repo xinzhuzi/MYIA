@@ -1,0 +1,9 @@
+_excerpt of gog-probe-gamesfree.html (full 1119522 bytes) for patterns ['productType=in%3Agame', 'currentlyShownProductCount']
+
+@@@
+
+..."body":{"properties":{"sectionId":"b552c85b-4eaa-4a1d-9ae2-c27a1a4f7e7f","productIds":[],"properties":{"catalogH1":"PC games / All Games"},"initialParams":null,"contentSourceType":"dynamic"},"colors":[]}},"catalog.gog/v1/catalog?limit=48&order=desc%3Atrending&productType=in%3Agame%2Cpack%2Cdlc%2Cextras&page=1&countryCode=US&locale=en-US&currencyCode=USD":{"status":200,"body":{"pages":209,"currentlyShownProductCount":10000,"productCount":12859,"products":[{"id":"1403000599","slug":"saboteur","features":[{"name":"Single-player","slug":"s...
+
+@@@
+
+...ames"},"initialParams":null,"contentSourceType":"dynamic"},"colors":[]}},"catalog.gog/v1/catalog?limit=48&order=desc%3Atrending&productType=in%3Agame%2Cpack%2Cdlc%2Cextras&page=1&countryCode=US&locale=en-US&currencyCode=USD":{"status":200,"body":{"pages":209,"currentlyShownProductCount":10000,"productCount":12859,"products":[{"id":"1403000599","slug":"saboteur","features":[{"name":"Single-player","slug":"single"}],"screenshots":["https://images.gog-statics.com/e26edddae279a91bbf857af8db2786319c97fbbfa91ff3fbd5017d4012bde9c7_{formatter}.jpg"...

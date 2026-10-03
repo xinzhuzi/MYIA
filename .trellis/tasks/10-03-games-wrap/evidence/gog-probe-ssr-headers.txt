@@ -1,0 +1,18 @@
+HTTP/2 200 
+content-type: text/html; charset=utf-8
+x-powered-by: Express
+xkey: pg552dc753-0e95-4f46-bf6a-8194e55786bb snf35c7507-f1cd-49b6-a183-8ef5e5a25188 p1640424747 snb552c85b-4eaa-4a1d-9ae2-c27a1a4f7e7f
+etag: W/"616d5-+b35np9/y2Xs3bqzS/OWPUL7Zsk"
+x-gog-backend: catalog
+warning: 110 varnish "Response is Stale"
+age: 336
+accept-ranges: bytes
+via: 1.1 varnish, 1.1 varnish
+date: Sat, 03 Oct 2026 05:21:37 GMT
+x-served-by: cache-fra-eddf8230073-FRA, cache-sjc10062-SJC
+x-cache: MISS, MISS
+x-cache-hits: 0, 0
+x-timer: S1791004897.137413,VS0,VE208
+strict-transport-security: max-age=31557600
+vary: Accept-Encoding
+

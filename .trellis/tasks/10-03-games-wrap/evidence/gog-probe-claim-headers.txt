@@ -1,0 +1,17 @@
+HTTP/2 404 
+content-type: text/html; charset=UTF-8
+set-cookie: gog_lc=US_USD_en-US; expires=Sun, 03-Oct-2027 05:09:03 GMT; Max-Age=31536000; path=/; domain=.gog.com; httponly
+x-gog-debug: k8s
+cache-control: no-cache, private
+x-lb-h: N
+age: 0
+accept-ranges: bytes
+via: 1.1 varnish, 1.1 varnish
+date: Sat, 03 Oct 2026 05:09:03 GMT
+x-served-by: cache-fra-eddf8230069-FRA, cache-sjc10058-SJC
+x-cache: MISS, MISS
+x-cache-hits: 0, 0
+x-timer: S1791004143.049385,VS0,VE559
+strict-transport-security: max-age=31557600
+vary: Accept-Encoding
+

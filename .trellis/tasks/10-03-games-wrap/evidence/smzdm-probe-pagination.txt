@@ -1,0 +1,47 @@
+# smzdm /fenlei/youxi/ pagination & risk-control matrix
+# probe 2026-10-03 · plain curl default UA (curl/8.x, no UA spoofing) · no login cookie
+# question ② of the ask: 有无登录墙/风控(不带 Cookie 能翻几页)
+
+## robots.txt (evidence/smzdm-probe-robots.txt)
+/fenlei/youxi/ 本身不在 Disallow 名单;被禁的是:
+  Disallow: /fenlei/3cjiadian|jujiashenghuo|shishangyundong (三个具体类目)
+  Disallow: /*?*          ← 一切查询串(ajax 翻页若走 ?p= 即被禁)
+  Disallow: /p/*/p*/      ← 嵌套翻页(/fenlei/youxi/p2/ 不匹配,路径式翻页 robots 允许)
+路径式 /fenlei/youxi/p2/ 形态对 robots 是允许的——问题不在 robots,在服务端行为(见下)。
+
+## path pagination, no cookie (循环 curl,间隔 2s)
+$ for p in 2..10: curl -sS -o /tmp/smzdm-youxi-p$p.html -w "p$p: HTTP %{http_code} %{size_download}B"
+p2: HTTP 200 936875B   p3: HTTP 200 936875B   p4: HTTP 200 936875B   p5: HTTP 200 936875B
+p6: HTTP 200 923589B   p7: HTTP 200 923589B   p8: HTTP 200 923590B   p9: HTTP 200 923591B
+p10: HTTP 200 923594B
+→ 全 200,无 403/无挑战页/无登录跳转(936KB 级正常页面)。
+
+## 但内容是同一页!逐页内容指纹(item id 集合 + 卡片结构):
+p1: cards=30 haojia=9 firstdealids=['183361185','183341238','183343744']
+p2: cards=30 haojia=9 firstdealids=['183361185','183341238','183343744']   ← 与 p1 相同
+p3/p4/p5/p6/p8/p10: 同上(30 卡/9 好价/相同 first3 标题)
+item-id 集合比较: p1(33 ids) == p2 == p10 (set equality True)
+→ 服务端对匿名请求忽略 /pN/ 路径参数,一律渲染第 1 页(精选 tab)。
+  页面 md5 逐页不同仅因内嵌 per-request token/nonce,条目内容不动。
+
+## 带 cookie jar(仅响应 cookie,无登录)复测:
+$ curl -c jar p1 → curl -b jar -c jar p2
+p2 with jar: HTTP 200 936875B,首 deal id 仍 183361185(= 第 1 页内容)
+→ 响应 cookie(仅 __ckguid)不解锁翻页。
+
+## 翻页的真实机制:
+页面分页是客户端 JS 组件(<div class="damo-pagination">,clickable 项为无 href 的 <a>,
+SSR HTML 内无 /api/ 端点直出);浏览器里翻页走的 ajax 若带查询串即落入 robots Disallow: /*?*。
+登录态下是否解锁翻页:未测(无凭据,不在本探查范围)。
+
+## 好价子 tab /fenlei/youxi/haojia/:
+HTTP 200 936914B,卡片分布 10 转载/9 好价/4 晒物/4 长文/3 百科 —— 与主页完全相同,
+服务端同样忽略子路径筛选。无信噪比提升通道。
+
+## WAF 观察(evidence/smzdm-probe-p1-headers.txt):
+x-waf-uuid 头存在(WAF 在线),但全程 13 次请求(11 页 + jar 2 次 + headers 1 次)
+零拦截、零 429、零挑战页。plain curl 默认 UA 即放行 → 判据「无需伪装 UA」通过。
+
+## 结论(问题②):
+不是登录墙(第 1 页完整可取,连 cookie 都不需要),是「翻页仅存在于客户端 JS」:
+L2 static_html 引擎不带 Cookie 实际可得 = 第 1 页 30 卡(其中 9 条好价),翻页为 0 页有效增量。

@@ -1,0 +1,1689 @@
+{
+ "pages": 2208,
+ "currentlyShownProductCount": 4415,
+ "productCount": 4415,
+ "products": [
+  {
+   "id": "1403000599",
+   "slug": "saboteur",
+   "features": [
+    {
+     "name": "Single-player",
+     "slug": "single"
+    }
+   ],
+   "screenshots": [
+    "https://images.gog-statics.com/e26edddae279a91bbf857af8db2786319c97fbbfa91ff3fbd5017d4012bde9c7_{formatter}.jpg",
+    "https://images.gog-statics.com/8cfd8c928502ef8a3b21eb170fd225ac4f894faf4d18ac868d04a72b0bda07fc_{formatter}.jpg",
+    "https://images.gog-statics.com/b017d2ffe5a549fb856a7c060cfe99e63c8dfa4f22b92f46faa0acec208dba5e_{formatter}.jpg",
+    "https://images.gog-statics.com/f699b58d492bb15f717a17a5252e91923b317c3036a2093dad432841d3534544_{formatter}.jpg",
+    "https://images.gog-statics.com/babfa7829e99e46fd466e35b7b6a9faa3907e0a2f878588c28116dc910cd2932_{formatter}.jpg",
+    "https://images.gog-statics.com/3ef06deee55f1a5904ac8c99b8de63124ef42b465cd56351db3315fa39cffdd6_{formatter}.jpg",
+    "https://images.gog-statics.com/4a0f7a4bada2cf08b5515a856d344cae0c293ee35f7a4b315dc70acfd411be40_{formatter}.jpg",
+    "https://images.gog-statics.com/186962c3408d8e7d90ed0c7ca6c10a906add3b2d16fee422c82b5d012b23ef78_{formatter}.jpg",
+    "https://images.gog-statics.com/35af52d8522437afd0370e7cdad4bf178af72d7dfbebed38c5ea3a6072047e04_{formatter}.jpg",
+    "https://images.gog-statics.com/e10d78fc87bc9252cd60b89d663e0e0f0bf1e253b9fe6407fd70e3c4cca003a9_{formatter}.jpg",
+    "https://images.gog-statics.com/5f4cdddbf6098206a0d963a6d5a7fd7e91d14dff9c65f75bc6f5011ba3cf67fe_{formatter}.jpg",
+    "https://images.gog-statics.com/acb8d7b8491e8eef3f3ce88ef9dade8441a505062df5090f63fa7294fd2b7273_{formatter}.jpg",
+    "https://images.gog-statics.com/b900290aefa190d88835379d62b5d456fa5e9f98cdd64a7e59991a1498860a16_{formatter}.jpg",
+    "https://images.gog-statics.com/118283ebd6688a2c140e2bfdf6600f24c591c6760e1e05aea0047ed679284fc7_{formatter}.jpg",
+    "https://images.gog-statics.com/b44df2849894693af40f011cba96cef70b6cd7276913135ab6e971f6f9974325_{formatter}.jpg"
+   ],
+   "userPreferredLanguage": {
+    "code": "en",
+    "inAudio": true,
+    "inText": true
+   },
+   "releaseDate": "2009.11.30",
+   "storeReleaseDate": "2016.09.22",
+   "productType": "game",
+   "title": "The Saboteur\u2122",
+   "coverHorizontal": "https://images.gog-statics.com/9a75d59eaa74cc18c107944890a824fdac9decc652c126b1de6a0f427b311bb0.png",
+   "coverVertical": "https://images.gog-statics.com/73e1e18ff0507c16b512f226306c16b638551739caec59fb0ab66cfb10a07ab6.jpg",
+   "logo": "https://images.gog-statics.com/7d0e0fe43943f7bcf29e58efa52509a666ae0fca89e3a537689ef046d97ead0d.png",
+   "galaxyBackgroundImage": "https://images.gog-statics.com/de3c917bcf7fd11fbf09c8726f50b47c941ee0ed16d24610108fadba59fc9efd.jpg",
+   "developers": [
+    "Pandemic Studios"
+   ],
+   "publishers": [
+    "Electronic Arts"
+   ],
+   "operatingSystems": [
+    "windows"
+   ],
+   "price": {
+    "final": "$1.99",
+    "base": "$19.99",
+    "discount": "-90%",
+    "finalMoney": {
+     "amount": "1.99",
+     "currency": "USD",
+     "discount": "18.00"
+    },
+    "baseMoney": {
+     "amount": "19.99",
+     "currency": "USD"
+    }
+   },
+   "productState": "default",
+   "genres": [
+    {
+     "name": "Action",
+     "slug": "action"
+    },
+    {
+     "name": "TPP",
+     "slug": "tpp"
+    },
+    {
+     "name": "Stealth",
+     "slug": "stealth"
+    }
+   ],
+   "tags": [
+    {
+     "name": "Action",
+     "slug": "action"
+    },
+    {
+     "name": "Classic",
+     "slug": "classic"
+    },
+    {
+     "name": "Third Person",
+     "slug": "third-person"
+    },
+    {
+     "name": "Stealth",
+     "slug": "stealth"
+    }
+   ],
+   "reviewsRating": 43,
+   "reviewsCount": 1141,
+   "editions": [],
+   "ratings": [
+    {
+     "name": "pegiRating",
+     "ageRating": "18"
+    },
+    {
+     "name": "esrbRating",
+     "ageRating": "17"
+    },
+    {
+     "name": "uskRating",
+     "ageRating": "18"
+    }
+   ],
+   "storeLink": "https://www.gog.com/en/game/saboteur"
+  },
+  {
+   "id": "1207658964",
+   "slug": "nox",
+   "features": [
+    {
+     "name": "Multi-player",
+     "slug": "multi"
+    },
+    {
+     "name": "Single-player",
+     "slug": "single"
+    }
+   ],
+   "screenshots": [
+    "https://images.gog-statics.com/49404bc79802a10a470c1546e06c0e682c307c8a37dd0793e57033f871d0912f_{formatter}.jpg",
+    "https://images.gog-statics.com/05033ca39ca9a67a8067a669e9e6cdf44b43018f6f855c008b818849acb3d64d_{formatter}.jpg",
+    "https://images.gog-statics.com/069e9eb2cdda01a12cfd4dba888ff642755d66f81812bbaea843e2c0bba8c368_{formatter}.jpg",
+    "https://images.gog-statics.com/25b311ea7fc4258460d6f0f91bf768d5b2b48385472749ceb8084f51cb1165a0_{formatter}.jpg",
+    "https://images.gog-statics.com/987eabc6c4652219afe4bb2773fa9eaed7f1160f81357a6e7467b2a982991fd5_{formatter}.jpg",
+    "https://images.gog-statics.com/7a6a0127d231c63d1662a50e81eb0670dab18d7192dc39ecfa3935daa5b5b063_{formatter}.jpg",
+    "https://images.gog-statics.com/4f441c2468676481782ccbc4bab4b879046c363e6b0a9e0af11baa1f07a4938c_{formatter}.jpg",
+    "https://images.gog-statics.com/3c25a3bfaf00c262233a37a53e48a4da3a375c99eee55c51962f0cabadc3ddd6_{formatter}.jpg",
+    "https://images.gog-statics.com/97f74b0c18d32554f7febc4a8941654eca08d3012a5ac0f4eacb4d318a0e8406_{formatter}.jpg",
+    "https://images.gog-statics.com/994b8c698d75e2a25f7c5f7a998fbc34ef8b964230b67d4d87b72b365d90a666_{formatter}.jpg",
+    "https://images.gog-statics.com/d0983ad31f802b1b691bfa71c6527ae7e9b24e1a585375e47341d2eabe5ababe_{formatter}.jpg",
+    "https://images.gog-statics.com/7962fbe1ee11be46f09346e62a222c7c0c2cc993c37b36857b499cf82c8330a8_{formatter}.jpg",
+    "https://images.gog-statics.com/fdc7367975b8a33abfd855bb3bda035a8d52218ce098b4566a3256a8530c8b2a_{formatter}.jpg",
+    "https://images.gog-statics.com/14214beca51404d54b0736e1044ab7eec5944262de4d535fb172530f2976bc72_{formatter}.jpg",
+    "https://images.gog-statics.com/eea644f91311257afec737ed5ce2bc5abfb83a8a6f85e3991baf7bc45b271f98_{formatter}.jpg",
+    "https://images.gog-statics.com/2655c0be7843bd631329a9650cab863fe4df11e44cc1fb9aae5cd408dc0dd0aa_{formatter}.jpg",
+    "https://images.gog-statics.com/b61769b8ce189763208d9d50bba0c07349bfc6d43a38787833b5c69295933d71_{formatter}.jpg",
+    "https://images.gog-statics.com/d269e95e34a73d315089e500131d3d961705ed079d967e6fdc2b4470b20cfd61_{formatter}.jpg",
+    "https://images.gog-statics.com/d71337c4cbc98e1337c70a123cbba56ebd09f24052fa5812ff4c855aa1fb8105_{formatter}.jpg",
+    "https://images.gog-statics.com/874a7959ef4d92a3d7214ad8b6b19cf7df6b087a69d04d34ac08296e350b658e_{formatter}.jpg"
+   ],
+   "userPreferredLanguage": {
+    "code": "en",
+    "inAudio": true,
+    "inText": true
+   },
+   "releaseDate": "2000.01.31",
+   "storeReleaseDate": "2011.09.06",
+   "productType": "game",
+   "title": "Nox\u2122",
+   "coverHorizontal": "https://images.gog-statics.com/319f768899cd2190b977fc0b420ccb2169b375e14a43c3d88a4f2d740d1da6e7.png",
+   "coverVertical": "https://images.gog-statics.com/09c9aa84f015d05f030cd730dc6f7d5e9107f985c5a49e3ea87b65dfd5dfc2fb.jpg",
+   "logo": "https://images.gog-statics.com/286998b376bf8367aa318202251a347d3a4c75aa78076bfe5911352059134dba.png",
+   "galaxyBackgroundImage": "https://images.gog-statics.com/54d4be4e4fe1afb83487ba60705fd16703eb5eaf0bff676e82d6fc558999e7df.jpg",
+   "developers": [
+    "Westwood Studios"
+   ],
+   "publishers": [
+    "Electronic Arts"
+   ],
+   "operatingSystems": [
+    "windows"
+   ],
+   "price": {
+    "final": "$1.39",
+    "base": "$5.99",
+    "discount": "-77%",
+    "finalMoney": {
+     "amount": "1.39",
+     "currency": "USD",
+     "discount": "4.60"
+    },
+    "baseMoney": {
+     "amount": "5.99",
+     "currency": "USD"
+    }
+   },
+   "productState": "default",
+   "genres": [
+    {
+     "name": "Role-playing",
+     "slug": "rpg"
+    },
+    {
+     "name": "Action",
+     "slug": "action"
+    },
+    {
+     "name": "Fantasy",
+     "slug": "fantasy"
+    }
+   ],
+   "tags": [
+    {
+     "name": "Action",
+     "slug": "action"
+    },
+    {
+     "name": "Fantasy",
+     "slug": "fantasy"
+    },
+    {
+     "name": "Role-playing",
+     "slug": "role-playing"
+    },
+    {
+     "name": "Classic",
+     "slug": "classic"
+    },
+    {
+     "name": "Dark",
+     "slug": "dark"
+    },
+    {
+     "name": "Magic",
+     "slug": "magic"
+    },
+    {
+     "name": "Isometric",
+     "slug": "isometric"
+    },
+    {
+     "name": "Hack and Slash",
+     "slug": "hack-and-slash"
+    },
+    {
+     "name": "Good Old Game",
+     "slug": "good-old-game"
+    },
+    {
+     "name": "Only On GOG",
+     "slug": "only-on-gog"
+    }
+   ],
+   "reviewsRating": 44,
+   "reviewsCount": 2360,
+   "editions": [],
+   "ratings": [
+    {
+     "name": "pegiRating",
+     "ageRating": "12"
+    },
+    {
+     "name": "esrbRating",
+     "ageRating": "13"
+    },
+    {
+     "name": "uskRating",
+     "ageRating": "16"
+    }
+   ],
+   "storeLink": "https://www.gog.com/en/game/nox"
+  }
+ ],
+ "dreamlistGames": [],
+ "filters": {
+  "releaseDateRange": {
+   "min": 1980,
+   "max": 2026
+  },
+  "priceRange": {
+   "min": 0,
+   "max": 253.79,
+   "currency": "USD",
+   "decimalPlaces": 2
+  },
+  "genres": [
+   {
+    "name": "Action",
+    "slug": "action"
+   },
+   {
+    "name": "Adventure",
+    "slug": "adventure"
+   },
+   {
+    "name": "Racing",
+    "slug": "racing"
+   },
+   {
+    "name": "Role-playing",
+    "slug": "rpg"
+   },
+   {
+    "name": "Shooter",
+    "slug": "shooter"
+   },
+   {
+    "name": "Simulation",
+    "slug": "simulation"
+   },
+   {
+    "name": "Sports",
+    "slug": "sports"
+   },
+   {
+    "name": "Strategy",
+    "slug": "strategy"
+   }
+  ],
+  "languages": [
+   {
+    "slug": "ar",
+    "name": "\u0627\u0644\u0639\u0631\u0628\u064a\u0629"
+   },
+   {
+    "slug": "br",
+    "name": "Portugu\u00eas do Brasil"
+   },
+   {
+    "slug": "cn",
+    "name": "\u4e2d\u6587(\u7b80\u4f53)"
+   },
+   {
+    "slug": "cz",
+    "name": "\u010desk\u00fd"
+   },
+   {
+    "slug": "da",
+    "name": "Dansk"
+   },
+   {
+    "slug": "de",
+    "name": "Deutsch"
+   },
+   {
+    "slug": "en",
+    "name": "English"
+   },
+   {
+    "slug": "es",
+    "name": "espa\u00f1ol"
+   },
+   {
+    "slug": "es_mx",
+    "name": "Espa\u00f1ol (AL)"
+   },
+   {
+    "slug": "fi",
+    "name": "Suomi"
+   },
+   {
+    "slug": "fr",
+    "name": "fran\u00e7ais"
+   },
+   {
+    "slug": "gk",
+    "name": "\u0395\u03bb\u03bb\u03b7\u03bd\u03b9\u03ba\u03ac"
+   },
+   {
+    "slug": "hu",
+    "name": "magyar"
+   },
+   {
+    "slug": "hr",
+    "name": "hrvatski"
+   },
+   {
+    "slug": "id",
+    "name": "bahasa Indonesia"
+   },
+   {
+    "slug": "it",
+    "name": "italiano"
+   },
+   {
+    "slug": "jp",
+    "name": "\u65e5\u672c\u8a9e"
+   },
+   {
+    "slug": "ko",
+    "name": "\ud55c\uad6d\uc5b4"
+   },
+   {
+    "slug": "nl",
+    "name": "nederlands"
+   },
+   {
+    "slug": "no",
+    "name": "norsk"
+   },
+   {
+    "slug": "pl",
+    "name": "polski"
+   },
+   {
+    "slug": "pt",
+    "name": "portugu\u00eas"
+   },
+   {
+    "slug": "ro",
+    "name": "rom\u00e2n\u0103"
+   },
+   {
+    "slug": "ru",
+    "name": "\u0440\u0443\u0441\u0441\u043a\u0438\u0439"
+   },
+   {
+    "slug": "sv",
+    "name": "svenska"
+   },
+   {
+    "slug": "th",
+    "name": "\u0e44\u0e17\u0e22"
+   },
+   {
+    "slug": "tr",
+    "name": "T\u00fcrk\u00e7e"
+   },
+   {
+    "slug": "uk",
+    "name": "\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0430"
+   },
+   {
+    "slug": "vi",
+    "name": "Ti\u1ebfng Vi\u1ec7t"
+   },
+   {
+    "slug": "zh",
+    "name": "\u4e2d\u6587(\u7e41\u9ad4)"
+   }
+  ],
+  "systems": [
+   {
+    "slug": "windows",
+    "name": "Windows"
+   },
+   {
+    "slug": "osx",
+    "name": "macOS"
+   },
+   {
+    "slug": "linux",
+    "name": "Linux"
+   }
+  ],
+  "tags": [
+   {
+    "name": "Adventure",
+    "slug": "adventure"
+   },
+   {
+    "name": "Indie",
+    "slug": "indie"
+   },
+   {
+    "name": "Action",
+    "slug": "action"
+   },
+   {
+    "name": "Story Rich",
+    "slug": "story-rich"
+   },
+   {
+    "name": "Atmospheric",
+    "slug": "atmospheric"
+   },
+   {
+    "name": "Fantasy",
+    "slug": "fantasy"
+   },
+   {
+    "name": "Strategy",
+    "slug": "strategy"
+   },
+   {
+    "name": "2D",
+    "slug": "two-dimensional"
+   },
+   {
+    "name": "Role-playing",
+    "slug": "role-playing"
+   },
+   {
+    "name": "Exploration",
+    "slug": "exploration"
+   }
+  ],
+  "discounted": true,
+  "features": [
+   {
+    "slug": "single",
+    "name": "Single-player"
+   },
+   {
+    "slug": "multi",
+    "name": "Multi-player"
+   },
+   {
+    "slug": "coop",
+    "name": "Co-op"
+   },
+   {
+    "slug": "achievements",
+    "name": "Achievements"
+   },
+   {
+    "slug": "leaderboards",
+    "name": "Leaderboards"
+   },
+   {
+    "slug": "controller_support",
+    "name": "Controller support"
+   },
+   {
+    "slug": "cloud_saves",
+    "name": "Cloud saves"
+   },
+   {
+    "slug": "overlay",
+    "name": "Overlay"
+   },
+   {
+    "slug": "galaxy_multiplayer",
+    "name": "Multi-player"
+   }
+  ],
+  "releaseStatuses": [
+   {
+    "slug": "new-arrival",
+    "name": "New Arrivals"
+   },
+   {
+    "slug": "upcoming",
+    "name": "Upcoming"
+   },
+   {
+    "slug": "early-access",
+    "name": "Early Access"
+   }
+  ],
+  "types": [
+   "game",
+   "dlc",
+   "extras",
+   "pack"
+  ],
+  "fullGenresList": [
+   {
+    "name": "Action",
+    "slug": "action",
+    "level": 1
+   },
+   {
+    "name": "Adventure",
+    "slug": "adventure",
+    "level": 1
+   },
+   {
+    "name": "Racing",
+    "slug": "racing",
+    "level": 1
+   },
+   {
+    "name": "Role-playing",
+    "slug": "rpg",
+    "level": 1
+   },
+   {
+    "name": "Shooter",
+    "slug": "shooter",
+    "level": 1
+   },
+   {
+    "name": "Simulation",
+    "slug": "simulation",
+    "level": 1
+   },
+   {
+    "name": "Sports",
+    "slug": "sports",
+    "level": 1
+   },
+   {
+    "name": "Strategy",
+    "slug": "strategy",
+    "level": 1
+   },
+   {
+    "name": "Action",
+    "slug": "action",
+    "level": 2
+   },
+   {
+    "name": "Adventure",
+    "slug": "adventure",
+    "level": 2
+   },
+   {
+    "name": "Arcade",
+    "slug": "arcade",
+    "level": 2
+   },
+   {
+    "name": "Building",
+    "slug": "building",
+    "level": 2
+   },
+   {
+    "name": "Card Game",
+    "slug": "card-game",
+    "level": 2
+   },
+   {
+    "name": "Combat",
+    "slug": "combat",
+    "level": 2
+   },
+   {
+    "name": "Economic",
+    "slug": "economic",
+    "level": 2
+   },
+   {
+    "name": "Educational",
+    "slug": "educational",
+    "level": 2
+   },
+   {
+    "name": "FPP",
+    "slug": "fpp",
+    "level": 2
+   },
+   {
+    "name": "Metroidvania",
+    "slug": "metroidvania",
+    "level": 2
+   },
+   {
+    "name": "Point-and-click",
+    "slug": "pointandclick",
+    "level": 2
+   },
+   {
+    "name": "Puzzle",
+    "slug": "puzzle",
+    "level": 2
+   },
+   {
+    "name": "Real-time",
+    "slug": "realtime",
+    "level": 2
+   },
+   {
+    "name": "Role-playing",
+    "slug": "rpg",
+    "level": 2
+   },
+   {
+    "name": "Simulation",
+    "slug": "simulation",
+    "level": 2
+   },
+   {
+    "name": "Strategy",
+    "slug": "strategy",
+    "level": 2
+   },
+   {
+    "name": "Survival",
+    "slug": "survival",
+    "level": 2
+   },
+   {
+    "name": "TPP",
+    "slug": "tpp",
+    "level": 2
+   },
+   {
+    "name": "Team sport",
+    "slug": "teamsport",
+    "level": 2
+   },
+   {
+    "name": "Turn-based",
+    "slug": "turnbased",
+    "level": 2
+   },
+   {
+    "name": "Visual Novel",
+    "slug": "visual-novel",
+    "level": 2
+   },
+   {
+    "name": "Chess",
+    "slug": "chess",
+    "level": 3
+   },
+   {
+    "name": "Comedy",
+    "slug": "comedy",
+    "level": 3
+   },
+   {
+    "name": "Detective-mystery",
+    "slug": "detective",
+    "level": 3
+   },
+   {
+    "name": "Espionage",
+    "slug": "espionage",
+    "level": 3
+   },
+   {
+    "name": "Exploration",
+    "slug": "exploration",
+    "level": 3
+   },
+   {
+    "name": "FPP",
+    "slug": "fpp",
+    "level": 3
+   },
+   {
+    "name": "Fantasy",
+    "slug": "fantasy",
+    "level": 3
+   },
+   {
+    "name": "Fighting",
+    "slug": "fighting",
+    "level": 3
+   },
+   {
+    "name": "Hidden Object",
+    "slug": "hidden-object",
+    "level": 3
+   },
+   {
+    "name": "Historical",
+    "slug": "historical",
+    "level": 3
+   },
+   {
+    "name": "Horror",
+    "slug": "horror",
+    "level": 3
+   },
+   {
+    "name": "JRPG",
+    "slug": "jrpg",
+    "level": 3
+   },
+   {
+    "name": "Managerial",
+    "slug": "managerial",
+    "level": 3
+   },
+   {
+    "name": "Metroidvania",
+    "slug": "metroidvania",
+    "level": 3
+   },
+   {
+    "name": "Modern",
+    "slug": "modern",
+    "level": 3
+   },
+   {
+    "name": "Mystery",
+    "slug": "mystery",
+    "level": 3
+   },
+   {
+    "name": "Narrative",
+    "slug": "narrative",
+    "level": 3
+   },
+   {
+    "name": "Naval",
+    "slug": "naval",
+    "level": 3
+   },
+   {
+    "name": "Off-road",
+    "slug": "offroad",
+    "level": 3
+   },
+   {
+    "name": "Open World",
+    "slug": "open-world",
+    "level": 3
+   },
+   {
+    "name": "Pinball",
+    "slug": "pinball",
+    "level": 3
+   },
+   {
+    "name": "Platformer",
+    "slug": "platformer",
+    "level": 3
+   },
+   {
+    "name": "Programming",
+    "slug": "programming",
+    "level": 3
+   },
+   {
+    "name": "Puzzle",
+    "slug": "puzzle",
+    "level": 3
+   },
+   {
+    "name": "Rally",
+    "slug": "rally",
+    "level": 3
+   },
+   {
+    "name": "Roguelike",
+    "slug": "rougelike",
+    "level": 3
+   },
+   {
+    "name": "Sandbox",
+    "slug": "sandbox",
+    "level": 3
+   },
+   {
+    "name": "Sci-fi",
+    "slug": "scifi",
+    "level": 3
+   },
+   {
+    "name": "Shoot 'em Up",
+    "slug": "shoot-em-up",
+    "level": 3
+   },
+   {
+    "name": "Soccer",
+    "slug": "soccer",
+    "level": 3
+   },
+   {
+    "name": "Stealth",
+    "slug": "stealth",
+    "level": 3
+   },
+   {
+    "name": "Survival",
+    "slug": "survival",
+    "level": 3
+   },
+   {
+    "name": "Tactical",
+    "slug": "tactical",
+    "level": 3
+   },
+   {
+    "name": "Touring",
+    "slug": "touring",
+    "level": 3
+   },
+   {
+    "name": "Virtual life",
+    "slug": "virtuallife",
+    "level": 3
+   }
+  ],
+  "fullTagsList": [
+   {
+    "name": "Adventure",
+    "slug": "adventure"
+   },
+   {
+    "name": "Indie",
+    "slug": "indie"
+   },
+   {
+    "name": "Action",
+    "slug": "action"
+   },
+   {
+    "name": "Story Rich",
+    "slug": "story-rich"
+   },
+   {
+    "name": "Atmospheric",
+    "slug": "atmospheric"
+   },
+   {
+    "name": "Fantasy",
+    "slug": "fantasy"
+   },
+   {
+    "name": "Strategy",
+    "slug": "strategy"
+   },
+   {
+    "name": "2D",
+    "slug": "two-dimensional"
+   },
+   {
+    "name": "Role-playing",
+    "slug": "role-playing"
+   },
+   {
+    "name": "Exploration",
+    "slug": "exploration"
+   },
+   {
+    "name": "Classic",
+    "slug": "classic"
+   },
+   {
+    "name": "Sci-fi",
+    "slug": "sci-fi"
+   },
+   {
+    "name": "Puzzle",
+    "slug": "puzzle"
+   },
+   {
+    "name": "Simulation",
+    "slug": "simulation"
+   },
+   {
+    "name": "Turn-Based",
+    "slug": "turn-based"
+   },
+   {
+    "name": "Casual",
+    "slug": "casual"
+   },
+   {
+    "name": "Female Protagonist",
+    "slug": "female-protagonist"
+   },
+   {
+    "name": "Pixel Graphics",
+    "slug": "pixel-graphics"
+   },
+   {
+    "name": "First-Person",
+    "slug": "first-person"
+   },
+   {
+    "name": "Dark",
+    "slug": "dark"
+   },
+   {
+    "name": "Science",
+    "slug": "science"
+   },
+   {
+    "name": "Great Soundtrack",
+    "slug": "great-soundtrack"
+   },
+   {
+    "name": "Choices Matter",
+    "slug": "choices-matter"
+   },
+   {
+    "name": "Funny",
+    "slug": "funny"
+   },
+   {
+    "name": "Horror",
+    "slug": "horror"
+   },
+   {
+    "name": "Tactical",
+    "slug": "tactical"
+   },
+   {
+    "name": "Management",
+    "slug": "management"
+   },
+   {
+    "name": "Mystery",
+    "slug": "mystery"
+   },
+   {
+    "name": "Visual Novel",
+    "slug": "visual-novel"
+   },
+   {
+    "name": "Third Person",
+    "slug": "third-person"
+   },
+   {
+    "name": "Open World",
+    "slug": "open-world"
+   },
+   {
+    "name": "OST",
+    "slug": "ost"
+   },
+   {
+    "name": "Mature",
+    "slug": "mature"
+   },
+   {
+    "name": "Multiplayer",
+    "slug": "multiplayer"
+   },
+   {
+    "name": "Sexual Content",
+    "slug": "sexual-content"
+   },
+   {
+    "name": "Sandbox",
+    "slug": "sandbox"
+   },
+   {
+    "name": "Nudity",
+    "slug": "nudity"
+   },
+   {
+    "name": "Platformer",
+    "slug": "platformer"
+   },
+   {
+    "name": "Point&Click",
+    "slug": "point-and-click"
+   },
+   {
+    "name": "Historical",
+    "slug": "historical"
+   },
+   {
+    "name": "Resource Management",
+    "slug": "resource-management"
+   },
+   {
+    "name": "Survival",
+    "slug": "survival"
+   },
+   {
+    "name": "Violent",
+    "slug": "violent"
+   },
+   {
+    "name": "Difficult",
+    "slug": "difficult"
+   },
+   {
+    "name": "Multiple Endings",
+    "slug": "multiple-endings"
+   },
+   {
+    "name": "Gore",
+    "slug": "gore"
+   },
+   {
+    "name": "NSFW",
+    "slug": "nsfw"
+   },
+   {
+    "name": "Family Friendly",
+    "slug": "family-friendly"
+   },
+   {
+    "name": "Retro",
+    "slug": "retro"
+   },
+   {
+    "name": "Real-Time",
+    "slug": "real-time"
+   },
+   {
+    "name": "JRPG",
+    "slug": "jrpg"
+   },
+   {
+    "name": "Roguelike",
+    "slug": "roguelike"
+   },
+   {
+    "name": "Isometric",
+    "slug": "isometric"
+   },
+   {
+    "name": "Magic",
+    "slug": "magic"
+   },
+   {
+    "name": "Relaxing",
+    "slug": "relaxing"
+   },
+   {
+    "name": "Top-Down",
+    "slug": "top-down"
+   },
+   {
+    "name": "Space",
+    "slug": "space"
+   },
+   {
+    "name": "Building",
+    "slug": "building"
+   },
+   {
+    "name": "FPS",
+    "slug": "fps"
+   },
+   {
+    "name": "Logic",
+    "slug": "logic"
+   },
+   {
+    "name": "Cartoony",
+    "slug": "cartoony"
+   },
+   {
+    "name": "Medieval",
+    "slug": "medieval"
+   },
+   {
+    "name": "Roguelite",
+    "slug": "roguelite"
+   },
+   {
+    "name": "War",
+    "slug": "war"
+   },
+   {
+    "name": "Narrative",
+    "slug": "narrative"
+   },
+   {
+    "name": "Hack and Slash",
+    "slug": "hack-and-slash"
+   },
+   {
+    "name": "Emotional",
+    "slug": "emotional"
+   },
+   {
+    "name": "Crafting",
+    "slug": "crafting"
+   },
+   {
+    "name": "Realistic",
+    "slug": "realistic"
+   },
+   {
+    "name": "Shooter",
+    "slug": "shooter"
+   },
+   {
+    "name": "Base Building",
+    "slug": "base-building"
+   },
+   {
+    "name": "Procedural Generation",
+    "slug": "procedural-generation"
+   },
+   {
+    "name": "Post-apocalyptic",
+    "slug": "post-apocalyptic"
+   },
+   {
+    "name": "Managerial",
+    "slug": "managerial"
+   },
+   {
+    "name": "City builder",
+    "slug": "city-builder"
+   },
+   {
+    "name": "Investigation",
+    "slug": "investigation"
+   },
+   {
+    "name": "RTS",
+    "slug": "rts"
+   },
+   {
+    "name": "Local Co-Op",
+    "slug": "local-co-op"
+   },
+   {
+    "name": "Choose Your Own Adventure",
+    "slug": "choose-your-own-adventure"
+   },
+   {
+    "name": "Romance",
+    "slug": "romance"
+   },
+   {
+    "name": "Artbook",
+    "slug": "artbook"
+   },
+   {
+    "name": "Dungeon Crawler",
+    "slug": "dungeon-crawler"
+   },
+   {
+    "name": "Stealth",
+    "slug": "stealth"
+   },
+   {
+    "name": "Survival Horror",
+    "slug": "survival-horror"
+   },
+   {
+    "name": "Psychological Horror",
+    "slug": "psychological-horror"
+   },
+   {
+    "name": "Military",
+    "slug": "military"
+   },
+   {
+    "name": "Tactical RPG",
+    "slug": "tactical-rpg"
+   },
+   {
+    "name": "Surreal",
+    "slug": "surreal"
+   },
+   {
+    "name": "Arcade",
+    "slug": "arcade"
+   },
+   {
+    "name": "Grand Strategy",
+    "slug": "grand-strategy"
+   },
+   {
+    "name": "Combat",
+    "slug": "combat"
+   },
+   {
+    "name": "LGBTQ+",
+    "slug": "lgbtq-plus"
+   },
+   {
+    "name": "Cyberpunk",
+    "slug": "cyberpunk"
+   },
+   {
+    "name": "CRPG",
+    "slug": "crpg"
+   },
+   {
+    "name": "Local Multiplayer",
+    "slug": "local-multiplayer"
+   },
+   {
+    "name": "Dating Sim",
+    "slug": "dating-sim"
+   },
+   {
+    "name": "Modern",
+    "slug": "modern"
+   },
+   {
+    "name": "Fighting",
+    "slug": "fighting"
+   },
+   {
+    "name": "Comedy",
+    "slug": "comedy"
+   },
+   {
+    "name": "Puzzle Platformer",
+    "slug": "puzzle-platformer"
+   },
+   {
+    "name": "Metroidvania",
+    "slug": "metroidvania"
+   },
+   {
+    "name": "Hentai",
+    "slug": "hentai"
+   },
+   {
+    "name": "Walking Simulator",
+    "slug": "walking-simulator"
+   },
+   {
+    "name": "Physics",
+    "slug": "physics"
+   },
+   {
+    "name": "Supernatural",
+    "slug": "supernatural"
+   },
+   {
+    "name": "Card Game",
+    "slug": "card-game"
+   },
+   {
+    "name": "Nature",
+    "slug": "nature"
+   },
+   {
+    "name": "Dark Comedy",
+    "slug": "dark-comedy"
+   },
+   {
+    "name": "Lovecraftian",
+    "slug": "lovecraftian"
+   },
+   {
+    "name": "Psychological",
+    "slug": "psychological"
+   },
+   {
+    "name": "Cozy",
+    "slug": "cozy"
+   },
+   {
+    "name": "Thriller",
+    "slug": "thriller"
+   },
+   {
+    "name": "Politics",
+    "slug": "politics"
+   },
+   {
+    "name": "Detective-mystery",
+    "slug": "detective"
+   },
+   {
+    "name": "Shoot'EmUp",
+    "slug": "shoot-em-up"
+   },
+   {
+    "name": "Bullet Hell",
+    "slug": "bullet-hell"
+   },
+   {
+    "name": "Dystopian",
+    "slug": "dystopian"
+   },
+   {
+    "name": "Good Old Game",
+    "slug": "good-old-game"
+   },
+   {
+    "name": "Robots",
+    "slug": "robots"
+   },
+   {
+    "name": "4X",
+    "slug": "four-x"
+   },
+   {
+    "name": "Souls-like",
+    "slug": "souls-like"
+   },
+   {
+    "name": "Demo",
+    "slug": "demo"
+   },
+   {
+    "name": "Perma Death",
+    "slug": "perma-death"
+   },
+   {
+    "name": "Text-Based",
+    "slug": "text-based"
+   },
+   {
+    "name": "Crime",
+    "slug": "crime"
+   },
+   {
+    "name": "Noir",
+    "slug": "noir"
+   },
+   {
+    "name": "Short",
+    "slug": "short"
+   },
+   {
+    "name": "Deckbuilding",
+    "slug": "deckbuilding"
+   },
+   {
+    "name": "Mythology",
+    "slug": "mythology"
+   },
+   {
+    "name": "Hidden Object",
+    "slug": "hidden-object"
+   },
+   {
+    "name": "Beat 'em up",
+    "slug": "beat-em-up"
+   },
+   {
+    "name": "Remake",
+    "slug": "remake"
+   },
+   {
+    "name": "Cats",
+    "slug": "cats"
+   },
+   {
+    "name": "World War II",
+    "slug": "world-war-ii"
+   },
+   {
+    "name": "LifeSim",
+    "slug": "lifesim"
+   },
+   {
+    "name": "Board Game",
+    "slug": "board-game"
+   },
+   {
+    "name": "Flight",
+    "slug": "flight"
+   },
+   {
+    "name": "Zombies",
+    "slug": "zombies"
+   },
+   {
+    "name": "Education",
+    "slug": "education"
+   },
+   {
+    "name": "Steampunk",
+    "slug": "steampunk"
+   },
+   {
+    "name": "Philosophical",
+    "slug": "philosophical"
+   },
+   {
+    "name": "Tabletop",
+    "slug": "tabletop"
+   },
+   {
+    "name": "Tower Defense",
+    "slug": "tower-defense"
+   },
+   {
+    "name": "Trading",
+    "slug": "trading"
+   },
+   {
+    "name": "Economic",
+    "slug": "economic"
+   },
+   {
+    "name": "Twin Stick Shooter",
+    "slug": "twin-stick-shooter"
+   },
+   {
+    "name": "Racing",
+    "slug": "racing"
+   },
+   {
+    "name": "LevelEditor",
+    "slug": "leveleditor"
+   },
+   {
+    "name": "Only On GOG",
+    "slug": "only-on-gog"
+   },
+   {
+    "name": "Vampire",
+    "slug": "vampire"
+   },
+   {
+    "name": "FMV",
+    "slug": "fmv"
+   },
+   {
+    "name": "Pirates",
+    "slug": "pirates"
+   },
+   {
+    "name": "Sports",
+    "slug": "sports"
+   },
+   {
+    "name": "Farming",
+    "slug": "farming"
+   },
+   {
+    "name": "Fishing",
+    "slug": "fishing"
+   },
+   {
+    "name": "Time Manipulation",
+    "slug": "time-manipulation"
+   },
+   {
+    "name": "Trains",
+    "slug": "trains"
+   },
+   {
+    "name": "Transportation",
+    "slug": "transportation"
+   },
+   {
+    "name": "Tanks",
+    "slug": "tanks"
+   },
+   {
+    "name": "Parody",
+    "slug": "parody"
+   },
+   {
+    "name": "Naval",
+    "slug": "naval"
+   },
+   {
+    "name": "Martial Arts",
+    "slug": "martial-arts"
+   },
+   {
+    "name": "Non Violent",
+    "slug": "non-violent"
+   },
+   {
+    "name": "Western",
+    "slug": "western"
+   },
+   {
+    "name": "Dog",
+    "slug": "dog"
+   },
+   {
+    "name": "Underwater",
+    "slug": "underwater"
+   },
+   {
+    "name": "Rhythm",
+    "slug": "rhythm"
+   },
+   {
+    "name": "Auto Battler",
+    "slug": "auto-battler"
+   },
+   {
+    "name": "Superhero",
+    "slug": "superhero"
+   },
+   {
+    "name": "Split Screen",
+    "slug": "split-screen"
+   },
+   {
+    "name": "Cooking",
+    "slug": "cooking"
+   },
+   {
+    "name": "Underground",
+    "slug": "underground"
+   },
+   {
+    "name": "Free Game",
+    "slug": "freegame"
+   },
+   {
+    "name": "Looter Shooter",
+    "slug": "looter-shooter"
+   },
+   {
+    "name": "VR",
+    "slug": "vr"
+   },
+   {
+    "name": "Ninja",
+    "slug": "ninja"
+   },
+   {
+    "name": "Virtual life",
+    "slug": "virtual-life"
+   },
+   {
+    "name": "Dinosaurs",
+    "slug": "dinosaurs"
+   },
+   {
+    "name": "Vikings",
+    "slug": "vikings"
+   },
+   {
+    "name": "Rally",
+    "slug": "rally"
+   },
+   {
+    "name": "Party Game",
+    "slug": "party-game"
+   },
+   {
+    "name": "Programming",
+    "slug": "programming"
+   },
+   {
+    "name": "Escape Room",
+    "slug": "escape-room"
+   },
+   {
+    "name": "World War I",
+    "slug": "world-war-i"
+   },
+   {
+    "name": "Typing",
+    "slug": "typing"
+   },
+   {
+    "name": "educational",
+    "slug": "educational"
+   },
+   {
+    "name": "Petting Dogs",
+    "slug": "petting-dogs"
+   },
+   {
+    "name": "Mod",
+    "slug": "mod"
+   },
+   {
+    "name": "Football",
+    "slug": "football"
+   },
+   {
+    "name": "Coming of age",
+    "slug": "coming-of-age"
+   },
+   {
+    "name": "Movie",
+    "slug": "movie"
+   },
+   {
+    "name": "Off-road",
+    "slug": "offroad"
+   },
+   {
+    "name": "Soccer",
+    "slug": "soccer"
+   },
+   {
+    "name": "Espionage",
+    "slug": "espionage"
+   },
+   {
+    "name": "Pinball",
+    "slug": "pinball"
+   },
+   {
+    "name": "Werewolves",
+    "slug": "werewolves"
+   },
+   {
+    "name": "Match3",
+    "slug": "match-three"
+   },
+   {
+    "name": "Crossplay",
+    "slug": "crossplay"
+   },
+   {
+    "name": "Team sport",
+    "slug": "team-sport"
+   },
+   {
+    "name": "Chess",
+    "slug": "chess"
+   },
+   {
+    "name": "Sniper",
+    "slug": "sniper"
+   },
+   {
+    "name": "Touring",
+    "slug": "touring"
+   },
+   {
+    "name": "Online-only",
+    "slug": "online-only"
+   }
+  ]
+ },
+ "searchAlgo": "default"
+}

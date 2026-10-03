@@ -1,0 +1,17 @@
+{
+  "_trimmed": {
+    "keys": [
+      "pages",
+      "currentlyShownProductCount",
+      "productCount",
+      "products",
+      "dreamlistGames",
+      "filters",
+      "searchAlgo"
+    ],
+    "productCount": 0,
+    "pages": 0,
+    "sampleProduct": null,
+    "filters_price": null
+  }
+}

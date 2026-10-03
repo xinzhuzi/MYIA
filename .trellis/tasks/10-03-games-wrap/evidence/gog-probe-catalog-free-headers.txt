@@ -1,0 +1,15 @@
+HTTP/2 200 
+server: openresty/1.31.1.1
+content-type: application/json
+xkey: 
+accept-ranges: bytes
+cache-control: no-cache, private
+x-origin-age: 0
+via: 1.1 varnish, 1.1 varnish
+date: Sat, 03 Oct 2026 05:09:36 GMT
+x-served-by: cache-fra-etou8220138-FRA, cache-sjc1000126-SJC
+x-cache: MISS, MISS
+x-cache-hits: 0, 0
+vary: Accept-Encoding
+access-control-allow-origin: https://www.gog.com
+

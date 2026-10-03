@@ -1,0 +1,37 @@
+_excerpt of gog-probe-claim.html (full 396245 bytes) for patterns ['giveaway/claim', 'giveaway-banner__background']
+
+@@@
+
+...180.png" sizes="180x180"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="alternate" type="application/rss+xml" title="GOG.com news" href="https://www.gog.com/en/news/feed" /><link rel="alternate" hreflang="en" href="https://www.gog.com/en/giveaway/claim" /><link rel="alternate" hreflang="de" href="https://www.gog.com/de/giveaway/claim" /><link rel="alternate" hreflang="fr" href="https://www.gog.com/fr/giveaway/claim" /><link rel="alternate" hreflang="pl" href="https://www.gog.com/pl/giveaway/claim" /><link r...
+
+@@@
+
+...<link rel="alternate" type="application/rss+xml" title="GOG.com news" href="https://www.gog.com/en/news/feed" /><link rel="alternate" hreflang="en" href="https://www.gog.com/en/giveaway/claim" /><link rel="alternate" hreflang="de" href="https://www.gog.com/de/giveaway/claim" /><link rel="alternate" hreflang="fr" href="https://www.gog.com/fr/giveaway/claim" /><link rel="alternate" hreflang="pl" href="https://www.gog.com/pl/giveaway/claim" /><link rel="alternate" hreflang="ru" href="https://www.gog.com/ru/giveaway/claim" /><link r...
+
+@@@
+
+.../www.gog.com/en/news/feed" /><link rel="alternate" hreflang="en" href="https://www.gog.com/en/giveaway/claim" /><link rel="alternate" hreflang="de" href="https://www.gog.com/de/giveaway/claim" /><link rel="alternate" hreflang="fr" href="https://www.gog.com/fr/giveaway/claim" /><link rel="alternate" hreflang="pl" href="https://www.gog.com/pl/giveaway/claim" /><link rel="alternate" hreflang="ru" href="https://www.gog.com/ru/giveaway/claim" /><link rel="alternate" hreflang="zh" href="https://www.gog.com/zh/giveaway/claim" /><link r...
+
+@@@
+
+...y__price {
+    color: #111;
+}
+.big-spot__product[product-tile-id="2093619782"] .big-spot__super-title {
+    display: none;
+}
+.big-spot-wrapper[product-tile-id="2093619782"] .product-ribbon .product-tile__label--in-library {
+    color: hsla(0, 0%, 7%, 0.5);
+}
+.giveaway-banner__background {
+    background-size: cover;
+}
+[product-tile-id="1865890062"].big-spot .big-spot__super-title {
+    color: #fff;
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+    .regular-banner__text {
+        margin: 60px 24px 8px;
+    }
+}
+.big-spot[product-tile-i...

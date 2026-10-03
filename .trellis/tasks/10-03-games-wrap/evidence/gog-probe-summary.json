@@ -1,0 +1,92 @@
+{
+ "probe": "GOG giveaway (限免) channel probe",
+ "date_utc": "2026-10-03T05:09..05:30Z",
+ "ground_truth_now": "NO active GOG giveaway (4 independent signals agree)",
+ "signals": [
+  {
+   "channel": "catalog API price=between:0,0&discounted=eq:true",
+   "result": "productCount=0"
+  },
+  {
+   "channel": "https://www.gog.com/en/giveaway/claim",
+   "result": "HTTP 404 (no giveaway); de-locale also 404; bare /giveaway/claim -> 401 {'message':'Unauthorized'}"
+  },
+  {
+   "channel": "LootScraper GOG Atom feed",
+   "result": "HTTP 200, 0 entries, last-modified 2026-09-14"
+  },
+  {
+   "channel": "GOG frontpage #giveaway banner",
+   "result": "absent (only CSS remnants)"
+  }
+ ],
+ "cross_check_liveness": "LootScraper Epic feed alive: 2 entries, updated 2026-10-01 -> empty GOG feed is real, not pipeline death",
+ "primary_channel": {
+  "url": "https://catalog.gog.com/v1/catalog?countryCode=US&locale=en-US&currency=USD&limit=48&page=1&productType=in:game,pack&price=between:0,0&discounted=eq:true&order=desc:trending",
+  "auth": "none; plain curl default UA -> HTTP 200 JSON (tested; also works countryCode=CN currency=CNY -> free-only 412 items)",
+  "rule": "productCount>0 <=> temporary 100% off (giveaway); per-product finalMoney.amount=='0.00' AND baseMoney.amount>'0' AND discount=='-100%'",
+  "fields": {
+   "title": "products[].title",
+   "link": "products[].storeLink (or /en/game/<slug>)",
+   "id": "products[].id",
+   "image": "products[].coverVertical",
+   "base_price": "products[].price.baseMoney.amount",
+   "final_price": "products[].price.finalMoney.amount"
+  },
+  "canonical_proof": "gog.com own SSR for /en/games?priceRange=0,0&discounted=true uses this EXACT query (embedded cache key in gog-probe-ssr-filtered-excerpt.txt)",
+  "param_gotchas": [
+   "price=between:0,0 (colon+comma); dash form between-0-0 -> 404 'result window is too large'",
+   "productType=in:game,pack (comma); colon form in:game:pack silently zeroes results",
+   "drop discounted=eq:true to also see 419 permanently-free games (base=final=0, discount=null)"
+  ]
+ },
+ "secondary_channels": [
+  {
+   "name": "www.gog.com/en/giveaway/claim",
+   "verdict": "anonymous 404/200 oracle only; claim itself 401 needs login; JSON statuses {'message':'Giveaway has ended'|'Unauthorized'} per vogler/free-games-claimer gog.js:114-120"
+  },
+  {
+   "name": "LootScraper Atom https://feed.eikowagenknecht.com/lootscraper_gog_game.xml",
+   "verdict": "plain curl 200, no UA games; entry: title 'GOG Games (Game, PC) - <name>', link, content xhtml 'Offer valid from/to'; third-party hobby feed, use as backstop"
+  }
+ ],
+ "rejected": [
+  {
+   "name": "CheapShark",
+   "reason": "given by ask: does not carry 0-price deals"
+  },
+  {
+   "name": "gg.deals",
+   "reason": "HTTP 403 Cloudflare to plain curl (ggdeals-free.html) - violates no-UA-spoof rule"
+  },
+  {
+   "name": "menu.gog.com",
+   "reason": "account-scoped; /v1/account/json -> 404 'No route found', root 404"
+  },
+  {
+   "name": "isthereanydeal /games/giveaways/",
+   "reason": "HTTP 404 wrong path, not pursued (catalog API already sufficient)"
+  }
+ ],
+ "evidence_files": [
+  "gog-probe-catalog-discounted.json",
+  "gog-probe-catalog-free-headers.txt",
+  "gog-probe-catalog-free-trimmed.json",
+  "gog-probe-catalog-free.json",
+  "gog-probe-catalog-freeall.json",
+  "gog-probe-catalog-freegames-p1.json",
+  "gog-probe-catalog-sample.json",
+  "gog-probe-claim-excerpt.txt",
+  "gog-probe-claim-headers.txt",
+  "gog-probe-frontpage-excerpt.txt",
+  "gog-probe-gamesfree-excerpt.txt",
+  "gog-probe-gamesfree-headers.txt",
+  "gog-probe-lootscraper-epic.xml",
+  "gog-probe-lootscraper-gog.xml",
+  "gog-probe-main-excerpt.txt",
+  "gog-probe-rss-headers.txt",
+  "gog-probe-ssr-filtered-excerpt.txt",
+  "gog-probe-ssr-freeonly-excerpt.txt",
+  "gog-probe-ssr-headers.txt"
+ ]
+}
