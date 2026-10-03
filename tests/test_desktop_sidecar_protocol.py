@@ -465,7 +465,7 @@ def test_oneshot_passthrough_preserves_cli_contract(tmp_path):
         check=False,
     )
     assert version.returncode == 0
-    assert version.stdout.startswith("myia ")
+    assert version.stdout.startswith("shishi ")
     bad = write_yaml(tmp_path, BAD_CRON_YAML, "passthrough-bad.yaml")
     run = subprocess.run(
         [sys.executable, str(ENTRY_PATH), "run", bad, "--db", str(tmp_path / "p.db")],

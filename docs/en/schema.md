@@ -49,7 +49,7 @@ entry point): `plugin:` (scenario plugin dual mode, v0.3), `baseline:`
 ## Credential reference syntax
 
 - Only two forms: `env:VAR_NAME` (read from the environment at run time) or
-  `keychain:shishi/<scope>/<name>` (OS keychain: macOS Keychain / Windows
+  `keychain:myia/<scope>/<name>` (OS keychain: macOS Keychain / Windows
   DPAPI; the namespace is canonical, flat legacy names are refused at
   resolve time).
 - An auth-scheme prefix round-trips: `Authorization: "Bearer env:AIPOCKET_TOKEN"`.
@@ -59,7 +59,7 @@ entry point): `plugin:` (scenario plugin dual mode, v0.3), `baseline:`
   `sources[].headers`, `post_body` and source-level extension parameters —
   the whole YAML document, not just headers.
 - Credential values are never echoed and never logged;
-  `shishi secret set shishi/<scope>/<name>` stores one (value via a stdin pipe
+  `shishi secret set myia/<scope>/<name>` stores one (value via a stdin pipe
   or a hidden prompt).
 - `enrich.base_url` / `enrich.api_key` / `push[].target` must be **pure**
   references (no auth-scheme prefix).
@@ -240,7 +240,7 @@ running (security-baseline rule).
 |---|---|---|
 | `id` | required | Plugin id (lowercase letters/digits/hyphens/underscores, alphanumeric first; convention `shishi-<name>`) |
 | `requires` | `[]` | Host-capability vocabulary (currently `docker` only); string or list both accepted |
-| `modes` | required | At least one mode: `local` (a compose file path and/or an install command) or `remote` (endpoint required; token **must** be a `keychain:shishi/<scope>/<name>` reference — even `env:` is refused) |
+| `modes` | required | At least one mode: `local` (a compose file path and/or an install command) or `remote` (endpoint required; token **must** be a `keychain:myia/<scope>/<name>` reference — even `env:` is refused) |
 
 ```yaml
 id: site-watch
@@ -253,13 +253,13 @@ plugin:                           # scenario plugin declaration (official packag
   modes:
     remote:                       # point at an already-deployed instance (desktop: zero Docker); local compose is still valid schema — official deployment files live under docker/plugins/
       endpoint: https://my-monitor.example.com
-      token: keychain:shishi/monitor/token    # shishi secret set shishi/monitor/token
+      token: keychain:myia/monitor/token    # shishi secret set myia/monitor/token
 sources:
   - name: watch-api
     engine: direct_api
     url: "https://my-monitor.example.com/api/v1/watch"
     headers:
-      X-Api-Key: "keychain:shishi/monitor/token"
+      X-Api-Key: "keychain:myia/monitor/token"
     extract:
       type: json_path
       fields:

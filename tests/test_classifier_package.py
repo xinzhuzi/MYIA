@@ -32,9 +32,9 @@ def test_keyword_data_file_ships_inside_the_package():
 
 
 def test_distribution_metadata_version_and_trove_classifiers():
-    dist = metadata.metadata("myia-classifier")
+    dist = metadata.metadata("shishi-classifier")
     assert myia_classifier.__version__ == "1.1.1"
-    assert metadata.version("myia-classifier") == myia_classifier.__version__
+    assert metadata.version("shishi-classifier") == myia_classifier.__version__
     assert dist["License"] == "MIT"
     assert "License :: OSI Approved :: MIT License" in dist.get_all("Classifier") or []
     assert "Typing :: Typed" in (dist.get_all("Classifier") or [])
@@ -42,7 +42,7 @@ def test_distribution_metadata_version_and_trove_classifiers():
 
 def test_distribution_declares_zero_runtime_dependencies():
     # PRD 铁律: myia-classifier 零重依赖(PyYAML 仅 load_rules 惰性引用,不列为依赖)
-    assert metadata.requires("myia-classifier") in (None, [])
+    assert metadata.requires("shishi-classifier") in (None, [])
 
 
 def test_myia_classify_shim_reexports_standalone_objects():

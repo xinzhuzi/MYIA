@@ -45,13 +45,13 @@
 ## 凭据引用语法
 
 - 只允许两种写法:`env:VAR_NAME`(运行时读环境变量)或
-  `keychain:shishi/<scope>/<name>`(系统钥匙链:macOS Keychain / Windows
+  `keychain:myia/<scope>/<name>`(系统钥匙链:macOS Keychain / Windows
   DPAPI;名空间必须规范,扁平旧名解析期被拒)。
 - 可带认证 scheme 前缀:`Authorization: "Bearer env:AIPOCKET_TOKEN"`。
 - 凭据类键(键名含词表 `CREDENTIAL_KEY_SUFFIXES` 子串,大小写/连字符不敏感)
   的值出现明文 → 加载期拒载(错误码 `credential_plaintext`)。该规则覆盖
   `sources[].headers`、`post_body`、源级扩展参数——整份 YAML 文档,不止头部。
-- 凭据值永不回显、永不落日志;`shishi secret set shishi/<scope>/<name>` 写入,
+- 凭据值永不回显、永不落日志;`shishi secret set myia/<scope>/<name>` 写入,
   值走 stdin 管道或安全输入。
 - `enrich.base_url` / `enrich.api_key` / `push[].target` 必须是**纯**引用
   (不允许 scheme 前缀)。
@@ -220,7 +220,7 @@ finding,品类照常跑(安全基线铁律)。
 |---|---|---|
 | `id` | `必填` | 插件 id(小写字母/数字/连字符/下划线,字母数字开头,惯例 `shishi-<名称>`) |
 | `requires` | `[]` | 宿主能力词表(当前仅 `docker`);字符串或列表皆可 |
-| `modes` | `必填` | 双模式至少声明一个:`local`(compose 文件路径 / install 命令至少其一)或 `remote`(endpoint 必填;token **必须** `keychain:shishi/<scope>/<name>` 引用,`env:` 也不行) |
+| `modes` | `必填` | 双模式至少声明一个:`local`(compose 文件路径 / install 命令至少其一)或 `remote`(endpoint 必填;token **必须** `keychain:myia/<scope>/<name>` 引用,`env:` 也不行) |
 
 ```yaml
 id: site-watch
@@ -233,13 +233,13 @@ plugin:                           # 场景插件声明(v1.1 起官方包为 remo
   modes:
     remote:                       # 指向已部署实例(桌面零 Docker);local compose 仍是合法 schema,官方部署文件在 docker/plugins/
       endpoint: https://my-monitor.example.com
-      token: keychain:shishi/monitor/token    # shishi secret set shishi/monitor/token
+      token: keychain:myia/monitor/token    # shishi secret set myia/monitor/token
 sources:
   - name: watch-api
     engine: direct_api
     url: "https://my-monitor.example.com/api/v1/watch"
     headers:
-      X-Api-Key: "keychain:shishi/monitor/token"
+      X-Api-Key: "keychain:myia/monitor/token"
     extract:
       type: json_path
       fields:

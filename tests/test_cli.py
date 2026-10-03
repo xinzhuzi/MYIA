@@ -168,7 +168,7 @@ def test_run_human_output_exit_zero(fake_pipeline, capsys):
 
     assert code == EXIT_OK
     out = capsys.readouterr().out
-    assert "MYIA run:" in out
+    assert "世事 run:" in out
     assert "状态:success" in out
     assert "fetch:ok" in out
 
@@ -346,7 +346,7 @@ def test_version_flag(capsys):
     with pytest.raises(SystemExit) as excinfo:
         main(["--version"])
     assert excinfo.value.code == 0
-    assert "myia 1.1.1" in capsys.readouterr().out
+    assert "shishi 1.1.1" in capsys.readouterr().out
 
 
 def test_help_documents_run_and_exit_codes(capsys):
