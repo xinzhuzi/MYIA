@@ -20,6 +20,10 @@
 4. 10-02-v11-low-* 六子任务(逐条清偿;low-plugins 的 README 项并入任务 2)
 5. 10-02-v11-low-release(最后:与 ci.yml 对齐确认)
 
+## 系统礼仪铁律(2026-10-03 主人指示,全文见 spec/domain/os-etiquette.md)
+
+- 严禁任何抢前台命令(open -a 默认激活、osascript activate、全屏截图);拉起 App 一律 open -g / --hide 或不拉起;验证用 pgrep/二进制直跑/文件实查;截图只许目标 App 窗口级,拿不到就写「需主人自验」
+
 ## 每任务执行协议(铁律)
 1. 动手前:完整读该任务 prd.md + implement.jsonl 列的上下文文件
 2. 实现:遵守 .trellis/spec/(结构化错误/退出码/公开红线)
