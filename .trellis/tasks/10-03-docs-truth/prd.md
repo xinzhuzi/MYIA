@@ -1,30 +1,86 @@
-# docs 小修批次:env.example 键名 + docs pip 宣称 + task.py finish 防护
+# PRD:docs 照做即失败纠错批(docs pip 宣称 + env.example 键名 + task.py finish 防护)
 
-## Goal
+## 背景
 
-普查 A3/A4 与 A1 的 docs 部分一次小 PR 纠错(照做即失败级),搭车 task.py finish
-跨会话防护。**立即开工**(grill 2026-10-03 Q5:推提交 + docs 小修不等 tag)。
+来源:普查档 `.trellis/tasks/10-03-gap-census/prd.md`(本档落盘时已归档至
+`.trellis/tasks/archive/2026-10/10-03-gap-census/`)A 组(P1 照做即失败)+ §6 路由①,
+主人 2026-10-03 批准(grill Q5:推提交 + docs 小修不等 tag,立即开工)。
+本档为该任务正式 PRD,取代同目录 07:50 占位稿,范围与其一致(README 半边不入场)。
 
-## Requirements
+起草时(2026-10-03,HEAD=124bdf6)证据逐条复核:全仓 `pip install -e .` 恰 5 处、
+`TG_BOT_TOKEN`/`OPENAI_API_KEY` 错键名各仅 docker/env.example 一处(grep 实测);
+pypi.org 的 `myia`/`myia-classifier` JSON API 均 404(curl 实测);docs 锁面=
+tests/test_docs.py——锁 yaml 块/zh-en 结构对齐/凭据 env 引用/相对链接,**不锁 bash
+命令字面**,zh/en 同步改且不增删代码块即不红。
 
-1. **A3**:docker/env.example 的 `TG_BOT_TOKEN`/`TG_CHAT_ID` 改为代码真实解析的
-   `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`(src/myia/push/telegram.py:59-61)。
-2. **A4**:env.example LLM 段 `OPENAI_API_KEY=` 与文档教的
-   `MYIA_LLM_BASE_URL`/`MYIA_LLM_KEY` 键名对齐(docs/zh/getting-started.md:44-46、
-   skill/SKILL.md:182-183 为准),文件内「键名对齐后调整」自注随之消除。
-3. **A1 docs 部分**:docs/zh/getting-started.md:14、docs/en/getting-started.md:17、
-   docs/launch/linuxdo.md:76 的裸 `pip install -e .` 宣称修正(根包依赖
-   myia-classifier 不在 PyPI,pip 不可解析)——改 uv 用法或加缓冲说明;
-   **README.md 两处(132/393)不在本档**,随 `10-03-v111-release` 的 README 升格
-   一并改(防双头改打架)。
-4. **Q8 搭车**:.trellis/scripts/task.py 的 finish 增加跨会话防护——resolve 出的
-   当前任务若属其他会话(session-fallback),须显式确认/`--force` 才清,并打印
-   来源会话(2026-10-03 实证误清过并行会话指针,无状态损伤但风险在)。
-5. 顺带:B5 推提交是**动作不是工单项**(grill 批后即推,本档注记即可)。
+## 缺陷清单(A 组;行号均已起草时复核)
 
-## Acceptance Criteria
+| # | 位置 | 缺陷(照做即失败) | 证据 | 修复方向 |
+|---|------|------|------|------|
+| A1 | README.md:132,393;docs/zh/getting-started.md:9,14;docs/en/getting-started.md:11-12,17;docs/launch/linuxdo.md:76 | 教 `pip install -e .`,但根包依赖 `myia-classifier>=0.1,<0.2` 不在 PyPI(404),仅 uv workspace 可解析,纯 pip 必装败 | pyproject.toml:23,43-45;curl 404 实测 | 删 pip 备选或如实标注「当前仅 uv 可装,PyPI 发布后开放」;本档修 docs 侧,**README 两处归 10-03-v111-release** |
+| A2 | myia-classifier/README.md:9,18-20 | `pip install myia-classifier` 宣称,包从未发布(404) | curl 404 实测 | **归 10-03-v111-release**(PyPI 发布本身即兑现,防双头改) |
+| A3 | docker/env.example:13-14 | 模板给 `TG_BOT_TOKEN`/`TG_CHAT_ID`,代码硬性解析 `env:TELEGRAM_BOT_TOKEN`/`env:TELEGRAM_CHAT_ID`,照填启用 telegram 必 env_var_missing 退 1 | src/myia/push/telegram.py:59,61 | 键名改 TELEGRAM_*,与 test_docs.py:64-70 锁定的通道约定一致 |
+| A4 | docker/env.example:20-21 | LLM 段 `OPENAI_API_KEY=` 与文档教的 `MYIA_LLM_BASE_URL`/`MYIA_LLM_KEY` 不对齐;20 行注释自认「键名对齐后调整」 | docs/zh/getting-started.md:44-46;docs/en/getting-started.md:51-53;skill/SKILL.md:182-183 | 改为 MYIA_LLM_BASE_URL= + MYIA_LLM_KEY= 两行,删自认待办注释 |
 
-- [ ] A3/A4:env.example 全部键名与代码解析名一致,grep 无自认待办注释
-- [ ] A1 docs 部分:三处文档的安装指引照做可达(或明确标注仅 uv workspace 可装)
-- [ ] task.py finish:清非本会话任务时有确认拦截,单测或手动演示记录
-- [ ] pytest 双跑法全绿;一个 commit
+起草修正普查档两处措辞(行号不变,缺陷均成立):
+
+- 普查档称 docs「后三处连缓冲说明都没有」——linuxdo.md:71 实有半句「PyPI 包发布后可 pip」,
+  但 76 行仍教 pip install -e .,缺陷成立、程度略轻;
+- A1 补入普查档未列的两处正文宣称:docs/zh/getting-started.md:9「pip install 即跑」、
+  docs/en/getting-started.md:11-12「pip install is all it takes」(同一缺陷的散文面)。
+
+## 需求(执行项)
+
+1. **A1 docs 侧**:docs/zh/getting-started.md:9,14、docs/en/getting-started.md:11-12,17、
+   docs/launch/linuxdo.md:71-76——安装指引如实化:唯一保证路径 uv sync;pip 通道标注
+   「待 myia/myia-classifier 上 PyPI 后开放(发布跟踪 10-03-v111-release)」。zh/en 必须同步改
+   (标题骨架与代码块数受 test_docs.py 对齐锁)。
+2. **A3**:docker/env.example:12-14 键名改 `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`
+   (逐字对齐 telegram.py 的 DEFAULT_*_ENV_REF)。
+3. **A4**:docker/env.example:20-21 LLM 段改 `MYIA_LLM_BASE_URL=`/`MYIA_LLM_KEY=`,
+   删「键名对齐后调整」自注。
+4. **Q8 搭车(普查档批准路由含此项)**:.trellis/scripts/task.py `finish`(cmd_finish,
+   task.py:275-293)现无条件 clear_active_task。加跨会话防护:active.source 形如
+   `session-fallback:<key>`(跨会话指针,取值见 common/active_task.py:175-178)时须显式
+   确认或 `--force` 才清,并打印来源会话 key(2026-10-03 实证误清过并行会话指针)。
+5. **B5 验收前置**:普查时积压的 933c7da/45639c3 起草时已推平(0 ahead / 0 behind);
+   执行时复验 `git rev-list origin/main..HEAD --count`=0,有积压先推再动工——本任务与
+   v111-release 都会改文档/README,双方提交即推不积压,防交错。
+6. **E7 顺风车(可选,标注)**:仓库根 myia.db(184KB,10-02)/osint_stderr.log(0B)/
+   .coverage(53KB)实测存在,均被 .gitignore:21,35,52 覆盖、未被跟踪。后两个可直清;
+   **myia.db 是本地运行数据,清理前先确认无用(或挪走备份),不确定就跳过**。
+
+## 明确不做(防蔓延)
+
+- README.md:132,393(A1 的 README 半边)与 myia-classifier/README.md(A2):归
+  10-03-v111-release 的 README 升格一并改(其 prd.md:53-55 明文认领;PyPI 发布即兑现
+  A2)——本档不碰,防双头改。
+- B1 发布物(tag v1.1.1/版本号对齐/updater 接线/PyPI 发布/徽章升格/路线图改口):归
+  10-03-v111-release。
+- docs/launch/RELEASE.md:103 `pip install myia-classifier`:起草复核为「发布后验证」
+  runbook 语境(95-112 行,发布成功后该命令为真),非缺陷,不改。
+- 并行会话工作区残留(dashboard-screen.tsx、test_desktop_sidecar_protocol.py 改动,
+  未跟踪的 .trellis/tasks/10-03-yaml-editor/):不碰、不提交、不清理。
+- 不改产品代码:只动 docs 三页、docker/env.example、.trellis/scripts/task.py(+其测试)。
+
+## 验收标准
+
+- [ ] A3:`docker/env.example` 含 `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`,
+      `grep -rn "TG_BOT_TOKEN\|TG_CHAT_ID" docker/` 零命中,键名与 src/myia/push/telegram.py:59,61 逐字一致
+- [ ] A4:env.example LLM 段为 `MYIA_LLM_BASE_URL=`/`MYIA_LLM_KEY=` 两行;
+      `grep -rn "OPENAI_API_KEY" docker/` 零命中;「对齐后调整」自注消失
+- [ ] A1 docs 侧:`grep -rn "pip install -e \." docs/` 零命中;zh:9/en:11-12 的「pip 即跑」
+      措辞如实化;zh/en 标题层级与代码块数保持对齐(test_docs.py 对齐锁不红)
+- [ ] Q8:对 `session-fallback:<key>` 归属的 active task 执行 `task.py finish`,无确认/
+      `--force` 时不被清且打印来源会话;单测或手动演示记录入任务日志
+- [ ] B5:动工时 `git rev-list origin/main..HEAD --count`=0(有积压先推);本任务 commit 即推
+- [ ] E7(可选;跳过需在日志注明原因):osint_stderr.log/.coverage 已清,myia.db 已清或注明保留
+- [ ] `uv run --no-sync python -m pytest -q`(CI 同款)全绿,裸 `python -m pytest -q` 复跑确认
+      (普查基线 1397 passed / 14 skipped;并行会话在途会使总数浮动,以零失败为准)
+- [ ] docs + env.example + task.py 防护合一个 commit;journal 记一笔
+
+## 关联
+
+- 事实源:`.trellis/tasks/archive/2026-10/10-03-gap-census/prd.md`(A 组、§6 路由、拍板注记)
+- 边界对手方:`.trellis/tasks/10-03-v111-release/prd.md`(README 半边、A2、B1、发布)
+- 风格参照:`.trellis/tasks/archive/2026-10/10-03-ui-hints-trim/prd.md`

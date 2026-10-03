@@ -1,0 +1,7 @@
+{"file": ".trellis/tasks/archive/2026-10/10-03-gap-census/prd.md", "reason": "缺陷矩阵唯一事实源:B2–B4、C1–C13、E4/E5 条目定义、file:line 证据与第 6 节修复路由;文末 Round 3 拍板注记决定本批与相邻任务的边界"}
+{"file": ".trellis/tasks/10-02-v11-desktop-app/prd.md", "reason": "B2/B3/B4 的原始承诺与验收口径(五屏范围:反馈开关分区、采集量趋势、卡片反馈按钮),对照判断回炉项是否闭环"}
+{"file": ".trellis/tasks/10-03-yaml-editor/prd.md", "reason": "在途依赖:yaml.save 等六协议方法划定 C11/C13 的半边边界(增删改归彼档、settings 接线归本档),避免双头施工"}
+{"file": ".trellis/tasks/10-03-v111-release/prd.md", "reason": "发布工程边界:版本对齐/README 宣称如实化/updater 接线/demo 插件均在彼档,本档「明确不做」清单的另一头"}
+{"file": ".trellis/tasks/10-03-v12-backlog/prd.md", "reason": "v1.2 边界(Windows/crawl4ai/proxy_pool)与第 4 项(B2–B4 补实现)——本档吸收第 4 项后已回标该档"}
+{"file": "desktop/entry.py", "reason": "sidecar 协议全部扩展落点:_HANDLERS(910)、run.start/status(865-885)、version(371)、sources.write 先例(585)、日志环形缓冲(277)"}
+{"file": "tests/test_desktop_sidecar_protocol.py", "reason": "协议契约测试所在文件:本批每个新方法/参数变更(runs.list、feedback.*、run.cancel、翻页游标、app 版本字段)都须在此同步用例"}

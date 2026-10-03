@@ -1,1 +1,9 @@
 {"file": ".trellis/tasks/10-03-ci-gates/prd.md", "reason": "验收对照:cargo check 不误红/lint 做不做有理由入档/跑法口径一处定稿/双测试绿"}
+{"file": ".trellis/tasks/archive/2026-10/10-03-gap-census/prd.md", "reason": "唯一事实源:第 4 节 D 组缺陷矩阵与第 6 节修复路由 4、grill Round 3 拍板注记(tag 后开工),D1–D5 条目与证据均出于此"}
+{"file": ".github/workflows/ci.yml", "reason": "本任务的改造对象:现仅 test/ui-test 两 job,D1 rust-check job 与 D2 ruff 门禁都加在这里,验收要求 push 上真跑一次绿"}
+{"file": "pyproject.toml", "reason": "D2 落点:加 [tool.ruff.lint] 显式最小 select;dev 组(第 37-38 行,现仅 pytest)视方案加 ruff 供本地同款跑法"}
+{"file": "desktop/src-tauri/tauri.conf.json", "reason": "D5 证据与落点:第 28 行 externalBin 指向不入库的 binaries/,第 6-10 行 build 段无 beforeDevCommand,顺风车改这里"}
+{"file": "desktop/build-sidecar.sh", "reason": "D4 证据(第 99-104 行 pyinstaller 调用 --specpath \"$SPIKE_DIR\" 每次重新生成 myia.spec;SPIKE_DIR=脚本所在 desktop/ 目录,定义在 15 行)与 D5 的 sidecar 构建入口,删 spec 前须确认此脚本不依赖入库副本"}
+{"file": "desktop/myia.spec", "reason": "D4 删除对象:第 9 行含机器绝对路径 /Users/zhengbingjin/.../entry.py 的过期生成物,除 .trellis 外全仓零引用(起草期 grep 核实)"}
+{"file": "desktop/package.json", "reason": "D5 的挂点:第 7 行已有 sidecar 脚本(bash build-sidecar.sh),beforeDevCommand 方案直接引用它"}
+{"file": "tests/test_baseline.py", "reason": "D3 防回归注记落点:第 789 行 from conftest import 是 718d56c 修复的语义关键,勿改回 from tests.conftest import(裸 pytest 假红)"}

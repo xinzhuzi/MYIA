@@ -1,1 +1,11 @@
 {"file": ".trellis/tasks/10-03-docs-truth/prd.md", "reason": "验收对照:键名一致/三处文档照做可达/finish 防护演示/pytest 双跑法绿"}
+{"file": ".trellis/tasks/archive/2026-10/10-03-gap-census/prd.md", "reason": "唯一事实源:A 组缺陷矩阵、§6 路由与拍板注记,本任务的验收口径与「不做」边界全部由此锚定"}
+{"file": "docker/env.example", "reason": "A3/A4 修复对象:13-14 行 TG_* 键名错、20-21 行 OPENAI_API_KEY 键名不对齐+自认待办注释"}
+{"file": "src/myia/push/telegram.py", "reason": "A3 键名权威:59/61 行 DEFAULT_TOKEN_ENV_REF/DEFAULT_TARGET_ENV_REF 即模板应对齐的真实解析名"}
+{"file": "docs/zh/getting-started.md", "reason": "A1 docs 修复对象(9 行「pip install 即跑」、14 行 pip install -e .)+ A4 键名权威(44-46 行 MYIA_LLM_*)"}
+{"file": "docs/en/getting-started.md", "reason": "A1 修复对象(11-12、17 行);必须与 zh 树同步改——test_docs.py 锁 zh/en 标题骨架与代码块数对齐"}
+{"file": "docs/launch/linuxdo.md", "reason": "A1 修复对象:71 行已有半句缓冲、76 行仍教 pip install -e .,修复需两行一致"}
+{"file": ".trellis/tasks/10-03-v111-release/prd.md", "reason": "分工边界证据:53-55 行明文认领 A1-README 两处与 A2(PyPI 发布即兑现),本任务不得双头改"}
+{"file": ".trellis/scripts/task.py", "reason": "Q8 搭车修复对象:cmd_finish(275-293 行)无条件 clear_active_task,需加跨会话防护与 --force"}
+{"file": ".trellis/scripts/common/active_task.py", "reason": "Q8 判定依据:175-178 行 source 取值 session:<key>/session-fallback:<key>,拦截条件与打印内容以此为准"}
+{"file": "tests/test_docs.py", "reason": "docs 改动锁面:yaml 块过 load_category、zh/en 结构对齐、64-70 行凭据 env 引用约定(含 TELEGRAM_*);改 docs 不得打红"}

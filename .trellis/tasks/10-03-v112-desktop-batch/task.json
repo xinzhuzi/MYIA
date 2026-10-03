@@ -3,7 +3,7 @@
   "name": "v112-desktop-batch",
   "title": "v1.1.2 桌面补全批次:C2 sidecar 救回最优先",
   "description": "普查 C 组 13 条桌面协议/UX 缺口;C2(sidecar 崩溃后救不回+无取消)>C1(翻页游标卡死)>C7(封装补齐);排 v1.1.1 tag 后(grill Q5)",
-  "status": "planning",
+  "status": "superseded",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -21,8 +21,9 @@
   "children": [],
   "parent": "10-03-grill-v112",
   "relatedFiles": [],
-  "notes": "",
+  "notes": "superseded by 10-03-v112-desktop-parity(2026-10-03 路由落档:C 组全量 + B2-B4 补实现吸收进该档;本 stub 零施工,勿在此开工)",
   "meta": {
-    "priority": "P1"
+    "priority": "P1",
+    "superseded_by": "10-03-v112-desktop-parity"
   }
 }

@@ -25,7 +25,8 @@
     "10-03-docs-truth",
     "10-03-v112-desktop-batch",
     "10-03-ci-gates",
-    "10-03-archive-review"
+    "10-03-archive-review",
+    "10-03-v112-desktop-parity"
   ],
   "parent": null,
   "relatedFiles": [],

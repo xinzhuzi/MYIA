@@ -52,3 +52,11 @@
 - 执行档全家福(全挂 grill-v112):v111-release(P0)/docs-truth(P1)/v112-desktop-batch(P1)/ci-gates/archive-review/v12-backlog(+B2/B3/B4)/test-baseline-import(已交付 review)
 - 普查档转活清单(D3 ✅718d56c、B1 ✅定向、C10 ✅02a0dce、B5 ✅获批即推),状态归 review
 - 并行会话协调:ui-hints-trim 已交付归档(02a0dce/49e223b),v111-release 的 C10 引用已修注
+
+## 2026-10-03 普查路由落档:三修复任务定稿 + 普查档归档(落档会话)
+
+- 依主人批准的普查路由(grill Round 3/Q5)落 3 个修复任务,草案经复核修订后定稿:`.trellis/tasks/10-03-docs-truth/`(A 组 docs 侧 pip 宣称 + env.example 键名 A3/A4 + task.py finish 跨会话防护 Q8;正式稿取代 07:50 占位稿)、`.trellis/tasks/10-03-v112-desktop-parity/`(B2–B4 补实现 + C 组全量,吸收 stub 10-03-v112-desktop-batch 与 v12-backlog 第 4 项,新目录落稿)、`.trellis/tasks/10-03-ci-gates/`(D1 rust-check + D2 ruff 最小门禁;取代占位稿);三档 context 双侧(implement/check)齐挂,validate 全绿
+- 普查档 10-03-gap-census 验收第 4 条补注记(主人批准路由,3 任务已建)+ 活清单回标收口后归档至 `.trellis/tasks/archive/2026-10/`(commit f8664a6);归档顺修普查档 D4 行号 92-96→99-104
+- 复核意见四条全吸收:①②回标不待开工——stub task.json 标 superseded→v112-desktop-parity、v12-backlog 第 4 项移交注记、v111-release 改口注记(README 文案改指 v1.1.2 批次,防 v1.1.1 发布时写成过期事实)均随建档 commit 完成;③ci-gates D4 证据改 build-sidecar.sh:99-104(pyinstaller `--specpath`,SPIKE_DIR 定义在 15 行,顺修草案 --specpass 笔误);④D3 验收改浮动基线口径(普查时点 1397/14,期间 v111-release/yaml-editor 移动总数,零失败为准)
+- 落盘按现势增补(晚于草案的新拍板):C8/C9 已按 ui-feature-census grill Q1 划归 10-03-feed-ux——v112 正式档表格标注划出、验收不含,并记 C1×G1/G3 协议合参(PROTOCOL_VERSION 统一 +1);v112-desktop-parity 挂 grill-v112 子任务与执行树对齐
+- journal 仍压着 yaml-editor 两行与 sidebar-brand-trim/ui-feature-census 两节未随行(其他会话内容,照旧不代提交);desktop/tests/.trellis/scripts 在途改动(Q8 防护施工中)一律未碰

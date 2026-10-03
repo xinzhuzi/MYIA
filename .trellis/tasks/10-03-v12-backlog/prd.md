@@ -30,6 +30,9 @@ grill 决议 2026-10-03 Q1:发布工程(v1.1.1)先行,以下三项排 v1.2。本
    - dashboard 采集量趋势(v1.1 PRD 承诺项)
    - 与第 2 项 C 组批次(10-03-v112-desktop-batch)的取舍:实现顺序上
      C2/C1/C7 优先于本项。
+   - **回标(2026-10-03 路由落档):本项整体移交 `10-03-v112-desktop-parity`
+     (v1.1.2 桌面对齐批次)吸收,提前于 v1.2 开工——上文「排 v1.2」已被覆盖;
+     本池剩余三项(Windows/crawl4ai/proxy_pool)与第 5 项 UI 池不变。**
 5. **UI 普查 P2/P3 项入池**(2026-10-03 ui-feature-census grill Q2 批复「全部入池不加码」;
    证据与业界参照见 `.trellis/tasks/10-03-ui-feature-census/prd.md` G 矩阵)
    - G5 主体:告警规则(Inoreader Rules 式条件→动作,涉 sidecar 协议扩展;

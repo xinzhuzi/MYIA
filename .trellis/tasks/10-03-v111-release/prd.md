@@ -26,6 +26,10 @@
    **B2/B3/B4 宣称如实化**(grill Q6):v1.1 交付列表中桌面未实现的三项
    (卡片反馈按钮/settings 反馈开关/采集量趋势)改为如实口径,补实现已排
    v1.2(10-03-v12-backlog)。
+   > **回标注记(2026-10-03 路由落档)**:B2/B3/B4 补实现已从 v1.2 提前为
+   > **v1.1.2 桌面对齐批次**(`10-03-v112-desktop-parity`,吸收 10-03-v12-backlog
+   > 第 4 项)。README 改口文案请写「补实现已排 v1.1.2 桌面对齐批次」或去版本号化
+   > 「排下一批次」,勿照「排 v1.2」旧口径写——否则 v1.1.1 发布时即成过期事实。
 5. **tag → Release**:推 `v1.1.1` 触发 desktop-release.yml(dmg + latest.json 附
    GitHub Release)。**前置=R2-1 已批做全**:主人生成 updater 三密钥并配
    三个 Secrets;**AI 侧工项=UI「检查更新」接线**(@tauri-apps/plugin-updater
@@ -42,8 +46,9 @@
 
 - 主人侧依赖只剩一个:**R2-1 三密钥生成+Secrets 配置**(tag 的硬前置);
   其余 R2 决策已定案(不公证/先演练/发帖节奏),AI 侧工项全部可先行。
-- 不做(排 v1.2):Windows 产物化、crawl4ai L3、proxy_pool、B2/B3/B4 补实现
-  (见 10-03-v12-backlog)。
+- 不做(排 v1.2):Windows 产物化、crawl4ai L3、proxy_pool(见 10-03-v12-backlog);
+  B2/B3/B4 补实现原排 v1.2,**已于 2026-10-03 提前移交 v1.1.2 桌面对齐批次
+  (10-03-v112-desktop-parity)**,本档仍只做 README 宣称如实化。
 - 复杂任务:start 前补 design.md(demo 源选型/updater 接线/流水线注入顺序)
   + implement.md。
 

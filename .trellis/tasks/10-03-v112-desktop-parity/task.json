@@ -1,8 +1,8 @@
 {
-  "id": "ci-gates",
-  "name": "ci-gates",
-  "title": "CI 门禁补全:src-tauri cargo check 编译门禁 + ruff 最小 lint 门禁",
-  "description": "给 push/PR 的 ci.yml 加 desktop/src-tauri cargo check 编译门禁与 ruff 最小 lint 门禁(mypy 仅评估不进门禁),D3 裸 pytest 假红已由 718d56c 修复仅补防回归注记,顺风车可选删 myia.spec 与补 tauri dev 首跑提示。",
+  "id": "v112-desktop-parity",
+  "name": "v112-desktop-parity",
+  "title": "v1.1.2 桌面对齐批次:B 组补实现 + C 组协议/UX 缺口",
+  "description": "交付 v1.1.2 桌面对齐批次:B2–B4 补实现(桌面反馈入口、settings 反馈开关分区、仪表盘采集量趋势)+ C 组协议/UX 缺口修齐,P1=C2 sidecar 崩溃救回与 C1 翻页游标卡死。",
   "status": "planning",
   "dev_type": null,
   "scope": null,
