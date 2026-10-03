@@ -43,6 +43,9 @@ stdout 只有一份纯 JSON(AI 消费路径)。
 - ``plugin``    市场插件装卸:list/install/remove(v0.3,薄包装
                 myia.plugins;装卸 fail-fast 结构化拒绝,扫描零异常 ——
                 任何插件装不上/配置坏都不拦核心流水线,铁律)。
+- ``channels``  通道目录 refresh/list(v1.2,10-03-messaging-feishu:
+                定向推送的寻址地图;refresh 调平台列表 API,失败平台保留
+                旧桶并结构化上报,绝不阻塞推送)。
 - ``feedback``  反馈闭环 list/stats/mark(v0.3,薄包装 myia.feedback;
                 mark 是桌面形态的手动标记接收路,TG/飞书回调经 pipeline/
                 回调端点入库,负反馈随维护阶段自动调参)。
@@ -114,6 +117,8 @@ from myia.feedback import (
     resolve_item_ref,
 )
 from myia.pipeline import Pipeline, build_cron_trigger
+from myia.push import PLATFORMS
+from myia.push.directory import ChannelDirectory
 from myia.plugins import (
     InstalledPluginStore,
     PluginFinding,
@@ -253,6 +258,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_doctor_parser(sub)
     _add_secret_parser(sub)
     _add_plugin_parser(sub)
+    _add_channels_parser(sub)
     _add_feedback_parser(sub)
     _add_skill_parser(sub)
     _add_osint_parser(sub)
@@ -418,6 +424,42 @@ def _add_plugin_parser(sub: argparse._SubParsersAction) -> None:
     remove.add_argument("id", help="要移除的插件 id(manifest 的 id)")
     remove.add_argument("--dir", default=str(default_install_root()), help="插件安装根(默认 ~/.myia/plugins)")
     remove.add_argument("--json", dest="as_json", action="store_true", help="机器可读输出(单份 JSON,stdout)")
+
+
+def _add_channels_parser(sub: argparse._SubParsersAction) -> None:
+    """``myia channels``:通道目录 refresh / list(10-03-messaging-feishu D5)。"""
+    channels = sub.add_parser(
+        "channels",
+        help="通道目录:refresh 刷新平台可达对象 / list 查看(定向推送的寻址地图)",
+        description=(
+            "目录 = 各平台可达推送对象(群/私聊/话题)的缓存地图,"
+            "落在 <数据根>/channel_directory.json(数据根 = --db 父目录)。"
+            "refresh 调平台列表 API 发现(飞书 im/v1/chats;单平台失败保留旧桶);"
+            "list 纯读不发现。私聊(飞书列表 API 不返回)经"
+            " <数据根>/channel_aliases.json 手工登记:{\"feishu\": {\"oc_xxx\": \"别名\"}}。"
+        ),
+    )
+    channels_sub = channels.add_subparsers(dest="channels_command", required=True, title="目录操作")
+    refresh = channels_sub.add_parser(
+        "refresh",
+        help="刷新平台通道目录(缺省全部已注册平台;失败平台保留旧桶并结构化上报)",
+    )
+    refresh.add_argument(
+        "platforms", nargs="*", help="要刷新的平台名(缺省全部已注册,当前:feishu)"
+    )
+    refresh.add_argument(
+        "--db",
+        default=DEFAULT_DB_PATH,
+        help=f"存储路径(目录 JSON 落数据根 = db 父目录;默认 ./{DEFAULT_DB_PATH})",
+    )
+    refresh.add_argument("--json", dest="as_json", action="store_true", help="机器可读输出(单份 JSON,stdout)")
+    listing = channels_sub.add_parser("list", help="列出通道目录(纯读;空目录提示先 refresh)")
+    listing.add_argument(
+        "--db",
+        default=DEFAULT_DB_PATH,
+        help=f"存储路径(目录 JSON 落数据根 = db 父目录;默认 ./{DEFAULT_DB_PATH})",
+    )
+    listing.add_argument("--json", dest="as_json", action="store_true", help="机器可读输出(单份 JSON,stdout)")
 
 
 def _add_feedback_parser(sub: argparse._SubParsersAction) -> None:
@@ -1846,6 +1888,148 @@ def _cmd_secret(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
+# myia channels:通道目录 refresh / list(v1.2,10-03-messaging-feishu D5)
+# ---------------------------------------------------------------------------
+
+
+class _PrecapturedAdapter:
+    """CLI refresh 的合并壳:把已发现条目原样喂给 :meth:`ChannelDirectory.refresh`。
+
+    CLI 需要逐平台把发现错误(如凭据缺失)结构化上报给调用方,而 refresh
+    内部只记日志;所以 CLI 先自己调 ``discover_directory`` 捕获错误,成功
+    的结果经本壳走 core 的 canonical 合并路径(桶替换 + updated_at 戳 +
+    原子持久化),不二次发起网络请求。
+    """
+
+    def __init__(self, entries: Sequence[Any]) -> None:
+        self._entries = entries
+
+    async def discover_directory(self) -> Sequence[Any]:
+        return self._entries
+
+
+def _channels_data_root(args: argparse.Namespace) -> Path:
+    """目录 JSON 数据根:``--db`` 父目录(与 pipeline 目录/死信账本同一收口)。"""
+    return Path(args.db).expanduser().resolve().parent
+
+
+def _print_channels_table(directory: ChannelDirectory) -> None:
+    """目录表(人类可读;对 AI 用 --json)。"""
+    platforms = directory.platforms()
+    if not platforms:
+        print("通道目录为空:先 myia channels refresh <platform> 发现可达对象")
+        return
+    print(f"通道目录(最近刷新 {directory.updated_at or '未知'}):")
+    for platform in platforms:
+        entries = directory.entries(platform)
+        print(f"  [{platform}] {len(entries)} 个可达对象:")
+        for entry in entries:
+            thread = f" thread={entry.thread_id}" if entry.thread_id else ""
+            print(f"    {entry.name} ({entry.chat_id}) type={entry.type}{thread}")
+
+
+def _channels_refresh(args: argparse.Namespace) -> int:
+    """``myia channels refresh [platforms...]``:发现 → 合并 → 打印目录。
+
+    退出码:全部成功 0;未知平台/凭据缺失等任一结构化失败 1(fail-fast
+    家族语义;失败平台保留旧目录桶,已成功平台照常合并)。
+    """
+    as_json = args.as_json
+    requested = [str(name) for name in args.platforms] or sorted(PLATFORMS)
+    unknown = [name for name in requested if name not in PLATFORMS]
+    if unknown:
+        _emit_generic_error(
+            "channels",
+            f"未知平台: {unknown}(已注册: {sorted(PLATFORMS)})",
+            as_json=as_json,
+        )
+        return EXIT_CONFIG_ERROR
+    if not requested:
+        _emit_generic_error(
+            "channels",
+            "尚无已注册平台(等平台适配子任务接入 PLATFORMS)",
+            as_json=as_json,
+        )
+        return EXIT_CONFIG_ERROR
+    data_root = _channels_data_root(args)
+    directory = ChannelDirectory(data_root)
+    refreshed: dict[str, int] = {}
+    failures: list[dict[str, str]] = []
+    shims: dict[str, _PrecapturedAdapter] = {}
+    for platform in requested:
+        adapter = PLATFORMS[platform]()
+        try:
+            entries = asyncio.run(adapter.discover_directory())
+        except Exception as exc:  # noqa: BLE001 - 单平台失败隔离:告警 + 保留旧桶
+            failures.append({"platform": platform, "error": f"{type(exc).__name__}: {exc}"})
+            continue
+        shims[platform] = _PrecapturedAdapter(entries)
+        refreshed[platform] = len(entries)
+    if shims:
+        asyncio.run(directory.refresh(shims))
+    payload = {
+        "command": "channels",
+        "action": "refresh",
+        "data_root": str(data_root),
+        "refreshed": refreshed,
+        "failed": failures,
+        "updated_at": directory.updated_at,
+        "platforms": {
+            platform: [entry.to_dict() for entry in directory.entries(platform)]
+            for platform in directory.platforms()
+        },
+    }
+    if failures:
+        # 失败也是单份文档的一部分(顶层 error/message 供 jq 快查,failed 留明细)
+        payload["error"] = "channels_refresh_failed"
+        payload["message"] = "; ".join(
+            f"{failure['platform']}: {failure['error']}" for failure in failures
+        )
+    if as_json:
+        _print_json(payload)
+    else:
+        for platform, count in sorted(refreshed.items()):
+            print(f"已刷新 {platform} 目录:发现 {count} 个可达对象(数据根 {data_root})")
+        for failure in failures:
+            print(
+                f"刷新失败(保留旧目录): {failure['platform']}: {failure['error']}",
+                file=sys.stderr,
+            )
+        _print_channels_table(directory)
+    return EXIT_OK if not failures else EXIT_CONFIG_ERROR
+
+
+def _channels_list(args: argparse.Namespace) -> int:
+    """``myia channels list``:纯读目录(空目录是合法态,提示先 refresh)。"""
+    as_json = args.as_json
+    data_root = _channels_data_root(args)
+    directory = ChannelDirectory(data_root)
+    payload = {
+        "command": "channels",
+        "action": "list",
+        "data_root": str(data_root),
+        "updated_at": directory.updated_at,
+        "platforms": {
+            platform: [entry.to_dict() for entry in directory.entries(platform)]
+            for platform in directory.platforms()
+        },
+    }
+    if as_json:
+        _print_json(payload)
+        return EXIT_OK
+    _print_channels_table(directory)
+    return EXIT_OK
+
+
+def _cmd_channels(args: argparse.Namespace) -> int:
+    """``myia channels refresh|list`` 的分发入口(退出码 0/1)。"""
+    _configure_logging(as_json=args.as_json)
+    if args.channels_command == "refresh":
+        return _channels_refresh(args)
+    return _channels_list(args)
+
+
+# ---------------------------------------------------------------------------
 # myia plugin:市场插件装卸(v0.3;薄包装 myia.plugins,装卸 fail-fast,
 # 扫描零异常 —— 插件坏绝不拦核心,铁律)
 # ---------------------------------------------------------------------------
@@ -2589,6 +2773,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "doctor": _cmd_doctor,
         "secret": _cmd_secret,
         "plugin": _cmd_plugin,
+        "channels": _cmd_channels,
         "feedback": _cmd_feedback,
         "skill": _cmd_skill,
         "osint": _cmd_osint,

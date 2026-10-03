@@ -30,8 +30,8 @@ Messaging-platform targeting (v1.2, PRD 10-03-hermes-messaging /
 10-03-messaging-core, 蓝本移植自 NousResearch/Hermes-Agent,MIT):通道目录
 (:mod:`myia.push.directory`)、对象解析(:mod:`myia.push.targets`)、定向
 派发 + 死信账本(:mod:`myia.push.delivery`)。:data:`PLATFORMS` 是平台名 →
-支持寻址的通道类的 dict 注册表(core 只交付空表与 fake 测试通道;feishu/
-telegram 在各自子任务登记)。蓝本对照表见任务档 prd。
+支持寻址的通道类的 dict 注册表(core 交付空表契约;feishu 已于
+10-03-messaging-feishu 登记,telegram 在其子任务接入)。蓝本对照表见任务档 prd。
 """
 
 from __future__ import annotations
@@ -109,11 +109,14 @@ CHANNELS: dict[str, type] = {
 }
 
 #: Platform-name → targeting-capable channel class(10-03-messaging-core
-#: design D1:dict 注册表,与 :data:`CHANNELS` 并排;不内置真实平台)。
-#: 平台子任务接入时在此登记,例如 ``{"feishu": FeishuCardChannel, ...}``;
-#: 登记类可提供 ``parse_direct_ref``(直达解析钩子)与实例方法
+#: design D1:dict 注册表,与 :data:`CHANNELS` 并排)。
+#: 登记类提供 ``parse_direct_ref``(直达解析钩子)与实例方法
 #: ``discover_directory``(目录发现)——见 base.Channel 协议 docstring。
-PLATFORMS: dict[str, type] = {}
+#: feishu 于 10-03-messaging-feishu 登记(目录发现 im/v1/chats + 定向发送);
+#: telegram 在其子任务(10-03-messaging-telegram)接入时登记。
+PLATFORMS: dict[str, type] = {
+    "feishu": FeishuCardChannel,
+}
 
 __all__ = [
     "API_URL",
