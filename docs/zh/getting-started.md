@@ -52,6 +52,9 @@ export MYIA_LLM_KEY=...
 myia secret set myia/stocks/site_cookie < cookie.txt
 ```
 
+不想配付费端点?看图与精评都有零成本走法(本地 mlx-vlm/Ollama → 云端
+免费档 → Gemini 轻量日批),端点选型与额度快照见[零成本接入](zero-cost.md)。
+
 配错也不用猜:`myia doctor --json` 逐个核验引用是否存在(env 变量是否设置 /
 钥匙链里是否有该名字),缺失即给出修复动作(如补一句 `myia secret set ...`)。
 
@@ -124,6 +127,9 @@ VACUUM 周期;声明了 `baseline:` 的品类,数值历史按保留期的 2 倍�
   (`plugin:` 场景插件 / `baseline:` 趋势基线 / `aggregate:` 事件聚合)。
 - [FAQ](faq.md):采集伦理与边界(robots.txt、验证码、真人验证)、
   凭据安全、常见故障的自诊断路径。
+- [零成本接入](zero-cost.md):免费 LLM 端点指引——本地 mlx-vlm/Ollama
+  (默认)→ 云端免费(智谱免费模型、OpenRouter `:free`)→ Gemini 轻量日批,
+  额度快照与逐家接入步骤。
 - 反馈闭环:负反馈回写并持续调优;命令行对应
   `myia feedback list / stats / mark`(Telegram/飞书回调接收已就绪,
   卡片内按钮随桌面版交付)。

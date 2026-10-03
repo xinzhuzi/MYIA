@@ -61,6 +61,11 @@ export MYIA_LLM_KEY=...
 myia secret set myia/stocks/site_cookie < cookie.txt
 ```
 
+Don't want to configure a paid endpoint? Both vision and enrich have
+zero-cost paths (local mlx-vlm/Ollama → cloud free tiers → light Gemini
+daily batches); see [Zero-cost setup](zero-cost.md) for endpoint choices
+and the quota snapshot.
+
 Misconfiguration needs no guesswork: `myia doctor --json` probes every
 reference for existence (is the env var set / is the keychain name present)
 and turns a missing one into a concrete repair action (e.g. run
@@ -146,6 +151,10 @@ item retention (so the "vs last week" window stays complete).
 - [FAQ](faq.md): crawling ethics and boundaries (robots.txt, captchas,
   human-verification walls), credential safety, and self-repair paths for
   common failures.
+- [Zero-cost setup](zero-cost.md): the free LLM endpoint guide — local
+  mlx-vlm/Ollama (the default) → cloud free tiers (Zhipu free models,
+  OpenRouter `:free`) → light Gemini daily batches, with the quota
+  snapshot and per-vendor wiring steps.
 - Feedback loop: the "valuable / not valuable" buttons on pushed cards feed
   back and keep tuning; the CLI equivalents are
   `myia feedback list / stats / mark`.

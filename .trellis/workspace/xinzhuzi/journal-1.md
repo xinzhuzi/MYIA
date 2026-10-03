@@ -113,6 +113,8 @@
 - 主人令「相关的游戏情报也要做」→ 全库探查:游戏零覆盖;情报覆盖=七大类+channel(builtin 表,忠实移植 wf_crawl.py 红线不扩)之外,stocks/gpu-prices 已立"七类外情报走品类插件"先例 → 游戏情报同路线 `plugins/games.yaml`
 - 当轮建任务(--no-start,大工作流 dwfrun-9808b474 在途且其 12 任务清单固定不含本档,不抢指针);PRD 落:来源候选(Epic 限免 JSON/Steam price_overview/Reddit .json/中文 L2,设计期核实)、classify.builtin=false+限免/折扣力度 rules、dedup 禁裸 {title}、限免 immediate/折扣 digest、史低 baseline 可选项;验收挂 test_plugins.py 参数化基线(新 yaml 自动全套)+ CI 零外网录制回放
 - 开工前主人四问:平台范围/要不要资讯/中英文源偏好/史低基线进不进首版
+- **深化(同日,主人令「深化与完善trellis任务文档」,commit 5bd149a,三件套齐达可 start)**:实跑探源定稿——Epic freeGamesPromotions ✅(zh-CN,12 元素,robots 404 无限制)、Steam featuredcategories specials ✅(discount_percent 直出,robots 不禁 /api/)、Reddit .json ❌(honest UA 回 HTML,剔除)、中文 L2 未探留 backlog;核订关键事实:①两源响应均无页面 URL(只有 slug/appid)= stocks 记录过的 schema 缺口 → D1 本任务内做 extract.url_template 微扩展(可选字段+二选一校验,向后兼容);②规则求值缺字段读 None 且含 None 运算整条跳过 → 两源同名归一化字段(final_price/discount_pct,两家单位同为分);③dedup 抑制是槽位作用域且 baseline metric key=dedup_key 优先 → dedup.key 必须稳定 {url}(带 {date} 断价格历史);④OFFICIAL_PLUGINS 是显式元组非 glob(PRD 初稿「自动全套」口径已修正;gpu-prices 不在元组=顺带观察);⑤watchlist 在 enrich 关闭时零降权;探源响应存任务 evidence/ 作 fixture 素材;PRD 四问全带推荐(Epic+Steam 起步/只做折扣限免/英文 API 先行/price 基线进 v1 msrp 不进);validate 绿,任务仍 backlog 未 start
+- **grill Round 1 收口(同日,grilling 技能一轮清前沿 7 问,主人「按照你的建议去做」=全按推荐,commit b0add6a)**:①平台=Epic+Steam 起步(GOG/Switch 拆后续先探查)②内容=v1 只做折扣/限免,upcoming 预告=v2 首项,资讯 backlog③源=英文官方 API 先行④基线=price 进 v1、msrp 不进⑤通道=feishu_card 单通道(tg 后续加挂)⑥限免每日 immediate 重推=接受(调稀改 cron)⑦D1 url_template 微扩展已批(D2 占位否决)⑧gpu-prices 补测试元组=独立待办⑨开工触发=大工作流 dwfrun-9808b474 收尾后主人下令(schema.py/test_plugins.py 热点路径防同树双线)。九条决议回写 prd「Grill 决议」节/design D1·D5·§5/implement 前置注记/task.json notes;决议编号统一 ①-⑨ 口径;标题去「资讯」对齐 v1 范围;validate 绿,无悬而未决项,任务达「可 start 等开工令」终态
 
 ## 2026-10-03 免费层供应商地图落档(task 10-03-free-tier-supplier-map,research→review)
 
@@ -126,3 +128,25 @@
 
 - grill(grilling 技能)对 10-03-free-tier-supplier-map 文档拷问一轮清前沿,主人令「按推荐去做」:Q1 出口一立 `10-03-zero-cost-setup`(docs/zh|en/zero-cost.md,zh 先 en 后,PRD 硬约束=落笔前核 ○ 升 ●,planning 不启动);Q2 出口二落 `.trellis/spec/domain/connector-selection.md`(云端连接器必须有免费路径+信号分级,根 spec/index.md 已挂行);Q3 push 候选入池不立项排期权留主人;Q4 ○ 项「引用时核+回写升 ●」机制录 research.md 末节;Q5 活档案,zero-cost-setup 执行完成后 archive(trigger 已记 task.json notes)
 - spec 撰写循 trellis-update-spec 技能(设计决策型,非 7 段基建契约);domain 层格式对齐 security-baseline(铁律短句+grill 引注);仓库公开红线照办(全部文档无凭据无私有痕迹)
+
+## 2026-10-03 桌面端静默启动(task 10-03-quiet-launch,in_progress→review)
+
+- 起因:主人令「打开 MYIA 要静默,不要每次都切到 MYIA」。全量探查定位双根因:tao-0.37.1 启动回调无条件 activateIgnoringOtherApps(true)(app_state.rs:293,默认值 app_delegate.rs:106,Tauri 2.12 未暴露关闭口)+ 窗口默认可见即 makeKeyAndOrderFront;基线实测 open -g 后台启动照样抢前台
+- 修法:主窗口 visible/focus:false 出厂;RunEvent::Reopen(Dock 点/运行中再 open -a)才 show+focus;静默启动后 500ms NSApp.deactivate() 让回前一应用(objc2-app-kit 0.3.2 锁内同版);dev 构建与 MYIA_SHOW_ON_START=1 例外照常显示(open 不透传 shell env,发布包验证直跑二进制或 open 两次)
+- 验收(纯文字转录,无截图):open -g 冷启动 frontmost 保持 ZCode、窗口 0、myia-core serve 在跑;运行中再 open -a 亮窗置前;env 直跑窗口 1、sidecar 212ms;quit 干净无残留;cargo check+tauri build 绿(app 124.98MiB,旧包留底 /tmp/MYIA.app.bak-quiet-launch)。Dock 点击与 tauri dev 亮窗留主人自验(同 Reopen 路径/cfg!(debug_assertions) 恒真)
+- 踩坑三记:①git 相对路径 pathspec 随 shell cwd 漂移(cwd 停在 src-tauri 时 diff 全空,险误判 stash 竞态)②main.rs/tauri.conf.json 混着并行工作流未提交的 sidecar 改名 hunks——选择性 git apply --cached 只提交自己的 hunks,别整文件 add ③PyInstaller bincache 并发写坏(重试即过);另:os-etiquette 铁律 4 落档后全屏截图禁留证,两张实测截图已删改文字转录
+- 已知取舍:updater relaunch 后同样静默;发布包 UI 验证流须换姿势(直跑二进制带 env 或 open 两次)——v112-desktop-parity 冒烟步骤要用新姿势;状态直改 review(循例不动指针)
+
+## 2026-10-03 单实例锁 + 现场清理(task 10-03-single-instance,in_progress→review)
+
+- 起因:主人令「这个项目只能保持 1 个实例,无用的内容清理一下」(承接 myia-desktop dev 实例与装机包并存的截图报障)
+- 清理:退 dev 实例(99135)+dev sidecar、5173 陈旧 vite+esbuild、/tmp/myia-repro 孤儿 server.py:8731(1d10h 零引用);留 5199 vite(yaml-editor 现役)与冒烟 sidecar 对(bridge.mjs 活体在守)
+- 实现:数据根(MYIA_HOME 同规则)下 .instance.lock,flock 独占,进程退出内核放锁;拿不到锁→孤儿 shell sleep 0.5 后 open -b com.myia.app(既有实例走 Reopen 亮窗)再退出。官方 single-instance 插件 macOS 是空操作,自持锁是唯一覆盖 open -n/直跑/dev+release 混跑的路。libc 入 macOS 依赖(锁内同版)
+- 踩坑:第二实例「当场」open -b 有竞态——两进程短暂同 bundle id,LaunchServices 激活将死者,实测窗口不亮;改孤儿 shell 延时激活后复测过(open -n 后仍 1 进程+亮窗置前)
+- 验收:open -g 静默 1 进程/open -n 秒退+亮窗/直跑二进制秒退/quit 放锁重启正常/cargo check+build 绿重装;终态恰好 1 个实例静默在跑
+- 已知取舍:MYIA_HOME 沙箱=独立实例域(验证隔离是特性);tauri dev kill→spawn 毫秒级放锁窗口竞态≈0,工作流偶发秒退重试即过
+
+## 2026-10-03 零成本接入指引按 trellis 执行(task 10-03-zero-cost-setup,workflow)
+- 核实:6 家免费层政策(GLM/SiliconFlow/Groq/Mistral+OpenRouter),全部可核
+- 中文版:质检通过;英文版:已产出;终检:通过;密钥样式扫描:0 命中
+- 状态:review(直改 task.json,并行工作流在场不抢指针);supplier-map 归档触发条件达成

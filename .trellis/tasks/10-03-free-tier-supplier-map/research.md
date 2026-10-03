@@ -1,6 +1,6 @@
 # 免费层供应商地图:按 MYIA 决策面蒸馏 free-for.dev
 
-- 任务:10-03-free-tier-supplier-map(research)· 快照:2026-10-03
+- 任务:10-03-free-tier-supplier-map(research)· 快照:2026-10-03(同日二次核实:决策面三全部 ○ 项因 zero-cost-setup 引用而核,结果见该表)
 - 情报源:[ripienaar/free-for.dev](https://github.com/ripienaar/free-for-dev)(139k★,当日仍有 PR 合入;Docsify 站点 [free-for.dev](https://free-for.dev))
 - 情报边界:该仓库整体**无 LICENSE** → 本文档只记事实要点与链接,不搬运清单原文;其仓库明令禁止 AI 贡献(与我们无关,只读不投)
 - 核实标记:**●**=本轮经 zread 读其当前文档核实(快照 2026-10-03);**○**=清单收录或社区常识,**写入用户文档前必须二次核实**
@@ -49,14 +49,14 @@
 |---|---|---|---|---|---|
 | 本地 mlx-vlm / Ollama | 无限(本机) | 根治 | —(即是) | **默认推荐**,已是产品现状 | ● |
 | OpenRouter `:free` 模型 | DeepSeek R1/V3、Llama、Moonshot 等,限速制 | 模型池随供需波动 | — | **高**:OpenAI 兼容,换 base_url 即接;enrich 文本主力候选 | ● |
-| 智谱 GLM-4-Flash / GLM-4V-Flash | 文本+视觉免费 | 中文大厂,免费政策已多年 | — | **高**:中文用户零成本接入首选;**不在 free-for.dev,需补核当前政策** | ○ |
-| Google AI Studio(Gemini) | 5 请求/分、20 请求/天(Flash 档) | 稳定但配额紧(曾更宽) | — | 中:轻量日批够用,重批/视觉不够;文档标注配额 | ● |
+| 智谱 GLM-4-Flash / GLM-4V-Flash | 定价页 GLM-4V-Flash 与 GLM-4-Flash-250414 输入/输出单价均标注「免费」(0 元,非限时);base_url `https://open.bigmodel.cn/api/paas/v4`(官方 OpenAI 兼容文档);限速数值不公开,登录账户速率限制页查看;caveat:模型总览页标上下文 16K 而定价页标 4K,以定价页为准待复核 | 中文大厂,免费政策已多年 | — | **高**:中文用户零成本接入首选;注意 MYIA 看图云端缺省模型 `glm-4.6v` 为付费档、精评缺省 `glm-4-flash` 即免费档 | ●(2026-10-03 官网一手:docs.bigmodel.cn/cn/guide/start/pricing) |
+| Google AI Studio(Gemini) | 免费层存在;**2026-10-03 复核:官方 rate-limits 页已不公布免费档具体数字,须登录 aistudio.google.com/rate-limit 自查**(此前记录的「5 请求/分、20 请求/天」不再有公开出处);OpenAI 兼容 base_url `https://generativelanguage.googleapis.com/v1beta/openai/` 已核(官方 openai 兼容文档) | 稳定但配额紧(曾更宽) | — | 中:轻量日批够用,重批/视觉不够;文档标注配额 | ●(存在性与 base_url 已核;具体数字官方已不公开) |
 | Gonka Broker | 100 万+ token/月,OpenAI 兼容 | 新兴 | — | 中:额度大方;去中心化 GPU 延迟有波动 | ● |
-| SiliconFlow / DashScope(Qwen) | 注册赠送 / 限时免费 | 营销型(会耗尽) | — | 中:可列,但必须标「赠额用尽即止」 | ○ |
-| Groq / Mistral | 免费层(限速制) | 稳定 | — | 中:备选池 | ○ |
+| SiliconFlow / DashScope(Qwen) | **2026-10-03 核:SiliconFlow 注册赠额在官方公开渠道(官网/注册页/财务 FAQ)已无明文,金额与有效期不可核实,不得对用户承诺;免费模型清单亦未核(定价页需登录)**;OpenAI 兼容 base_url `https://api.siliconflow.cn/v1` 已核(官方 quickstart);DashScope 未核 | 营销型(会耗尽) | — | 中:可列,但必须标「赠额用尽即止」;赠额金额不可承诺(zero-cost.md 据此未列入) | ○(赠额与免费档未核到,保留;base_url 一项已核) |
+| Groq / Mistral | Groq Free plan 文本模型(openai/gpt-oss-120b 等)30 RPM、1000 请求/天、8K TPM、200K TPD,限速按组织计(console.groq.com/docs/rate-limits);Mistral 免费层为新账户默认(无需信用卡),定价页标注含 $10/月 API credits(mistral.ai/pricing) | 稳定;Mistral 赠金为月度营销型 | — | 中:备选池;enrich 适用 | ●(2026-10-03 官网一手;caveat:Mistral 免费层具体 RPS/TPM 未核到公开数字,须登录 Admin Panel Limits 页自查;Groq 全数已核) |
 | Portkey / Keywords AI(AI 网关) | 免费层:网关+日志+多商故障转移 | 新兴配套 | — | 低:个人用户用不上网关;enrich 调试期可用 | ● |
 
-用户文档取材建议(零成本接入指引):本地 mlx-vlm(默认)→ OpenRouter `:free` / GLM-4V-Flash(云端免费)→ Gemini(轻量批)。
+用户文档取材建议(零成本接入指引):本地 mlx-vlm(默认)→ OpenRouter `:free` / GLM-4V-Flash(云端免费)→ Gemini(轻量批)。**已交付:`docs/zh/zero-cost.md`(2026-10-03,getting-started.md 已挂链;en 版按 PRD 后置)。**
 
 ## 决策面四:项目运营(开源项目自身,非用户侧)
 
