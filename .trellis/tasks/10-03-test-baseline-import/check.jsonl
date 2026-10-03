@@ -1,0 +1,1 @@
+{"file": ".trellis/tasks/10-03-test-baseline-import/prd.md", "reason": "验收对照:裸 pytest 与 python -m pytest 双绿/单文件亦绿/单独小 commit"}

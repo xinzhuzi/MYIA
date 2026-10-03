@@ -1,0 +1,2 @@
+{"file": ".trellis/tasks/10-03-v112-desktop-batch/prd.md", "reason": "验收对照:C2 杀进程演示/C1 协议级测试/C3 重启可见/C7 封装对应 + pytest/vitest 全绿"}
+{"file": ".trellis/tasks/archive/2026-10/10-03-gap-census/prd.md", "reason": "活清单回标核对:C 组条目修一条标 ✅+commit 号"}

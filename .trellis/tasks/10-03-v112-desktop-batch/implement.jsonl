@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/archive/2026-10/10-03-gap-census/prd.md", "reason": "C1-C13 桌面协议/UX 缺口的证据矩阵(file:line),批次的需求源与伤害度排序依据"}
+{"file": ".trellis/tasks/10-03-grill-v112/prd.md", "reason": "Q5 排期决议:tag 后开工、C2 最优先;协议版本号随扩展 +1 的口径"}
+{"file": ".trellis/spec/python/index.md", "reason": "「桌面发行数据根」等桌面约定红线:批次不得动 v1.1.1 已修的数据通路语义"}
+{"file": ".trellis/tasks/10-03-ui-feature-census/prd.md", "reason": "G 矩阵与 C8/C9/C12/C13 重叠(品类选择器/打开原文/跑一次/试抓):实现取材与防重复立项对照"}

@@ -1,0 +1,2 @@
+{"file": ".trellis/tasks/10-03-yaml-editor/prd.md", "reason": "止血(.bak 单份滚动)与本根治任务的分工边界;grill Round 1 决议 2 出处"}
+{"file": ".trellis/tasks/10-03-yaml-editor/design.md", "reason": "sources.write 现契约(请求/应答/错误码/往返一致语义)——文本手术须零变更的契约基准"}

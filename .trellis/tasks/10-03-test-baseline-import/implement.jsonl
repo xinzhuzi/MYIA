@@ -1,0 +1,2 @@
+{"file": ".trellis/tasks/archive/2026-10/10-03-gap-census/prd.md", "reason": "D3 根因定位(from tests.conftest import 依赖 cwd)与 ee2d9db 包扫描教训出处"}
+{"file": ".trellis/spec/python/index.md", "reason": "CI 红线(pytest 全绿才可并)的规范依据"}

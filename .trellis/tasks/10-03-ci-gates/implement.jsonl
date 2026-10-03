@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/archive/2026-10/10-03-gap-census/prd.md", "reason": "D1/D2/D5 证据条目(ci.yml/pyproject/tauri.conf file:line)与 D3 已修注记"}
+{"file": ".trellis/spec/python/index.md", "reason": "Python spec 的 CI 红线与 pytest 约定:跑法口径钉死的规范依据"}
+{"file": ".trellis/tasks/10-03-test-baseline-import/prd.md", "reason": "D3 孪生跑法背景(uv run python -m pytest vs 裸 pytest),口径统一的历史教训"}
