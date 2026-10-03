@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/domain/yaml-schema.md", "reason": "核对 games.yaml 第三源全段合法+golden 同步"}
+{"file": ".trellis/spec/domain/security-baseline.md", "reason": "核对零明文凭据"}

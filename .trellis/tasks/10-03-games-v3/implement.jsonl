@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/domain/yaml-schema.md", "reason": "品类 YAML 纪律+url_template 字段语义;CS 源顶层数组前缀写法"}
+{"file": ".trellis/spec/domain/security-baseline.md", "reason": "凭据铁律(CS 无凭据头,同卡 push 引用不变)"}
