@@ -36,7 +36,7 @@ entry point): `plugin:` (scenario plugin dual mode, v0.3), `baseline:`
 |---|---|
 | `ENGINES` | `auto` `direct_api` `static_html` `crawl4ai` `firecrawl` `scrapling` `stealth_browser` `llm_browser` |
 | `PAGINATION_MODES` | `template` `selector` `scroll` |
-| `EXTRACT_TYPES` | `list` `item` `json_path` |
+| `EXTRACT_TYPES` | `list` `item` `json_path` `rss` |
 | `BACKOFF_POLICIES` | `exponential` `linear` `none` |
 | `PUSH_CHANNELS` | `feishu_card` `telegram` `ntfy` `dingtalk` `wecom` `webhook` `stdout` |
 | `ROUTE_MODES` | `immediate` `digest` `archive` |
@@ -125,10 +125,10 @@ extract:
 
 | Field | Default | Semantics |
 |---|---|---|
-| `type` | required | `list` = repeated HTML items; `item` = single page; `json_path` = JSON API |
+| `type` | required | `list` = repeated HTML items; `item` = single page; `json_path` = JSON API; `rss` = RSS/Atom feed (feedparser entry mapping) |
 | `item` | `null` | Per-item container CSS selector for `type: list` (required there; forbidden elsewhere) |
-| `url_template` | `null` | Per-item URL template, plain `{field}` placeholders (at least one, and each must name a key of `fields` — load-time cross-check, typos are refused), rendered into `url` at the extraction outlet; allowed on `list`/`json_path` only (refused on `item` single-page extracts — the item URL is the request URL); a placeholder field missing its *value* on one element → empty url for that item, which the pipeline then rejects as `invalid_item` (never stored with a broken link); either/or with the `url` field — both declared = the `url` field wins, the template is silently unused |
-| `fields` | required | field name → selector/JSONPath, at least 1; `list`/`json_path` **must include `url` or declare `url_template`** (either/or) |
+| `url_template` | `null` | Per-item URL template, plain `{field}` placeholders (at least one, and each must name a key of `fields` — load-time cross-check, typos are refused), rendered into `url` at the extraction outlet; allowed on `list`/`json_path` only (refused on `item` single-page extracts — the item URL is the request URL; also refused on `rss`, whose item URL is the `fields.url`←`entry.link` mapping); a placeholder field missing its *value* on one element → empty url for that item, which the pipeline then rejects as `invalid_item` (never stored with a broken link); either/or with the `url` field — both declared = the `url` field wins, the template is silently unused |
+| `fields` | required | field name → selector/JSONPath, at least 1; `list`/`json_path` **must include `url` or declare `url_template`** (either/or); for `rss` the **values must be feedparser entry attribute names from the whitelist `title`/`link`/`published`/`updated`/`summary`/`author`** (keys = normalized field names, typos are refused at load time) and `url` **must be present** (mapping `link`) |
 
 Selector grammar: L1/L2 use CSS (relative to the item; `a@href` reads an
 attribute; relative URLs resolve against the page); `json_path` uses `$`
@@ -138,6 +138,30 @@ render item links via `url_template` (official `plugins/games.yaml` does
 exactly this). Known gap: `json_path` cannot express "item URL = the request
 URL" — such APIs use a stable business field as `url` (official
 `plugins/stocks.yaml` does exactly this).
+
+`rss` (10-03-news-rss), field by field:
+
+- **Mapping shape**: `fields` keys are normalized field names, values are
+  feedparser entry attribute names (whitelist `title`/`link`/`published`/
+  `updated`/`summary`/`author`); the typical form is
+  `{title: title, url: link, published: published}` (official
+  `plugins/news.yaml`).
+- **Whitelist**: a closed vocabulary — a typo (e.g. `pubdate`) is refused at
+  load time (`invalid_rss_field`, path points at `fields.<key>`) instead of
+  silently yielding zero items at run time.
+- **Missing attributes are omitted per entry** (same per-entry semantics as
+  `json_path`); `published` is an RFC 822 date string
+  (`Fri, 02 Oct 2026 20:01:17 +0800`), sliced for display in templates.
+- **`url` required**: `fields` must carry `url` (mapping `link`, the dedup
+  key's foundation); both the `item` selector and `url_template` are mutually
+  exclusive with `rss` (declaring either is refused).
+- **Engine boundary**: `rss` rides the `static_html` text path only;
+  `direct_api` stays JSON-only (an `rss` extract on it is refused at the
+  engine layer so `engine: auto` degrades down the chain correctly).
+- **CDATA pitfall**: `summary` is CDATA-wrapped HTML — pushing it raw into a
+  template floods the card. The whitelist keeps the attribute, but the
+  official template sticks to title+link+date; route summaries through
+  `enrich` when they are needed.
 
 rate_limit:
 
@@ -404,8 +428,9 @@ error types:
 | `invalid_value` | value outside the enum vocabulary (the legal values are listed) |
 | `title_fingerprint_forbidden` | `dedup.key` uses `{title}` |
 | `invalid_dedup_key` | the dedup key has no placeholder, or a placeholder cannot be rendered by any source |
-| `missing_url_field` | `extract.fields` lacks `url` and no `url_template` is set (`list`/`json_path` need one of the two) |
-| `invalid_url_template` / `unexpected_url_template` | `url_template` has no placeholder or names a field outside `fields` / set on an `item` single-page extract |
+| `missing_url_field` | `extract.fields` lacks `url` and no `url_template` is set (`list`/`json_path` need one of the two; `rss` must carry `url`) |
+| `invalid_url_template` / `unexpected_url_template` | `url_template` has no placeholder or names a field outside `fields` / set on an `item` single-page extract or an `rss` extract |
+| `invalid_rss_field` | an `rss` `fields` value is outside the feedparser entry attribute whitelist (typos are refused) |
 | `unexpected_transport_field` | `timeout`/`retries`/`retry_backoff_seconds` on a non-webhook channel |
 | `unexpected_platform_field` | a W2 platform credential field (`ntfy_token`/`dingtalk_secret`/`wecom_*`) on a non-host channel |
 

@@ -22,6 +22,16 @@ id/name、schedule+timezone、sources[](engine/url/method+post_body/headers/pagi
    单条目占位缺「值」→ url 置空串,该条目在管线 fetch 阶段按 `invalid_item`
    记失败后丢弃(**不带坏链接入库**);都有 = `url` 字段胜出、模板静默不用;
    `item` 单页源禁配(条目 url 即请求 URL)
+9. **rss 提取**(10-03-news-rss):`extract.type: rss` 只挂 `static_html`
+   文本通路(feedparser 条目映射;CSS 硬接 RSS 因 `<link>` void 元素拿不到
+   条目 url = 静默零产出);`direct_api` 保持 JSON-only(引擎层拒,auto 链
+   正确降级)。`fields` **值 = feedparser entry 属性白名单**
+   {title,link,published,updated,summary,author}(键=归一字段名,如
+   `url: link`),**拼错装载即拒**(`invalid_rss_field`);**必含 `url`**
+   (映射 `link`,去重键根基);`item` 选择器与 `url_template` 均与 rss
+   互斥;条目缺属性逐条省略(同 json_path 语义);summary 是 CDATA HTML,
+   模板直出刷屏——官方插件模板只用标题+链接+日期(官方示例
+   `plugins/news.yaml`,fixture `tests/fixtures/news-gcores-rss.xml`)
 
 ## 变更纪律
 

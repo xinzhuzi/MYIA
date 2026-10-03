@@ -32,7 +32,7 @@
 |---|---|
 | `ENGINES` | `auto` `direct_api` `static_html` `crawl4ai` `firecrawl` `scrapling` `stealth_browser` `llm_browser` |
 | `PAGINATION_MODES` | `template` `selector` `scroll` |
-| `EXTRACT_TYPES` | `list` `item` `json_path` |
+| `EXTRACT_TYPES` | `list` `item` `json_path` `rss` |
 | `BACKOFF_POLICIES` | `exponential` `linear` `none` |
 | `PUSH_CHANNELS` | `feishu_card` `telegram` `ntfy` `dingtalk` `wecom` `webhook` `stdout` |
 | `ROUTE_MODES` | `immediate` `digest` `archive` |
@@ -111,10 +111,10 @@ extract:
 
 | 字段 | 缺省 | 语义 |
 |---|---|---|
-| `type` | `必填` | `list` = HTML 列表项;`item` = 单页;`json_path` = JSON API |
+| `type` | `必填` | `list` = HTML 列表项;`item` = 单页;`json_path` = JSON API;`rss` = RSS/Atom feed(feedparser 条目映射) |
 | `item` | `null` | `type: list` 时的条目容器 CSS 选择器(该类型必填;其余禁写) |
-| `url_template` | `null` | 条目 URL 渲染模板,`{field}` 纯占位(至少一个占位符,且必须在 `fields` 字段名内——装载期交叉校验,拼错即拒),提取出口逐条渲染并填入 `url`;仅 `list`/`json_path` 可配(`item` 单页源配即拒);运行期单条目占位缺「值」→ url 置空串、该条目被管线按 `invalid_item` 拒掉(不入库);与 `fields` 的 `url` 二选一,都有 = `url` 字段胜出、模板静默不用 |
-| `fields` | `必填` | 字段名 → 选择器/JSONPath,至少 1 个;`list`/`json_path` **必须含 `url` 或配 `url_template`**(二选一) |
+| `url_template` | `null` | 条目 URL 渲染模板,`{field}` 纯占位(至少一个占位符,且必须在 `fields` 字段名内——装载期交叉校验,拼错即拒),提取出口逐条渲染并填入 `url`;仅 `list`/`json_path` 可配(`item` 单页源配即拒;`rss` 条目 url 由 `fields.url`←`entry.link` 映射,配即拒);运行期单条目占位缺「值」→ url 置空串、该条目被管线按 `invalid_item` 拒掉(不入库);与 `fields` 的 `url` 二选一,都有 = `url` 字段胜出、模板静默不用 |
+| `fields` | `必填` | 字段名 → 选择器/JSONPath,至少 1 个;`list`/`json_path` **必须含 `url` 或配 `url_template`**(二选一);`rss` 的**值必须是 feedparser entry 属性白名单 `title`/`link`/`published`/`updated`/`summary`/`author` 之一**(键=归一字段名,拼错装载即拒),且**必须含 `url`**(映射 `link`) |
 
 选择器语法:L1/L2 用 CSS(条目内相对选择器,`a@href` 取属性,相对 URL 自动
 补全);`json_path` 用 `$` 路径(`$.chart.result[0].meta.price`、`$[*].keyword`
@@ -122,6 +122,23 @@ extract:
 `url_template` 渲染条目链接(官方 `plugins/games.yaml` 即此写法);
 `json_path` 仍表达不了「条目 URL = 请求 URL」,此类 API 用稳定业务字段充当
 `url`(官方 `plugins/stocks.yaml` 即此写法)。
+
+`rss`(10-03-news-rss)逐字段语义:
+
+- **映射形态**:`fields` 键=归一字段名,值=feedparser entry 属性名(白名单
+  `title`/`link`/`published`/`updated`/`summary`/`author`);典型写法
+  `{title: title, url: link, published: published}`(官方 `plugins/news.yaml`)。
+- **白名单**:封闭词表,拼错(如 `pubdate`)装载即拒(`invalid_rss_field`,
+  path 指到 `fields.<键>`)——防运行期整源静默零产出。
+- **缺属性省略**:条目缺某属性 → 该字段逐条省略(同 `json_path` 逐条目语义);
+  `published` 是 RFC 822 日期串(`Fri, 02 Oct 2026 20:01:17 +0800`),模板切
+  片显示。
+- **url 必填**:`fields` 必须含 `url`(映射 `link`,去重键根基);`item` 选择器
+  与 `url_template` 对 `rss` 均互斥(配即拒)。
+- **引擎边界**:`rss` 只挂 `static_html` 文本通路;`direct_api` 保持 JSON-only
+  (配 `rss` 在引擎层拒,让 `engine: auto` 沿链正确降级)。
+- **CDATA 坑**:`summary` 是 CDATA 包 HTML,直出模板会刷屏——白名单保留该
+  属性但官方模板只用标题+链接+日期,要摘要先进 enrich。
 
 rate_limit:
 
@@ -375,8 +392,9 @@ push:
 | `invalid_value` | 取值不在枚举词表内(错误信息列出合法值) |
 | `title_fingerprint_forbidden` | `dedup.key` 用了 `{title}` |
 | `invalid_dedup_key` | 去重键无占位符,或占位符无法由源渲染 |
-| `missing_url_field` | `extract.fields` 缺 `url` 且未配 `url_template`(`list`/`json_path` 二者必居其一) |
-| `invalid_url_template` / `unexpected_url_template` | `url_template` 无占位符或占位符不在 `fields` 字段名内 / 配在 `item` 单页源上 |
+| `missing_url_field` | `extract.fields` 缺 `url` 且未配 `url_template`(`list`/`json_path` 二者必居其一;`rss` 必须含 `url`) |
+| `invalid_url_template` / `unexpected_url_template` | `url_template` 无占位符或占位符不在 `fields` 字段名内 / 配在 `item` 单页源或 `rss` 上 |
+| `invalid_rss_field` | `rss` 的 `fields` 值不在 feedparser entry 属性白名单内(拼错即拒) |
 | `unexpected_transport_field` | `timeout`/`retries`/`retry_backoff_seconds` 出现在非 webhook 通道 |
 | `unexpected_platform_field` | W2 平台凭据字段(`ntfy_token`/`dingtalk_secret`/`wecom_*`)配在非宿主通道 |
 
