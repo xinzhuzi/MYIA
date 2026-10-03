@@ -28,7 +28,7 @@ webview 全程不出网(CSP 已锁);出网只发生在 sidecar 进程。缩略�
 | `image.import` | `{kind: path\|base64, value, mime?}` | `{id, path, bytes, ext}` | 同步;>10MB/坏格式 → `image_too_large`/`image_unsupported`;heic 先 sips 转 png 再收 |
 | `image.ocr` | `{id, engine?: vision\|rapidocr}` | `{lines: [{text, conf}], engine, ms}` | 同步(两引擎实跑均 ~1s);缺省 engine 取配置默认;失败 → `image_ocr_failed`;非法 engine → `image_engine_unknown` |
 | `image.analyze` | `{id, mode: read\|describe\|ask, question?, channel?}` | `{job_id}` 即返,**结果走事件** | 异步;已有 job 在跑 → `image_busy`(仿 `run_busy` 单飞守卫) |
-| `image.status` | `{}` | `{busy, job_id?}` | 同步(UI 重连时对账) |
+| `image.status` | `{job_id?}` | `{busy, job_id?}`;带 `job_id` 查询时附 `last` = 最近一次终态的 `image.completed` 原文载荷(自带 job_id) | 同步(UI 重连/订阅竞态对账:瞬时失败任务的 completed 可能在 webview 订阅建立前写出而被丢,UI 订阅就绪后按 job_id 拉一次恢复) |
 | `image.config.read` | `{}` | 脱敏配置(keychain 引用不回明文) | 同步 |
 | `image.config.save` | `{config}` | `{ok}` | 同步;同门校验失败零写入 |
 
@@ -50,7 +50,7 @@ webview 全程不出网(CSP 已锁);出网只发生在 sidecar 进程。缩略�
 | `__init__.py` | 导出 |
 | `ocr.py` | **双引擎统一接口**(10-03 修订:两个都要)`run_ocr(path, engine) -> lines[{text, conf}]`:`vision` = ocrmac 封装(zh-Hans+en-US、accurate、逐行置信度;宽<1000px 先 `sips -Z 2000` 放大,临时文件 /tmp 即弃;`usesLanguageCorrection` 保持关——报错码/ID 场景开了会毁证据);`rapidocr` = rapidocr-onnxruntime(内置默认 det/rec/cls 模型零下载;置信度刻度普遍 ≥0.9,与 Vision 不可直接互比);两引擎输出统一 `{text, conf}` 形状 |
 | `client.py` | `VisionClient`:复用 `enrich/client.py:40` 的 AsyncOpenAI 模式,新增 image content part 消息(`{type:"image_url", image_url:{url:"data:<mime>;base64,..."}}` + text part,local-ocr 实证配方);发送前长边 >2048 先 sips 压缩再 base64(VL 输入提速);本地通道无 Authorization,云端带 Bearer;读图侧写超时(60s 请求级 + 整体交给事件流不受壳 120s 限制) |
-| `settings.py` | `VisionConfig` dataclass + load/save:结构落 `MYIA_HOME/vision.yaml`,门校验照 `EnrichSettings`(`enrich/settings.py:41` 模式)——`api_key` 只收 `keychain:` 引用;缺省 `{channel_default: local, local: {base_url: "http://127.0.0.1:8080", model: ""}, cloud: {base_url: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4.6v"(grill 已拍板), api_key: null}, ocr: {enabled: true, engine_default: "vision"}}` |
+| `settings.py` | `VisionConfig` dataclass + load/save:结构落 `MYIA_HOME/vision.yaml`,门校验照 `EnrichSettings`(`enrich/settings.py:41` 模式)——`api_key` 只收 `keychain:` 引用;缺省 `{channel_default: local, local: {base_url: "http://127.0.0.1:8080/v1", model: ""}, cloud: {base_url: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4.6v"(grill 已拍板), api_key: null}, ocr: {enabled: true, engine_default: "vision"}}` |
 
 entry.py 侧 handler 薄封装注册进 `_HANDLERS`;`image.analyze` 后台线程仿 `run.start`(`entry.py:835`);`image_busy` 单飞守卫照抄 `run_busy`。
 

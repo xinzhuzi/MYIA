@@ -63,7 +63,9 @@ image.ocr          (双引擎 OCR,vision|rapidocr)   逐行 {text, conf} + engin
                                                  非法 engine → image_engine_unknown
 image.analyze      (本地/云端二级看图)             后台线程即返 job_id,结果走
                                                  image.progress/completed 事件
-image.status       (sidecar 内注册表)              busy/job_id(UI 重连对账)
+image.status       (sidecar 内注册表)              busy/job_id(UI 重连对账);带
+                                                 job_id 查询附 last=最近终态
+                                                 (订阅前被丢的 completed 对账)
 image.config.read  (vision.yaml 直读)              脱敏配置(keychain 引用不回明文)
 image.config.save  (同门校验→原子写)               失败零写入(image_config_invalid)
 ================= ============================== ============================
@@ -1436,6 +1438,10 @@ _IMAGE_LOCAL_HINT = (
 _IMAGE_LOCK = threading.Lock()
 _IMAGE_ACTIVE_JOB: int | None = None
 _IMAGE_NEXT_JOB_ID = 0
+#: 最近一次终态事件载荷(image.completed 原文形状;单飞守卫下单槽即够)。
+#: 瞬时失败任务的 completed 可能在 webview 订阅建立前写出而被丢 —— 留存供
+#: ``image.status {job_id}`` 对账拉取(见 :func:`_m_image_status`)。
+_IMAGE_LAST_COMPLETED: dict[str, Any] | None = None
 
 
 class _ProbeAuthError(Exception):
@@ -1533,6 +1539,18 @@ def _m_image_import(params: dict[str, Any]) -> dict[str, Any]:
         raise ProtocolError("invalid_params", "缺少图片内容 value(路径或 base64)", path="params.value")
     if kind == "path":
         source = Path(value).expanduser()
+        try:
+            stat = source.stat()  # 先 stat 预检再读(同 yaml.read):超大文件不整读进内存
+        except FileNotFoundError as exc:
+            raise ProtocolError("image_not_found", f"图片文件不存在: {source}", path="params.value") from exc
+        except OSError as exc:
+            raise ProtocolError("image_not_found", f"图片文件不可读: {source} ({exc})", path="params.value") from exc
+        if stat.st_size > IMAGE_MAX_BYTES:
+            raise ProtocolError(
+                "image_too_large",
+                f"图片超过 10MB 上限: {stat.st_size} 字节(limit={IMAGE_MAX_BYTES})",
+                path="params.value", data={"size": stat.st_size, "limit": IMAGE_MAX_BYTES},
+            )
         try:
             data = source.read_bytes()
         except FileNotFoundError as exc:
@@ -1642,6 +1660,14 @@ def _vision_probe(base_url: str, *, api_key: str | None) -> None:
         raise OSError(f"HTTP {response.status_code}")
 
 
+def _image_record_completed(payload: dict[str, Any]) -> None:
+    """终态先入注册表、后写事件流:对账读到的必是已写出(或将立即写出)的同一载荷。"""
+    global _IMAGE_LAST_COMPLETED
+    with _IMAGE_LOCK:
+        _IMAGE_LAST_COMPLETED = payload
+    _write_line(payload)
+
+
 def _image_analyze_worker(
     job_id: int,
     *,
@@ -1665,8 +1691,8 @@ def _image_analyze_worker(
         error: dict[str, Any] = {"code": code, "message": message}
         if data is not None:
             error["data"] = data
-        _write_line({"type": "image.completed", "job_id": job_id, "ok": False,
-                     "error": error, "ts": _now_iso()})
+        _image_record_completed({"type": "image.completed", "job_id": job_id, "ok": False,
+                                 "error": error, "ts": _now_iso()})
 
     started = time.monotonic()
     try:
@@ -1717,8 +1743,8 @@ def _image_analyze_worker(
         }
         if ocr_used:
             payload["ocr_engine"] = ocr_engine
-        _write_line({"type": "image.completed", "job_id": job_id, "ok": True,
-                     "result": payload, "ts": _now_iso()})
+        _image_record_completed({"type": "image.completed", "job_id": job_id, "ok": True,
+                                 "result": payload, "ts": _now_iso()})
     except Exception as exc:  # noqa: BLE001 — 工作线程兜底:错误必须以事件形式可见
         _fail("image_provider_error", f"{type(exc).__name__}: {exc}")
     finally:
@@ -1798,13 +1824,23 @@ def _m_image_analyze(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def _m_image_status(params: dict[str, Any]) -> dict[str, Any]:
-    """看图任务对账(UI 重连时):busy + 当前 job_id(空闲时省略 job_id)。"""
+    """看图任务对账(UI 重连/订阅竞态):busy + 当前 job_id(空闲时省略 job_id)。
+
+    带 ``job_id`` 查询时附 ``last``:最近一次终态的 ``image.completed`` 原文
+    载荷(自带 job_id,调用方自行比对)。瞬时失败任务的 completed 事件可能在
+    webview 订阅建立前写出而被丢弃 —— UI 订阅就绪后按 job_id 拉一次对账即恢复,
+    不卡「进行中」。不带 ``job_id`` 的旧形状(``{busy, job_id?}``)保持不变。
+    """
     with _IMAGE_LOCK:
         busy = _IMAGE_ACTIVE_JOB is not None
         active = _IMAGE_ACTIVE_JOB
+        last = _IMAGE_LAST_COMPLETED
     result: dict[str, Any] = {"busy": busy}
     if busy:
         result["job_id"] = active
+    job_id = params.get("job_id")
+    if isinstance(job_id, int) and last is not None:
+        result["last"] = last
     return result
 
 

@@ -4,13 +4,13 @@
 // 内存态模拟 plugins 目录)+ mock @uiw/react-codemirror(textarea 受控替身,
 // 编辑器真实渲染的 jsdom 集成见 editor-pane.test.tsx)。覆盖(design §7 UI 清单):
 // list 渲染+坏文件徽标 / ?file= 预选读原文+完整路径 / 读取失败错误态 /
-// dirty 守卫(拦截切换) / 校验干跑 findings 分级 / 保存失败结构化错误 /
+// dirty 守卫(拦截切换 + SPA 路由离开) / 校验干跑 findings 分级 / 保存失败结构化错误 /
 // 保存成功(+自动 doctor 复核+warnings 带回) / 新建流(stem 预检→模板草稿→
 // save null mtime) / 跑一次(dirty 禁用→发起) / 采集运行中只提示不拦 /
 // 删除(confirm 文案+列表刷新+选中回 idle) / Cmd+S 保存。
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+import { createMemoryRouter, Link, RouterProvider } from "react-router-dom";
 
 const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: mocks.invoke }));
@@ -216,12 +216,28 @@ function lastCall(method: string): { params: unknown } | undefined {
   return calls.at(-1)?.[1] as { params: unknown } | undefined;
 }
 
+/**
+ * 数据路由挂载(useBlocker 守卫的前提,与 main.tsx createHashRouter 同款形态):
+ * /yaml-editor 挂屏本体 + 一条「侧栏替身」链接(与侧栏同机制的应用内 <Link>
+ * 导航,供路由离开守卫用例点击);/logs 为去向屏替身。
+ */
 function renderScreen(initialPath = "/yaml-editor") {
-  return render(
-    <MemoryRouter initialEntries={[initialPath]}>
-      <YamlEditorScreen />
-    </MemoryRouter>,
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/yaml-editor",
+        element: (
+          <>
+            <YamlEditorScreen />
+            <Link to="/logs">测试导航:切日志屏</Link>
+          </>
+        ),
+      },
+      { path: "/logs", element: <div data-testid="logs-screen">日志屏</div> },
+    ],
+    { initialEntries: [initialPath] },
   );
+  return { router, ...render(<RouterProvider router={router} />) };
 }
 
 /** 编辑器替身(textarea) */
@@ -350,6 +366,53 @@ describe("配置编辑:dirty 守卫", () => {
       expect(editor().value).toBe(BROKEN_CONTENT);
     });
     expect(lastCall("yaml.read")?.params).toEqual({ file: BROKEN });
+  });
+
+  it("路由离开守卫:干净态切屏直接放行,confirm 零调用", async () => {
+    installSidecar(okSidecar().map);
+    const { router } = renderScreen();
+    await openByClick(AI);
+    await waitFor(() => {
+      expect(editor().value).toContain("id: ai-news");
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: "测试导航:切日志屏" }));
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/logs");
+    });
+    expect(confirmSpy).not.toHaveBeenCalled();
+  });
+
+  it("路由离开守卫:dirty 时 SPA 内切屏 confirm;取消留在本屏内容不丢,确认后离开", async () => {
+    installSidecar(okSidecar().map);
+    const { router } = renderScreen();
+    await openByClick(AI);
+    await waitFor(() => {
+      expect(editor().value).toContain("id: ai-news");
+    });
+    fireEvent.change(editor(), { target: { value: AI_CONTENT.replace("*/15", "0 9") } });
+    await waitFor(() => {
+      expect(screen.getByTestId("editor-title").textContent).toContain("ai-news.yaml *");
+    });
+
+    // 取消:留在本屏,编辑内容原样(未保存修改不随卸载静默丢)
+    confirmSpy.mockReturnValueOnce(false);
+    fireEvent.click(screen.getByRole("link", { name: "测试导航:切日志屏" }));
+    await waitFor(() => {
+      expect(confirmSpy).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/yaml-editor"); // 导航被拦
+    });
+    expect(editor().value).toContain("0 9 * * *"); // 草稿还在
+
+    // 确认:离开本屏(用户明示放弃)
+    confirmSpy.mockReturnValueOnce(true);
+    fireEvent.click(screen.getByRole("link", { name: "测试导航:切日志屏" }));
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/logs");
+    });
+    expect(await screen.findByTestId("logs-screen")).toBeTruthy();
   });
 });
 

@@ -8,8 +8,10 @@
  *   image.import {kind: path|base64, value, mime?} → {id, path, bytes, ext}
  *   image.ocr   {id, engine?}                     → {lines:[{text,conf}], engine, ms}
  *   image.analyze {id, mode, question?, channel?} → {job_id}(结果走事件流)
- *   image.status {}                               → {busy, job_id?}
- *   image.config.read {}                          → 脱敏配置(VisionConfig)
+ *   image.status {job_id?}                        → {busy, job_id?};带 job_id 查询
+ *                                                  附 last=最近终态(订阅竞态对账)
+ *   image.config.read {}                          → {file, exists, config}(config 为
+ *                                                  脱敏 VisionConfig;本模块解包返 config)
  *   image.config.save {config}                    → {ok}
  *
  * 事件:image.progress / image.completed(壳转发 sidecar://event;订阅走共享
@@ -28,6 +30,7 @@ import { SidecarRequestError } from "@/lib/api";
 import type {
   AnalyzeMode,
   ImageAnalyzeResult,
+  ImageConfigReadResult,
   ImageImportResult,
   ImageOcrResult,
   ImageStatusResult,
@@ -124,25 +127,31 @@ export async function startImageAnalyze(params: {
   }
 }
 
-/** 看图任务对账(重连/进屏时是否已有 job 在跑)。 */
-export async function imageStatus(): Promise<ImageStatusResult> {
+/** 看图任务对账(重连/进屏时是否已有 job 在跑;带 jobId 时附最近终态 last)。 */
+export async function imageStatus(jobId?: number): Promise<ImageStatusResult> {
   try {
     return await invoke<ImageStatusResult>("sidecar_request", {
       method: "image.status",
-      params: {},
+      params: { ...(jobId !== undefined ? { job_id: jobId } : {}) },
     });
   } catch (raw) {
     throw asSidecarError(raw);
   }
 }
 
-/** 读看图结构配置(vision.yaml;keychain 引用不回明文)。 */
+/** 读看图结构配置(vision.yaml;keychain 引用不回明文)。
+ *  协议应答是 {file, exists, config} 包装(entry.py 锁定),此处解包返 config;
+ *  mock/异常应答缺 config 字段时原样透传,由调用方形状防御如实呈现。 */
 export async function readImageConfig(): Promise<VisionConfig> {
   try {
-    return await invoke<VisionConfig>("sidecar_request", {
+    const response = await invoke<ImageConfigReadResult>("sidecar_request", {
       method: "image.config.read",
       params: {},
     });
+    if (response && typeof response === "object" && "config" in response) {
+      return response.config;
+    }
+    return response as unknown as VisionConfig;
   } catch (raw) {
     throw asSidecarError(raw);
   }
@@ -264,7 +273,9 @@ export async function copyText(text: string): Promise<boolean> {
 
 export const DEFAULT_VISION_CONFIG: VisionConfig = {
   channel_default: "local",
-  local: { base_url: "http://127.0.0.1:8080", model: "" },
+  // 带 /v1 后缀,与 Python 缺省一致(settings.py DEFAULT_LOCAL_BASE_URL:SDK 按
+  // {base_url}/chat/completions 发请求,mlx-vlm 端点在 /v1 下,不带后缀 404)
+  local: { base_url: "http://127.0.0.1:8080/v1", model: "" },
   cloud: { base_url: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4.6v", api_key: null },
   ocr: { enabled: true, engine_default: "vision" },
 };

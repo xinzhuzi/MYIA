@@ -89,7 +89,7 @@ export function VisionForm({ secretNames }: VisionFormProps) {
   const handleSave = useCallback(async () => {
     const localBase = form.localBaseUrl.trim() || DEFAULT_VISION_CONFIG.local.base_url;
     if (!/^https?:\/\//.test(localBase)) {
-      setErrors({ localBaseUrl: "本地 base_url 须为 http(s) 地址(留空用默认 http://127.0.0.1:8080)" });
+      setErrors({ localBaseUrl: "本地 base_url 须为 http(s) 地址(留空用默认 http://127.0.0.1:8080/v1)" });
       return;
     }
     setErrors({});
@@ -198,11 +198,11 @@ export function VisionForm({ secretNames }: VisionFormProps) {
         <FieldInput
           label="本地 base_url"
           aria-label="本地 base_url"
-          placeholder="http://127.0.0.1:8080(mlx-vlm;LM Studio 为 http://127.0.0.1:1234)"
+          placeholder="http://127.0.0.1:8080/v1(mlx-vlm;LM Studio 为 http://127.0.0.1:1234/v1)"
           value={form.localBaseUrl}
           onChange={(event) => setForm((prev) => ({ ...prev, localBaseUrl: event.target.value }))}
           error={errors.localBaseUrl}
-          hint="OpenAI 兼容端点;默认 http://127.0.0.1:8080,留空按默认保存"
+          hint="OpenAI 兼容端点(含 /v1 路径);默认 http://127.0.0.1:8080/v1,留空按默认保存"
         />
         <FieldInput
           label="本地模型路径"

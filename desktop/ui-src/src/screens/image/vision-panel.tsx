@@ -8,12 +8,13 @@ import { onSidecarEvent, SidecarRequestError } from "@/lib/api";
 import type {
   AnalyzeMode,
   ImageAnalyzeOutcome,
+  ImageCompletedEvent,
   SidecarErrorShape,
   UnlistenFn,
   VisionChannel,
 } from "@/lib/api";
 
-import { asSidecarError, copyText, hasCloudConsent, rememberCloudConsent, startImageAnalyze } from "./api";
+import { asSidecarError, copyText, hasCloudConsent, imageStatus, rememberCloudConsent, startImageAnalyze } from "./api";
 
 const MODES: { key: AnalyzeMode; label: string; hint: string }[] = [
   { key: "read", label: "读字校对", hint: "OCR 初稿嵌校对 prompt,对照图片逐行修正确有出入的字" },
@@ -125,28 +126,45 @@ export function VisionPanel({ imageId, mode, onModeChange, channel, onChannelCha
     if (jobPhase !== "running" || jobId === null) return;
     let unlisten: UnlistenFn | null = null;
     let cancelled = false;
+    const applyCompleted = (event: ImageCompletedEvent) => {
+      if (event.ok && event.result) {
+        setJob({ phase: "done", outcome: event.result });
+      } else {
+        const shape = (event.error ?? undefined) as SidecarErrorShape | undefined;
+        setJob({
+          phase: "error",
+          error: shape
+            ? new SidecarRequestError(shape)
+            : new SidecarRequestError({ code: "image_provider_error", path: "$", message: "看图任务失败(事件未携带错误明细)" }),
+        });
+      }
+    };
     void onSidecarEvent((event) => {
       if (event.type === "image.progress" && event.job_id === jobId) {
         setJob((current) =>
           current.phase === "running" ? { ...current, stage: event.stage, pct: event.pct } : current,
         );
       } else if (event.type === "image.completed" && event.job_id === jobId) {
-        if (event.ok && event.result) {
-          setJob({ phase: "done", outcome: event.result });
-        } else {
-          const shape = (event.error ?? undefined) as SidecarErrorShape | undefined;
-          setJob({
-            phase: "error",
-            error: shape
-              ? new SidecarRequestError(shape)
-              : new SidecarRequestError({ code: "image_provider_error", path: "$", message: "看图任务失败(事件未携带错误明细)" }),
-          });
-        }
+        applyCompleted(event);
       }
     })
-      .then((un) => {
-        if (cancelled) un();
-        else unlisten = un;
+      .then(async (un) => {
+        if (cancelled) {
+          un();
+          return;
+        }
+        unlisten = un;
+        // 对账:瞬时失败任务的 completed 可能在订阅建立前写出而被丢(壳转发无
+        // 重放)—— 订阅就绪后按 job_id 拉 image.status,最近终态即本任务应见的
+        // 那份(design:image.status UI 对账),面板不永久卡「进行中」
+        try {
+          const status = await imageStatus(jobId);
+          if (!cancelled && status.last && status.last.job_id === jobId) {
+            applyCompleted(status.last);
+          }
+        } catch {
+          // 对账不可达:保持事件流路径(completed 正常仍经事件抵达)
+        }
       })
       .catch(() => {
         // 订阅不可用:completed 不会到达;保持 running 态如实可见(用户可换通道重试)
@@ -330,8 +348,8 @@ export function VisionPanel({ imageId, mode, onModeChange, channel, onChannelCha
             </p>
             {job.error.code === "image_unreachable" ? (
               <p className="mt-1 text-xs text-muted-foreground">
-                启动指引:本地端点按设置 → 看图的 base_url(默认 http://127.0.0.1:8080,mlx-vlm
-                <span className="font-mono"> mlx_vlm.server --model &lt;路径&gt;</span>);LM Studio 备选 :1234。
+                启动指引:本地端点按设置 → 看图的 base_url(默认 http://127.0.0.1:8080/v1,mlx-vlm
+                <span className="font-mono"> mlx_vlm.server --model &lt;路径&gt;</span>);LM Studio 备选 :1234/v1。
               </p>
             ) : null}
             {job.error.code === "image_no_credentials" ? (

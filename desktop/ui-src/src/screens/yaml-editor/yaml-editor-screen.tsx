@@ -1,6 +1,6 @@
 import { Play, RefreshCw, Save, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useBlocker, useSearchParams } from "react-router-dom";
 
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
@@ -95,8 +95,8 @@ function joinPath(dir: string, name: string): string {
  * 写链路:yaml.save(同门校验 error 级零容忍零写入 → .bak → 原子落盘,mtime
  * 乐观锁)→ 成功自动 doctor({yamls:[file]}) 复核 + 「跑一次」(run.start,
  * dirty 禁用);失败结构化错误展示,绝不假装成功。dirty 守卫 = 切文件/新建/
- * 删除前 window.confirm + beforeunload(应用级 v1;SPA 内路由拦截需数据路由
- * 改造,超本步范围)。源管理行「编辑」经 /yaml-editor?file=… 预选。
+ * 删除前 window.confirm + SPA 路由离开 useBlocker(confirm)+ beforeunload
+ * (窗口关闭/刷新)。源管理行「编辑」经 /yaml-editor?file=… 预选。
  */
 export function YamlEditorScreen() {
   const [list, setList] = useState<ListState>({ status: "loading", files: [], pluginsDir: "", error: null });
@@ -333,7 +333,7 @@ export function YamlEditorScreen() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleSave]);
 
-  // 应用级 dirty 守卫:窗口关闭/刷新(SPA 内路由拦截需数据路由改造,超出 v1)
+  // 应用级 dirty 守卫:窗口关闭/刷新
   useEffect(() => {
     if (!dirty) return;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -343,6 +343,22 @@ export function YamlEditorScreen() {
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty]);
+
+  // SPA 路由级 dirty 守卫:侧栏切屏等应用内导航经 useBlocker 拦截(main.tsx 已
+  // 转数据路由);同屏仅变查询参数(源管理「编辑」预选)不拦,预选自身有切文件
+  // confirm 兜底。确认离开 = proceed,取消 = reset 留守(design §3 路由半边)
+  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+    dirty && currentLocation.pathname !== nextLocation.pathname,
+  );
+
+  useEffect(() => {
+    if (blocker.state !== "blocked") return;
+    if (window.confirm("当前文件有未保存的修改,离开将丢失(可先保存或复制留底)。确定离开?")) {
+      blocker.proceed();
+    } else {
+      blocker.reset();
+    }
+  }, [blocker]);
 
   const selectedFile = doc.status === "ready" || doc.status === "loading" ? doc.file : null;
   const draftName = docReady?.draft ? docReady.fileName : null;

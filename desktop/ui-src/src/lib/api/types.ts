@@ -489,9 +489,18 @@ export interface ImageAnalyzeResult {
   job_id: number;
 }
 
+/** image.status 参数:job_id 可选 —— 携带时应答附最近终态(订阅竞态对账)。 */
+export interface ImageStatusParams {
+  job_id?: number;
+}
+
 export interface ImageStatusResult {
   busy: boolean;
   job_id?: number;
+  /** 查询携带 job_id 时附:最近一次终态的 image.completed 原文载荷(自带
+   *  job_id,调用方比对)。瞬时失败任务的 completed 事件可能在订阅建立前
+   *  写出而被丢 —— 订阅就绪后拉一次即恢复,不卡「进行中」。 */
+  last?: ImageCompletedEvent;
 }
 
 /** 看图结构配置(vision.yaml;MYIA_HOME 第一个全局配置文件)。
@@ -521,6 +530,14 @@ export interface ImageConfigSaveResult {
   ok: true;
 }
 
+/** image.config.read 应答:脱敏配置外层包装(Python 侧 entry.py 锁定形状;
+ *  exists=false = 文件未建 = 合法未配置态,config 恒为全缺省)。 */
+export interface ImageConfigReadResult {
+  file: string;
+  exists: boolean;
+  config: VisionConfig;
+}
+
 /** image.config.save 的参数:整份配置同门校验,失败零写入 */
 export interface ImageConfigSaveParams {
   config: VisionConfig;
@@ -544,8 +561,8 @@ export interface SidecarProtocol {
   "image.import": { params: ImageImportParams; result: ImageImportResult };
   "image.ocr": { params: ImageOcrParams; result: ImageOcrResult };
   "image.analyze": { params: ImageAnalyzeParams; result: ImageAnalyzeResult };
-  "image.status": { params: EmptyParams; result: ImageStatusResult };
-  "image.config.read": { params: EmptyParams; result: VisionConfig };
+  "image.status": { params: ImageStatusParams; result: ImageStatusResult };
+  "image.config.read": { params: EmptyParams; result: ImageConfigReadResult };
   "image.config.save": { params: ImageConfigSaveParams; result: ImageConfigSaveResult };
 }
 

@@ -170,6 +170,9 @@ class Channel(Protocol):
     寻址(定向推送)。缺省 False——stdout/webhook 永不支持;feishu_card/
     telegram 在各自子任务翻成 True 并实现 ``context.target`` 覆盖。协议外的
     duck-typed 通道用 ``getattr(channel, "supports_targeting", False)`` 判定。
+    蓝本:Hermes ``gateway/platform_registry.py`` + ``tools/send_message_senders.py``
+    (NousResearch/Hermes-Agent,MIT)的适配器接口——MYIA 不建平行协议,目录
+    能力直接挂本协议(design D1 定案,对照表见任务档 prd)。
     可选能力钩子(支持寻址的通道按需提供,见 targets/delivery 模块):
 
     - ``parse_direct_ref(ref)``:直达对象解析(类方法;显式 id/@username

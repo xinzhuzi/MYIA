@@ -171,7 +171,11 @@ class TestLegacyPathUnchanged:
 
         result = _run_pipeline(tmp_path, config, ["免费送 NAS 券", "白嫖机场体验"])
 
-        calls = [c for inst in CapturingStdout.__instances] if hasattr(CapturingStdout, "__instances") else []
+        calls = [c for inst in CapturingStdout.instances for c in inst.calls]
+        assert calls, "stdout 假体应捕获到 2 次 immediate 发送"
+        # legacy 路径承诺:不配 targets 时 context.target 恒为 None(通道
+        # 自带单 target 兜底,行为逐字节不变)。
+        assert all(c["context"].target is None for c in calls)
         # 直接从 push 报告断言:immediate 2 条全部成功,不涉及对象。
         push_report = result.pushes[0]
         assert push_report.channel == "stdout"

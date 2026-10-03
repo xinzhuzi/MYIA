@@ -1083,6 +1083,34 @@ def test_yaml_save_new_file_roundtrip_and_not_found_fork(tmp_path, monkeypatch):
     assert not ghost.exists()
 
 
+def test_yaml_save_overwrite_backs_up_previous_content(tmp_path, monkeypatch):
+    """save 成功覆盖已有文件:.bak = 保存前旧原文(含注释,逐字节),应答
+    backed_up 指向它;单份滚动 —— 二次保存后 .bak 前移为上一次内容
+    (design §7 测试清单「save 的 .bak 内容 = 旧原文」的锁定项)。"""
+    plugins = _editor_plugins(tmp_path, monkeypatch, ("demo.yaml", EDITOR_YAML))
+    path = plugins / "demo.yaml"
+    bak = plugins / "demo.yaml.bak"
+    assert not bak.exists()  # 起点:无备份(只有真覆盖才产生)
+    edited = EDITOR_YAML.replace('schedule: "0 9 * * *"', 'schedule: "*/15 * * * *"')
+    code, responses, _ = rpc({"id": 1, "method": "yaml.save",
+                              "params": {"file": str(path), "content": edited,
+                                         "expected_mtime": path.stat().st_mtime}})
+    result = responses[0]["result"]
+    assert code == 0
+    assert result["created"] is False
+    assert result["backed_up"] == str(bak)
+    assert path.read_text(encoding="utf-8") == edited  # 新内容落盘
+    assert bak.read_text(encoding="utf-8") == EDITOR_YAML  # .bak = 旧原文(头注释在内)
+    # 单份滚动:再保存一次,.bak 换成上一次内容(永远只有最近一份留底)
+    twice = edited.replace("name: 编辑器夹具", "name: 编辑器夹具二")
+    _, responses, _ = rpc({"id": 2, "method": "yaml.save",
+                           "params": {"file": str(path), "content": twice,
+                                      "expected_mtime": result["mtime"]}})
+    assert responses[0]["result"]["created"] is False
+    assert path.read_text(encoding="utf-8") == twice
+    assert bak.read_text(encoding="utf-8") == edited  # .bak 前移为上一次内容
+
+
 def test_yaml_save_duplicate_category_id_rejected(tmp_path, monkeypatch):
     """跨文件品类 id 查重:新建内容撞既有 id → duplicate_category_id(data 带
     冲突文件),零写入(静默混品类地雷在写盘门收口)。"""
@@ -1688,6 +1716,32 @@ def test_image_status_busy_reports_job(tmp_path):
         assert responses[0]["result"] == {"busy": True, "job_id": 3}
     finally:
         entry._IMAGE_ACTIVE_JOB = None
+
+
+def test_image_status_last_completed_reconciliation(tmp_path, monkeypatch):
+    """status 对账:瞬时失败任务的 completed 可能在 webview 订阅建立前写出而被
+    丢 —— 带 job_id 查询附 ``last``(与事件流同一载荷);不带 job_id 保持旧形状。"""
+    imported = _import_image(monkeypatch, tmp_path)
+    _save_vision_config(monkeypatch, dict(VISION_CONFIG_OK))
+    _fake_vision_client(monkeypatch)
+    _fake_probe(monkeypatch, fail=OSError("ConnectionRefusedError: [Errno 61]"))
+
+    out = io.StringIO()
+    stdin = io.StringIO(json.dumps({"id": 1, "method": "image.analyze",
+                                    "params": {"id": imported["id"], "mode": "describe"}},
+                                   ensure_ascii=False) + "\n")
+    entry.serve(stdin=stdin, stdout=out)
+    job_id = split_stream(out)[0][0]["result"]["job_id"]  # 应答与事件行序不保证,按 id 拆
+    completed = wait_image_completed(out, job_id)
+    assert completed["ok"] is False
+
+    code, responses, _ = rpc({"id": 2, "method": "image.status", "params": {}})
+    assert responses[0]["result"] == {"busy": False}  # 旧形状:不带 job_id 不附 last
+    code, responses, _ = rpc({"id": 3, "method": "image.status", "params": {"job_id": job_id}})
+    result = responses[0]["result"]
+    assert result["busy"] is False
+    assert result["last"] == completed  # 注册表留存 = 事件流写出的同一份终态载荷
+    assert result["last"]["error"]["code"] == "image_unreachable"
 
 
 def test_image_config_read_defaults_without_file(tmp_path, monkeypatch):
