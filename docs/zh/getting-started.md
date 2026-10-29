@@ -10,7 +10,7 @@
 ### 1.1 桌面应用(推荐)
 
 桌面安装包(macOS dmg / Windows msi)从
-[Releases](https://github.com/xinzhuzi/myia/releases) 下载。**Python 运行时与
+[zhuzibaijia.online](https://zhuzibaijia.online/) 取。**Python 运行时与
 第三方依赖不随安装包分发**(包体因此显著更小):装好后首次启动,到
 **设置 → Python 环境** 分区点「开始配置」,应用在线安装一套自管环境,全程状态
 可见、失败可重试:

@@ -30,10 +30,9 @@
 
 ### 桌面端(不想碰命令行的走这条)
 
-下载:v0.0.1 的 macOS 安装包(2026-10-04 实测 Release 资产名为
-`shishi_0.0.1_aarch64.dmg`——发布时仓库短暂用旧名,定名终局 myssia 后未重发,
-**发帖当日从 Release 页复制实际资产直链,以页面为准**)→
-https://github.com/xinzhuzi/myia/releases/tag/v0.0.1
+下载:macOS 安装包(取站内当日列出的版本,
+**发帖当日从取包页复制实际资产直链,以页面为准**)→
+https://zhuzibaijia.online/
 
 丑话说在前面:
 
@@ -160,7 +159,7 @@ secret set` 管录入,值走 stdin 不进 shell history、不进日志、不进
 
 - 仓库:https://github.com/xinzhuzi/myia
 - 中文快速上手:https://github.com/xinzhuzi/myia/blob/main/docs/zh/getting-started.md
-- v0.0.1 Release:https://github.com/xinzhuzi/myia/releases/tag/v0.0.1
+- 桌面取包:https://zhuzibaijia.online/
 
 求反馈,尤其想听:你们想先盯什么品类?哪些源该进官方插件清单?桌面端
 macOS 的打开体验有没有被 Gatekeeper 恶心到(除了右键打开还有什么顺手的

@@ -115,10 +115,10 @@ Releases, the Docker image above, and the PyPI packages (that pair is still
 in flight: registration pending, so CLI install stays source-based for
 now). The desktop app got daily-drivable:
 
-- macOS (Apple Silicon) installer on
-  [GitHub Releases](https://github.com/xinzhuzi/myia/releases/tag/v0.0.1) —
-  grab the dmg (heads-up: the asset currently carries the short-lived old
-  repo name, `shishi_0.0.1_aarch64.dmg`; the Releases page is authoritative).
+- macOS (Apple Silicon) installer from
+  [zhuzibaijia.online](https://zhuzibaijia.online/) —
+  grab the dmg (the download page is authoritative for the asset name and
+  version).
   It is **not** Apple-notarized (notarization needs a paid developer
   account, which I don't have yet), so first launch takes the right-click →
   Open → Open dance; every installer is built in public CI with traceable
@@ -167,7 +167,7 @@ Honest status:
 Links:
 
 - Repo: https://github.com/xinzhuzi/myia (MIT)
-- Release v0.0.1: https://github.com/xinzhuzi/myia/releases/tag/v0.0.1
+- Desktop installers: https://zhuzibaijia.online/
 - Agent Skill (for your coding agent): https://github.com/xinzhuzi/myia/blob/main/skill/SKILL.md
 
 Happy to answer questions — especially on the degrade chain and the

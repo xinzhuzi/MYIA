@@ -25,7 +25,7 @@
 
 <sub>世事 三分钟 —— 一个 YAML → 情报推送。录制脚本与分镜:<a href="docs/demo/"><code>docs/demo/</code></a></sub>
 
-**[⬇️ macOS .dmg](https://github.com/xinzhuzi/MYIA/releases/download/v0.0.16/myssia_0.0.16_aarch64.dmg)** · **[⬇️ Windows .msi](https://github.com/xinzhuzi/MYIA/releases/download/v0.0.16/myssia_0.0.16_x64.msi)** · [全部版本 Releases](https://github.com/xinzhuzi/MYIA/releases)
+**[⬇️ macOS .dmg](https://zhuzibaijia.online/)** · **[⬇️ Windows .msi](https://zhuzibaijia.online/)** · [取包入口 · 诸子百家](https://zhuzibaijia.online/)
 
 <sub>🛰 同门出品 · AI API 中转站:<a href="https://zhuzibaijia.online/"><b>诸子百家 · zhuzibaijia.online</b></a></sub>
 
@@ -228,18 +228,17 @@ uv run myssia run config/demo-min.yaml                    # 正式跑;--loop 常
 
 完整走读:[docs/zh/getting-started.md](docs/zh/getting-started.md)。
 
-> 桌面安装包见下方「下载安装」(随 GitHub Releases 交付);CLI 用户按上文源码
+> 桌面安装包见下方「下载安装」(经 [zhuzibaijia.online](https://zhuzibaijia.online/) 分发);CLI 用户按上文源码
 > 安装,PyPI 发布暂停中。
 
 ## 下载安装(桌面应用)
 
-安装包随 GitHub Releases 交付(当前 **v0.0.16**:macOS dmg 与 Windows msi 均带签名更新通道,「检查更新」可用)。
+安装包经 **[诸子百家 · zhuzibaijia.online](https://zhuzibaijia.online/)** 分发(macOS dmg 与 Windows msi 均带签名更新通道,「检查更新」可用)。
 
 ### macOS(Apple Silicon)
 
-1. 下载
-   [`myssia_0.0.16_aarch64.dmg`](https://github.com/xinzhuzi/MYIA/releases/download/v0.0.16/myssia_0.0.16_aarch64.dmg)
-   (或到 [Releases](https://github.com/xinzhuzi/MYIA/releases) 取最新版),
+1. 到 [zhuzibaijia.online](https://zhuzibaijia.online/) 取 macOS 安装包
+   (`myssia_<版本>_aarch64.dmg`,以站内当日列出的版本为准),
    把 世事 拖入「应用程序」;
 2. 首次打开:**在「应用程序」里右键 世事 →「打开」→ 再点「打开」**
    (或双击被拦后到 系统设置 → 隐私与安全性 → 点「仍要打开」);
@@ -256,11 +255,9 @@ uv run myssia run config/demo-min.yaml                    # 正式跑;--loop 常
 
 ### Windows(x64)
 
-安装包(msi)已随 GitHub Releases 交付(v0.0.3 起挂 `myssia_<版本>_x64.msi`):
+安装包(msi)同样经 [zhuzibaijia.online](https://zhuzibaijia.online/) 交付(命名 `myssia_<版本>_x64.msi`):
 
-1. 下载
-   [`myssia_0.0.16_x64.msi`](https://github.com/xinzhuzi/MYIA/releases/download/v0.0.16/myssia_0.0.16_x64.msi)
-   (或到 [Releases](https://github.com/xinzhuzi/MYIA/releases) 取最新版),
+1. 到 [zhuzibaijia.online](https://zhuzibaijia.online/) 取 Windows 安装包,
    双击安装;
 2. 首次运行弹 SmartScreen「Windows 已保护你的电脑」时,点
    **「更多信息」→「仍要运行」**(未购买代码签名证书的如实代价,与 macOS

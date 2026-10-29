@@ -110,9 +110,8 @@ push:
 
 **安装**:
 
-- 桌面(macOS Apple Silicon):Releases 下载 dmg(2026-10-04 实测 Release
-  资产名为 `shishi_0.0.1_aarch64.dmg`,约 117 MB——发布时仓库短暂用旧名,
-  定名终局 myssia 后未重发,以 Release 页实际资产为准)。安装包没做 Apple
+- 桌面(macOS Apple Silicon):从 https://zhuzibaijia.online/ 取 dmg(约 117 MB,
+  以取包页实际资产为准)。安装包没做 Apple
   公证(公证要付费开发者账号)——代码全开源、每个包由 GitHub Actions 公开
   构建、日志可溯;首次打开右键 →「打开」放行 Gatekeeper,之后正常双击。
 - CLI:仓库是 uv workspace,源码安装 `git clone` + `uv sync`
@@ -135,7 +134,7 @@ CI 全绿;1300+ 测试零真实网络(全部录制回放,README 徽章口径),�
 链接:
 
 - 仓库:https://github.com/xinzhuzi/myia
-- Release v0.0.1(dmg + 签名更新通道):https://github.com/xinzhuzi/myia/releases/tag/v0.0.1
+- 桌面取包(dmg + 签名更新通道):https://zhuzibaijia.online/
 - 快速上手:https://github.com/xinzhuzi/myia/blob/main/docs/zh/getting-started.md
 - 许可:MIT
 

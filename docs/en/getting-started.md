@@ -13,7 +13,7 @@
 ### 1.1 Desktop app (recommended)
 
 Grab the desktop installer (macOS dmg / Windows msi) from
-[Releases](https://github.com/xinzhuzi/myia/releases). **The Python runtime
+[zhuzibaijia.online](https://zhuzibaijia.online/). **The Python runtime
 and third-party dependencies do not ship inside the installer** (which keeps
 it much smaller): on first launch open **Settings → Python environment** and
 click "Start setup" — the app then installs a self-managed environment

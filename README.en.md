@@ -25,7 +25,7 @@
 
 <sub>世事 三分钟 —— 一个 YAML → 情报推送。录制脚本与分镜:<a href="docs/demo/"><code>docs/demo/</code></a></sub>
 
-**[⬇️ macOS .dmg](https://github.com/xinzhuzi/MYIA/releases/download/v0.0.16/myssia_0.0.16_aarch64.dmg)** · **[⬇️ Windows .msi](https://github.com/xinzhuzi/MYIA/releases/download/v0.0.16/myssia_0.0.16_x64.msi)** · [All releases](https://github.com/xinzhuzi/MYIA/releases)
+**[⬇️ macOS .dmg](https://zhuzibaijia.online/)** · **[⬇️ Windows .msi](https://zhuzibaijia.online/)** · [Download portal](https://zhuzibaijia.online/)
 
 <sub>🛰 From the same maker — an AI API gateway: <a href="https://zhuzibaijia.online/"><b>zhuzibaijia.online</b></a></sub>
 
@@ -255,18 +255,19 @@ uv run myssia run config/demo-min.yaml                    # real run; add --loop
 
 Full walk-through: [docs/en/getting-started.md](docs/en/getting-started.md).
 
-> Desktop installers ship in "Download & install" below (via GitHub Releases);
+> Desktop installers ship in "Download & install" below (distributed via
+> [zhuzibaijia.online](https://zhuzibaijia.online/));
 > CLI users install from source as above — PyPI publishing is paused.
 
 ## Download & install (desktop app)
 
-Installers ship via GitHub Releases (currently **v0.0.16** — macOS dmg and Windows msi both present, signed update channel and "Check for updates" working).
+Installers are distributed through **[zhuzibaijia.online](https://zhuzibaijia.online/)** — macOS dmg and Windows msi both carry the signed update channel, so "Check for updates" works.
 
 The macOS (Apple Silicon) install:
 
-1. Download
-   [`myssia_0.0.16_aarch64.dmg`](https://github.com/xinzhuzi/MYIA/releases/download/v0.0.16/myssia_0.0.16_aarch64.dmg)
-   (or grab the latest from [Releases](https://github.com/xinzhuzi/MYIA/releases))
+1. Grab the macOS installer
+   (`myssia_<version>_aarch64.dmg` — take the version listed on the site that day)
+   from [zhuzibaijia.online](https://zhuzibaijia.online/)
    and drag 世事 into Applications;
 2. On first launch: **right-click 世事 in Applications → Open → Open**
    (or, after a blocked double-click: System Settings → Privacy & Security →
@@ -287,9 +288,8 @@ The macOS (Apple Silicon) install:
    first setup needs network. See
    [Getting started §1.1](docs/en/getting-started.md).
 
-On Windows (x64) the flow is the same: download
-[`myssia_0.0.16_x64.msi`](https://github.com/xinzhuzi/MYIA/releases/download/v0.0.16/myssia_0.0.16_x64.msi)
-(or the latest from [Releases](https://github.com/xinzhuzi/MYIA/releases)); the installer downloads the `x86_64-pc-windows-msvc`
+On Windows (x64) the flow is the same: grab the installer
+(`myssia_<version>_x64.msi`) from [zhuzibaijia.online](https://zhuzibaijia.online/); the installer downloads the `x86_64-pc-windows-msvc`
 equivalent of the same pinned runtime on first setup; the data root is
 `%APPDATA%\MYIA` with the managed Python under `python\`; upgrades go through
 "Check for updates" (silent passive msi install + restart, see

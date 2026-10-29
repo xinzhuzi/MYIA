@@ -55,10 +55,8 @@ https://github.com/xinzhuzi/myia
   `docs/screenshots/dashboard.png`、`feed.png`、`sources.png`、`logs.png`、
   `settings.png` —— 连动图共 6 张,即刻单帖图数上限以 App 实际为准。
 - 评论区置顶(安装入口集中在这里,别塞正文):
-  - Release 页:https://github.com/xinzhuzi/myia/releases/tag/v0.0.1
-  - dmg 直链:**发帖当日从 Release 页复制资产 URL**——2026-10-04 实测资产名
-    为 `shishi_0.0.1_aarch64.dmg`(发布时仓库短暂用旧名,定名终局 myssia 后
-    未重发;禁止手改文件名拼链,以页面为准)
+  - 取包页:https://zhuzibaijia.online/
+  - dmg 直链:**发帖当日从取包页复制实际资产 URL**(禁止手改文件名拼链,以页面为准)
   - Docker:`docker pull ghcr.io/xinzhuzi/myia:0.0.1`(0.0.1 的镜像 tag 落在
     发布时的旧仓名下;仓库已定名回 myia,后续版本镜像在
     `ghcr.io/xinzhuzi/myia`)
