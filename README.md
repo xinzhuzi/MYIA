@@ -405,6 +405,21 @@ v0.0.1 起随 Releases 交付);桌面卡片内反馈按钮、设置反馈开关�
 
 **世事 帮到你的话,给仓库点个 ⭐ Star —— 纯开源项目最有效的支持方式,也让更多人看到它。**
 
+<table>
+<tr>
+<td align="center" width="50%">
+<img src="docs/assets/wechat-group-ai-token.png" width="250" alt="AI 中转站微信群二维码" />
+<br/><b>群聊:AI中转站 -♾️ AI Token</b>
+<br/><sub>聊需求、报问题、看别人怎么用。群二维码 11 月 5 日前有效,过期请走右边加我。</sub>
+</td>
+<td align="center" width="50%">
+<img src="docs/assets/wechat-personal-qr.jpg" width="250" alt="个人微信二维码" />
+<br/><b>加我本人</b>
+<br/><sub>定制品类、私有化部署、合作洽谈,直接说事。</sub>
+</td>
+</tr>
+</table>
+
 - Bug 与需求:[issue 模板](.github/ISSUE_TEMPLATE/)
 - 参与贡献:[CONTRIBUTING.md](CONTRIBUTING.md)
 - 安全策略与凭据处理设计:[SECURITY.md](SECURITY.md)

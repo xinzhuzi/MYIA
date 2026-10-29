@@ -437,6 +437,21 @@ An **AI API gateway** by the same author: [zhuzibaijia.online](https://zhuzibaij
 
 **If 世事 helps you, give the repo a ⭐ Star — the most effective way to support a pure open-source project, and how more people find it.**
 
+<table>
+<tr>
+<td align="center" width="50%">
+<img src="docs/assets/wechat-group-ai-token.png" width="250" alt="AI Token WeChat group QR code" />
+<br/><b>Group chat: AI中转站 -♾️ AI Token</b>
+<br/><sub>Requests, bug reports, and seeing how others use it. The group QR works until Nov 5 — after that, add me personally on the right.</sub>
+</td>
+<td align="center" width="50%">
+<img src="docs/assets/wechat-personal-qr.jpg" width="250" alt="Personal WeChat QR code" />
+<br/><b>Add me directly</b>
+<br/><sub>Custom categories, private deployment, partnerships — just state your business.</sub>
+</td>
+</tr>
+</table>
+
 - Bug reports & feature requests: [issue templates](.github/ISSUE_TEMPLATE/)
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Security policy & credential-handling design: [SECURITY.md](SECURITY.md)
