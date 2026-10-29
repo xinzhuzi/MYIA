@@ -12,8 +12,8 @@
 <img src="https://img.shields.io/badge/tests-6900%2B%20passing-2EA44F" alt="tests: 6900+ passing" />
 <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="python 3.11+" />
 <img src="https://img.shields.io/badge/license-MIT-3DA639" alt="MIT license" />
-<img src="https://img.shields.io/badge/status-v0.0.16%20released-2EA44F" alt="status: v0.0.16 released" />
-<img src="https://img.shields.io/github/downloads/xinzhuzi/MYIA/total?color=8B5CF6&label=downloads" alt="downloads" />
+<img src="https://img.shields.io/badge/status-v0.0.17%20released-2EA44F" alt="status: v0.0.17 released" />
+<img src="https://img.shields.io/pypi/v/myssia?color=2EA44F&label=PyPI" alt="PyPI: myssia 0.0.16" />
 </p>
 <p>
 <img src="https://img.shields.io/badge/fetch%20engines-6%20(L1%E2%80%93L6)-22D3EE" alt="6 fetch engines, L1–L6" />
@@ -145,31 +145,38 @@ Releases);Telegram/飞书回调接收已就绪)—— 负反馈持续
 
 ## 快速开始
 
-> 💡 本公开仓是**产品门面与素材仓**(README/文档/截图);一键安装请走上方 Releases 二进制,源码获取通道以仓库公告为准。
+> 💡 本公开仓是**产品门面与素材仓**(README/文档/截图),不含引擎源码;引擎以
+> PyPI 正式包分发(`myssia` wheel + sdist)。
 
 ```bash
-git clone https://github.com/xinzhuzi/MYIA.git
-cd MYIA
-uv sync                     # uv workspace(主口径):一并装好 myssia 与 myssia-classifier
-uv run myssia --version       # myssia 0.0.16
+pip install myssia "selectolax<1.0"   # 上界暂时要带,见下方实测注
+myssia --version                      # myssia 0.0.17
 ```
 
-> 本仓是 uv workspace(`myssia-classifier` 是 workspace 成员):裸 `pip install -e .`
-> 装不齐依赖,源码安装请用 `uv sync`;桌面用户直接用下方安装包,无需碰源码。
+> ⚠️ 实测注(2026-10-29,全新 venv):不带 `selectolax<1.0` 时 pip 会解析到
+> selectolax 1.0.2,而 1.0 起删除了 Modest 解析器(`selectolax.parser.HTMLParser`),
+> `myssia` 任何命令都在 import 期 `ImportError`;补上界后 `myssia --version` 正常输出。
+> 下个版本会把上界收进包内声明。桌面端不受影响(安装包自带自管 Python 与锁版清单)。
+> 源码正本随 PyPI sdist(`myssia-<版本>.tar.gz`)分发;`myssia-classifier` 是同作者的
+> 独立零依赖包,可单独 `pip install myssia-classifier`。
 
 重型采集引擎是可选 extras;缺引擎时沿梯子优雅降级,给出结构化
 `dependency_missing` 错误而不是崩溃:
 
 ```bash
-uv sync --extra crawl4ai    # L3 JS 渲染引擎
-uv sync --extra llm         # LLM 精评 / 事件聚合
-uv sync --extra table       # 表格还原(rapid_table:截图表格 → metadata.tables)
-uv sync --extra trafilatura # L2 正文兜底(无规则/规则失效源的单页正文抽取,MYIA_EXTRACT_FALLBACK=1 打开)
+pip install "myssia[crawl4ai]" "selectolax<1.0"    # L3 JS 渲染引擎
+pip install "myssia[llm]" "selectolax<1.0"         # LLM 精评 / 事件聚合
+pip install "myssia[table]" "selectolax<1.0"       # 表格还原(rapid_table:截图表格 → metadata.tables)
+pip install "myssia[trafilatura]" "selectolax<1.0" # L2 正文兜底(无规则/规则失效源的单页正文抽取,MYIA_EXTRACT_FALLBACK=1 打开)
 ```
+
+> extras 全清单(2026-10-29 从 0.0.16 包元数据实测读出):`all`、`apprise`、`browser`、
+> `crawl4ai`、`discourse`、`firecrawl`、`llm`、`scrapling`、`simplex`、`skyvern`、`table`、
+> `telethon`、`trafilatura`、`vision`。
 
 表格还原是自管 Python 环境的第一件**可选组件**:桌面端在 设置 → Python
 环境 用「表格还原」组件开关往自管环境装钉版组件(零重打包、镜像覆盖生效),
-品类 YAML 里以 `images.table: true` 开启;CLI 侧即上面的 `--extra table`。
+品类 YAML 里以 `images.table: true` 开启;CLI 侧即上面的 `myssia[table]`。
 缺装不阻管线(只降级写 `metadata.table_status`),`myssia doctor` 会以
 `table_dependency_missing` 提前披露。
 
@@ -221,15 +228,15 @@ push:
   - channel: stdout              # zero-credential local verification
 YAML
 
-uv run myssia test config/demo-min.yaml --json            # 试抓:不入库、不推送
-uv run myssia run config/demo-min.yaml --dry-run --json   # 全链演练,不推送
-uv run myssia run config/demo-min.yaml                    # 正式跑;--loop 常驻调度
+myssia test config/demo-min.yaml --json                # 试抓:不入库、不推送
+myssia run config/demo-min.yaml --dry-run --json       # 全链演练,不推送
+myssia run config/demo-min.yaml                        # 正式跑;--loop 常驻调度
 ```
 
 完整走读:[docs/zh/getting-started.md](docs/zh/getting-started.md)。
 
-> 桌面安装包见下方「下载安装」(经 [zhuzibaijia.online](https://zhuzibaijia.online/) 分发);CLI 用户按上文源码
-> 安装,PyPI 发布暂停中。
+> 桌面安装包见下方「下载安装」(经 [zhuzibaijia.online](https://zhuzibaijia.online/) 分发);CLI 用户按上文 `pip install`
+> 安装 —— PyPI 已上架(当前 0.0.16;0.0.1→0.0.16 共 14 版可回溯,sdist 内含完整源码)。
 
 ## 下载安装(桌面应用)
 

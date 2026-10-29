@@ -12,8 +12,8 @@
 <img src="https://img.shields.io/badge/tests-6900%2B%20passing-2EA44F" alt="tests: 6900+ passing" />
 <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="python 3.11+" />
 <img src="https://img.shields.io/badge/license-MIT-3DA639" alt="MIT license" />
-<img src="https://img.shields.io/badge/status-v0.0.16%20released-2EA44F" alt="status: v0.0.16 released" />
-<img src="https://img.shields.io/github/downloads/xinzhuzi/MYIA/total?color=8B5CF6&label=downloads" alt="downloads" />
+<img src="https://img.shields.io/badge/status-v0.0.17%20released-2EA44F" alt="status: v0.0.17 released" />
+<img src="https://img.shields.io/pypi/v/myssia?color=2EA44F&label=PyPI" alt="PyPI: myssia 0.0.16" />
 </p>
 <p>
 <img src="https://img.shields.io/badge/fetch%20engines-6%20(L1%E2%80%93L6)-22D3EE" alt="6 fetch engines, L1–L6" />
@@ -158,35 +158,42 @@ daemon), retention + auto-VACUUM, in-process scheduling.
 
 ## Quickstart
 
-> 💡 This public repo is the **product storefront** (README / docs / assets) — install via the release binaries above; a source-distribution channel will be announced here when available.
+> 💡 This public repo is the **product storefront** (README / docs / assets) — it carries no engine source; the engine ships as official PyPI packages (`myssia`, wheel + sdist).
 
 ```bash
-git clone https://github.com/xinzhuzi/MYIA.git
-cd MYIA
-uv sync                     # uv workspace (primary): installs myssia + myssia-classifier
-uv run myssia --version       # myssia 0.0.16
+pip install myssia "selectolax<1.0"   # the upper bound is temporary — see the note below
+myssia --version                      # myssia 0.0.17
 ```
 
-> This repo is a uv workspace (`myssia-classifier` is a workspace member): a bare
-> `pip install -e .` won't pull it in — install from source with `uv sync`;
-> desktop users can grab the installer below without touching the source.
+> ⚠️ Measured note (2026-10-29, fresh venv): without `selectolax<1.0`, pip resolves
+> selectolax 1.0.2, and 1.0 removed the Modest parser
+> (`selectolax.parser.HTMLParser`) — every `myssia` command then fails at import with
+> `ImportError`. With the bound in place `myssia --version` prints normally. The next
+> release folds the bound into the package metadata. Desktop users are unaffected (the
+> installer brings its own managed Python with a locked dependency list).
+> Full source ships in the PyPI sdist (`myssia-<version>.tar.gz`); `myssia-classifier`
+> is the same author's standalone zero-dependency package — `pip install myssia-classifier`.
 
 Heavy fetch engines are optional extras; a missing engine degrades gracefully
 down the ladder with a structured `dependency_missing` error instead of
 crashing:
 
 ```bash
-uv sync --extra crawl4ai    # L3 JS-rendered page engine
-uv sync --extra llm         # LLM enrich scoring / event aggregation
-uv sync --extra table       # table restore (rapid_table: screenshot tables → metadata.tables)
-uv sync --extra trafilatura # L2 article fallback (single-page body extraction for rule-less/revamped sources, MYIA_EXTRACT_FALLBACK=1 to enable)
+pip install "myssia[crawl4ai]" "selectolax<1.0"    # L3 JS-rendered page engine
+pip install "myssia[llm]" "selectolax<1.0"         # LLM enrich scoring / event aggregation
+pip install "myssia[table]" "selectolax<1.0"       # table restore (rapid_table: screenshot tables → metadata.tables)
+pip install "myssia[trafilatura]" "selectolax<1.0" # L2 article fallback (rule-less/revamped sources, enable with MYIA_EXTRACT_FALLBACK=1)
 ```
+
+> Full extras list as read from the 0.0.16 package metadata (2026-10-29):
+> `all`, `apprise`, `browser`, `crawl4ai`, `discourse`, `firecrawl`, `llm`, `scrapling`,
+> `simplex`, `skyvern`, `table`, `telethon`, `trafilatura`, `vision`.
 
 Table restore is the first **optional component** for the managed Python
 environment: on the desktop, the "table restore" switch under
 Settings → Python environment installs the pinned component into the managed
 environment (no repackaging, mirror overrides apply); categories opt in with
-`images.table: true`. CLI-side that's the `--extra table` above. A missing
+`images.table: true`. CLI-side that's the `myssia[table]` install above. A missing
 component never blocks the pipeline (it only degrades, writing
 `metadata.table_status`), and `myssia doctor` discloses it ahead of time as
 `table_dependency_missing`.
@@ -248,16 +255,17 @@ push:
   - channel: stdout              # zero-credential local verification
 YAML
 
-uv run myssia test config/demo-min.yaml --json            # trial fetch: no DB, no push
-uv run myssia run config/demo-min.yaml --dry-run --json   # full rehearsal, no push
-uv run myssia run config/demo-min.yaml                    # real run; add --loop for scheduling
+myssia test config/demo-min.yaml --json                # trial fetch: no DB, no push
+myssia run config/demo-min.yaml --dry-run --json       # full rehearsal, no push
+myssia run config/demo-min.yaml                        # real run; add --loop for scheduling
 ```
 
 Full walk-through: [docs/en/getting-started.md](docs/en/getting-started.md).
 
 > Desktop installers ship in "Download & install" below (distributed via
 > [zhuzibaijia.online](https://zhuzibaijia.online/));
-> CLI users install from source as above — PyPI publishing is paused.
+> CLI users install with `pip` as above — PyPI is live (currently 0.0.16; 14
+> releases from 0.0.1, and the sdist carries the full source).
 
 ## Download & install (desktop app)
 
