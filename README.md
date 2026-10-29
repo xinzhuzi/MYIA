@@ -150,7 +150,7 @@ Releases);Telegram/飞书回调接收已就绪)—— 负反馈持续
 
 ```bash
 pip install myssia "selectolax<1.0"   # 上界暂时要带,见下方实测注
-myssia --version                      # myssia 0.0.17
+myssia --version                      # 0.0.16 = PyPI 当前版(桌面安装包已发到 v0.0.17)
 ```
 
 > ⚠️ 实测注(2026-10-29,全新 venv):不带 `selectolax<1.0` 时 pip 会解析到
@@ -170,9 +170,10 @@ pip install "myssia[table]" "selectolax<1.0"       # 表格还原(rapid_table:�
 pip install "myssia[trafilatura]" "selectolax<1.0" # L2 正文兜底(无规则/规则失效源的单页正文抽取,MYIA_EXTRACT_FALLBACK=1 打开)
 ```
 
-> extras 全清单(2026-10-29 从 0.0.16 包元数据实测读出):`all`、`apprise`、`browser`、
+> extras 全清单(2026-10-29 从 0.0.16 包元数据实测读出,共 15 键):`all`、`apprise`、`browser`、
 > `crawl4ai`、`discourse`、`firecrawl`、`llm`、`scrapling`、`simplex`、`skyvern`、`table`、
-> `telethon`、`trafilatura`、`vision`。
+> `telethon`、`trafilatura`、`vision`,外加 `agent-reach`——它是有意的**空声明**(包内不装
+> 任何依赖,只为保留 `pip install myssia[agent-reach]` 词面,实际能力走外部 `agent-reach` CLI)。
 
 表格还原是自管 Python 环境的第一件**可选组件**:桌面端在 设置 → Python
 环境 用「表格还原」组件开关往自管环境装钉版组件(零重打包、镜像覆盖生效),

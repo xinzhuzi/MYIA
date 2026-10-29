@@ -2,12 +2,16 @@
 
 > **状态:草稿,已对齐 2026-10-04 终态,发布节奏由主人定。**
 >
-> 终态口径(2026-10-04 实核):定名 **myssia**(中文名:世事)· GitHub 仓库
-> `xinzhuzi/myia` · PyPI 双包 `myssia` / `myssia-classifier` 0.0.1 已上线(pip install myssia)
-> 在途——正文不写 `pip install`;v0.0.1 三形态 = 桌面 dmg(Release)+ Docker
-> 镜像(GHCR)+ PyPI 在途;Windows msi 构建管线已绿但 Release 页无 msi;
-> 五项新能力(cron / alert rules / ⌘K palette / server-side read state /
-> interaction batch)已合 main、随下个发布版交付,v0.0.1 安装包里没有。
+> Final facts as of 2026-10-29 (they supersede the 2026-10-04 snapshot used in the body below):
+> named **myssia** (中文名 世事) · storefront repo `xinzhuzi/myia`. **Both PyPI packages are
+> live** — `myssia` 0.0.16 (14 releases, 0.0.1→0.0.16) and `myssia-classifier` 0.0.16 (15);
+> the CLI installs with `pip install myssia "selectolax<1.0"` (the upper bound is still manual —
+> see the measured note in the storefront README). GitHub Release is at **v0.0.17** and carries
+> both the macOS dmg (9.6 MB) and the Windows msi (8.7 MB). Every "pending on PyPI / don't write
+> `pip install` / no msi in the Release / dmg 117 MB / source-only install" line in the body is
+> void; the five capabilities (cron / alert rules / ⌘K palette / server-side read state /
+> interaction batch) were on main when this was drafted — confirm against `CHANGELOG.md` and an
+> actual install whether the shipped build already contains them.
 
 > **发前必做:人工点开核实现行版规(下方版规信息均未经直接核实)。** 本写稿
 > 环境对 reddit 的全部抓取通道均被拒(WebFetch 与 curl 带 UA 请求 `.json` API
@@ -155,14 +159,19 @@ unread-first, collapsible sidebar).
 
 Honest status:
 
-- CLI install is **from source** for now (`git clone` + `uv sync` — the repo
-  is a uv workspace); the PyPI packages (`myssia` / `myssia-classifier`) are
-  pending registration + a manual release workflow. Full walk-through:
+- CLI install is one `pip` command: `pip install myssia "selectolax<1.0"` — both PyPI
+  packages are live (`myssia` 0.0.16 over 14 releases, `myssia-classifier` 0.0.16 over 15;
+  checked 2026-10-29). The `selectolax<1.0` upper bound still has to be typed by hand:
+  selectolax 1.0 dropped the Modest parser behind `selectolax.parser.HTMLParser`, so without
+  the bound every command fails at import (measured in a fresh venv; the next release folds
+  the bound into the package metadata). Full walk-through:
   [docs/en/getting-started.md](https://github.com/xinzhuzi/myia/blob/main/docs/en/getting-started.md)
-  (bilingual; the 中文 tree ships in-repo and tests keep both in sync).
-- The Windows msi builds green in CI — **build level only**: no installer
-  in Releases yet, no install smoke-tested.
-- 1300+ tests run in CI, none of them touching the real network.
+  (bilingual; note this repo is the storefront — docs and screenshots only, the source tree
+  ships in the PyPI sdist).
+- The Windows msi has been in Releases since v0.0.17 (8.7 MB, signed alongside the macOS dmg)
+  — **packaged, but we have not install-smoke-tested it yet**.
+- The test suite runs in CI without touching the real network (full-suite record 2026-10-29:
+  7058 passed / 0 failed; re-run `--collect-only` before quoting a number).
 
 Links:
 
@@ -198,14 +207,15 @@ PyPI 双包在途(登记未完成,现在 pip 装不了);装机首跑种子官方
 凭据演示件(GitHub 新星榜,一次免鉴权 API 调用),第一次点运行就出真数据;
 设置页走签名更新通道。五屏截图:仪表盘/信息流/源管理/日志/设置。
 
-发布后合入 main、随下个版本(如实:v0.0.1 安装包里没有):定时任务
+写稿时列在「发布后合入 main、随下个版本」的五项:定时任务
 `myssia cron`(自然语言排程 + 运行摘要定向投递)、告警规则、⌘K 命令面板、
-已读状态进服务端、feed 键盘流(j/k 导航/右键菜单/未读优先/侧栏折叠)。
+已读状态进服务端、feed 键盘流(j/k 导航/右键菜单/未读优先/侧栏折叠)——
+当前安装包(v0.0.17)是否已含,对着 `CHANGELOG.md` 与装机实测核过再写。
 
-如实说:CLI 目前源码安装(git clone + uv sync,uv workspace),PyPI 双包
-(`myssia` / `myssia-classifier`)登记在途;Windows msi 构建管线已绿(CI 验证
-run 产出工件)但 Release 页没有 Windows 包、装机未验证;CI 1300+ tests
-(README 徽章口径)never touch the real network。
+如实说:CLI 走 `pip install myssia "selectolax<1.0"`(PyPI 双包已上架到 0.0.16,2026-10-29
+实核;`selectolax<1.0` 上界暂需手带,原因见门面 README 实测注);Windows msi 自 v0.0.17 起
+已挂 Release(8.7 MB,带 `.sig`),但**装机实测未完成**;CI 测试零真实网络(10-29 全量记录
+7058 过 / 0 挂;门面 README 已摘除 CI 徽章,别再引「徽章口径」)。
 
 仓库 https://github.com/xinzhuzi/myia ,求建议:你会先拿它盯什么?
 

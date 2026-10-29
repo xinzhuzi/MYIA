@@ -70,41 +70,48 @@ push:
   - channel: stdout              # zero-credential channel; runs out of the box once configured
 ```
 
-### 1.2 From source (CLI / development)
+### 1.2 CLI install (PyPI)
 
 世事 is a pure-Python package (Python 3.11+) with zero heavy core
-dependencies. Note: the root package depends on the in-repo subpackage
-`myssia-classifier` (a uv workspace member, not published to PyPI), so
-installing from source requires `uv sync` — a bare `pip install -e .`
-cannot resolve that dependency and fails outright:
+dependencies. Official packages are on PyPI: `myssia` plus the same author's
+zero-dependency classifier `myssia-classifier` (the root package depends on
+it, so pip pulls it in).
 
 ```bash
-git clone https://github.com/xinzhuzi/myia
-cd shishi
-uv sync                     # the only from-source install (workspace deps resolve via uv alone)
-uv run myssia --version       # prints myssia x.y.z (the installed version)
+pip install myssia "selectolax<1.0"   # the bound is temporary: selectolax 1.0 dropped the Modest parser
+myssia --version                      # prints myssia x.y.z (the installed version)
 ```
+
+> ⚠️ Measured note (2026-10-29, fresh venv): without `selectolax<1.0` pip resolves
+> selectolax 1.0.2 and every `myssia` command fails at import with `ImportError`;
+> with the bound it works. The next release folds the bound into the metadata.
+
+**This storefront repo carries no engine source**, so cloning it does not give
+you an installable project. To read or change the source, take the sdist:
+`pip download --no-deps --no-binary :all: myssia`.
 
 Heavy fetch engines are optional extras. When one is missing the pipeline
 raises a structured `dependency_missing` error and keeps going down the
 degrade chain — it never crashes the run:
 
 ```bash
-uv sync --extra crawl4ai    # L3 JS-rendered page engine
-uv sync --extra llm         # enrich scoring / aggregate event merging (openai client)
-uv sync --extra table       # table restore (rapid_table: screenshot tables → metadata.tables)
-uv sync --extra trafilatura # L2 article fallback (single-page body extraction for rule-less/revamped sources, opt-in switch)
+pip install "myssia[crawl4ai]" "selectolax<1.0"    # L3 JS-rendered page engine
+pip install "myssia[llm]" "selectolax<1.0"         # enrich scoring / aggregate event merging (openai client)
+pip install "myssia[table]" "selectolax<1.0"       # table restore (rapid_table: screenshot tables → metadata.tables)
+pip install "myssia[trafilatura]" "selectolax<1.0" # L2 article fallback (single-page body extraction for rule-less/revamped sources, opt-in switch)
 ```
 
-There are twelve capability extras in total: `crawl4ai` / `scrapling` /
+Several keys can be pulled in one command (`pip install "myssia[trafilatura,llm]"` —
+verified 2026-10-29 in a fresh venv: installs 0.0.16 and brings both). There are
+thirteen capability extras in total: `crawl4ai` / `scrapling` /
 `firecrawl` / `skyvern` / `simplex` / `llm` / `vision` / `table` /
-`trafilatura` / `apprise` / `telethon` / `browser`; an `all` aggregate key
+`trafilatura` / `apprise` / `telethon` / `browser` / `discourse`; an `all` aggregate key
 installs six of them in one go (`crawl4ai` / `scrapling` / `firecrawl` /
 `skyvern` / `llm` / `browser` — `simplex`/`vision`/`table`/`trafilatura`/
-`apprise`/`telethon` are not part of it). `all` shares only the openai
+`apprise`/`telethon`/`discourse` are not part of it). `all` shares only the openai
 package with `vision` — the OCR engines
 (ocrmac / rapidocr with the onnxruntime backend) are not in `all`, so run
-`uv sync --extra vision` separately for image reading. Table restore has a
+`pip install "myssia[vision]"` separately for image reading. Table restore has a
 second install path on the desktop: the **"table restore" component switch
 under Settings → Python environment** installs the pinned component into
 the managed environment — no repackaging, mirror overrides apply.
@@ -113,8 +120,10 @@ Categories opt in with `images.table: true` (see the images section in the
 still runs — only table restore degrades silently, and `myssia doctor`
 surfaces a `table_dependency_missing` warning ahead of time. For an
 always-on server deployment use the compose form:
-`docker compose -f docker/docker-compose.yml up -d` (see
-`docker/README.md`).
+`docker compose -f docker/docker-compose.yml up -d` — the compose files ship in
+the sdist (after unpacking: `docker/docker-compose.yml`, `docker/README.md`,
+`docker/env.example`, all three verified inside the 0.0.16 package on
+2026-10-29); this storefront repo carries no `docker/` directory.
 
 **The trafilatura article-fallback switch (off by default)**: installing the
 extras only provides the capability — the environment variable
@@ -234,9 +243,9 @@ push:
 Three commands cover verify → rehearse → run:
 
 ```bash
-uv run myssia test config/demo-min.yaml --json            # trial-fetch each source, no push/storage
-uv run myssia run config/demo-min.yaml --dry-run --json   # full rehearsal, no push
-uv run myssia run config/demo-min.yaml                    # the first real run
+myssia test config/demo-min.yaml --json            # trial-fetch each source, no push/storage
+myssia run config/demo-min.yaml --dry-run --json   # full rehearsal, no push
+myssia run config/demo-min.yaml                    # the first real run
 ```
 
 - `myssia test --json` reports per source: `ok` (did the chain get data),
@@ -271,13 +280,13 @@ cp config/wool.example.yaml config/wool.yaml
 # 2. Edit config/wool.yaml: replace the https://EXAMPLE_FEED_N placeholders
 #    with sources of your own; credential slots are already env: / keychain:
 #    references — prepare the values as in section 2
-uv run myssia test config/wool.yaml --json   # trial-fetch; catches leftovers
-uv run myssia run config/wool.yaml            # the real run; --loop to stay resident
+myssia test config/wool.yaml --json   # trial-fetch; catches leftovers
+myssia run config/wool.yaml            # the real run; --loop to stay resident
 ```
 
 Every other template (stocks / ai-news / gpu-prices, …) works the same way.
 For a zero-credential taste first: the demo runs out of the box,
-`uv run myssia run config/myssia-demo.yaml`.
+`myssia run config/myssia-demo.yaml`.
 
 Or just tell an AI agent what you want — it reads the
 [plugin guide](write-a-plugin.md) (condensed version:

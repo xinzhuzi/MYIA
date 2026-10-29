@@ -19,7 +19,9 @@
 - [ ] 仓库链接、docs 链接、LICENSE(MIT)标注齐全;状态如实标注 alpha,不夸大成熟度
 - [ ] 采集伦理说清楚:默认尊重 robots.txt、限速礼貌,「真人验证+手机号」类源不碰(FAQ 有专节)
 - [ ] demo 动图已就位(`docs/demo/`,任务 10-01-v10-demo),且画面已脱敏
-- [ ] PyPI 包若尚未发布,安装命令统一用源码安装(git clone + uv sync),不写不可用的 `pip install myssia`
+- [ ] 安装命令以门面 README「快速开始」为准:PyPI 双包已上架,CLI 走
+      `pip install myssia "selectolax<1.0"`(10-04 稿里的「未上架 / 源码安装仅 uv」已作废)
+- [ ] 版本号、Release 资产、包体大小、GHCR 可 pull 的 tag——发帖当日重新实测,不抄旧稿数字
 
 ## 发出后:首周反馈汇总(验收项)
 

@@ -9,12 +9,12 @@
 > `docs/screenshots/`(dashboard.png / feed.png / sources.png / logs.png /
 > settings.png,均为 demo 插件真实抓取数据)。
 >
-> 终态口径(2026-10-04 实核):定名 myssia(中文名:世事)· GitHub 仓库
-> `xinzhuzi/myia` · PyPI 双包 `myssia` / `myssia-classifier` 0.0.1 已上线(pip install myssia)
-> 在途——现在不能写 `pip install`;v0.0.1 三形态 = 桌面 dmg(Release)+
-> Docker 镜像(GHCR)+ PyPI 在途;Windows msi 构建管线已绿但 Release 页
-> 无 msi;五项新能力(cron / 告警规则 / ⌘K 面板 / 读态服务端化 / 交互批)
-> 已合 main、随下个发布版交付,v0.0.1 安装包里没有。
+> 终态口径(2026-10-29 实核,取代正文的 10-04 快照):定名 myssia(中文名:世事)· 门面仓 `xinzhuzi/myia`。
+> **PyPI 双包已上架**:`myssia` 0.0.16(0.0.1→0.0.16 共 14 版)、`myssia-classifier` 0.0.16(15 版),
+> CLI 装法 `pip install myssia "selectolax<1.0"`(上界原因见门面 README 实测注)。
+> GitHub Release 已到 **v0.0.17**,macOS dmg(9.6 MB)与 Windows msi(8.7 MB)同挂。
+> 正文凡是「PyPI 未上架 / 别 pip install / Release 无 msi / dmg 117 MB / 源码安装仅 uv」的旧口径一律作废;
+> 五项新能力当前安装包是否已含,对着 `CHANGELOG.md` 与装机实测核一遍再发。
 
 ## 标题候选(选一)
 
@@ -36,9 +36,9 @@ webhook。直到把它拧成了一条流水线,索性开源——
 fetch → classify → dedup → analyze → enrich → push
 ```
 
-刚发布 v0.0.1(2026-10-03),三形态:桌面 macOS(Apple Silicon)安装包上了
-GitHub Releases(Windows msi 构建管线已绿、Release 页待挂)、Docker 双平台
-镜像上了 GHCR(amd64/arm64)、PyPI 双包登记在途;桌面端自这个版本起可日常
+最新是 v0.0.17:macOS(Apple Silicon)dmg 与 Windows msi 同挂
+GitHub Releases(装机实测待补)、Docker
+镜像在 GHCR(可 pull 的 tag 以包页当日实际列出为准)、PyPI 双包已上架(当前 0.0.16)。桌面端自 v0.0.1 起可日常
 使用。先讲设计,最后如实报告状态。
 
 核心设计:
@@ -110,26 +110,26 @@ push:
 
 **安装**:
 
-- 桌面(macOS Apple Silicon):从 https://zhuzibaijia.online/ 取 dmg(约 117 MB,
+- 桌面(macOS Apple Silicon):从 https://zhuzibaijia.online/ 取 dmg(v0.0.17 实测 9.6 MB,
   以取包页实际资产为准)。安装包没做 Apple
   公证(公证要付费开发者账号)——代码全开源、每个包由 GitHub Actions 公开
   构建、日志可溯;首次打开右键 →「打开」放行 Gatekeeper,之后正常双击。
-- CLI:仓库是 uv workspace,源码安装 `git clone` + `uv sync`
-  (`uv run myssia --version` → `myssia 0.0.1`)。
+- CLI:`pip install myssia "selectolax<1.0"` → `myssia --version` 出 `myssia 0.0.16`
+  (`selectolax<1.0` 上界暂时要带:selectolax 1.0 删了 Modest 解析器,不带上下任何命令
+  都在 import 期 `ImportError`;全新 venv 实测,下个版本收进包内声明)。
 
 **如实交底**(没做的事不吹):
 
-- PyPI 双包(`myssia` / `myssia-classifier`)登记在途——都未上架,现在别
-  `pip install`,CLI 安装只有源码 `uv sync` 一条路;
-- Windows:msi 构建管线已在 CI 跑绿(2026-10-04 验证 run 产出 msi 工件),
-  但 v0.0.1 Release 页没有 Windows 包、装机未验证——首个 Windows 安装包随
-  下个 Release,Windows 朋友暂时当没有;
+- `selectolax<1.0` 上界还得手带一阵(原因见上),包内声明收拢前别只写 `pip install myssia`;
+- Windows:v0.0.17 Release 已挂 msi(8.7 MB)+ 更新签名,但**装机实测未完成**——发贴前
+  自己装一遍,没装过就只写「已出包、装机待验」;
 - 桌面推送卡片里的反馈按钮还没随 v0.0.1 发出(已落地 main、随下个发布版
   交付;反馈闭环 CLI 现已可用);
 - 安装包未公证(上面说了,右键打开)。
 
-CI 全绿;1300+ 测试零真实网络(全部录制回放,README 徽章口径),当前工作树
-`pytest --collect-only` 实测 3604 个(2026-10-04)。
+CI 全绿;测试零真实网络(全部录制回放)。门面 README 已摘除 CI 徽章(门面仓无
+CI),别再引「徽章口径」;引擎侧全量 2026-10-29 记录 7058 过 / 0 挂,发贴前在源码树
+`--collect-only` 复核。
 
 链接:
 

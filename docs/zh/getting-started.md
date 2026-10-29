@@ -55,43 +55,49 @@ push:
   - channel: stdout              # 零凭据通道,环境配置完成即可开箱跑
 ```
 
-### 1.2 源码安装(CLI / 开发)
+### 1.2 CLI 安装(PyPI)
 
-世事 是纯 Python 包(Python 3.11+),核心零重依赖。注意:根包依赖同仓
-子包 `myssia-classifier`(uv workspace 成员,未发布 PyPI),源码安装只能走
-`uv sync`——裸 `pip install -e .` 解析不到该依赖,会直接失败:
+世事 是纯 Python 包(Python 3.11+),核心零重依赖。正式包已上架 PyPI:
+`myssia` 与同作者的零依赖分类器 `myssia-classifier`(根包依赖它,会一并拉起)。
 
 ```bash
-git clone https://github.com/xinzhuzi/myia
-cd shishi
-uv sync                     # 源码安装唯一走法(workspace 依赖仅 uv 可解析)
-uv run myssia --version       # 输出 myssia x.y.z(x.y.z 为实际安装版本)
+pip install myssia "selectolax<1.0"   # 上界暂时要带:selectolax 1.0 删了 Modest 解析器
+myssia --version                      # 输出 myssia x.y.z(实际安装版本)
 ```
+
+> ⚠️ 实测注(2026-10-29,全新 venv):不带 `selectolax<1.0` 时 pip 解析到 selectolax
+> 1.0.2,`myssia` 任何命令在 import 期即 `ImportError`;补上界后正常。下个版本会把
+> 上界收进包内声明。
+
+**本门面仓不含引擎源码**,`git clone` 本仓拿不到可安装的工程;要读或改源码就从
+sdist 取:`pip download --no-deps --no-binary :all: myssia`。
 
 重引擎按需装可选依赖,未安装时流水线会结构化报错(`dependency_missing`)
 并沿降级链继续,不会中断:
 
 ```bash
-uv sync --extra crawl4ai    # L3 JS 渲染引擎
-uv sync --extra llm         # enrich 精评 / aggregate 事件聚合(openai 客户端)
-uv sync --extra table       # 表格还原(rapid_table:截图表格 → metadata.tables)
-uv sync --extra trafilatura # L2 正文兜底(无规则/规则失效源的单页正文抽取,opt-in 开关)
+pip install "myssia[crawl4ai]" "selectolax<1.0"    # L3 JS 渲染引擎
+pip install "myssia[llm]" "selectolax<1.0"         # enrich 精评 / aggregate 事件聚合(openai 客户端)
+pip install "myssia[table]" "selectolax<1.0"       # 表格还原(rapid_table:截图表格 → metadata.tables)
+pip install "myssia[trafilatura]" "selectolax<1.0" # L2 正文兜底(无规则/规则失效源的单页正文抽取,opt-in 开关)
 ```
 
-能力 extras 共 12 个:`crawl4ai` / `scrapling` / `firecrawl` / `skyvern` /
-`simplex` / `llm` / `vision` / `table` / `trafilatura` / `apprise` /
-`telethon` / `browser`;另有 `all` 聚合键一键装其中六件(`crawl4ai` /
+多个键可以一次点齐(`pip install "myssia[trafilatura,llm]"`,2026-10-29 全新 venv
+实测装到 0.0.16 且两件都拉起)。能力 extras 共 13 个:`crawl4ai` / `scrapling` /
+`firecrawl` / `skyvern` / `simplex` / `llm` / `vision` / `table` / `trafilatura` /
+`apprise` / `telethon` / `browser` / `discourse`;另有 `all` 聚合键一键装其中六件(`crawl4ai` /
 `scrapling` / `firecrawl` / `skyvern` / `llm` / `browser`,
-`simplex`/`vision`/`table`/`trafilatura`/`apprise`/`telethon` 不在其内——
+`simplex`/`vision`/`table`/`trafilatura`/`apprise`/`telethon`/`discourse` 不在其内——
 `all` 只与 `vision` 共享 openai 一个包,看图双引擎
 ocrmac / rapidocr(+ onnxruntime 后端)不在 `all` 内,要看图请单装
-`uv sync --extra vision`。表格还原在桌面端还有第二条安装通道:
+`pip install "myssia[vision]"`。表格还原在桌面端还有第二条安装通道:
 **设置 → Python 环境的「表格还原」组件开关**——往自管环境装钉版组件,零重
 打包,镜像覆盖生效;品类里用 `images.table: true` 开启(schema 细节见
 [schema 参考](schema.md) 的 images 节)。缺装时品类照常跑,只是表格还原静默
 降级,`myssia doctor` 会出 `table_dependency_missing` 提前披露。
-生产长跑可用服务器形态:`docker compose -f docker/docker-compose.yml up -d`(见
-`docker/README.md`)。
+生产长跑可用服务器形态:`docker compose -f docker/docker-compose.yml up -d`——
+compose 文件随 sdist 分发(解包后 `docker/docker-compose.yml`、`docker/README.md`、
+`docker/env.example` 三件,2026-10-29 实测在包内),本门面仓不含 `docker/`。
 
 **trafilatura 正文兜底的开关(缺省关)**:装了 extras 只是具备能力,还需环境
 变量 `MYIA_EXTRACT_FALLBACK=1` 显式打开——static_html 引擎才会对「无 extract
@@ -191,9 +197,9 @@ push:
 三个命令走完「验证 → 演练 → 正式」:
 
 ```bash
-uv run myssia test config/demo-min.yaml --json            # 逐源试抓,不入库不推送
-uv run myssia run config/demo-min.yaml --dry-run --json   # 全链演练,不推送
-uv run myssia run config/demo-min.yaml                    # 正式跑一次
+myssia test config/demo-min.yaml --json            # 逐源试抓,不入库不推送
+myssia run config/demo-min.yaml --dry-run --json   # 全链演练,不推送
+myssia run config/demo-min.yaml                    # 正式跑一次
 ```
 
 - `myssia test --json` 逐源看:`ok`(拿到数据没有)、`engine`(实际选中引擎)、
@@ -219,13 +225,13 @@ cp config/wool.example.yaml config/wool.yaml
 
 # 2. 编辑 config/wool.yaml:把 https://EXAMPLE_FEED_N 占位换成本人自选源,
 #    凭据位模板里已写成 env: / keychain: 引用,按第 2 节备好即可
-uv run myssia test config/wool.yaml --json   # 逐源试抓,核占位是否换净
-uv run myssia run config/wool.yaml            # 正式跑;--loop 常驻调度
+myssia test config/wool.yaml --json   # 逐源试抓,核占位是否换净
+myssia run config/wool.yaml            # 正式跑;--loop 常驻调度
 ```
 
 其余模板(美股 `stocks` / AI 资讯 `ai-news` / 显卡行情 `gpu-prices` 等)
 同一走法。零凭据先体验:演示件 `myssia-demo` 开箱即跑,
-`uv run myssia run config/myssia-demo.yaml`。
+`myssia run config/myssia-demo.yaml`。
 
 也可以直接对 AI 说需求——agent 会读[插件开发指南](write-a-plugin.md)
 (速查版见 [skill/SKILL.md](../../skill/SKILL.md))现场生成品类 YAML,

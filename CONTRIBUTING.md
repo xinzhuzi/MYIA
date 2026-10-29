@@ -13,11 +13,16 @@ contributions should keep those two properties intact.
 Pure Python (3.11+), managed with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-git clone https://github.com/xinzhuzi/myia
-cd myssia
+pip download --no-deps --no-binary :all: myssia -d .   # 源码正本 = PyPI sdist(含 pyproject/uv.lock/tests)
+tar xzf myssia-0.0.16.tar.gz && cd myssia-0.0.16
 uv sync                                  # core + dev deps (+ optional extras as needed)
 uv run --no-sync python -m pytest -q     # full suite, zero real network
 ```
+
+> ⚠️ 本门面仓(`xinzhuzi/MYIA`)只放 README / 文档 / 截图,`git clone` 它拿不到下表的
+> `src/myssia/`;引擎源码正本随 PyPI sdist 分发(`myssia-<版本>.tar.gz`,2026-10-29 实测
+> 内含 `pyproject.toml`、`uv.lock`、`myssia/`、`myssia_classifier/`、`tests/`、`docker/`)。
+> Docs / 文案 / 截图类贡献就直接在门面仓提 PR,工程类以下表的源码树为准。
 
 Layout map / 目录速览:
 

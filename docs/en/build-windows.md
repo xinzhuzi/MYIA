@@ -19,15 +19,25 @@
 | WebView2 Runtime | Usually preinstalled on Win11 | If missing, the MSI installer auto-runs the download bootstrapper (needs network) |
 
 Network: GitHub / npm / PyPI / crates.io all work over a direct connection — no proxy
-or mirrors needed. If your git is configured for a local proxy, see [Pitfall 1](#common-pitfalls).
+or mirrors needed. If git or pip on your machine points at a local proxy, see [Pitfall 1](#common-pitfalls).
 
-## 1. Clone
+## 1. Get the Source Tree
+
+> ⚠️ This public repo (`xinzhuzi/MYIA`) is the storefront — README / docs / screenshots
+> only. Cloning it gives you no `desktop/` and no `src/myssia/`, so the steps below cannot
+> start. The authoritative source tree ships in the PyPI sdist; take it from there:
 
 ```bat
-git clone https://github.com/xinzhuzi/myia.git D:\dev\myia
+mkdir D:\dev
+pip download --no-deps --no-binary :all: myssia -d D:\dev
+tar -xzf D:\dev\myssia-0.0.16.tar.gz -C D:\dev
+ren D:\dev\myssia-0.0.16 myia
 ```
 
-Any Git client works (GUI clients: use their bundled git).
+Replace `myssia-0.0.16.tar.gz` with the version the previous line just downloaded.
+`tar.exe` ships with Win10 1803+; without it use
+`python -m tarfile -e D:\dev\myssia-0.0.16.tar.gz D:\dev`. Every `D:\dev\myia` path below
+assumes this layout.
 
 ## 2. npm Dependencies (two places)
 
@@ -150,7 +160,7 @@ push:
 
 | # | Symptom | Cause | Fix |
 |---|---|---|---|
-| 1 | `git clone` fails with `Failed to connect to 127.0.0.1 port xxxx` | git is configured for a local proxy (`http.proxy` or a **URL-scoped** `http."https://github.com/".proxy`) but the proxy process is not running | Per-command empty override, leaving machine config untouched: `git -c http.proxy= -c http.https://github.com/.proxy= clone …`. Note the **URL-scoped setting wins over the global one, so the override key must match the scope**; alternatively start your proxy |
+| 1 | `git clone` or `pip download` fails with `Failed to connect to 127.0.0.1 port xxxx` | A local proxy is configured (git: `http.proxy` or a **URL-scoped** `http."https://github.com/".proxy`; environment: `HTTP(S)_PROXY` / `ALL_PROXY`) but the proxy process is not running | git: per-command empty override, leaving machine config untouched — `git -c http.proxy= -c http.https://github.com/.proxy= clone …`; note the **URL-scoped setting wins over the global one, so the override key must match the scope**. pip: clear the variables in the same cmd window — `set HTTP_PROXY=& set HTTPS_PROXY=& set ALL_PROXY=` — and retry. Alternatively start your proxy |
 | 2 | WiX/`light.exe` errors at the end of bundling | non-ASCII productName | The step-4 overlay (required) |
 | 3 | `npm run sidecar` prints a WSL error and exits | `bash` on PATH resolves to the WSL stub (no distro installed) | Prepend Git Bash per-command: `set "PATH=C:\Program Files\Git\bin;%PATH%"` (included in step 5) |
 | 4 | Sidecar packaging stalls for minutes | PyInstaller onefile being first-scanned by Defender | Just wait — not a failure |

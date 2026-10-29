@@ -5,10 +5,12 @@
 > 文件上传(外链图不渲染),链接放结尾一条 + 评论区置顶。话题标签以站内实际
 > 存在的为准(如 #开源 #独立开发 #AI效率工具,发前搜索确认),勿堆 tag。
 >
-> 终态口径(2026-10-04 实核):定名 myssia(中文名:世事)· GitHub 仓库
-> `xinzhuzi/myia` · PyPI 双包 `myssia` / `myssia-classifier` 0.0.1 已上线(pip install myssia)
-> 在途——现在不能写 `pip install`;v0.0.1 三形态 = 桌面 dmg(Release)+ Docker
-> 镜像(GHCR)+ PyPI 在途;Windows msi 构建管线已绿但 Release 页无 msi。
+> 终态口径(2026-10-29 实核,取代正文的 10-04 快照):定名 myssia(中文名:世事)· 门面仓 `xinzhuzi/myia`。
+> **PyPI 双包已上架**:`myssia` 0.0.16(0.0.1→0.0.16 共 14 版)、`myssia-classifier` 0.0.16(15 版),
+> CLI 装法 `pip install myssia "selectolax<1.0"`(上界原因见门面 README 实测注)。
+> GitHub Release 已到 **v0.0.17**,macOS dmg(9.6 MB)与 Windows msi(8.7 MB)同挂。
+> 正文凡是「PyPI 未上架 / 别 pip install / Release 无 msi / dmg 117 MB / 源码安装仅 uv」的旧口径一律作废,
+> 发贴前以门面 README「快速开始」与 `docs/zh/getting-started.md` 为准逐条复核。
 
 ## 文案(正文 1019 字符(含空白)/去空白 886/CJK+全角 501——2026-10-04 终态版实测,即刻上限够用;嫌长可拆两条——① 到「CLI」段为止,② 从「最想推的点」起到结尾)
 
@@ -23,8 +25,9 @@
 第一次点「运行」就出真数据,不用先填任何 key;设置页「检查更新」走签名更新
 通道。丑话说在前面:安装包没做 Apple 公证,首次打开需要右键 → 打开。
 
-爱命令行的走 CLI:clone + uv sync 就能跑(PyPI 双包登记在途,pip 暂时装不了);
-服务器长跑用 Docker——v0.0.1 双平台镜像(amd64/arm64)已经上了 GHCR。
+爱命令行的走 CLI:`pip install myssia "selectolax<1.0"` 就够(双包已在 PyPI 上架,当前
+0.0.16;上界暂时要带——selectolax 1.0 删了旧解析器,下个版本收进包内声明);
+服务器长跑用 Docker——镜像在 GHCR,能 pull 的 tag 以包页当日实际列出为准。
 
 最想推的点还是:YAML 都不用自己写。把内置的 Agent Skill 装进 Claude Code
 或 Cursor,说一句「帮我盯着 XX」,agent 照 12 节规范现场生成配置、试抓验证、
@@ -61,22 +64,22 @@ https://github.com/xinzhuzi/myia
     发布时的旧仓名下;仓库已定名回 myia,后续版本镜像在
     `ghcr.io/xinzhuzi/myia`)
   - CLI 三行:
-    `git clone https://github.com/xinzhuzi/myia && cd myia`
-    `uv sync`
-    `uv run myssia --version   # myssia 0.0.1`
+    `pip install myssia "selectolax<1.0"`
+    `myssia --version   # 0.0.16 = PyPI 当前版`
+    `myssia test <品类>.yaml --json`(品类怎么写见上手走读)
   - 上手走读:https://github.com/xinzhuzi/myia/blob/main/docs/zh/getting-started.md
 - 备答(全部如实口径,别替产品许愿):
   - 「和 RSSHub / changedetection.io 区别?」→ README「市面空白:为什么是
     世事」对比表,直接引(表格在远端 main 已存在)。
-  - 「有 Windows 吗?」→ Windows msi 构建管线已经在 CI 跑绿(验证 run 产出
-    msi 工件),但 v0.0.1 Release 页还没有 msi、装机没验证过;首个 Windows
-    安装包随下个 Release,现在不说「支持 Windows」。
-  - 「pip install 行吗?」→ 双包(`myssia` / `myssia-classifier`)登记在途,
-    现在请走 uv 源码路线。
+  - 「有 Windows 吗?」→ v0.0.17 Release 已挂 Windows msi(8.7 MB,带 `.sig`);如实补一句
+    装机实测还没跑完——自己没装过之前不说「Windows 已验证」。
+  - 「pip install 行吗?」→ 能,双包都在 PyPI(`myssia` 0.0.16 / `myssia-classifier` 0.0.16,
+    2026-10-29 实核);命令给全 `pip install myssia "selectolax<1.0"`,上界暂需手带
+    (原因见门面 README 实测注)。
   - 「桌面卡片里能标记有用/没用吗?」→ 卡片内按钮已随桌面对齐批次落地
     main、随下个发布版交付;反馈闭环现在 CLI 就能用。
-  - 「质量怎么保证?」→ CI 1300+ 测试(README 徽章口径,当前工作树 collect
-    实测 3604,2026-10-04),无一条碰真实网络。
+  - 「质量怎么保证?」→ 测试全在 CI 跑、零真实网络(2026-10-29 引擎侧全量记录
+    7058 过 / 0 挂;门面 README 已摘除 CI 徽章,别再说「徽章口径」)。
 
 ## 附:评论区可贴的最小品类(「配置就这么大」的实证;已过真实 schema 入口加载验证,与 README 快速开始同款)
 

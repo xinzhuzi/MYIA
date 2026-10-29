@@ -16,15 +16,23 @@
 | Rust(msvc) | `curl -L -o %TEMP%\rustup-init.exe https://win.rustup.rs/x86_64 && %TEMP%\rustup-init.exe -y --default-toolchain stable-x86_64-pc-windows-msvc` | 需 MSVC C++ 工具链:装过 Visual Studio(含 C++)或 VS Build With C++ 即可,rustup 自动探测复用;装完新开终端 `cargo --version` 验证,`rustc -vV` 的 `host:` 必须是 `x86_64-pc-windows-msvc` |
 | WebView2 Runtime | Win11 一般自带 | 缺失时 MSI 安装会自动走 downloadBootstrapper 下载安装(需联网) |
 
-网络:GitHub / npm / PyPI / crates.io 直连即可,无需代理与镜像。若你的 git 配了本地代理,见[坑 1](#常见坑速查)。
+网络:GitHub / npm / PyPI / crates.io 直连即可,无需代理与镜像。若你的 git / pip 配了本地代理,见[坑 1](#常见坑速查)。
 
-## 1. 克隆
+## 1. 取得源码树
+
+> ⚠️ 本门面仓(`xinzhuzi/MYIA`)只放 README / 文档 / 截图,`git clone` 它拿不到
+> `desktop/` 与 `src/myssia/`,下面的构建无从起步。引擎源码正本随 PyPI sdist 分发,从那里取:
 
 ```bat
-git clone https://github.com/xinzhuzi/myia.git D:\dev\myia
+mkdir D:\dev
+pip download --no-deps --no-binary :all: myssia -d D:\dev
+tar -xzf D:\dev\myssia-0.0.16.tar.gz -C D:\dev
+ren D:\dev\myssia-0.0.16 myia
 ```
 
-任何 Git 客户端均可(图形客户端就用其自带 git 克隆)。
+`myssia-0.0.16.tar.gz` 换成上一步刚下载到的版号。`tar.exe` 是 Win10 1803+ 自带的;
+没有它就用 `python -m tarfile -e D:\dev\myssia-0.0.16.tar.gz D:\dev`。
+下文所有 `D:\dev\myia` 路径以此为准。
 
 ## 2. npm 依赖(两处)
 
@@ -130,7 +138,7 @@ push:
 
 | # | 症状 | 原因 | 解法 |
 |---|---|---|---|
-| 1 | `git clone` 报 `Failed to connect to 127.0.0.1 port xxxx` | git 配了本地代理(`http.proxy` 或 **URL 级** `http."https://github.com/".proxy`)但代理进程没在跑 | 命令级空覆盖,不动机器配置:`git -c http.proxy= -c http.https://github.com/.proxy= clone …`。注意 **URL 级配置优先于全局,覆盖键必须同域**;或把你的代理开起来 |
+| 1 | `git clone` 或 `pip download` 报 `Failed to connect to 127.0.0.1 port xxxx` | 机器配了本地代理(git 侧 `http.proxy` 或 **URL 级** `http."https://github.com/".proxy`;env 侧 `HTTP(S)_PROXY` / `ALL_PROXY`)但代理进程没在跑 | git:命令级空覆盖,不动机器配置 `git -c http.proxy= -c http.https://github.com/.proxy= clone …`,注意 **URL 级配置优先于全局,覆盖键必须同域**;pip:在当前 cmd 里临时清空 `set HTTP_PROXY=& set HTTPS_PROXY=& set ALL_PROXY=` 再重试;或把你的代理开起来 |
 | 2 | 打包尾段 WiX/`light.exe` 报错 | productName 非 ASCII | 第 4 步 overlay(必须) |
 | 3 | `npm run sidecar` 打印 WSL 报错退出 | PATH 里的 `bash` 解析到 WSL 存根(机器未装发行版) | 命令级 `set "PATH=C:\Program Files\Git\bin;%PATH%"` 前置 Git Bash(第 5 步已含) |
 | 4 | sidecar 打包卡几分钟 | PyInstaller onefile 被 Defender 首扫 | 等待即可,非失败 |

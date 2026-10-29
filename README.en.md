@@ -162,7 +162,7 @@ daemon), retention + auto-VACUUM, in-process scheduling.
 
 ```bash
 pip install myssia "selectolax<1.0"   # the upper bound is temporary — see the note below
-myssia --version                      # myssia 0.0.17
+myssia --version                      # 0.0.16 = current on PyPI (desktop binaries are at v0.0.17)
 ```
 
 > ⚠️ Measured note (2026-10-29, fresh venv): without `selectolax<1.0`, pip resolves
@@ -185,9 +185,12 @@ pip install "myssia[table]" "selectolax<1.0"       # table restore (rapid_table:
 pip install "myssia[trafilatura]" "selectolax<1.0" # L2 article fallback (rule-less/revamped sources, enable with MYIA_EXTRACT_FALLBACK=1)
 ```
 
-> Full extras list as read from the 0.0.16 package metadata (2026-10-29):
+> Full extras list as read from the 0.0.16 package metadata (2026-10-29, 15 keys):
 > `all`, `apprise`, `browser`, `crawl4ai`, `discourse`, `firecrawl`, `llm`, `scrapling`,
-> `simplex`, `skyvern`, `table`, `telethon`, `trafilatura`, `vision`.
+> `simplex`, `skyvern`, `table`, `telethon`, `trafilatura`, `vision`, plus `agent-reach` —
+> a deliberately **empty** declaration that installs nothing and only keeps the
+> `pip install myssia[agent-reach]` spelling available (the capability itself lives in the
+> external `agent-reach` CLI).
 
 Table restore is the first **optional component** for the managed Python
 environment: on the desktop, the "table restore" switch under
