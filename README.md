@@ -13,7 +13,7 @@
 <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="python 3.11+" />
 <img src="https://img.shields.io/badge/license-MIT-3DA639" alt="MIT license" />
 <img src="https://img.shields.io/badge/status-v0.0.16%20released-2EA44F" alt="status: v0.0.16 released" />
-<img src="https://img.shields.io/github/downloads/xinzhuzi/shishi/total?color=8B5CF6&label=downloads" alt="downloads" />
+<img src="https://img.shields.io/github/downloads/xinzhuzi/MYIA/total?color=8B5CF6&label=downloads" alt="downloads" />
 </p>
 <p>
 <img src="https://img.shields.io/badge/fetch%20engines-6%20(L1%E2%80%93L6)-22D3EE" alt="6 fetch engines, L1–L6" />
@@ -79,7 +79,7 @@ YAML 本身由你的编码 agent 照规范现场生成:读 schema、写配置、
 
 🧠 **是情报,不只是爬虫**
 七大类关键词分类器(零 token,以独立包
-[`myssia-classifier`](myssia-classifier/) 发行)+ 可选 LLM 精评(价值/相关性/
+[`myssia-classifier`](https://pypi.org/project/myssia-classifier/) 发行)+ 可选 LLM 精评(价值/相关性/
 可信度 0–10)。阈值分级路由:score ≥ 8 立即推,≥ 5 进早晚摘要,其余归档。
 
 </td>

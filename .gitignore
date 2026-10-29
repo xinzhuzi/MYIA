@@ -1,0 +1,154 @@
+# ===== 安全红线:私有数据零上传 =====
+# 本仓库与 .trellis/ 都会公开;任何凭据、抓取数据、密钥文件不得入库。
+# MYIA 凭据只走 env:/keychain: 引用,配置文件出现明文凭据即拒跑(spec 铁律)。
+
+# ---- 密钥与凭据文件(防误拷入仓库)----
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.*
+# 例外:核心源码模块不叫"secrets 文件",必须入库(fresh clone / wheel 缺它即崩)
+!src/myssia/secrets.py
+.env
+.env.*
+.envrc
+
+# ---- 本地私有路径索引(真实姓名/内网拓扑,仅本机)----
+LOCAL-NOTES.md
+
+# ---- MYIA 运行时数据(抓取的情报内容属私有数据)----
+myssia.db
+# 改名过渡期旧缺省名落下的运行时库(桌面 serve 仓库 cwd 直跑),同零容忍口径
+/myia.db
+*.db-journal
+*.db-wal
+*.db-shm
+data/
+# 例外:随包分发的程序数据(prompt/关键词表)不是抓取数据,必须入库与进 wheel
+# (classify 词表已随 10-01-v10-classifier-pypi 拆去 myssia-classifier 包,例外同步删;
+#  模块改名后路径须跟 src/myssia,否则 hatchling 按 gitignore 吞数据文件进不了 wheel)
+!src/myssia/enrich/data/
+!myssia-classifier/myssia_classifier/data/
+# credhunter 指纹库数据(20 发现查询包 + 25 验证规格)同上:程序数据非抓取
+# 产物,fresh clone/CI 缺它即三 lane 启动全坏(10-03-aipocket-fusion R3)。
+!plugins/myssia-credhunter/credhunter/data/
+out/
+output/
+exports/
+backups/
+/logs/
+*.log
+# 场景插件运行时产物(osint 类插件的侦察情报:邮箱/密钥泄漏指纹等)
+# 与抓取数据同级零容忍:插件安装根可在仓库树内(repo 内 compose 副本原地跑、
+# MYIA_PLUGIN_DIR 指向仓库),loot/ 落进工作树就必须被防线覆盖。
+plugins/**/loot/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# ---- 工作流运行态(本机私有,勿提交;.zcode/workflows/ 保存的工作流除外)----
+.zcode/workflow-drafts/
+.zcode/workflow-runs/
+
+# ---- Node / 桌面端(desktop/ 是打包正式出处;构建产物可达 ~1GB,严禁入库)----
+node_modules/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/.venv-build/
+desktop/build-pyi/
+desktop/.pyinstaller-cache/
+desktop/ui/
+desktop/src-tauri/binaries/
+
+# ---- GitNexus 本地索引(知识图谱 DB,本机私有;WAL 损坏勿提交)----
+.gitnexus/
+# gitnexus analyze 的自动副作用副本:MYIA 用全局技能(~/.agents/skills)+ AGENTS.md,不提交
+# (将来要手写 CLAUDE.md 时,先移除下一行规则)
+.claude/
+CLAUDE.md
+
+# ---- 编辑器 / OS ----
+.idea/
+.vscode/
+.DS_Store
+*.bak
+*~
+Thumbs.db
+
+# ---- 冒烟运行态(本机私有,勿提交)----
+.zcode/smoke/
+
+# ---- 技能工具侧副本(本机私有,勿提交)----
+# .zcode/skills/ 下 trellis-* 系列是仓库内容(已跟踪,trellis 工作流件);
+# 其余(frontend-design/tauri/webapp-testing 等)是技能工具落盘的本地副本
+# (与 ~/.agents/skills 全局件同源),不入库——只挡副本,不误伤 trellis-*。
+.zcode/skills/*
+!.zcode/skills/trellis-*/
+
+# ---- 仓库根误落的运行时产物(防误提交)----
+# 消息屏目录/别名是运行态数据,正常应落数据根(MYIA_HOME);desktop serve 在
+# 仓库 cwd 下直跑时缺省写到仓库根——内容含真实平台 chat_id 与群名(私有
+# 标识,同 myssia.db 零容忍口径),且会随每次 discover 变化,严禁入库。
+/channel_aliases.json
+/channel_directory.json
+/channel_dead.json
+# credhunter 全文密钥库(指纹→原文,含真实密钥——比 channel_* 更敏感,
+# 零容忍口径同 myssia.db):正常应落数据根(MYIA_HOME),引擎缺省路径在仓库
+# cwd 直跑时会落仓库根,严禁入库(10-03-aipocket-fusion Q9)。
+/credhunter-keystore.json
+# 技能工具链的本地锁文件(本机技能版本快照,非仓库配置)
+/skills-lock.json
+# 安全审计(2026-10-28):Playwright MCP 会话产物落仓库根(console 日志/截图,
+# 含真实浏览 URL 与查询串,私有数据零上传口径同 channel_*)。
+/.playwright-mcp/
+# 同轮清理:像素自验截图与 codesign 指纹输出两类一次性残渣易再落根,直接挡。
+/overlay-verify.png
+/r
+# ---- 私有情报资产(主人令 10-28:做好的配置与 trellis 工作区不上公开仓)----
+/config/*
+!/config/*.example
+!/config/*.example.yaml
+!/config/myssia-demo.yaml
+!/config/searxng.yaml
+!/config/proxy-pools.yaml
+/.trellis/
+
+# ---- 装机包冒烟(e2e package smoke)运行产物 ----
+# package_smoke.py 的截图/日志输出目录(运行态证据,不入库;脚本本体在库)
+desktop/ui-src/e2e/artifacts/
+
+# ---- Trellis 任务 evidence(验收证据:截图/回执等,主人 2026-10-07 令留盘外)----
+# 只挡未跟踪新增;库里既有已跟踪 evidence 不受影响(gitignore 不作用于已跟踪文件)。
+# archive 侧实际路径带月份层(archive/<YYYY-MM>/<task>/evidence/),故用 ** 盖任意深度
+# (指令字面 .trellis/tasks/archive/*/evidence/ 的 * 只匹配一层,实测盖不住两层路径)。
+.trellis/tasks/*/evidence/
+.trellis/tasks/archive/**/evidence/
+
+# ---- 逆向研究 Ghidra 机械导出件(170MB/2.2MB 工作产物,结论留 research/ax-gate-hunt.md)----
+# 只挡符号/函数表 dump;md 档案与管线脚本照常入库。** 盖任务名与 archive 月份层。
+.trellis/tasks/**/research/wechat_arm64.dylib_symbols.json
+.trellis/tasks/**/research/wechat_arm64.dylib_functions.json
+plugins/wechat-bridge/bin/collector
+
+# 本机微信逆向会话一次性脚本残留(10-16~10-21,误提交风险)
+/Library/
+
+# 本机 MCP 客户端配置(机器局部,不入库)
+config/mcporter.json
+
+# ---- social preview 产出件(本机私有,待主人上传 GitHub Settings)----
+.zcode/social-preview-*.png
+.zcode/social-preview.html

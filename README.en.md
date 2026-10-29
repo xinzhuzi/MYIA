@@ -13,7 +13,7 @@
 <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="python 3.11+" />
 <img src="https://img.shields.io/badge/license-MIT-3DA639" alt="MIT license" />
 <img src="https://img.shields.io/badge/status-v0.0.16%20released-2EA44F" alt="status: v0.0.16 released" />
-<img src="https://img.shields.io/github/downloads/xinzhuzi/shishi/total?color=8B5CF6&label=downloads" alt="downloads" />
+<img src="https://img.shields.io/github/downloads/xinzhuzi/MYIA/total?color=8B5CF6&label=downloads" alt="downloads" />
 </p>
 <p>
 <img src="https://img.shields.io/badge/fetch%20engines-6%20(L1%E2%80%93L6)-22D3EE" alt="6 fetch engines, L1–L6" />
@@ -84,7 +84,7 @@ through the managed wechat-bridge component (off by default; see
 
 🧠 **Intelligence, not just crawling**
 A seven-category keyword classifier (zero tokens, shipped as the standalone
-[`myssia-classifier`](myssia-classifier/) package) plus optional LLM enrichment
+[`myssia-classifier`](https://pypi.org/project/myssia-classifier/) package) plus optional LLM enrichment
 scoring value / relevance / credibility 0–10. Thresholds route the result:
 score ≥ 8 pushes immediately, ≥ 5 waits for the AM/PM digest, the rest is
 archived.

@@ -1,0 +1,7 @@
+**演示情报 · 2026-10-02**(channel=stdout,换 feishu_card 即发飞书群)
+- [「萤火」开源大模型正式发布:70B 参数,中文评测登顶](http://127.0.0.1:8765/articles/2026/huguang-70b.html)
+- [智能体框架 MyiaFlow v2.0 上线:多智能体协作与工具编排](http://127.0.0.1:8765/articles/2026/myiaflow-v2.html)
+- [「湖光」推理引擎更新:7B 模型可离线跑在手机端](http://127.0.0.1:8765/articles/2026/huguang-infer.html)
+- [万象实验室多模态接口上线:图像理解能力正式商用](http://127.0.0.1:8765/articles/2026/wanxiang-multimodal.html)
+- [「星辰」发布量化工具链:消费级显卡可微调 30B 模型](http://127.0.0.1:8765/articles/2026/star-quant.html)
+- [湖光云上线智能体托管服务:按调用量计费,支持私有化部署](http://127.0.0.1:8765/articles/2026/lakeview-agent.html)
