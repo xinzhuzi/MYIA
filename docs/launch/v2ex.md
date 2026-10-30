@@ -12,7 +12,7 @@
 > 终态口径(2026-10-29 实核,取代正文的 10-04 快照):定名 myssia(中文名:世事)· 门面仓 `xinzhuzi/myia`。
 > **PyPI 双包已上架**:`myssia` 0.0.16(0.0.1→0.0.16 共 14 版)、`myssia-classifier` 0.0.16(15 版),
 > CLI 装法 `pip install myssia "selectolax<1.0"`(上界原因见门面 README 实测注)。
-> GitHub Release 已到 **v0.0.17**,macOS dmg(9.6 MB)与 Windows msi(8.7 MB)同挂。
+> GitHub Release 已到 **v0.0.19**,macOS dmg(9.6 MB)与 Windows msi(8.7 MB)同挂。
 > 正文凡是「PyPI 未上架 / 别 pip install / Release 无 msi / dmg 117 MB / 源码安装仅 uv」的旧口径一律作废;
 > 五项新能力当前安装包是否已含,对着 `CHANGELOG.md` 与装机实测核一遍再发。
 
@@ -36,7 +36,7 @@ webhook。直到把它拧成了一条流水线,索性开源——
 fetch → classify → dedup → analyze → enrich → push
 ```
 
-最新是 v0.0.17:macOS(Apple Silicon)dmg 与 Windows msi 同挂
+最新是 v0.0.19:macOS(Apple Silicon)dmg 与 Windows msi 同挂
 GitHub Releases(装机实测待补)、Docker
 镜像在 GHCR(可 pull 的 tag 以包页当日实际列出为准)、PyPI 双包已上架(当前 0.0.16)。桌面端自 v0.0.1 起可日常
 使用。先讲设计,最后如实报告状态。
@@ -110,7 +110,7 @@ push:
 
 **安装**:
 
-- 桌面(macOS Apple Silicon):从 https://zhuzibaijia.online/ 取 dmg(v0.0.17 实测 9.6 MB,
+- 桌面(macOS Apple Silicon):从 https://zhuzibaijia.online/ 取 dmg(v0.0.19 实测 9.6 MB,
   以取包页实际资产为准)。安装包没做 Apple
   公证(公证要付费开发者账号)——代码全开源、每个包由 GitHub Actions 公开
   构建、日志可溯;首次打开右键 →「打开」放行 Gatekeeper,之后正常双击。
@@ -121,7 +121,7 @@ push:
 **如实交底**(没做的事不吹):
 
 - `selectolax<1.0` 上界还得手带一阵(原因见上),包内声明收拢前别只写 `pip install myssia`;
-- Windows:v0.0.17 Release 已挂 msi(8.7 MB)+ 更新签名,但**装机实测未完成**——发贴前
+- Windows:v0.0.19 Release 已挂 msi(8.7 MB)+ 更新签名,但**装机实测未完成**——发贴前
   自己装一遍,没装过就只写「已出包、装机待验」;
 - 桌面推送卡片里的反馈按钮还没随 v0.0.1 发出(已落地 main、随下个发布版
   交付;反馈闭环 CLI 现已可用);

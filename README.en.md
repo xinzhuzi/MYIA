@@ -12,7 +12,7 @@
 <img src="https://img.shields.io/badge/tests-6900%2B%20passing-2EA44F" alt="tests: 6900+ passing" />
 <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white" alt="python 3.11+" />
 <img src="https://img.shields.io/badge/license-MIT-3DA639" alt="MIT license" />
-<img src="https://img.shields.io/badge/status-v0.0.17%20released-2EA44F" alt="status: v0.0.17 released" />
+<img src="https://img.shields.io/badge/status-v0.0.19%20released-2EA44F" alt="status: v0.0.19 released" />
 <img src="https://img.shields.io/pypi/v/myssia?color=2EA44F&label=PyPI" alt="PyPI: myssia 0.0.16" />
 </p>
 <p>

@@ -6,7 +6,7 @@
 > named **myssia** (中文名 世事) · storefront repo `xinzhuzi/myia`. **Both PyPI packages are
 > live** — `myssia` 0.0.16 (14 releases, 0.0.1→0.0.16) and `myssia-classifier` 0.0.16 (15);
 > the CLI installs with `pip install myssia "selectolax<1.0"` (the upper bound is still manual —
-> see the measured note in the storefront README). GitHub Release is at **v0.0.17** and carries
+> see the measured note in the storefront README). GitHub Release is at **v0.0.19** and carries
 > both the macOS dmg (9.6 MB) and the Windows msi (8.7 MB). Every "pending on PyPI / don't write
 > `pip install` / no msi in the Release / dmg 117 MB / source-only install" line in the body is
 > void; the five capabilities (cron / alert rules / ⌘K palette / server-side read state /
@@ -168,7 +168,7 @@ Honest status:
   [docs/en/getting-started.md](https://github.com/xinzhuzi/myia/blob/main/docs/en/getting-started.md)
   (bilingual; note this repo is the storefront — docs and screenshots only, the source tree
   ships in the PyPI sdist).
-- The Windows msi has been in Releases since v0.0.17 (8.7 MB, signed alongside the macOS dmg)
+- The Windows msi has been in Releases since v0.0.19 (8.7 MB, signed alongside the macOS dmg)
   — **packaged, but we have not install-smoke-tested it yet**.
 - The test suite runs in CI without touching the real network (full-suite record 2026-10-29:
   7058 passed / 0 failed; re-run `--collect-only` before quoting a number).
@@ -210,10 +210,10 @@ PyPI 双包在途(登记未完成,现在 pip 装不了);装机首跑种子官方
 写稿时列在「发布后合入 main、随下个版本」的五项:定时任务
 `myssia cron`(自然语言排程 + 运行摘要定向投递)、告警规则、⌘K 命令面板、
 已读状态进服务端、feed 键盘流(j/k 导航/右键菜单/未读优先/侧栏折叠)——
-当前安装包(v0.0.17)是否已含,对着 `CHANGELOG.md` 与装机实测核过再写。
+当前安装包(v0.0.19)是否已含,对着 `CHANGELOG.md` 与装机实测核过再写。
 
 如实说:CLI 走 `pip install myssia "selectolax<1.0"`(PyPI 双包已上架到 0.0.16,2026-10-29
-实核;`selectolax<1.0` 上界暂需手带,原因见门面 README 实测注);Windows msi 自 v0.0.17 起
+实核;`selectolax<1.0` 上界暂需手带,原因见门面 README 实测注);Windows msi 自 v0.0.19 起
 已挂 Release(8.7 MB,带 `.sig`),但**装机实测未完成**;CI 测试零真实网络(10-29 全量记录
 7058 过 / 0 挂;门面 README 已摘除 CI 徽章,别再引「徽章口径」)。
 

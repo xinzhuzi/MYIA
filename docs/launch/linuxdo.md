@@ -11,7 +11,7 @@
 > 终态口径(2026-10-29 实核,取代正文的 10-04 快照):定名 myssia(中文名:世事)· 门面仓 `xinzhuzi/myia`。
 > **PyPI 双包已上架**:`myssia` 0.0.16(0.0.1→0.0.16 共 14 版)、`myssia-classifier` 0.0.16(15 版),
 > CLI 装法 `pip install myssia "selectolax<1.0"`(上界原因见门面 README 实测注)。
-> GitHub Release 已到 **v0.0.17**,macOS dmg(9.6 MB)与 Windows msi(8.7 MB)同挂。
+> GitHub Release 已到 **v0.0.19**,macOS dmg(9.6 MB)与 Windows msi(8.7 MB)同挂。
 > 正文凡是「PyPI 未上架 / 别 pip install / Release 无 msi / dmg 117 MB / 源码安装仅 uv」的旧口径一律作废。
 > 五项新能力(cron / 告警规则 / ⌘K 面板 / 读态服务端化 / 交互批)写稿时在 main、当前安装包是否已含
 > 请对着 `CHANGELOG.md` 与装机实测核一遍再发;发贴口径以门面 README「快速开始」与
@@ -26,7 +26,7 @@
 
 先说清楚这是什么:一个开源自托管情报中枢 **世事**(技术名 **myssia**——发行名/CLI/Python 模块名一律 `myssia`,GitHub 仓库 `xinzhuzi/myia`;MIT,纯 Python 3.11+,SQLite 单文件,无守护进程)。所有「我想第一时间知道」的事——AI 资讯、股票异动、羊毛线报、显卡行情——都是一份 YAML 配置,流水线自动做采集 → 分类 → 去重 → 打分 → 推送(飞书卡片 / Telegram / webhook / stdout)。
 
-**当前版本 v0.0.17**:GitHub Release 同挂 macOS(Apple Silicon)dmg 与 Windows msi,带签名更新
+**当前版本 v0.0.19**:GitHub Release 同挂 macOS(Apple Silicon)dmg 与 Windows msi,带签名更新
 通道;Docker 镜像在 GHCR(可 pull 的 tag 以包页当日实际列出为准);PyPI 双包(`myssia` /
 `myssia-classifier`)已上架到 0.0.16,CLI 一条 `pip install` 就够。桌面、Docker、CLI 三条路都给,任选。
 
@@ -153,7 +153,7 @@ secret set` 管录入,值走 stdin 不进 shell history、不进日志、不进
 - CI 测试全绿(门面 README 已摘除 CI 徽章——门面仓无 CI,别再引「README 徽章口径」;
   引擎侧全量 2026-10-29 记录为 7058 过 / 0 挂,发贴前在源码树 `--collect-only` 复核),
   无一条碰真实网络;
-- macOS 桌面端 v0.0.1 起日常可用;**Windows 安装包已随 v0.0.17 挂 Release**(msi 8.7 MB
+- macOS 桌面端 v0.0.1 起日常可用;**Windows 安装包已随 v0.0.19 挂 Release**(msi 8.7 MB
   + `.sig`),但**装机实测仍未完成**——发贴前自己装一遍,没装过就别写「Windows 已验证」;
   CLI 在 Windows 上同样没验证过;
 - 桌面卡片内反馈按钮已随桌面对齐批次落地 main、随下个发布版交付(反馈闭环

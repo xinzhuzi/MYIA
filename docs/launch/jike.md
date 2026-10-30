@@ -8,7 +8,7 @@
 > 终态口径(2026-10-29 实核,取代正文的 10-04 快照):定名 myssia(中文名:世事)· 门面仓 `xinzhuzi/myia`。
 > **PyPI 双包已上架**:`myssia` 0.0.16(0.0.1→0.0.16 共 14 版)、`myssia-classifier` 0.0.16(15 版),
 > CLI 装法 `pip install myssia "selectolax<1.0"`(上界原因见门面 README 实测注)。
-> GitHub Release 已到 **v0.0.17**,macOS dmg(9.6 MB)与 Windows msi(8.7 MB)同挂。
+> GitHub Release 已到 **v0.0.19**,macOS dmg(9.6 MB)与 Windows msi(8.7 MB)同挂。
 > 正文凡是「PyPI 未上架 / 别 pip install / Release 无 msi / dmg 117 MB / 源码安装仅 uv」的旧口径一律作废,
 > 发贴前以门面 README「快速开始」与 `docs/zh/getting-started.md` 为准逐条复核。
 
@@ -71,7 +71,7 @@ https://github.com/xinzhuzi/myia
 - 备答(全部如实口径,别替产品许愿):
   - 「和 RSSHub / changedetection.io 区别?」→ README「市面空白:为什么是
     世事」对比表,直接引(表格在远端 main 已存在)。
-  - 「有 Windows 吗?」→ v0.0.17 Release 已挂 Windows msi(8.7 MB,带 `.sig`);如实补一句
+  - 「有 Windows 吗?」→ v0.0.19 Release 已挂 Windows msi(8.7 MB,带 `.sig`);如实补一句
     装机实测还没跑完——自己没装过之前不说「Windows 已验证」。
   - 「pip install 行吗?」→ 能,双包都在 PyPI(`myssia` 0.0.16 / `myssia-classifier` 0.0.16,
     2026-10-29 实核);命令给全 `pip install myssia "selectolax<1.0"`,上界暂需手带
